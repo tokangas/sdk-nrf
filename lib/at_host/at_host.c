@@ -61,7 +61,6 @@ static size_t at_buf_len;
 static struct k_work at_cmd_send_work;
 static struct k_thread socket_thread;
 static K_THREAD_STACK_DEFINE(socket_thread_stack, THREAD_STACK_SIZE);
-static struct k_mutex socket_mutex;
 
 
 static const char termination[3] = { '\0', '\r', '\n' };
@@ -72,9 +71,7 @@ static void at_cmd_send(struct k_work *work)
 
 	ARG_UNUSED(work);
 
-	k_mutex_lock(&socket_mutex, K_FOREVER);
 	bytes_sent = send(at_socket_fd, at_buf, at_buf_len, 0);
-	k_mutex_unlock(&socket_mutex);
 
 	if (bytes_sent <= 0) {
 		LOG_ERR("Could not send AT command to modem: %d", bytes_sent);
@@ -267,7 +264,6 @@ static int at_host_init(struct device *arg)
 		}
 	}
 
-	k_mutex_init(&socket_mutex);
 	k_work_init(&at_cmd_send_work, at_cmd_send);
 	k_thread_create(&socket_thread, socket_thread_stack,
 			K_THREAD_STACK_SIZEOF(socket_thread_stack),
