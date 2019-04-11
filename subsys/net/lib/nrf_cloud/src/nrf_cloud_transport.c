@@ -856,6 +856,43 @@ int nct_disconnect(void)
 
 void nct_process(void)
 {
-	mqtt_input(&nct.client);
-	mqtt_live();
+
+	size_t nfds = 1;
+	int err;
+	struct pollfd fds;
+
+	fds.fd = nct.client.transport.tls.sock;
+	fds.events = POLLIN;
+
+	while (1) {
+		err = poll(&fds, nfds, K_SECONDS(CONFIG_MQTT_KEEPALIVE));
+		if (err < 0) {
+			LOG_ERR("poll() error: %d\n", err);
+			break;
+		}
+
+		mqtt_live();
+
+		if ((fds.revents & POLLIN) == POLLIN) {
+			err = mqtt_input(&nct.client);
+			if (err != 0) {
+				LOG_ERR("ERROR: mqtt_input %d\n", err);
+				break;
+			}
+		}
+
+		if ((fds.revents & POLLERR) == POLLERR) {
+			LOG_ERR("POLLERR\n");
+			break;
+		}
+
+		if ((fds.revents & POLLNVAL) == POLLNVAL) {
+			LOG_ERR("POLLNVAL\n");
+			break;
+		}
+	}
+
+	/* Critical error has occured. Cleaning up before terminating thread. */
+	LOG_DBG("Disconnecting MQTT client...");
+	mqtt_disconnect(&nct.client);
 }
