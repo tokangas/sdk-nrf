@@ -171,7 +171,7 @@ static struct env_sensor *env_sensors[] = {
 static u8_t ua_pattern[10];
 static int buttons_to_capture;
 static int buttons_captured;
-static bool pattern_recording;
+static atomic_t pattern_recording;
 static struct k_sem user_assoc_sem;
 static bool recently_associated = false;
 
@@ -549,7 +549,7 @@ static void sensor_data_send(struct nrf_cloud_sensor_data *data)
 {
 	int err;
 
-	if (pattern_recording || !atomic_get(&send_data_enable)) {
+	if (atomic_get(&pattern_recording) || !atomic_get(&send_data_enable)) {
 		return;
 	}
 
@@ -568,10 +568,10 @@ static void sensor_data_send(struct nrf_cloud_sensor_data *data)
 /**@brief Callback for user association event received from nRF Cloud. */
 static void on_user_association_req(const struct nrf_cloud_evt *p_evt)
 {
-	if (!pattern_recording) {
+	if (!atomic_get(&pattern_recording)) {
 		k_sem_init(&user_assoc_sem, 0, 1);
 		display_state = LEDS_PATTERN_WAIT;
-		pattern_recording = true;
+		atomic_set(&pattern_recording, 1);
 		buttons_captured = 0;
 		buttons_to_capture = p_evt->param.ua_req.sequence.len;
 
@@ -649,6 +649,7 @@ static void cloud_event_handler(const struct nrf_cloud_evt *p_evt)
 	case NRF_CLOUD_EVT_USER_ASSOCIATED:
 		printk("NRF_CLOUD_EVT_USER_ASSOCIATED\n");
 		if (recently_associated) {
+			atomic_set(&pattern_recording, 0);
 			printk("Thingy:91 will now reboot to complete ");
 			printk("the association process to nRF Cloud\n");
 			error_handler(ERROR_NRF_CLOUD, 0);
@@ -819,7 +820,8 @@ static void button_handler(u32_t buttons, u32_t has_changed)
 {
 	static bool long_press_active;
 
-	if (pattern_recording && IS_ENABLED(CONFIG_CLOUD_UA_BUTTONS)) {
+	if (atomic_get(&pattern_recording) &&
+	    IS_ENABLED(CONFIG_CLOUD_UA_BUTTONS)) {
 		pairing_button_register(buttons, has_changed);
 		return;
 	}
@@ -884,7 +886,7 @@ static void button_handler(u32_t buttons, u32_t has_changed)
 /**@brief Processing of user inputs to the application. */
 static void console_thread_fn(void *arg1, void *arg2, void *arg3)
 {
-	if (!pattern_recording) {
+	if (!atomic_get(&pattern_recording)) {
 		return;
 	}
 
@@ -896,11 +898,9 @@ static void console_thread_fn(void *arg1, void *arg2, void *arg3)
 	static size_t chars_captured;
 	static char chars[12];
 
-	printk("Console thread ID: %p\n", k_current_get());
-
 	console_init();
 
-	while (true) {
+	while (atomic_get(&pattern_recording)) {
 		ret = console_getchar();
 		if (ret < 0) {
 			continue;
@@ -927,23 +927,22 @@ static void console_thread_fn(void *arg1, void *arg2, void *arg3)
 			}
 		}
 
-		if (buttons_captured < buttons_to_capture) {
-			continue;
+		if (buttons_captured == buttons_to_capture) {
+			atomic_set(&pattern_recording, 0);
 		}
-
-		cloud_user_associate();
-		pattern_recording = false;
-		chars_captured = 0;
-		memset(chars, 0, ARRAY_SIZE(chars));
-		recently_associated = true;
-
-		err = at_uart_init("UART_0");
-		if (err) {
-			error_handler(ERROR_AT_HOST, err);
-		}
-
-		return;
 	}
+
+	cloud_user_associate();
+	chars_captured = 0;
+	memset(chars, 0, ARRAY_SIZE(chars));
+	recently_associated = true;
+
+	err = at_uart_init("UART_0");
+	if (err) {
+		error_handler(ERROR_AT_HOST, err);
+	}
+
+	return;
 }
 
 static void console_thread_create(void)
