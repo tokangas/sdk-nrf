@@ -8,6 +8,19 @@
 #include <device.h>
 #include <uart.h>
 #include <nrfx_power.h>
+#include <nrfx.h>
+#include <string.h>
+
+/* Overriding weak function to set iSerial runtime. */
+u8_t *usb_update_sn_string_descriptor(void) {
+	static u8_t buf[13] = {0};
+
+	snprintk(buf, sizeof buf, "%04X%08X",
+		(uint32_t)(NRF_FICR->DEVICEADDR[1] & 0x0000FFFF)|0x0000C000,
+		(uint32_t)NRF_FICR->DEVICEADDR[0]);
+
+	return (u8_t *)&buf;
+}
 
 #define THREAD_STACKSIZE		1024
 #define UART_BUF_SIZE			58
@@ -76,7 +89,6 @@ static void uart_interrupt_handler(void *user_data)
 			   ((*rx)->buffer[(*rx)->len - 1] == '\0')) {
 				k_fifo_put(peer_dev_data->fifo, (*rx));
 				k_sem_give(&peer_dev_data->sem);
-				printk("Recv, %p len: %d\n", dev, (*rx)->len);
 
 				(*rx) = NULL;
 			}
@@ -105,8 +117,6 @@ static void uart_interrupt_handler(void *user_data)
 			 */
 		}
 
-		printk("Sent, %p len: %d of %d\n", dev, written, buf->len);
-
 		if (k_fifo_is_empty(dev_data->fifo)) {
 			uart_irq_tx_disable(dev);
 		}
@@ -128,7 +138,6 @@ void power_thread(void)
 void main(void)
 {
 	int ret;
-
 	struct serial_dev *usb_0_dev_data = &devs[0];
 	struct serial_dev *usb_1_dev_data = &devs[1];
 	struct serial_dev *uart_0_dev_data = &devs[2];
@@ -140,26 +149,22 @@ void main(void)
 		printk("CDC ACM device not found\n");
 		return;
 	}
-	printk("usb_0_dev: %p\n", usb_0_dev);
 
 	usb_1_dev = device_get_binding(CONFIG_CDC_ACM_PORT_NAME_1);
 	if (!usb_1_dev) {
 		printk("CDC ACM device not found\n");
 		return;
 	}
-	printk("usb_1_dev: %p\n", usb_1_dev);
 
 	uart_0_dev = device_get_binding("UART_0");
 	if (!uart_0_dev) {
 		printk("UART 0 init failed\n");
 	}
-	printk("uart_0_dev: %p\n", uart_0_dev);
 
 	uart_1_dev = device_get_binding("UART_1");
 	if (!uart_1_dev) {
 		printk("UART 1 init failed\n");
 	}
-	printk("uart_1_dev: %p\n", uart_1_dev);
 
 	usb_0_dev_data->dev = usb_0_dev;
 	usb_0_dev_data->fifo = &usb_0_tx_fifo;
