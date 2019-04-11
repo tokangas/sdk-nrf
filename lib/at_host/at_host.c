@@ -172,7 +172,7 @@ static void isr(struct device *dev)
 	}
 }
 
-static int at_uart_init(char *uart_dev_name)
+int at_uart_init(char *uart_dev_name)
 {
 	int err;
 

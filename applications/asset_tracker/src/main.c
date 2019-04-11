@@ -173,6 +173,7 @@ static int buttons_to_capture;
 static int buttons_captured;
 static bool pattern_recording;
 static struct k_sem user_assoc_sem;
+static bool recently_associated = false;
 
 /* Sensor data */
 static struct gps_data nmea_data;
@@ -195,11 +196,16 @@ static struct k_delayed_work long_press_button_work;
 static struct k_work device_status_work;
 static struct k_work rsrp_work;
 
+/* Console thread. */
+static struct k_thread console_thread;
+static K_THREAD_STACK_DEFINE(console_thread_stack, 1024);
+
 enum error_type {
 	ERROR_NRF_CLOUD,
 	ERROR_BSD_RECOVERABLE,
 	ERROR_BSD_IRRECOVERABLE,
-	ERROR_LTE_LC
+	ERROR_LTE_LC,
+	ERROR_AT_HOST
 };
 
 /* Forward declaration of functions */
@@ -210,11 +216,13 @@ static void sensors_init(void);
 static void work_init(void);
 static void sensor_data_send(struct nrf_cloud_sensor_data *data);
 static void leds_update(struct k_work *work);
+extern int at_uart_init(char *uart_dev_name);
+static void console_thread_create(void);
 
 /**@brief nRF Cloud error handler. */
 void error_handler(enum error_type err_type, int err_code)
 {
-	if (err_type == ERROR_NRF_CLOUD) {
+	if (err_type == ERROR_NRF_CLOUD || err_type == ERROR_AT_HOST) {
 		k_sched_lock();
 
 #if defined(CONFIG_LTE_LINK_CONTROL)
@@ -573,7 +581,7 @@ static void on_user_association_req(const struct nrf_cloud_evt *p_evt)
 			printk("using the buttons and switches\n");
 		} else if (IS_ENABLED(CONFIG_CLOUD_UA_CONSOLE)) {
 			printk("using the console\n");
-			console_init();
+			console_thread_create();
 		}
 	}
 }
@@ -619,6 +627,7 @@ void sensor_attached(void)
 	if (attached_sensors == ARRAY_SIZE(available_sensors)) {
 		atomic_set(&send_data_enable, 1);
 		sensors_init();
+		attached_sensors = 0;
 
 		if (IS_ENABLED(CONFIG_FLIP_POLL)) {
 			k_delayed_work_submit(&flip_poll_work, K_NO_WAIT);
@@ -639,6 +648,11 @@ static void cloud_event_handler(const struct nrf_cloud_evt *p_evt)
 		break;
 	case NRF_CLOUD_EVT_USER_ASSOCIATED:
 		printk("NRF_CLOUD_EVT_USER_ASSOCIATED\n");
+		if (recently_associated) {
+			printk("Thingy:91 will now reboot to complete ");
+			printk("the association process to nRF Cloud\n");
+			error_handler(ERROR_NRF_CLOUD, 0);
+		}
 		break;
 	case NRF_CLOUD_EVT_READY:
 		printk("NRF_CLOUD_EVT_READY\n");
@@ -866,16 +880,11 @@ static void button_handler(u32_t buttons, u32_t has_changed)
 }
 #endif /* defined(CONFIG_DK_LIBRARY) */
 
+
 /**@brief Processing of user inputs to the application. */
-static void input_process(void)
+static void console_thread_fn(void *arg1, void *arg2, void *arg3)
 {
 	if (!pattern_recording) {
-		return;
-	}
-
-	if (k_sem_take(&user_assoc_sem, K_NO_WAIT) == 0) {
-		cloud_user_associate();
-		pattern_recording = false;
 		return;
 	}
 
@@ -883,28 +892,67 @@ static void input_process(void)
 		return;
 	}
 
-	u8_t c[2];
+	int ret, err;
+	static size_t chars_captured;
+	static char chars[12];
 
-	c[0] = console_getchar();
-	c[1] = console_getchar();
+	printk("Console thread ID: %p\n", k_current_get());
 
-	if (c[0] == 'b' && c[1] == '1') {
-		printk("Button 1\n");
-		ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_3;
-	} else if (c[0] == 'b' && c[1] == '2') {
-		printk("Button 2\n");
-		ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_4;
-	} else if (c[0] == 's' && c[1] == '1') {
-		printk("Switch 1\n");
-		ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_1;
-	} else if (c[0] == 's' && c[1] == '2') {
-		printk("Switch 2\n");
-		ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_2;
+	console_init();
+
+	while (true) {
+		ret = console_getchar();
+		if (ret < 0) {
+			continue;
+		}
+		chars[chars_captured++] = ret;
+
+		if (chars_captured < buttons_to_capture * 2) {
+			continue;
+		}
+
+		for (size_t i = 0; i < chars_captured; i += 2) {
+			if (chars[i] == 'b' && chars[i + 1] == '1') {
+				printk("Button 1\n");
+				ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_3;
+			} else if (chars[i] == 'b' && chars[i + 1] == '2') {
+				printk("Button 2\n");
+				ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_4;
+			} else if (chars[i] == 's' && chars[i + 1] == '1') {
+				printk("Switch 1\n");
+				ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_1;
+			} else if (chars[i] == 's' && chars[i + 1] == '2') {
+				printk("Switch 2\n");
+				ua_pattern[buttons_captured++] = NRF_CLOUD_UA_BUTTON_INPUT_2;
+			}
+		}
+
+		if (buttons_captured < buttons_to_capture) {
+			continue;
+		}
+
+		cloud_user_associate();
+		pattern_recording = false;
+		chars_captured = 0;
+		memset(chars, 0, ARRAY_SIZE(chars));
+		recently_associated = true;
+
+		err = at_uart_init("UART_0");
+		if (err) {
+			error_handler(ERROR_AT_HOST, err);
+		}
+
+		return;
 	}
+}
 
-	if (buttons_captured == buttons_to_capture) {
-		k_sem_give(&user_assoc_sem);
-	}
+static void console_thread_create(void)
+{
+	k_thread_create(&console_thread, console_thread_stack,
+			K_THREAD_STACK_SIZEOF(console_thread_stack),
+			console_thread_fn,
+			NULL, NULL, NULL,
+			7, 0, K_NO_WAIT);
 }
 
 /**@brief Initializes and submits delayed work. */
@@ -1119,7 +1167,6 @@ void main(void)
 
 	while (true) {
 		nrf_cloud_process();
-		input_process();
 		k_sleep(K_MSEC(10));
 		/* Put CPU to idle to save power */
 		k_cpu_idle();
