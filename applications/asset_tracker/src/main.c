@@ -1165,10 +1165,6 @@ void main(void)
 	modem_configure();
 	cloud_connect(NULL);
 
-	while (true) {
-		nrf_cloud_process();
-		k_sleep(K_MSEC(10));
-		/* Put CPU to idle to save power */
-		k_cpu_idle();
-	}
+	nrf_cloud_process();
+	error_handler(ERROR_NRF_CLOUD, -EIO);
 }
