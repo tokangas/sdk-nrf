@@ -23,8 +23,16 @@ LOG_MODULE_REGISTER(board_nonsecure, CONFIG_BOARD_LOG_LEVEL);
 
 #define AT_CMD_TRACE		"AT%XMODEMTRACE=0"
 #define AT_CMD_TRACE_LEN	sizeof (AT_CMD_TRACE) - 1
+
+#if defined(CONFIG_BOARD_NRF9160_PCA20035NS_USE_LEGACY_MAGPIO)
 #define AT_CMD_MAGPIO		"AT%XMAGPIO=1,1,1,450,451,746,803,698,748," \
 				"824,894,880,960,1710,2200,791,849,1574,1577"
+#else
+#define AT_CMD_MAGPIO		"AT%XMAGPIO=1,1,1,7,1,746,803,2,698,748," \
+				"2,1710,2200,3,824,894,4,880,960,5,791,849," \
+				"7,1574,1577"
+#endif /* CONFIG_BOARD_NRF9160_PCA20035NS_LEGACY_MAGPIO */
+
 #define AT_CMD_MAGPIO_LEN	sizeof (AT_CMD_MAGPIO) - 1
 
 #ifdef CONFIG_BOARD_NRF9160_PCA20035_V0_2_2NS
@@ -36,8 +44,7 @@ static struct device *gpio_dev;
 
 static int pca20035_magpio_configure(void)
 {
-#if defined(CONFIG_BSD_LIBRARY) && \
-defined(CONFIG_NET_SOCKETS_OFFLOAD)
+#if defined(CONFIG_BSD_LIBRARY) && defined(CONFIG_NET_SOCKETS_OFFLOAD)
 	int at_socket_fd;
 	int buffer;
 	u8_t read_buffer[LC_MAX_READ_LENGTH];

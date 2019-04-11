@@ -10,6 +10,9 @@ config BOARD_NRF9160_PCA20035
 config BOARD_NRF9160_PCA20035NS
 	bool
 
+config BOARD_NRF9160_PCA20035NS_USE_LEGACY_MAGPIO
+	bool "Use legacy MAGPIO for HW v0.3.0"
+
 module=BOARD
 module-dep=LOG
 module-str=Log level for board
