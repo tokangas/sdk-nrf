@@ -1,0 +1,32 @@
+#
+# Copyright (c) 2019 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+#
+
+menuconfig MODEM_FOTA
+	bool "nRF91 modem FOTA library"
+	select BSD_LIBRARY
+	select AT_CMD_PARSER
+
+if MODEM_FOTA
+
+# Device Management host name
+
+# Device Management port number
+
+config MODEM_FOTA_UPDATE_CHECK_INTERVAL
+	int "Interval in minutes between modem firmware update checks"
+	default 20160
+	help
+	  Sets the time between modem firmware update checks. The default
+	  interval is 14 days (20160 minutes).
+
+config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
+	int "Maximum value in minutes for random component which is added to the update check interval."
+	default 1440
+	help
+	  For example if value is set to 1440 minutes, a random component between 0 and 24 hours
+	  is added to the firmware update check timer. If set to 0, no randomness is added.
+
+endif # MODEM_FOTA
