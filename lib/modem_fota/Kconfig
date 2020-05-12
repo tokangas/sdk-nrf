@@ -29,4 +29,9 @@ config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
 	  For example if value is set to 1440 minutes, a random component between 0 and 24 hours
 	  is added to the firmware update check timer. If set to 0, no randomness is added.
 
+config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
+	int "TLS is disabled by default firmware download. Set to security tag to use TLS for the firmware download."
+	depends on DOWNLOAD_CLIENT_TLS
+	default -1
+
 endif # MODEM_FOTA
