@@ -4,15 +4,18 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
+#include <string.h>
 #include <date_time.h>
 #include <zephyr.h>
 #include <logging/log.h>
+#include <power/reboot.h>
 #include <sys/timeutil.h>
 #include <settings/settings.h>
 #include <modem/at_cmd.h>
 #include <modem/at_cmd_parser.h>
 #include <modem/at_params.h>
 #include <modem/at_notif.h>
+#include <net/fota_download.h>
 
 LOG_MODULE_REGISTER(modem_fota, LOG_LEVEL_DBG); // TODO: Remove debug
 
@@ -36,31 +39,26 @@ K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 #define AT_XTIME_PARAMS_COUNT_MAX	4
 #define AT_XTIME_UNIVERSAL_TIME_INDEX	2
 #define AT_XTIME_UNIVERSAL_TIME_LEN	14
+#define AT_CGSN_IMEI_INDEX		1
+#define AT_CGMR_VERSION_INDEX		0
 
-static const char *const cereg_notif = "+CEREG";
-static const char *const xtime_notif = "\%XTIME";
+static const char * const cereg_notif = "+CEREG";
+static const char * const xtime_notif = "\%XTIME";
 
-// Zephyr timer has maximum duration of 24 days, we use at max. a 7 day timer
-#define MAX_TIMER_DURATION_S (7 * 24 * 60 * 60)
+// Currently the maximum timer duration is ~18h, so we'll use that
+#define MAX_TIMER_DURATION_S (18 * 60 * 60)
 
 // Network time (milliseconds since epoch) and timestamp when it was updated
-s64_t network_time;
-s64_t network_time_timestamp;
+static s64_t network_time;
+static s64_t network_time_timestamp;
 
 // Next scheduled update check time (seconds since epoch if network time is
 // valid, otherwise seconds since device start (uptime))
-s64_t update_check_time_s;
+static s64_t update_check_time_s;
 
-static void at_configure()
-{
-	int err;
-
-	// TODO: Should these be initialized by the library or not?
-	err = at_notif_init();
-	__ASSERT(err == 0, "AT command notifications could not be initialized.");
-	err = at_cmd_init();
-	__ASSERT(err == 0, "AT command interface could not be established.");
-}
+// Information needed to fetch the firmware update
+static char *fw_update_host;
+static char *fw_update_file;
 
 static void parse_network_time(const char *time_str)
 {
@@ -105,52 +103,67 @@ static void parse_network_time(const char *time_str)
 	network_time_timestamp = k_uptime_get();
 }
 
-static int parse_time_from_xtime_notification(const char *notif)
+static char *param_string_get(const char *str, int index)
 {
 	int err;
+	char *param_str = NULL;
+	size_t param_str_len;
 	struct at_param_list param_list = {0};
-	char time_str[AT_XTIME_UNIVERSAL_TIME_LEN + 1];
-	size_t time_str_len = AT_XTIME_UNIVERSAL_TIME_LEN;
 
-	err = at_params_list_init(&param_list, AT_XTIME_PARAMS_COUNT_MAX);
+	err = at_params_list_init(&param_list, index + 1);
 	if (err) {
-		LOG_ERR("Could not initialize AT params list, error: %d", err);
-		return err;
+		LOG_ERR("Could not initialize params list, error: %d", err);
+		return NULL;
 	}
 
-	err = at_parser_max_params_from_str(notif,
+	err = at_parser_max_params_from_str(str,
 					    NULL,
 					    &param_list,
-					    AT_XTIME_PARAMS_COUNT_MAX);
-	if (err) {
-		LOG_ERR("Could not parse XTIME response, error: %d", err);
+					    index + 1);
+	if (err && err != -E2BIG) {
+		LOG_ERR("Could not parse response, error: %d", err);
 		goto clean_exit;
 	}
+
+	err = at_params_size_get(&param_list, index, &param_str_len);
+	if (err) {
+		LOG_ERR("Could not get parameter length, error: %d", err);
+		goto clean_exit;
+	}
+
+	param_str = k_malloc(param_str_len + 1);
 
 	err = at_params_string_get(&param_list,
-				   AT_XTIME_UNIVERSAL_TIME_INDEX,
-				   time_str,
-				   &time_str_len);	
+				   index,
+				   param_str,
+				   &param_str_len);
 	if (err) {
-		LOG_ERR("Could not parse time, error: %d", err);
+		LOG_ERR("Could not get parameter, error: %d", err);
+		k_free(param_str);
+		param_str = NULL;
 		goto clean_exit;
 	}
 
-	time_str[time_str_len] = '\0';
-
-	if (time_str_len != AT_XTIME_UNIVERSAL_TIME_LEN) {
-		LOG_ERR("Invalid time string length, received string: %s",
-				log_strdup(time_str));
-		err = -1;
-		goto clean_exit;
-	}
-
-	parse_network_time(time_str);
+	param_str[param_str_len] = '\0';
 
 clean_exit:
 	at_params_list_free(&param_list);
 
-	return err;
+	return param_str;
+}
+
+static int parse_time_from_xtime_notification(const char *notif)
+{
+	char *time_str;
+
+	time_str = param_string_get(notif, AT_XTIME_UNIVERSAL_TIME_INDEX);
+	if (time_str != NULL) {
+		parse_network_time(time_str);
+		k_free(time_str);
+		return 0;
+	} else {
+		return -1;
+	}
 }
 
 static void unregister_at_xtime_notification()
@@ -167,12 +180,149 @@ static s64_t get_current_time_in_s()
 	return (k_uptime_get() - network_time_timestamp + network_time) / 1000;
 }
 
+static char *get_modem_imei()
+{
+	int err;
+	char response[32];
+
+	err = at_cmd_write("AT+CGSN=1", response, sizeof(response), NULL);
+	if (err) {
+		LOG_ERR("Could not execute +CGSN command, error: %d", err);
+		return NULL;
+	}
+
+	return param_string_get(response, AT_CGSN_IMEI_INDEX);
+}
+
+static char *get_modem_fw_version()
+{
+	int err;
+	char response[128];
+
+	err = at_cmd_write("AT+CGMR", response, sizeof(response), NULL);
+	if (err) {
+		LOG_ERR("Could not execute +CGMR command, error: %d", err);
+		return NULL;
+	}
+
+	return param_string_get(response, AT_CGMR_VERSION_INDEX);
+}
+
+static void free_fw_update_info()
+{
+	k_free(fw_update_host);
+	k_free(fw_update_file);
+	fw_update_host = NULL;
+	fw_update_file = NULL;
+}
+
+static const char firmware_host[] =
+	"vehoniemi.s3.amazonaws.com";
+static const char original_to_fota_firmware_name[] =
+	"mfw_nrf9160_update_from_1.2.0_to_1.2.0-FOTA-TEST.bin";
+static const char fota_to_original_firmware_name[] =
+	"mfw_nrf9160_update_from_1.2.0-FOTA-TEST_to_1.2.0.bin";
+
+// Temporary stub because we don't yet have the DM implementation
+static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
+		char **fw_update_host, char **fw_update_file)
+{
+	LOG_DBG("Querying for FW update");
+	LOG_DBG("Current FW version: %s", log_strdup(fw_version));
+
+	*fw_update_host = k_malloc(sizeof(firmware_host));
+	// Assuming the filenames have equal length
+	*fw_update_file = k_malloc(sizeof(original_to_fota_firmware_name));
+
+	if (*fw_update_host == NULL || *fw_update_file == NULL) {
+		free_fw_update_info();
+		return -ENOMEM;
+	}
+
+	strcpy(*fw_update_host, firmware_host);
+	if (strstr(fw_version, "FOTA") == NULL) {
+		// Original version, update to FOTA test version
+		strcpy(*fw_update_file, original_to_fota_firmware_name);
+	} else {
+		// FOTA test version, update to original version
+		strcpy(*fw_update_file, fota_to_original_firmware_name);
+	}
+
+	return 0;
+}
+
+static void fota_download_callback(const struct fota_download_evt *evt)
+{
+	switch (evt->id) {
+	case FOTA_DOWNLOAD_EVT_PROGRESS:
+		break;
+
+	case FOTA_DOWNLOAD_EVT_FINISHED:
+		free_fw_update_info();
+		schedule_next_update();
+
+		LOG_INF("Update downloaded, rebooting to apply the update");
+		k_sleep(K_SECONDS(1));
+		sys_reboot(SYS_REBOOT_WARM);
+		break;
+
+	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
+		LOG_INF("Erasing modem scratch area...");
+		break;
+
+	case FOTA_DOWNLOAD_EVT_ERASE_DONE:
+		LOG_INF("Modem scratch area erase done");
+		break;
+
+	case FOTA_DOWNLOAD_EVT_ERROR:
+	default:
+		free_fw_update_info();
+		schedule_next_update();
+		break;
+	}
+}
+
 static void start_update_check(struct k_work *item)
 {
-	LOG_INF("Starting update check");
+	char *imei;
+	char *fw_version;
 
-	// TODO: This should be done after the update check (and update)
-	schedule_next_update();
+	// TODO: LTE may not be connected when the check is started (or may be
+	// connected using NB-IoT)
+
+	imei = get_modem_imei();
+	fw_version = get_modem_fw_version();
+
+	if (imei == NULL || fw_version == NULL) {
+		LOG_ERR("Can't start update check");
+		goto clean_exit;
+	}
+
+	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host, &fw_update_file) != 0) {
+		LOG_DBG("Update check failed");
+		goto clean_exit;
+	}
+
+	if (fw_update_host == NULL || fw_update_file == NULL) {
+		LOG_DBG("No update available");
+	} else {
+		int err;
+
+		LOG_INF("Starting firmware update");
+
+		err = fota_download_start(
+			fw_update_host,
+			fw_update_file,
+			CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG);
+		if (err) {
+			LOG_ERR("Couldn't start FOTA download, error: %d", err);
+			schedule_next_update();
+		}
+	}
+
+clean_exit:
+	k_free(imei);
+	k_free(fw_version);
 }
 
 static bool is_update_scheduled()
@@ -182,9 +332,6 @@ static bool is_update_scheduled()
 
 static bool is_time_for_update_check()
 {
-	LOG_DBG("Next update check: %d", (s32_t)update_check_time_s);
-	LOG_DBG("Current time:      %d", (s32_t)get_current_time_in_s());
-
 	return update_check_time_s <= get_current_time_in_s();
 }
 
@@ -342,7 +489,12 @@ int modem_fota_init()
 
 	settings_init_and_load();
 
-	//at_configure();
+	err = fota_download_init(&fota_download_callback);
+	if (err) {
+		LOG_ERR("FOTA download library could not be initialized, error: %d", err);
+		return err;
+	}
+
 	register_at_notifications();
 
 	// TODO: Read IMSI
