@@ -19,6 +19,18 @@
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
+/* Enums */
+enum modem_reg_status {
+	MODEM_REG_STATUS_NOT_REGISTERED,
+	MODEM_REG_STATUS_HOME,
+	MODEM_REG_STATUS_ROAMING
+};
+
+enum modem_lte_mode {
+	MODEM_LTE_MODE_M,
+	MODEM_LTE_MODE_NB_IOT
+};
+
 /* Forward declarations */
 static void schedule_next_update();
 static void update_check_timer_handler(struct k_timer *dummy);
@@ -35,6 +47,8 @@ struct k_work update_work;
 K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 
 #define AT_CEREG_PARAMS_COUNT_MAX	10
+#define AT_CEREG_REG_STATUS_INDEX	1
+#define AT_CEREG_LTE_MODE_INDEX		4
 #define AT_XTIME_PARAMS_COUNT_MAX	4
 #define AT_XTIME_UNIVERSAL_TIME_INDEX	2
 #define AT_XTIME_UNIVERSAL_TIME_LEN	14
@@ -52,6 +66,9 @@ static modem_fota_callback_t event_callback;
 /* Network time (milliseconds since epoch) and timestamp when it was updated */
 static s64_t network_time;
 static s64_t network_time_timestamp;
+
+static enum modem_reg_status reg_status;
+static enum modem_lte_mode lte_mode;
 
 /* Next scheduled update check time (seconds since epoch if network time is
  * valid, otherwise seconds since device start (uptime))
@@ -152,6 +169,67 @@ clean_exit:
 	at_params_list_free(&param_list);
 
 	return param_str;
+}
+
+static int parse_cereg_notification(const char *notif)
+{
+	int err;
+	u32_t value;
+	struct at_param_list param_list = {0};
+
+	err = at_params_list_init(&param_list, AT_CEREG_PARAMS_COUNT_MAX);
+	if (err) {
+		LOG_ERR("Could not initialize params list, error: %d", err);
+		return err;
+	}
+
+	err = at_parser_max_params_from_str(notif,
+					    NULL,
+					    &param_list,
+					    AT_CEREG_PARAMS_COUNT_MAX);
+	if (err) {
+		LOG_ERR("Could not parse response, error: %d", err);
+		goto clean_exit;
+	}
+
+	/* Registration status */
+	err = at_params_int_get(&param_list,
+				AT_CEREG_REG_STATUS_INDEX,
+				&value);
+	if (err) {
+		LOG_ERR("Could not get registration status, error: %d", err);
+		goto clean_exit;
+	}
+
+	if (value == 1) {
+		reg_status = MODEM_REG_STATUS_HOME;
+	} else if (value == 5) {
+		reg_status = MODEM_REG_STATUS_ROAMING;
+	} else {
+		reg_status = MODEM_REG_STATUS_NOT_REGISTERED;
+	}
+
+	/* LTE mode */
+	err = at_params_int_get(&param_list,
+				AT_CEREG_LTE_MODE_INDEX,
+				&value);
+	if (err) {
+		LOG_ERR("Could not get LTE mode, error: %d", err);
+		goto clean_exit;
+	}
+
+	if (value == 7) {
+		lte_mode = MODEM_LTE_MODE_M;
+	} else if (value == 9) {
+		lte_mode = MODEM_LTE_MODE_NB_IOT;
+	} else {
+		LOG_WRN("Unknown LTE mode in +CEREG notification");
+	}
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	return err;
 }
 
 static int parse_time_from_xtime_notification(const char *notif)
@@ -432,7 +510,7 @@ static void at_notification_handler(void *context, const char *notif)
 	}
 
 	if (strncmp(cereg_notif, notif, sizeof(cereg_notif) - 1) == 0) {
-		/* TODO */
+		parse_cereg_notification(notif);
 	} else if (strncmp(xtime_notif, notif, sizeof(xtime_notif) - 1) == 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
 			/* Got network time, schedule next update */
