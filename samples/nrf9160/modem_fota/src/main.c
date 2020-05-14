@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Nordic Semiconductor ASA
+ * Copyright (c) 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
@@ -15,10 +15,32 @@
 #include <modem/at_notif.h>
 #include <modem/modem_fota.h>
 
-/**@brief Recoverable BSD library error. */
 void bsd_recoverable_error_handler(uint32_t err)
 {
 	printk("bsdlib recoverable error: %u\n", err);
+}
+
+void modem_fota_callback(enum modem_fota_evt_id event_id)
+{
+	switch (event_id) {
+	case MODEM_FOTA_EVT_CHECKING_FOR_UPDATE:
+		break;
+
+	case MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE:
+		break;
+
+	case MODEM_FOTA_EVT_DOWNLOADING_UPDATE:
+		break;
+
+	case MODEM_FOTA_EVT_RESTART_PENDING:
+		lte_lc_offline();
+		sys_reboot(SYS_REBOOT_WARM);
+		break;
+
+	case MODEM_FOTA_EVT_ERROR:
+	default:
+		break;
+	}
 }
 
 void main(void)
@@ -39,14 +61,12 @@ void main(void)
 	case MODEM_DFU_RESULT_AUTH_ERROR:
 		printk("Modem firmware update failed!\n");
 		printk("Modem will run non-updated firmware on reboot.\n");
-		// TODO: Is reboot the correct thing to do?
 		sys_reboot(SYS_REBOOT_WARM);
 		break;
 	case MODEM_DFU_RESULT_HARDWARE_ERROR:
 	case MODEM_DFU_RESULT_INTERNAL_ERROR:
 		printk("Modem firmware update failed!\n");
 		printk("Fatal error.\n");
-		// TODO: Is reboot the correct thing to do?
 		sys_reboot(SYS_REBOOT_WARM);
 		break;
 	case -1:
@@ -58,13 +78,16 @@ void main(void)
 	}
 	printk("Initialized bsdlib\n");
 
-	// Initialize AT command and notification libraries because
-	// CONFIG_BSD_LIBRARY_SYS_INIT is disabled and these libraries aren't
-	// initialized automatically
+	/* Initialize AT command and notification libraries because
+	 * CONFIG_BSD_LIBRARY_SYS_INIT is disabled and these libraries aren't
+	 * initialized automatically.
+	 */
 	at_cmd_init();
 	at_notif_init();
 
-	modem_fota_init();
+	modem_fota_init(&modem_fota_callback);
+
+	printk("Initialized modem FOTA library\n");
 
 	printk("LTE link connecting...\n");
 	err = lte_lc_init_and_connect();
