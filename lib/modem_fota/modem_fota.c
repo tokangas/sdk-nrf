@@ -8,7 +8,6 @@
 #include <date_time.h>
 #include <zephyr.h>
 #include <logging/log.h>
-#include <power/reboot.h>
 #include <sys/timeutil.h>
 #include <settings/settings.h>
 #include <modem/at_cmd.h>
@@ -16,14 +15,15 @@
 #include <modem/at_params.h>
 #include <modem/at_notif.h>
 #include <net/fota_download.h>
+#include <modem/modem_fota.h>
 
-LOG_MODULE_REGISTER(modem_fota, LOG_LEVEL_DBG); // TODO: Remove debug
+LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
-// Forward declarations
+/* Forward declarations */
 static void schedule_next_update();
 static void update_check_timer_handler(struct k_timer *dummy);
 
-// Work queue
+/* Work queue */
 #define WORK_QUEUE_STACK_SIZE 1024
 #define WORK_QUEUE_PRIORITY 5
 
@@ -32,7 +32,6 @@ K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
 struct k_work_q work_q;
 struct k_work update_work;
 
-// Timer
 K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 
 #define AT_CEREG_PARAMS_COUNT_MAX	10
@@ -45,18 +44,21 @@ K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 static const char * const cereg_notif = "+CEREG";
 static const char * const xtime_notif = "\%XTIME";
 
-// Currently the maximum timer duration is ~18h, so we'll use that
+/* Currently the maximum timer duration is ~18h, so we'll use that */
 #define MAX_TIMER_DURATION_S (18 * 60 * 60)
 
-// Network time (milliseconds since epoch) and timestamp when it was updated
+static modem_fota_callback_t event_callback;
+
+/* Network time (milliseconds since epoch) and timestamp when it was updated */
 static s64_t network_time;
 static s64_t network_time_timestamp;
 
-// Next scheduled update check time (seconds since epoch if network time is
-// valid, otherwise seconds since device start (uptime))
+/* Next scheduled update check time (seconds since epoch if network time is
+ * valid, otherwise seconds since device start (uptime))
+ */
 static s64_t update_check_time_s;
 
-// Information needed to fetch the firmware update
+/* Information needed to fetch the firmware update */
 static char *fw_update_host;
 static char *fw_update_file;
 
@@ -65,32 +67,32 @@ static void parse_network_time(const char *time_str)
 	struct tm date_time;
 	char temp[3] = {0};
 
-	// Year
+	/* Year */
 	temp[0] = time_str[1];
 	temp[1] = time_str[0];
 	date_time.tm_year = atoi(temp) + 2000 - 1900;
 
-	// Month
+	/* Month */
 	temp[0] = time_str[3];
 	temp[1] = time_str[2];
 	date_time.tm_mon = atoi(temp);
 
-	// Day
+	/* Day */
 	temp[0] = time_str[5];
 	temp[1] = time_str[4];
 	date_time.tm_mday = atoi(temp);
 
-	// Hour
+	/* Hour */
 	temp[0] = time_str[7];
 	temp[1] = time_str[6];
 	date_time.tm_hour = atoi(temp);
 
-	// Minute
+	/* Minute */
 	temp[0] = time_str[9];
 	temp[1] = time_str[8];
 	date_time.tm_min = atoi(temp);
 
-	// Second
+	/* Second */
 	temp[0] = time_str[11];
 	temp[1] = time_str[10];
 	date_time.tm_sec = atoi(temp);
@@ -223,7 +225,7 @@ static const char original_to_fota_firmware_name[] =
 static const char fota_to_original_firmware_name[] =
 	"mfw_nrf9160_update_from_1.2.0-FOTA-TEST_to_1.2.0.bin";
 
-// Temporary stub because we don't yet have the DM implementation
+/* Temporary stub because we don't yet have the DM implementation */
 static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
 		char **fw_update_host, char **fw_update_file)
 {
@@ -231,7 +233,7 @@ static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
 	LOG_DBG("Current FW version: %s", log_strdup(fw_version));
 
 	*fw_update_host = k_malloc(sizeof(firmware_host));
-	// Assuming the filenames have equal length
+	/* Assuming the filenames have equal length */
 	*fw_update_file = k_malloc(sizeof(original_to_fota_firmware_name));
 
 	if (*fw_update_host == NULL || *fw_update_file == NULL) {
@@ -241,10 +243,10 @@ static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
 
 	strcpy(*fw_update_host, firmware_host);
 	if (strstr(fw_version, "FOTA") == NULL) {
-		// Original version, update to FOTA test version
+		/* Original version, update to FOTA test version */
 		strcpy(*fw_update_file, original_to_fota_firmware_name);
 	} else {
-		// FOTA test version, update to original version
+		/* FOTA test version, update to original version */
 		strcpy(*fw_update_file, fota_to_original_firmware_name);
 	}
 
@@ -261,9 +263,8 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		free_fw_update_info();
 		schedule_next_update();
 
-		LOG_INF("Update downloaded, rebooting to apply the update");
-		k_sleep(K_SECONDS(1));
-		sys_reboot(SYS_REBOOT_WARM);
+		LOG_INF("Update downloaded, reboot needed to apply update");
+		event_callback(MODEM_FOTA_EVT_RESTART_PENDING);
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
@@ -277,6 +278,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 	case FOTA_DOWNLOAD_EVT_ERROR:
 	default:
 		free_fw_update_info();
+		event_callback(MODEM_FOTA_EVT_ERROR);
 		schedule_next_update();
 		break;
 	}
@@ -287,28 +289,36 @@ static void start_update_check(struct k_work *item)
 	char *imei;
 	char *fw_version;
 
-	// TODO: LTE may not be connected when the check is started (or may be
-	// connected using NB-IoT)
+	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
+
+	/* TODO: LTE may not be connected when the check is started (or may be
+	 * connected using NB-IoT)
+	 */
 
 	imei = get_modem_imei();
 	fw_version = get_modem_fw_version();
 
 	if (imei == NULL || fw_version == NULL) {
 		LOG_ERR("Can't start update check");
+		event_callback(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
 
 	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host, &fw_update_file) != 0) {
 		LOG_DBG("Update check failed");
+		event_callback(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
 
 	if (fw_update_host == NULL || fw_update_file == NULL) {
 		LOG_DBG("No update available");
+		event_callback(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
 	} else {
 		int err;
 
-		LOG_INF("Starting firmware update");
+		LOG_INF("Starting firmware download");
+
+		event_callback(MODEM_FOTA_EVT_DOWNLOADING_UPDATE);
 
 		err = fota_download_start(
 			fw_update_host,
@@ -316,6 +326,7 @@ static void start_update_check(struct k_work *item)
 			CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG);
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
+			event_callback(MODEM_FOTA_EVT_ERROR);
 			schedule_next_update();
 		}
 	}
@@ -368,7 +379,7 @@ static void calculate_next_update_check_time()
 	update_check_time_s = get_current_time_in_s() +
 			(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
 #if CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS > 0
-	// Add random variation to the update check interval
+	/* Add random variation to the update check interval */
 	update_check_time_s += sys_rand32_get() %
 		(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60);
 #endif
@@ -383,27 +394,29 @@ static void schedule_next_update()
 	if (first_time) {
 		first_time = false;
 
-		// Client is starting, check if next update check has already
-		// been scheduled
+		/* Client is starting, check if next update check has already
+		 * been scheduled
+		 */
 		if (is_update_scheduled()) {
-			// Check if the scheduled time has already passed
+			/* Check if the scheduled time has already passed */
 			if (is_time_for_update_check()) {
-				// Scheduled update check time has passed while
-				// device was powered off
+				/* Scheduled update check time has passed while
+				 * device was powered off
+				 */
 				LOG_DBG("Already past update check time");
 				start_update_check(NULL);
 			} else {
-				// Not yet time for next update check, start timer
+				/* Not yet time for next update check, start timer */
 				LOG_DBG("Not yet update check time, starting update check timer");
 				start_update_check_timer();
 			}
 		} else {
-			// Next update not yet scheduled
+			/* Next update not yet scheduled */
 			calculate_next_update_check_time();
 			start_update_check_timer();
 		}
 	} else {
-		// Schedule next update
+		/* Schedule next update */
 		calculate_next_update_check_time();
 		start_update_check_timer();
 	}
@@ -419,10 +432,10 @@ static void at_notification_handler(void *context, const char *notif)
 	}
 
 	if (strncmp(cereg_notif, notif, sizeof(cereg_notif) - 1) == 0) {
-		// TODO
+		/* TODO */
 	} else if (strncmp(xtime_notif, notif, sizeof(xtime_notif) - 1) == 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
-			// Got network time
+			/* Got network time, schedule next update */
 			unregister_at_xtime_notification();
 			schedule_next_update();
 		}
@@ -435,14 +448,14 @@ static int register_at_notifications()
 
 	at_notif_register_handler(NULL, at_notification_handler);
 
-	// +CEREG
+	/* +CEREG */
 	err = at_cmd_write("AT+CEREG=5", NULL, 0, NULL);
 	if (err) {
 		LOG_ERR("Failed to enable CEREG, error: %d", err);
 		return err;
 	}
 
-	// %XTIME
+	/* %XTIME */
 	err = at_cmd_write("AT\%XTIME=1", NULL, 0, NULL);
 	if (err) {
 		LOG_ERR("Failed to enable XTIME, error: %d", err);
@@ -479,9 +492,15 @@ static void settings_init_and_load()
     	settings_load();
  }
 
-int modem_fota_init()
+int modem_fota_init(modem_fota_callback_t callback)
 {
 	int err = 0;
+
+	if (callback == NULL) {
+		return -EINVAL;
+	}
+
+	event_callback = callback;
 
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
@@ -497,7 +516,7 @@ int modem_fota_init()
 
 	register_at_notifications();
 
-	// TODO: Read IMSI
+	/* TODO: Read IMSI */
 
 	LOG_DBG("Modem FOTA library initialized");
 

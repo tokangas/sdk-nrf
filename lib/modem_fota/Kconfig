@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019 Nordic Semiconductor
+# Copyright (c) 2020 Nordic Semiconductor ASA
 #
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
@@ -33,5 +33,10 @@ config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
 	int "TLS is disabled by default firmware download. Set to security tag to use TLS for the firmware download."
 	depends on DOWNLOAD_CLIENT_TLS
 	default -1
+
+module=MODEM_FOTA
+module-dep=LOG
+module-str=Modem Firmware Over the Air client
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
 endif # MODEM_FOTA
