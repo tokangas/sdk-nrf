@@ -32,8 +32,9 @@ enum modem_lte_mode {
 };
 
 /* Forward declarations */
-static void schedule_next_update();
 static void update_check_timer_handler(struct k_timer *dummy);
+static void schedule_next_update();
+static void at_notification_handler(void *context, const char *notif);
 
 /* Work queue */
 #define WORK_QUEUE_STACK_SIZE 1024
@@ -362,10 +363,27 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 	}
 }
 
+static bool is_update_check_allowed()
+{
+#if defined (CONFIG_MODEM_FOTA_DISABLE_DURING_ROAMING)
+	if (reg_status == MODEM_REG_STATUS_ROAMING) {
+		LOG_DBG("Roaming, update check not allowed");
+		return false;
+	}
+#endif
+	return true;
+}
+
 static void start_update_check(struct k_work *item)
 {
 	char *imei;
 	char *fw_version;
+
+	if (!is_update_check_allowed()) {
+		LOG_INF("Update check not currently allowed");
+		schedule_next_update();
+		return;
+	}
 
 	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
 
@@ -393,15 +411,20 @@ static void start_update_check(struct k_work *item)
 		event_callback(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
 	} else {
 		int err;
+		int sec_tag = -1;
 
 		LOG_INF("Starting firmware download");
 
 		event_callback(MODEM_FOTA_EVT_DOWNLOADING_UPDATE);
 
+#if defined (CONFIG_DOWNLOAD_CLIENT_TLS)
+		sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
+#endif
+
 		err = fota_download_start(
 			fw_update_host,
 			fw_update_file,
-			CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG);
+			sec_tag);
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
 			event_callback(MODEM_FOTA_EVT_ERROR);
@@ -500,9 +523,89 @@ static void schedule_next_update()
 	}
 }
 
+static bool prefix_matches_imsi(const char *imsi, char *prefix, int prefix_len)
+{
+	return strncmp(imsi, prefix, prefix_len) == 0 ? true : false;
+}
+
+static char * get_next_imsi_prefix(char **pos, int *prefix_len)
+{
+	char *temp_pos;
+	char *prefix_start;
+
+	temp_pos = *pos;
+	prefix_start = NULL;
+	*prefix_len = 0;
+	while (*temp_pos != '\0') {
+		if (*temp_pos == ',') {
+			/* The char is a comma */
+			if (prefix_start != NULL) {
+				/* End of a prefix */
+				break;
+			}
+		} else {
+			/* The char is not a comma */
+			if (prefix_start == NULL) {
+				/* Start of a prefix */
+				prefix_start = temp_pos;
+			}
+		}
+		temp_pos++;
+	}
+
+	if (prefix_start != NULL) {
+		/* Found a prefix, calculate its length */
+		*prefix_len = temp_pos - prefix_start;
+	}
+
+	/* Return the current position */
+	*pos = temp_pos;
+
+	return prefix_start;
+}
+
+static bool is_fota_disabled_with_usim()
+{
+	int err;
+	char imsi[15 + 2 + 1];
+	char *pos;
+	char *prefix;
+	int prefix_len;
+
+	if (strlen(CONFIG_MODEM_FOTA_DISABLE_IMSI_PREFIXES) == 0) {
+		return false;
+	}
+
+	err = at_cmd_write("AT+CIMI", imsi, sizeof(imsi), NULL);
+	if (err) {
+		LOG_ERR("Failed to request IMSI, error: %d", err);
+		return false;
+	}
+
+	pos = CONFIG_MODEM_FOTA_DISABLE_IMSI_PREFIXES;
+	while ((prefix = get_next_imsi_prefix(&pos, &prefix_len)) != NULL) {
+		if (prefix_matches_imsi(imsi, prefix, prefix_len)) {
+			LOG_INF("IMSI matches the disable prefix list");
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void disable_fota()
+{
+	at_notif_deregister_handler(NULL, at_notification_handler);
+	k_timer_stop(&update_check_timer);
+
+	LOG_INF("FOTA disabled");
+}
+
 static void at_notification_handler(void *context, const char *notif)
 {
 	ARG_UNUSED(context);
+
+	static bool first_cereg_notification = true;
 
 	if (notif == NULL) {
 		LOG_ERR("Notification buffer is a NULL pointer");
@@ -511,6 +614,16 @@ static void at_notification_handler(void *context, const char *notif)
 
 	if (strncmp(cereg_notif, notif, sizeof(cereg_notif) - 1) == 0) {
 		parse_cereg_notification(notif);
+		if (first_cereg_notification) {
+			first_cereg_notification = false;
+			/* After we've got the first CEREG notification
+			 * we can read the IMSI and check if FOTA needs to be
+			 * disabled with this USIM
+			 */
+			if (is_fota_disabled_with_usim()) {
+				disable_fota();
+			}
+		}
 	} else if (strncmp(xtime_notif, notif, sizeof(xtime_notif) - 1) == 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
 			/* Got network time, schedule next update */
@@ -594,9 +707,7 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	register_at_notifications();
 
-	/* TODO: Read IMSI */
-
-	LOG_DBG("Modem FOTA library initialized");
+	LOG_INF("FOTA Client initialized");
 
 	return err;
 }

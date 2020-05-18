@@ -23,16 +23,32 @@ config MODEM_FOTA_UPDATE_CHECK_INTERVAL
 	  interval is 14 days (20160 minutes).
 
 config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
-	int "Maximum value in minutes for random component which is added to the update check interval."
+	int "Maximum value in minutes for random component which is added to the update check interval"
 	default 1440
 	help
 	  For example if value is set to 1440 minutes, a random component between 0 and 24 hours
 	  is added to the firmware update check timer. If set to 0, no randomness is added.
 
 config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
-	int "TLS is disabled by default firmware download. Set to security tag to use TLS for the firmware download."
+	int "Security tag to use TLS for the firmware download"
 	depends on DOWNLOAD_CLIENT_TLS
 	default -1
+	help
+	  Security tag to be used for TLS connection for the firmware download. If set to -1, no TLS
+	  is used.
+
+config MODEM_FOTA_DISABLE_DURING_ROAMING
+	bool "Disable FOTA during roaming"
+	default n
+	help
+	  Disable FOTA when device is connected to a roaming network.
+
+config MODEM_FOTA_DISABLE_IMSI_PREFIXES
+	string "Comma separated list of USIM IMSI prefixes for which FOTA is disabled"
+	default ""
+	help
+	  Comma separated list of IMSI prefixes for USIMs for which FOTA is disabled. No whitespace
+	  is allowed in the string.
 
 module=MODEM_FOTA
 module-dep=LOG
