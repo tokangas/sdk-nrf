@@ -16,6 +16,7 @@
 #include <modem/at_notif.h>
 #include <net/fota_download.h>
 #include <modem/modem_fota.h>
+#include "modem_fota_internal.h"
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
@@ -32,8 +33,8 @@ enum modem_lte_mode {
 };
 
 /* Forward declarations */
-static void update_check_timer_handler(struct k_timer *dummy);
 static void schedule_next_update();
+static void update_check_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
 
 /* Work queue */
@@ -64,17 +65,26 @@ static const char * const xtime_notif = "\%XTIME";
 
 static modem_fota_callback_t event_callback;
 
-/* Network time (milliseconds since epoch) and timestamp when it was updated */
+/* Network time (milliseconds since epoch) and timestamp when it was got */
 static s64_t network_time;
 static s64_t network_time_timestamp;
 
+/* Current modem registration status and LTE mode */
 static enum modem_reg_status reg_status;
 static enum modem_lte_mode lte_mode;
 
-/* Next scheduled update check time (seconds since epoch if network time is
- * valid, otherwise seconds since device start (uptime))
- */
+/* FOTA is enabled by default */
+static bool fota_enabled = true;
+
+/* Settings which are saved to NV memory */
+/* Next scheduled update check time (seconds since epoch) */
 static s64_t update_check_time_s;
+/* Update check interval in minutes (if != 0 overrides the configured default) */
+static u32_t update_check_interval;
+/* DM server host name (if != NULL overrides the configured default) */
+static char *dm_server_host;
+/* DM server port number (if != 0 overrides the configured default) */
+static u16_t dm_server_port;
 
 /* Information needed to fetch the firmware update */
 static char *fw_update_host;
@@ -116,11 +126,16 @@ static void parse_network_time(const char *time_str)
 	date_time.tm_sec = atoi(temp);
 
 	LOG_DBG("Got network time: %d.%d.%d %02d:%02d:%02d",
-			date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
-			date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
+		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
+		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
 	network_time = (s64_t)timeutil_timegm64(&date_time) * 1000;
 	network_time_timestamp = k_uptime_get();
+}
+
+static bool is_network_time_valid()
+{
+	return network_time != 0 && network_time_timestamp != 0;
 }
 
 static char *param_string_get(const char *str, int index)
@@ -202,13 +217,12 @@ static int parse_cereg_notification(const char *notif)
 		goto clean_exit;
 	}
 
-	if (value == 1) {
+	if (value == 1)
 		reg_status = MODEM_REG_STATUS_HOME;
-	} else if (value == 5) {
+	else if (value == 5)
 		reg_status = MODEM_REG_STATUS_ROAMING;
-	} else {
+	else
 		reg_status = MODEM_REG_STATUS_NOT_REGISTERED;
-	}
 
 	/* LTE mode */
 	err = at_params_int_get(&param_list,
@@ -219,13 +233,12 @@ static int parse_cereg_notification(const char *notif)
 		goto clean_exit;
 	}
 
-	if (value == 7) {
+	if (value == 7)
 		lte_mode = MODEM_LTE_MODE_M;
-	} else if (value == 9) {
+	else if (value == 9)
 		lte_mode = MODEM_LTE_MODE_NB_IOT;
-	} else {
+	else
 		LOG_WRN("Unknown LTE mode in +CEREG notification");
-	}
 
 clean_exit:
 	at_params_list_free(&param_list);
@@ -298,15 +311,15 @@ static void free_fw_update_info()
 }
 
 static const char firmware_host[] =
-	"vehoniemi.s3.amazonaws.com";
+		"vehoniemi.s3.amazonaws.com";
 static const char original_to_fota_firmware_name[] =
-	"mfw_nrf9160_update_from_1.2.0_to_1.2.0-FOTA-TEST.bin";
+		"mfw_nrf9160_update_from_1.2.0_to_1.2.0-FOTA-TEST.bin";
 static const char fota_to_original_firmware_name[] =
-	"mfw_nrf9160_update_from_1.2.0-FOTA-TEST_to_1.2.0.bin";
+		"mfw_nrf9160_update_from_1.2.0-FOTA-TEST_to_1.2.0.bin";
 
 /* Temporary stub because we don't yet have the DM implementation */
 static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
-		char **fw_update_host, char **fw_update_file)
+				   char **fw_update_host, char **fw_update_file)
 {
 	LOG_DBG("Querying for FW update");
 	LOG_DBG("Current FW version: %s", log_strdup(fw_version));
@@ -365,12 +378,12 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 static bool is_update_check_allowed()
 {
-#if defined (CONFIG_MODEM_FOTA_DISABLE_DURING_ROAMING)
-	if (reg_status == MODEM_REG_STATUS_ROAMING) {
+	if (!IS_ENABLED(CONFIG_MODEM_FOTA_ALLOWED_DURING_ROAMING) &&
+	    reg_status == MODEM_REG_STATUS_ROAMING) {
 		LOG_DBG("Roaming, update check not allowed");
 		return false;
 	}
-#endif
+
 	return true;
 }
 
@@ -400,7 +413,8 @@ static void start_update_check(struct k_work *item)
 		goto clean_exit;
 	}
 
-	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host, &fw_update_file) != 0) {
+	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host,
+				    &fw_update_file) != 0) {
 		LOG_DBG("Update check failed");
 		event_callback(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
@@ -417,14 +431,11 @@ static void start_update_check(struct k_work *item)
 
 		event_callback(MODEM_FOTA_EVT_DOWNLOADING_UPDATE);
 
-#if defined (CONFIG_DOWNLOAD_CLIENT_TLS)
-		sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
-#endif
+		if (IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_TLS))
+			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
-		err = fota_download_start(
-			fw_update_host,
-			fw_update_file,
-			sec_tag);
+		err = fota_download_start(fw_update_host, fw_update_file,
+					  sec_tag);
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
 			event_callback(MODEM_FOTA_EVT_ERROR);
@@ -444,22 +455,20 @@ static bool is_update_scheduled()
 
 static bool is_time_for_update_check()
 {
-	return update_check_time_s <= get_current_time_in_s();
+	return get_current_time_in_s() >= update_check_time_s;
 }
 
 static void start_update_check_timer()
 {
 	s32_t duration_s;
 
-	if (is_update_scheduled()) {
+	if (is_update_scheduled())
 		duration_s = update_check_time_s - get_current_time_in_s();
-	} else {
+	else
 		duration_s = CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60;
-	}
 
-	if (MAX_TIMER_DURATION_S < duration_s) {
+	if (MAX_TIMER_DURATION_S < duration_s)
 		duration_s = MAX_TIMER_DURATION_S;
-	}
 
 	LOG_DBG("Starting timer for %d seconds", duration_s);
 
@@ -468,29 +477,70 @@ static void start_update_check_timer()
 
 static void update_check_timer_handler(struct k_timer *dummy)
 {
-	if (is_time_for_update_check()) {
+	if (is_time_for_update_check())
 		k_work_submit(&update_work);
-	} else {
+	else
 		start_update_check_timer();
+}
+
+static void save_update_check_time()
+{
+	settings_save_one("modem_fota/update_check_time",
+			  &update_check_time_s, sizeof(update_check_time_s));
+}
+
+static void save_update_check_interval()
+{
+	settings_save_one("modem_fota/update_check_interval",
+			  &update_check_interval,
+			  sizeof(update_check_interval));
+}
+
+static void save_dm_server_host()
+{
+	if (dm_server_host == NULL) {
+		settings_delete("modem_fota/dm_server_host");
+	} else {
+		settings_save_one("modem_fota/dm_server_host",
+				  dm_server_host, strlen(dm_server_host) + 1);
 	}
+}
+
+static void save_dm_server_port()
+{
+	settings_save_one("modem_fota/dm_server_port",
+			  &dm_server_port, sizeof(dm_server_port));
 }
 
 static void calculate_next_update_check_time()
 {
-	update_check_time_s = get_current_time_in_s() +
-			(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
-#if CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS > 0
-	/* Add random variation to the update check interval */
-	update_check_time_s += sys_rand32_get() %
-		(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60);
-#endif
-	settings_save_one("modem_fota/update_check_time",
-			&update_check_time_s, sizeof(update_check_time_s));
+	if (update_check_interval == 0) {
+		update_check_time_s = get_current_time_in_s() +
+				(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
+		if (CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS > 0) {
+			/* Add random variation to the update check interval */
+			update_check_time_s += sys_rand32_get() %
+					(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60);
+		}
+	} else {
+		/* Use value set through the Shell interface instead of the
+		 * configured default
+		 */
+		update_check_time_s = get_current_time_in_s() +
+				update_check_interval * 60;
+	}
+
+	save_update_check_time();
 }
 
 static void schedule_next_update()
 {
 	static bool first_time = true;
+
+	if (!fota_enabled || !is_network_time_valid()) {
+		/* FOTA is either disabled or we haven't got network time yet */
+		return;
+	}
 
 	if (first_time) {
 		first_time = false;
@@ -507,8 +557,11 @@ static void schedule_next_update()
 				LOG_DBG("Already past update check time");
 				start_update_check(NULL);
 			} else {
-				/* Not yet time for next update check, start timer */
-				LOG_DBG("Not yet update check time, starting update check timer");
+				/* Not yet time for next update check, start
+				 * timer
+				 */
+				LOG_DBG("Not yet update check time, " \
+					"starting update check timer");
 				start_update_check_timer();
 			}
 		} else {
@@ -528,7 +581,7 @@ static bool prefix_matches_imsi(const char *imsi, char *prefix, int prefix_len)
 	return strncmp(imsi, prefix, prefix_len) == 0 ? true : false;
 }
 
-static char * get_next_imsi_prefix(char **pos, int *prefix_len)
+static char *get_next_imsi_prefix(char **pos, int *prefix_len)
 {
 	char *temp_pos;
 	char *prefix_start;
@@ -572,9 +625,8 @@ static bool is_fota_disabled_with_usim()
 	char *prefix;
 	int prefix_len;
 
-	if (strlen(CONFIG_MODEM_FOTA_DISABLE_IMSI_PREFIXES) == 0) {
+	if (strlen(CONFIG_MODEM_FOTA_DISABLE_IMSI_PREFIXES) == 0)
 		return false;
-	}
 
 	err = at_cmd_write("AT+CIMI", imsi, sizeof(imsi), NULL);
 	if (err) {
@@ -593,12 +645,107 @@ static bool is_fota_disabled_with_usim()
 	return false;
 }
 
-static void disable_fota()
+bool is_fota_enabled()
 {
-	at_notif_deregister_handler(NULL, at_notification_handler);
-	k_timer_stop(&update_check_timer);
+	return fota_enabled;
+}
+
+void enable_fota()
+{
+	fota_enabled = true;
+
+	LOG_INF("FOTA enabled");
+
+	schedule_next_update();
+}
+
+void disable_fota()
+{
+	fota_enabled = false;
 
 	LOG_INF("FOTA disabled");
+
+	/* Stop timer and clear the next update check time */
+	k_timer_stop(&update_check_timer);
+	update_check_time_s = 0;
+	save_update_check_time();
+}
+
+u32_t get_time_to_next_update_check()
+{
+	if (is_update_scheduled() && is_network_time_valid())
+		return update_check_time_s - get_current_time_in_s();
+	else
+		return 0;
+}
+
+u32_t get_update_check_interval()
+{
+	if (update_check_interval > 0)
+		return update_check_interval;
+	else
+		return CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL;
+}
+
+void set_update_check_interval(u32_t interval)
+{
+	update_check_interval = interval;
+	save_update_check_interval();
+
+	schedule_next_update();
+}
+
+void reset_update_check_interval()
+{
+	update_check_interval = 0;
+	save_update_check_interval();
+
+	schedule_next_update();
+}
+
+char *get_dm_server_host()
+{
+	if (dm_server_host == NULL)
+		return CONFIG_MODEM_FOTA_DM_SERVER_HOST;
+	else
+		return dm_server_host;
+}
+
+void set_dm_server_host(const char *host)
+{
+	k_free(dm_server_host);
+	dm_server_host = k_malloc(strlen(host) + 1);
+	if (dm_server_host != NULL) {
+		strcpy(dm_server_host, host);
+		save_dm_server_host();
+	}
+}
+
+void reset_dm_server_host()
+{
+	k_free(dm_server_host);
+	dm_server_host = NULL;
+	save_dm_server_host();
+}
+
+u16_t get_dm_server_port()
+{
+	if (dm_server_port == 0)
+		return CONFIG_MODEM_FOTA_DM_SERVER_PORT;
+	else
+		return dm_server_port;
+}
+
+void set_dm_server_port(u16_t port)
+{
+	dm_server_port = port;
+	save_dm_server_port();
+}
+
+void reset_dm_server_port()
+{
+	dm_server_port = 0;
+	save_dm_server_port();
 }
 
 static void at_notification_handler(void *context, const char *notif)
@@ -620,9 +767,8 @@ static void at_notification_handler(void *context, const char *notif)
 			 * we can read the IMSI and check if FOTA needs to be
 			 * disabled with this USIM
 			 */
-			if (is_fota_disabled_with_usim()) {
+			if (is_fota_disabled_with_usim())
 				disable_fota();
-			}
 		}
 	} else if (strncmp(xtime_notif, notif, sizeof(xtime_notif) - 1) == 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
@@ -639,17 +785,15 @@ static int register_at_notifications()
 
 	at_notif_register_handler(NULL, at_notification_handler);
 
-	/* +CEREG */
 	err = at_cmd_write("AT+CEREG=5", NULL, 0, NULL);
 	if (err) {
-		LOG_ERR("Failed to enable CEREG, error: %d", err);
+		LOG_ERR("Failed to enable CEREG notification, error: %d", err);
 		return err;
 	}
 
-	/* %XTIME */
 	err = at_cmd_write("AT\%XTIME=1", NULL, 0, NULL);
 	if (err) {
-		LOG_ERR("Failed to enable XTIME, error: %d", err);
+		LOG_ERR("Failed to enable XTIME notification, error: %d", err);
 		return err;
 	}
 
@@ -663,14 +807,38 @@ static int settings_set(const char *name, size_t len,
 		if (len != sizeof(update_check_time_s))
 			return -EINVAL;
 
-		if (read_cb(cb_arg, &update_check_time_s, sizeof(update_check_time_s)) > 0)
+		if (read_cb(cb_arg, &update_check_time_s, len) > 0)
+			return 0;
+	} else if (!strcmp(name, "update_check_interval")) {
+		if (len != sizeof(update_check_interval))
+			return -EINVAL;
+
+		if (read_cb(cb_arg, &update_check_interval, len) > 0)
+			return 0;
+	} else if (!strcmp(name, "dm_server_host")) {
+		dm_server_host = k_malloc(len);
+		if (dm_server_host == NULL)
+			return -ENOMEM;
+
+		if (read_cb(cb_arg, dm_server_host, len) > 0) {
+			return 0;
+		} else {
+			k_free(dm_server_host);
+			dm_server_host = NULL;
+			return -EINVAL;
+		}
+	} else if (!strcmp(name, "dm_server_port")) {
+		if (len != sizeof(dm_server_port))
+			return -EINVAL;
+
+		if (read_cb(cb_arg, &dm_server_port, len) > 0)
 			return 0;
 	}
 
 	return -ENOENT;
 }
 
-static void settings_init_and_load()
+static void init_and_load_settings()
 {
     	settings_subsys_init();
 
@@ -687,9 +855,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 {
 	int err = 0;
 
-	if (callback == NULL) {
+	if (callback == NULL)
 		return -EINVAL;
-	}
 
 	event_callback = callback;
 
@@ -697,7 +864,7 @@ int modem_fota_init(modem_fota_callback_t callback)
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
 	k_work_init(&update_work, start_update_check);
 
-	settings_init_and_load();
+	init_and_load_settings();
 
 	err = fota_download_init(&fota_download_callback);
 	if (err) {
