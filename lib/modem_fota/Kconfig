@@ -12,58 +12,66 @@ menuconfig MODEM_FOTA
 if MODEM_FOTA
 
 config MODEM_FOTA_DM_SERVER_HOST
-  string "FOTA Device Management host name"
-  default "fota.nrfcloud.com"
-  help
-    FOTA Device Management server host name.
+	string "FOTA Device Management host name"
+	default "fota.nrfcloud.com"
+	help
+		FOTA Device Management server host name.
 
 config MODEM_FOTA_DM_SERVER_PORT
-  int "FOTA Device Management port number"
-  default 443
-  help
-    FOTA Device Management server port number.
+	int "FOTA Device Management port number"
+	default 443
+	help
+		FOTA Device Management server port number.
+
+config MODEM_FOTA_ACCESS_POINT_NAME
+	string "FOTA APN"
+	default ""
+	help
+		Acccess Point Name to be used for all FOTA data traffic. If not set, the
+		default APN will be used.
 
 config MODEM_FOTA_UPDATE_CHECK_INTERVAL
 	int "Interval in minutes between modem firmware update checks"
 	default 20160
 	help
-	  Sets the time between modem firmware update checks. The default
-	  interval is 14 days (20160 minutes).
+		Sets the time between modem firmware update checks. The default
+		interval is 14 days (20160 minutes).
 
 config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
 	int "Maximum value in minutes for random component which is added to the update check interval"
 	default 1440
 	help
-	  For example if value is set to 1440 minutes, a random component between 0 and 24 hours
-	  is added to the firmware update check timer. If set to 0, no randomness is added.
+		For example if value is set to 1440 minutes, a random component between
+		0 and 24 hours is added to the firmware update check timer. If set to 0,
+		no randomness is added.
 
 config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
 	int "Security tag to use TLS for the firmware download"
 	depends on DOWNLOAD_CLIENT_TLS
 	default -1
 	help
-	  Security tag to be used for TLS connection for the firmware download. If set to -1, no TLS
-	  is used.
+		Security tag to be used for TLS connection for the firmware download. If
+		set to -1, no TLS is used.
 
 config MODEM_FOTA_ALLOWED_DURING_ROAMING
 	bool "FOTA allowed during roaming"
 	default y
 	help
-	  Is FOTA allowed when device is connected to a roaming network.
+		Is FOTA allowed when device is connected to a roaming network.
 
 config MODEM_FOTA_DISABLE_IMSI_PREFIXES
 	string "Comma separated list of USIM IMSI prefixes for which FOTA is disabled"
 	default ""
 	help
-	  Comma separated list of IMSI prefixes for USIMs for which FOTA is disabled. No whitespace
-	  is allowed in the string.
+		Comma separated list of IMSI prefixes for USIMs for which FOTA is
+		disabled. No whitespace is allowed in the string.
 
 config MODEM_FOTA_SHELL
 	bool "Enable shell interface"
 	depends on SHELL
 	default n
 	help
-	  Enable shell interface for the FOTA Client.
+		Enable shell interface for the FOTA Client.
 
 module=MODEM_FOTA
 module-dep=LOG
