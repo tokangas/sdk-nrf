@@ -360,7 +360,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
-		LOG_INF("Erasing modem scratch area...");
+		LOG_INF("Modem scratch area erase pending...");
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_DONE:
@@ -438,6 +438,7 @@ static void start_update_check(struct k_work *item)
 					  sec_tag);
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
+			free_fw_update_info();
 			event_callback(MODEM_FOTA_EVT_ERROR);
 			schedule_next_update();
 		}
