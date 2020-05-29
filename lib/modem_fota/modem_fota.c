@@ -16,6 +16,7 @@
 #include <modem/at_notif.h>
 #include <net/fota_download.h>
 #include <modem/modem_fota.h>
+#include <nrf_socket.h>
 #include "modem_fota_internal.h"
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
@@ -89,6 +90,11 @@ static u16_t dm_server_port;
 /* Information needed to fetch the firmware update */
 static char *fw_update_host;
 static char *fw_update_file;
+
+/* FOTA APN or NULL if default APN is used */
+static const char *fota_apn;
+/* PDN socket file descriptor for FOTA PDN activation */
+int pdn_fd = -1;
 
 static void parse_network_time(const char *time_str)
 {
@@ -310,6 +316,62 @@ static void free_fw_update_info()
 	fw_update_file = NULL;
 }
 
+static int activate_fota_pdn()
+{
+	int err;
+	nrf_sa_family_t af[2];
+	int af_count;
+
+	if (fota_apn == NULL)
+		return 0;
+
+	LOG_DBG("Activating FOTA PDN using APN: %s", log_strdup(fota_apn));
+
+	pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
+	if (pdn_fd < 0) {
+		LOG_ERR("Failed to open PDN socket");
+		return -1;
+	}
+
+	/* Configure PDN type (IPv4/IPv6/IPv4v6) */
+	af_count = 0;
+	if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_PDN_TYPE_IPV4)) {
+		LOG_DBG("FOTA PDN type IPv4");
+		af[af_count++] = NRF_AF_INET;
+	} else if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_PDN_TYPE_IPV6)) {
+		LOG_DBG("FOTA PDN type IPv6");
+		af[af_count++] = NRF_AF_INET6;
+	} else {
+		LOG_DBG("FOTA PDN type IPv4v6");
+		af[af_count++] = NRF_AF_INET;
+		af[af_count++] = NRF_AF_INET6;
+	}
+	err = nrf_setsockopt(pdn_fd, NRF_SOL_PDN, NRF_SO_PDN_AF,
+			     af, sizeof(nrf_sa_family_t) * af_count);
+	if (err) {
+		LOG_ERR("Could not set FOTA PDN type, error: %d", err);
+		return err;
+	}
+
+	err = nrf_connect(pdn_fd, fota_apn, strlen(fota_apn));
+	if (err) {
+		LOG_ERR("Could not connect FOTA PDN, error: %d", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void deactivate_fota_pdn()
+{
+	if (pdn_fd >= 0) {
+		nrf_close(pdn_fd);
+		pdn_fd = -1;
+
+		LOG_DBG("FOTA PDN deactivated");
+	}
+}
+
 static const char firmware_host[] =
 		"vehoniemi.s3.amazonaws.com";
 static const char original_to_fota_firmware_name[] =
@@ -345,6 +407,16 @@ static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
 	return 0;
 }
 
+/* Performs cleanup after FW update check or FW update and schedules the next
+ * update check.
+ */
+static void finish_update_check()
+{
+	free_fw_update_info();
+	deactivate_fota_pdn();
+	schedule_next_update();
+}
+
 static void fota_download_callback(const struct fota_download_evt *evt)
 {
 	switch (evt->id) {
@@ -352,10 +424,9 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		break;
 
 	case FOTA_DOWNLOAD_EVT_FINISHED:
-		free_fw_update_info();
-		schedule_next_update();
-
 		LOG_INF("Update downloaded, reboot needed to apply update");
+		finish_update_check();
+
 		event_callback(MODEM_FOTA_EVT_RESTART_PENDING);
 		break;
 
@@ -369,9 +440,9 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
 	default:
-		free_fw_update_info();
+		finish_update_check();
+
 		event_callback(MODEM_FOTA_EVT_ERROR);
-		schedule_next_update();
 		break;
 	}
 }
@@ -389,6 +460,7 @@ static bool is_update_check_allowed()
 
 static void start_update_check(struct k_work *item)
 {
+	int err;
 	char *imei;
 	char *fw_version;
 
@@ -408,7 +480,18 @@ static void start_update_check(struct k_work *item)
 	fw_version = get_modem_fw_version();
 
 	if (imei == NULL || fw_version == NULL) {
-		LOG_ERR("Can't start update check");
+		LOG_ERR("Failed to read IMEI or modem FW version");
+		finish_update_check();
+
+		event_callback(MODEM_FOTA_EVT_ERROR);
+		goto clean_exit;
+	}
+
+	err = activate_fota_pdn();
+	if (err) {
+		LOG_ERR("Activating FOTA PDN failed");
+		finish_update_check();
+
 		event_callback(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
@@ -416,16 +499,20 @@ static void start_update_check(struct k_work *item)
 	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host,
 				    &fw_update_file) != 0) {
 		LOG_DBG("Update check failed");
+		finish_update_check();
+
 		event_callback(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
 
 	if (fw_update_host == NULL || fw_update_file == NULL) {
 		LOG_DBG("No update available");
+		finish_update_check();
+
 		event_callback(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
 	} else {
-		int err;
 		int sec_tag = -1;
+		int port = 0;
 
 		LOG_INF("Starting firmware download");
 
@@ -435,12 +522,12 @@ static void start_update_check(struct k_work *item)
 			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
 		err = fota_download_start(fw_update_host, fw_update_file,
-					  sec_tag);
+					  sec_tag, port, fota_apn);
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
-			free_fw_update_info();
+			finish_update_check();
+
 			event_callback(MODEM_FOTA_EVT_ERROR);
-			schedule_next_update();
 		}
 	}
 
@@ -561,7 +648,7 @@ static void schedule_next_update()
 				/* Not yet time for next update check, start
 				 * timer
 				 */
-				LOG_DBG("Not yet update check time, " \
+				LOG_DBG("Not yet update check time, "
 					"starting update check timer");
 				start_update_check_timer();
 			}
@@ -861,6 +948,9 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	event_callback = callback;
 
+	if (strlen(CONFIG_MODEM_FOTA_APN) > 0)
+		fota_apn = CONFIG_MODEM_FOTA_APN;
+
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
 	k_work_init(&update_work, start_update_check);
@@ -869,7 +959,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	err = fota_download_init(&fota_download_callback);
 	if (err) {
-		LOG_ERR("FOTA download library could not be initialized, error: %d", err);
+		LOG_ERR("FOTA download library could not be initialized, "
+			"error: %d", err);
 		return err;
 	}
 

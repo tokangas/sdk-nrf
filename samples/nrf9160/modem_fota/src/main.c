@@ -87,8 +87,6 @@ void main(void)
 
 	modem_fota_init(&modem_fota_callback);
 
-	printk("Initialized modem FOTA library\n");
-
 	printk("LTE link connecting...\n");
 	err = lte_lc_init_and_connect();
 	__ASSERT(err == 0, "LTE link could not be established.");

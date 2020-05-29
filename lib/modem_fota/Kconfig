@@ -23,12 +23,30 @@ config MODEM_FOTA_DM_SERVER_PORT
 	help
 		FOTA Device Management server port number.
 
-config MODEM_FOTA_ACCESS_POINT_NAME
+config MODEM_FOTA_APN
 	string "FOTA APN"
 	default ""
 	help
 		Acccess Point Name to be used for all FOTA data traffic. If not set, the
 		default APN will be used.
+
+choice MODEM_FOTA_APN_PDN_TYPE
+	bool "PDN type for the FOTA APN"
+	default MODEM_FOTA_APN_PDN_TYPE_IPV4V6
+	help
+		PDN type for the FOTA APN. Used only when FOTA APN is set using
+		MODEM_FOTA_APN.
+
+config MODEM_FOTA_APN_PDN_TYPE_IPV4V6
+	bool "IPv4v6"
+
+config MODEM_FOTA_APN_PDN_TYPE_IPV4
+	bool "IPv4 only"
+
+config MODEM_FOTA_APN_PDN_TYPE_IPV6
+	bool "IPv6 only"
+
+endchoice
 
 config MODEM_FOTA_UPDATE_CHECK_INTERVAL
 	int "Interval in minutes between modem firmware update checks"
