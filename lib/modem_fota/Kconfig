@@ -84,6 +84,14 @@ config MODEM_FOTA_DISABLE_IMSI_PREFIXES
 		Comma separated list of IMSI prefixes for USIMs for which FOTA is
 		disabled. No whitespace is allowed in the string.
 
+config MODEM_FOTA_DATA_INACTIVITY_TIMEOUT
+	int "Maximum time in minutes to wait for data connection inactivity"
+	default 30
+	help
+		Sets the maximum time to wait for data connection inactivity before
+		proceeding with FOTA. The library waits until the data connection is
+		inactive before switching the LTE mode or requesting device restart.
+
 config MODEM_FOTA_SHELL
 	bool "Enable shell interface"
 	depends on SHELL
