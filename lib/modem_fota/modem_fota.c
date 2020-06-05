@@ -44,13 +44,17 @@ static void at_notification_handler(void *context, const char *notif);
 
 K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
 
-struct k_work_q work_q;
-struct k_work update_work;
+static struct k_work_q work_q;
+static struct k_work update_work;
+
+static struct k_sem link;
 
 K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 
 #define AT_CEREG_PARAMS_COUNT_MAX	10
 #define AT_CEREG_REG_STATUS_INDEX	1
+#define AT_CEREG_TAC_INDEX		2
+#define AT_CEREG_TAC_LEN		4
 #define AT_CEREG_LTE_MODE_INDEX		4
 #define AT_XTIME_PARAMS_COUNT_MAX	4
 #define AT_XTIME_UNIVERSAL_TIME_INDEX	2
@@ -94,7 +98,7 @@ static char *fw_update_file;
 /* FOTA APN or NULL if default APN is used */
 static const char *fota_apn;
 /* PDN socket file descriptor for FOTA PDN activation */
-int pdn_fd = -1;
+static int pdn_fd = -1;
 
 static void parse_network_time(const char *time_str)
 {
@@ -197,6 +201,9 @@ static int parse_cereg_notification(const char *notif)
 {
 	int err;
 	u32_t value;
+	char tac_str[AT_CEREG_TAC_LEN + 1];
+	size_t tac_str_len;
+	bool tac_valid;
 	struct at_param_list param_list = {0};
 
 	err = at_params_list_init(&param_list, AT_CEREG_PARAMS_COUNT_MAX);
@@ -223,12 +230,34 @@ static int parse_cereg_notification(const char *notif)
 		goto clean_exit;
 	}
 
-	if (value == 1)
+	/* Tracking area code */
+	tac_str_len = AT_CEREG_TAC_LEN;
+	err = at_params_string_get(&param_list,
+				   AT_CEREG_TAC_INDEX,
+				   tac_str,
+				   &tac_str_len);
+	if (err) {
+		LOG_ERR("Could not get TAC, error: %d", err);
+		goto clean_exit;
+	}
+
+	if (tac_str_len == AT_CEREG_TAC_LEN &&
+			strncmp(tac_str, "FFFE", tac_str_len) != 0) {
+		tac_valid = true;
+	} else {
+		tac_valid = false;
+	}
+
+	/* Need to be registered and have a valid TAC */
+	if (tac_valid && value == 1) {
 		reg_status = MODEM_REG_STATUS_HOME;
-	else if (value == 5)
+		k_sem_give(&link);
+	} else if (tac_valid && value == 5) {
 		reg_status = MODEM_REG_STATUS_ROAMING;
-	else
+		k_sem_give(&link);
+	} else {
 		reg_status = MODEM_REG_STATUS_NOT_REGISTERED;
+	}
 
 	/* LTE mode */
 	err = at_params_int_get(&param_list,
@@ -458,11 +487,25 @@ static bool is_update_check_allowed()
 	return true;
 }
 
+static void block_until_connected_to_network()
+{
+	if (reg_status != MODEM_REG_STATUS_HOME &&
+	    reg_status != MODEM_REG_STATUS_ROAMING) {
+		LOG_INF("Out of coverage, waiting for network...");
+		k_sem_reset(&link);
+		k_sem_take(&link, K_FOREVER);
+	}
+}
+
 static void start_update_check(struct k_work *item)
 {
 	int err;
 	char *imei;
 	char *fw_version;
+
+	LOG_INF("Time for update check");
+
+	block_until_connected_to_network();
 
 	if (!is_update_check_allowed()) {
 		LOG_INF("Update check not currently allowed");
@@ -470,11 +513,9 @@ static void start_update_check(struct k_work *item)
 		return;
 	}
 
-	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
+	/* TODO: Check if we're connected using NB */
 
-	/* TODO: LTE may not be connected when the check is started (or may be
-	 * connected using NB-IoT)
-	 */
+	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
 
 	imei = get_modem_imei();
 	fw_version = get_modem_fw_version();
@@ -521,6 +562,7 @@ static void start_update_check(struct k_work *item)
 		if (IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_TLS))
 			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
+		/* TODO: Implement retry */
 		err = fota_download_start(fw_update_host, fw_update_file,
 					  sec_tag, port, fota_apn);
 		if (err) {
@@ -566,7 +608,7 @@ static void start_update_check_timer()
 static void update_check_timer_handler(struct k_timer *dummy)
 {
 	if (is_time_for_update_check())
-		k_work_submit(&update_work);
+		k_work_submit_to_queue(&work_q, &update_work);
 	else
 		start_update_check_timer();
 }
@@ -643,7 +685,7 @@ static void schedule_next_update()
 				 * device was powered off
 				 */
 				LOG_DBG("Already past update check time");
-				start_update_check(NULL);
+				k_work_submit_to_queue(&work_q, &update_work);
 			} else {
 				/* Not yet time for next update check, start
 				 * timer
@@ -950,6 +992,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	if (strlen(CONFIG_MODEM_FOTA_APN) > 0)
 		fota_apn = CONFIG_MODEM_FOTA_APN;
+
+	k_sem_init(&link, 0, 1);
 
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
