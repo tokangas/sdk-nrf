@@ -21,6 +21,9 @@
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
+/* Time to sleep between AT+CSCON checks in seconds */
+#define WAIT_DATA_INACTIVITY_SLEEP_TIME 10
+
 /* Enums */
 enum modem_reg_status {
 	MODEM_REG_STATUS_NOT_REGISTERED,
@@ -61,6 +64,7 @@ K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 #define AT_XTIME_UNIVERSAL_TIME_LEN	14
 #define AT_CGSN_IMEI_INDEX		1
 #define AT_CGMR_VERSION_INDEX		0
+#define AT_CSCON_MODE_INDEX		2
 
 static const char * const cereg_notif = "+CEREG";
 static const char * const xtime_notif = "\%XTIME";
@@ -456,15 +460,17 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		LOG_INF("Update downloaded, reboot needed to apply update");
 		finish_update_check();
 
+		/* TODO: Wait for data inactivity before restart */
+
 		event_callback(MODEM_FOTA_EVT_RESTART_PENDING);
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
-		LOG_INF("Modem scratch area erase pending...");
+		LOG_DBG("Modem scratch area erase pending...");
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_DONE:
-		LOG_INF("Modem scratch area erase done");
+		LOG_DBG("Modem scratch area erase done");
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
@@ -487,7 +493,10 @@ static bool is_update_check_allowed()
 	return true;
 }
 
-static void block_until_connected_to_network()
+/* Waits until the device is connected to the network. The function blocks
+ * forever until connected.
+ */
+static void wait_until_connected_to_network()
 {
 	if (reg_status != MODEM_REG_STATUS_HOME &&
 	    reg_status != MODEM_REG_STATUS_ROAMING) {
@@ -495,6 +504,79 @@ static void block_until_connected_to_network()
 		k_sem_reset(&link);
 		k_sem_take(&link, K_FOREVER);
 	}
+}
+
+/* Waits until the RRC connection is idle. This is used to wait until the
+ * application is not transferring data before proceeding with the FW update.
+ */
+static bool wait_for_data_inactivity()
+{
+	int err;
+	int count = 0;
+	int wait_count;
+	bool idle = false;
+	int cscon;
+	char response[16 + 2 + 1];
+	struct at_param_list param_list = {0};
+
+	err = at_params_list_init(&param_list, AT_CSCON_MODE_INDEX + 1);
+	if (err) {
+		LOG_ERR("Could not initialize params list, error: %d", err);
+		return false;
+	}
+
+	wait_count = CONFIG_MODEM_FOTA_DATA_INACTIVITY_TIMEOUT * 60 /
+			WAIT_DATA_INACTIVITY_SLEEP_TIME;
+
+	while (1) {
+		err = at_cmd_write("AT+CSCON?", response, sizeof(response),
+				   NULL);
+		if (err) {
+			LOG_ERR("Failed to request CSCON, error: %d", err);
+			break;
+		}
+
+		err = at_parser_max_params_from_str(response,
+						    NULL,
+						    &param_list,
+						    AT_CSCON_MODE_INDEX + 1);
+		if (err && err != -E2BIG) {
+			LOG_ERR("Could not parse response, error: %d", err);
+			break;
+		}
+
+		err = at_params_int_get(&param_list,
+					AT_CSCON_MODE_INDEX,
+					&cscon);
+		if (err) {
+			LOG_ERR("Could not get CSCON mode, error: %d", err);
+			break;
+		}
+
+		if (cscon == 0) {
+			idle = true;
+			break;
+		} else {
+			at_params_list_clear(&param_list);
+
+			if (count == 0) {
+				LOG_INF("Waiting for data connection to become "
+					"inactive");
+			}
+
+			if (count++ < wait_count) {
+				k_sleep(K_SECONDS(WAIT_DATA_INACTIVITY_SLEEP_TIME));
+			} else {
+				LOG_INF("Timed out waiting for data connection "
+					"inactivity");
+				break;
+			}
+		}
+	}
+
+	at_params_list_free(&param_list);
+
+	return idle;
 }
 
 static void start_update_check(struct k_work *item)
@@ -505,15 +587,18 @@ static void start_update_check(struct k_work *item)
 
 	LOG_INF("Time for update check");
 
-	block_until_connected_to_network();
+	/* Block fovever until we have a network connection */
+	wait_until_connected_to_network();
 
 	if (!is_update_check_allowed()) {
-		LOG_INF("Update check not currently allowed");
+		LOG_INF("Update check not allowed");
 		schedule_next_update();
 		return;
 	}
 
-	/* TODO: Check if we're connected using NB */
+	/* TODO: Check if we're connected using NB, wait for data inactivity
+	 * is only needed before switching from NB to M1 */
+	wait_for_data_inactivity();
 
 	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
 
@@ -562,7 +647,7 @@ static void start_update_check(struct k_work *item)
 		if (IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_TLS))
 			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
-		/* TODO: Implement retry */
+		/* TODO: Retry */
 		err = fota_download_start(fw_update_host, fw_update_file,
 					  sec_tag, port, fota_apn);
 		if (err) {
@@ -592,10 +677,11 @@ static void start_update_check_timer()
 {
 	s32_t duration_s;
 
-	if (is_update_scheduled())
-		duration_s = update_check_time_s - get_current_time_in_s();
-	else
-		duration_s = CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60;
+	if (!is_update_scheduled()) {
+		LOG_ERR("Update not scheduled, can't start the timer");
+	}
+
+	duration_s = update_check_time_s - get_current_time_in_s();
 
 	if (MAX_TIMER_DURATION_S < duration_s)
 		duration_s = MAX_TIMER_DURATION_S;
@@ -661,6 +747,9 @@ static void calculate_next_update_check_time()
 	}
 
 	save_update_check_time();
+
+	LOG_INF("Next update check in %d minutes",
+		(u32_t)(update_check_time_s - get_current_time_in_s()) / 60);
 }
 
 static void schedule_next_update()
