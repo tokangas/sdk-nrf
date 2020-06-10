@@ -32,11 +32,13 @@ enum modem_reg_status {
 };
 
 enum modem_lte_mode {
-	MODEM_LTE_MODE_M,
-	MODEM_LTE_MODE_NB_IOT
+	MODEM_LTE_MODE_M = 7,
+	MODEM_LTE_MODE_NBIOT = 9
 };
 
 /* Forward declarations */
+static bool wait_for_data_inactivity();
+static void restore_system_mode();
 static void schedule_next_update();
 static void update_check_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
@@ -49,6 +51,10 @@ K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
 
 static struct k_work_q work_q;
 static struct k_work update_work;
+static struct finish_update_info {
+	struct k_work work;
+	enum modem_fota_evt_id event;
+} finish_update;
 
 static struct k_sem link;
 
@@ -65,9 +71,18 @@ K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 #define AT_CGSN_IMEI_INDEX		1
 #define AT_CGMR_VERSION_INDEX		0
 #define AT_CSCON_MODE_INDEX		2
+#define AT_XSYSTEMMODE_PARAMS_COUNT	5
+#define AT_XSYSTEMMODE_RESPONSE_MAX_LEN	30
 
-static const char * const cereg_notif = "+CEREG";
-static const char * const xtime_notif = "\%XTIME";
+static const char at_cereg_notif[] = "+CEREG";
+static const char at_xtime_notif[] = "\%XTIME";
+/* Set the modem to Normal mode */
+static const char at_cfun_normal[] = "AT+CFUN=1";
+/* Set the modem to Offline mode */
+static const char at_cfun_offline[] = "AT+CFUN=4";
+static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
+static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
+static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
 
 /* Currently the maximum timer duration is ~18h, so we'll use that */
 #define MAX_TIMER_DURATION_S (18 * 60 * 60)
@@ -103,6 +118,9 @@ static char *fw_update_file;
 static const char *fota_apn;
 /* PDN socket file descriptor for FOTA PDN activation */
 static int pdn_fd = -1;
+
+static bool restore_system_mode_needed = false;
+static u32_t prev_system_mode_bitmask = 0;
 
 static void parse_network_time(const char *time_str)
 {
@@ -275,7 +293,7 @@ static int parse_cereg_notification(const char *notif)
 	if (value == 7)
 		lte_mode = MODEM_LTE_MODE_M;
 	else if (value == 9)
-		lte_mode = MODEM_LTE_MODE_NB_IOT;
+		lte_mode = MODEM_LTE_MODE_NBIOT;
 	else
 		LOG_WRN("Unknown LTE mode in +CEREG notification");
 
@@ -440,14 +458,36 @@ static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
 	return 0;
 }
 
+static void finish_update_check(enum modem_fota_evt_id event_id)
+{
+	finish_update.event = event_id;
+	k_work_submit_to_queue(&work_q, &finish_update.work);
+}
+
 /* Performs cleanup after FW update check or FW update and schedules the next
  * update check.
  */
-static void finish_update_check()
+static void finish_update_work(struct k_work *item)
 {
+	struct finish_update_info *info;
+
+	info = CONTAINER_OF(item, struct finish_update_info, work);
+
 	free_fw_update_info();
 	deactivate_fota_pdn();
+	restore_system_mode();
+
+	/* If modem firmware was updated, a restart is needed to apply the
+	 * update. Before restarting the device, wait until data activity has
+	 * stopped.
+	 */
+	if (info->event == MODEM_FOTA_EVT_RESTART_PENDING) {
+		wait_for_data_inactivity();
+	}
+
 	schedule_next_update();
+
+	event_callback(info->event);
 }
 
 static void fota_download_callback(const struct fota_download_evt *evt)
@@ -458,11 +498,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 	case FOTA_DOWNLOAD_EVT_FINISHED:
 		LOG_INF("Update downloaded, reboot needed to apply update");
-		finish_update_check();
-
-		/* TODO: Wait for data inactivity before restart */
-
-		event_callback(MODEM_FOTA_EVT_RESTART_PENDING);
+		finish_update_check(MODEM_FOTA_EVT_RESTART_PENDING);
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
@@ -475,9 +511,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
 	default:
-		finish_update_check();
-
-		event_callback(MODEM_FOTA_EVT_ERROR);
+		finish_update_check(MODEM_FOTA_EVT_ERROR);
 		break;
 	}
 }
@@ -496,6 +530,7 @@ static bool is_update_check_allowed()
 /* Waits until the device is connected to the network. The function blocks
  * forever until connected.
  */
+/* TODO: Add timeout and return status */
 static void wait_until_connected_to_network()
 {
 	if (reg_status != MODEM_REG_STATUS_HOME &&
@@ -561,7 +596,7 @@ static bool wait_for_data_inactivity()
 
 			if (count == 0) {
 				LOG_INF("Waiting for data connection to become "
-					"inactive");
+					"inactive...");
 			}
 
 			if (count++ < wait_count) {
@@ -579,7 +614,133 @@ static bool wait_for_data_inactivity()
 	return idle;
 }
 
-static void start_update_check(struct k_work *item)
+static bool switch_system_mode_to_lte_m(void)
+{
+	int err;
+	bool success = true;
+	char response[AT_XSYSTEMMODE_RESPONSE_MAX_LEN];
+	struct at_param_list param_list = {0};
+
+	/* Get and store system mode */
+	err = at_cmd_write(at_xsystemmode_read, response, sizeof(response),
+			   NULL);
+	if (err) {
+		LOG_ERR("Failed to read system mode, error: %d", err);
+		return false;
+	}
+
+	err = at_params_list_init(&param_list, AT_XSYSTEMMODE_PARAMS_COUNT);
+	if (err) {
+		LOG_ERR("Could init AT params list, error: %d", err);
+		return false;
+	}
+
+	err = at_parser_max_params_from_str(response, NULL, &param_list,
+					    AT_XSYSTEMMODE_PARAMS_COUNT);
+	if (err) {
+		LOG_ERR("Could not parse AT response, error: %d", err);
+		goto clean_exit;
+	}
+
+	/* Current system mode is stored into a bitmap which is used when
+	 * restoring the system mode later
+	 */
+	prev_system_mode_bitmask = 0;
+	for (size_t i = 1; i < AT_XSYSTEMMODE_PARAMS_COUNT; i++) {
+		int param;
+
+		err = at_params_int_get(&param_list, i, &param);
+		if (err) {
+			LOG_ERR("Could not parse mode parameter, err: %d", err);
+			goto clean_exit;
+		}
+
+		prev_system_mode_bitmask = param ?
+			prev_system_mode_bitmask | BIT(i) : prev_system_mode_bitmask;
+	}
+
+	/* Set modem offline */
+	err = at_cmd_write(at_cfun_offline, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to set modem to offline mode, error: %d", err);
+		return false;
+	}
+
+	LOG_INF("Changing system mode to LTE-M");
+
+	restore_system_mode_needed = true;
+
+	/* Change system mode to LTE-M only */
+	err = at_cmd_write(at_xsystemmode_m1_only, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to set system mode, error: %d", err);
+		success = false;
+	}
+
+	/* Set modem online */
+	err = at_cmd_write(at_cfun_normal, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to set modem to normal mode, error: %d", err);
+		success = false;
+	}
+
+	if (success) {
+		/* TODO: If connect fails, restore system mode and abort */
+		wait_until_connected_to_network();
+	}
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	return success;
+}
+
+static void restore_system_mode(void)
+{
+	int err;
+	int len;
+	char system_mode_command[32];
+
+	if (!restore_system_mode_needed) {
+		return;
+	}
+
+	LOG_DBG("Previous system mode bitmask: 0x%x", prev_system_mode_bitmask);
+	LOG_INF("Restoring previous system mode");
+
+	/* Set modem offline */
+	err = at_cmd_write(at_cfun_offline, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to set modem to offline mode, error: %d", err);
+		return;
+	}
+
+	/* Restore system mode */
+	len = snprintk(system_mode_command, sizeof(system_mode_command),
+		       at_xsystemmode_template,
+		       prev_system_mode_bitmask & BIT(1) ? 1 : 0,
+		       prev_system_mode_bitmask & BIT(2) ? 1 : 0,
+		       prev_system_mode_bitmask & BIT(3) ? 1 : 0,
+		       prev_system_mode_bitmask & BIT(4) ? 1 : 0);
+
+	err = at_cmd_write(system_mode_command, NULL, 0, NULL);
+	if (err)
+		LOG_ERR("Failed to set system mode, error: %d", err);
+
+	/* Set modem online */
+	err = at_cmd_write(at_cfun_normal, NULL, 0, NULL);
+	if (err)
+		LOG_ERR("Failed to set modem to normal mode, error: %d", err);
+
+	restore_system_mode_needed = false;
+}
+
+static void start_update_check()
+{
+	k_work_submit_to_queue(&work_q, &update_work);
+}
+
+static void start_update_work(struct k_work *item)
 {
 	int err;
 	char *imei;
@@ -596,9 +757,20 @@ static void start_update_check(struct k_work *item)
 		return;
 	}
 
-	/* TODO: Check if we're connected using NB, wait for data inactivity
-	 * is only needed before switching from NB to M1 */
-	wait_for_data_inactivity();
+	/* If FOTA is not allowed in NB-IoT and the current mode is NB-IoT,
+	 * we need to switch to M1 for the update check
+	 */
+	if (!IS_ENABLED(CONFIG_MODEM_FOTA_ALLOWED_IN_NBIOT)) {
+		if (lte_mode == MODEM_LTE_MODE_NBIOT) {
+			LOG_INF("FOTA not allowed in NB-IoT, switching to "
+				"LTE-M");
+			wait_for_data_inactivity();
+			if (!switch_system_mode_to_lte_m()) {
+				schedule_next_update();
+				return;
+			}
+		}
+	}
 
 	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
 
@@ -607,35 +779,27 @@ static void start_update_check(struct k_work *item)
 
 	if (imei == NULL || fw_version == NULL) {
 		LOG_ERR("Failed to read IMEI or modem FW version");
-		finish_update_check();
-
-		event_callback(MODEM_FOTA_EVT_ERROR);
+		finish_update_check(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
 
 	err = activate_fota_pdn();
 	if (err) {
 		LOG_ERR("Activating FOTA PDN failed");
-		finish_update_check();
-
-		event_callback(MODEM_FOTA_EVT_ERROR);
+		finish_update_check(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
 
 	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host,
 				    &fw_update_file) != 0) {
 		LOG_DBG("Update check failed");
-		finish_update_check();
-
-		event_callback(MODEM_FOTA_EVT_ERROR);
+		finish_update_check(MODEM_FOTA_EVT_ERROR);
 		goto clean_exit;
 	}
 
 	if (fw_update_host == NULL || fw_update_file == NULL) {
 		LOG_DBG("No update available");
-		finish_update_check();
-
-		event_callback(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
+		finish_update_check(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
 	} else {
 		int sec_tag = -1;
 		int port = 0;
@@ -652,9 +816,7 @@ static void start_update_check(struct k_work *item)
 					  sec_tag, port, fota_apn);
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
-			finish_update_check();
-
-			event_callback(MODEM_FOTA_EVT_ERROR);
+			finish_update_check(MODEM_FOTA_EVT_ERROR);
 		}
 	}
 
@@ -694,7 +856,7 @@ static void start_update_check_timer()
 static void update_check_timer_handler(struct k_timer *dummy)
 {
 	if (is_time_for_update_check())
-		k_work_submit_to_queue(&work_q, &update_work);
+		start_update_check();
 	else
 		start_update_check_timer();
 }
@@ -774,7 +936,7 @@ static void schedule_next_update()
 				 * device was powered off
 				 */
 				LOG_DBG("Already past update check time");
-				k_work_submit_to_queue(&work_q, &update_work);
+				start_update_check();
 			} else {
 				/* Not yet time for next update check, start
 				 * timer
@@ -978,7 +1140,7 @@ static void at_notification_handler(void *context, const char *notif)
 		return;
 	}
 
-	if (strncmp(cereg_notif, notif, sizeof(cereg_notif) - 1) == 0) {
+	if (strncmp(at_cereg_notif, notif, sizeof(at_cereg_notif) - 1) == 0) {
 		parse_cereg_notification(notif);
 		if (first_cereg_notification) {
 			first_cereg_notification = false;
@@ -989,7 +1151,8 @@ static void at_notification_handler(void *context, const char *notif)
 			if (is_fota_disabled_with_usim())
 				disable_fota();
 		}
-	} else if (strncmp(xtime_notif, notif, sizeof(xtime_notif) - 1) == 0) {
+	} else if (strncmp(at_xtime_notif, notif, sizeof(at_xtime_notif) - 1)
+			== 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
 			/* Got network time, schedule next update */
 			unregister_at_xtime_notification();
@@ -1086,7 +1249,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
-	k_work_init(&update_work, start_update_check);
+	k_work_init(&update_work, start_update_work);
+	k_work_init(&finish_update.work, finish_update_work);
 
 	init_and_load_settings();
 
