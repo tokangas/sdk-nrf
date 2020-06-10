@@ -71,6 +71,15 @@ config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
 		Security tag to be used for TLS connection for the firmware download. If
 		set to -1, no TLS is used.
 
+config MODEM_FOTA_ALLOWED_IN_NBIOT
+	bool "FOTA allowed when connected to NB-IoT"
+	default y
+	help
+		Is FOTA allowed when device is connected using NB-IoT. If FOTA is not
+		allowed in NB-IoT and device is connected using NB-IoT when the timer
+		expires, the FOTA client switches to LTE M1 for the update check and
+		update.
+
 config MODEM_FOTA_ALLOWED_DURING_ROAMING
 	bool "FOTA allowed during roaming"
 	default y
