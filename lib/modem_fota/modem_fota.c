@@ -510,8 +510,12 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
-	default:
+		/* TODO: Retry */
 		finish_update_check(MODEM_FOTA_EVT_ERROR);
+		break;
+
+	default:
+		LOG_ERR("Unknown event from FOTA download");
 		break;
 	}
 }
@@ -528,17 +532,23 @@ static bool is_update_check_allowed()
 }
 
 /* Waits until the device is connected to the network. The function blocks
- * forever until connected.
+ * until connected or a timeout happens.
  */
-/* TODO: Add timeout and return status */
-static void wait_until_connected_to_network()
+static bool wait_until_connected_to_network(k_timeout_t timeout)
 {
+	bool connected = true;
+
 	if (reg_status != MODEM_REG_STATUS_HOME &&
 	    reg_status != MODEM_REG_STATUS_ROAMING) {
-		LOG_INF("Out of coverage, waiting for network...");
+		LOG_INF("Waiting for network connection (timeout %d s)...",
+			timeout / 1000);
 		k_sem_reset(&link);
-		k_sem_take(&link, K_FOREVER);
+		if (k_sem_take(&link, timeout) != 0) {
+			connected = false;
+		}
 	}
+
+	return connected;
 }
 
 /* Waits until the RRC connection is idle. This is used to wait until the
@@ -685,8 +695,10 @@ static bool switch_system_mode_to_lte_m(void)
 	}
 
 	if (success) {
-		/* TODO: If connect fails, restore system mode and abort */
-		wait_until_connected_to_network();
+		if (!wait_until_connected_to_network(K_MINUTES(5))) {
+			LOG_ERR("Could not connect to LTE-M");
+			success = false;
+		}
 	}
 
 clean_exit:
@@ -749,7 +761,7 @@ static void start_update_work(struct k_work *item)
 	LOG_INF("Time for update check");
 
 	/* Block fovever until we have a network connection */
-	wait_until_connected_to_network();
+	wait_until_connected_to_network(K_FOREVER);
 
 	if (!is_update_check_allowed()) {
 		LOG_INF("Update check not allowed");
@@ -766,6 +778,10 @@ static void start_update_work(struct k_work *item)
 				"LTE-M");
 			wait_for_data_inactivity();
 			if (!switch_system_mode_to_lte_m()) {
+				/* Failed to connect to LTE-M, abort update
+				 * check
+				 */
+				restore_system_mode();
 				schedule_next_update();
 				return;
 			}
