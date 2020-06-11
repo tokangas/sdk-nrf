@@ -475,6 +475,7 @@ static void finish_update_work(struct k_work *item)
 
 	free_fw_update_info();
 	deactivate_fota_pdn();
+	schedule_next_update();
 	restore_system_mode();
 
 	/* If modem firmware was updated, a restart is needed to apply the
@@ -483,9 +484,11 @@ static void finish_update_work(struct k_work *item)
 	 */
 	if (info->event == MODEM_FOTA_EVT_RESTART_PENDING) {
 		wait_for_data_inactivity();
+		/* Sleep for a while before asking for restart because the
+		 * previous function returns immediately when RRC connection is
+		 * not active or there's no network connection */
+		k_sleep(1);
 	}
-
-	schedule_next_update();
 
 	event_callback(info->event);
 }
