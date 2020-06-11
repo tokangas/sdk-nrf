@@ -487,7 +487,7 @@ static void finish_update_work(struct k_work *item)
 		/* Sleep for a while before asking for restart because the
 		 * previous function returns immediately when RRC connection is
 		 * not active or there's no network connection */
-		k_sleep(1);
+		k_sleep(K_SECONDS(1));
 	}
 
 	event_callback(info->event);
@@ -535,16 +535,25 @@ static bool is_update_check_allowed()
 }
 
 /* Waits until the device is connected to the network. The function blocks
- * until connected or a timeout happens.
+ * until connected or a timeout happens. The timeout is given in seconds.
+ * Zero means no timeout, i.e. function can block forever.
  */
-static bool wait_until_connected_to_network(k_timeout_t timeout)
+static bool wait_until_connected_to_network(u32_t timeout_s)
 {
+	k_timeout_t timeout;
 	bool connected = true;
 
 	if (reg_status != MODEM_REG_STATUS_HOME &&
 	    reg_status != MODEM_REG_STATUS_ROAMING) {
-		LOG_INF("Waiting for network connection (timeout %d s)...",
-			timeout / 1000);
+		if (timeout_s == 0) {
+			LOG_INF("Waiting for network connection "
+				"(no timeout)...");
+			timeout = K_FOREVER;
+		} else {
+			LOG_INF("Waiting for network connection "
+				"(timeout %d s)...", timeout_s);
+			timeout = K_SECONDS(timeout_s);
+		}
 		k_sem_reset(&link);
 		if (k_sem_take(&link, timeout) != 0) {
 			connected = false;
@@ -698,7 +707,8 @@ static bool switch_system_mode_to_lte_m(void)
 	}
 
 	if (success) {
-		if (!wait_until_connected_to_network(K_MINUTES(5))) {
+		/* Wait until connected to network or a timeout occurs */
+		if (!wait_until_connected_to_network(300)) {
 			LOG_ERR("Could not connect to LTE-M");
 			success = false;
 		}
@@ -764,7 +774,7 @@ static void start_update_work(struct k_work *item)
 	LOG_INF("Time for update check");
 
 	/* Block fovever until we have a network connection */
-	wait_until_connected_to_network(K_FOREVER);
+	wait_until_connected_to_network(0);
 
 	if (!is_update_check_allowed()) {
 		LOG_INF("Update check not allowed");
@@ -869,7 +879,7 @@ static void start_update_check_timer()
 
 	LOG_DBG("Starting timer for %d seconds", duration_s);
 
-	k_timer_start(&update_check_timer, K_SECONDS(duration_s), 0);
+	k_timer_start(&update_check_timer, K_SECONDS(duration_s), K_NO_WAIT);
 }
 
 static void update_check_timer_handler(struct k_timer *dummy)
