@@ -319,7 +319,9 @@ static int parse_time_from_xtime_notification(const char *notif)
 
 static void unregister_at_xtime_notification()
 {
-	int err = at_cmd_write("AT\%XTIME=0", NULL, 0, NULL);
+	int err;
+
+	err = at_cmd_write("AT\%XTIME=0", NULL, 0, NULL);
 	if (err) {
 		LOG_ERR("Failed to disable XTIME, error: %d", err);
 		return;
