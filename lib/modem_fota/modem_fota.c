@@ -21,6 +21,8 @@
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
+#define SECONDS_IN_DAY (24 * 60 * 60)
+
 /* Time to sleep between AT+CSCON checks in seconds */
 #define WAIT_DATA_INACTIVITY_SLEEP_TIME 10
 
@@ -84,9 +86,6 @@ static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
 
-/* Currently the maximum timer duration is ~18h, so we'll use that */
-#define MAX_TIMER_DURATION_S (18 * 60 * 60)
-
 static modem_fota_callback_t event_callback;
 
 /* Network time (milliseconds since epoch) and timestamp when it was got */
@@ -103,8 +102,6 @@ static bool fota_enabled = true;
 /* Settings which are saved to NV memory */
 /* Next scheduled update check time (seconds since epoch) */
 static s64_t update_check_time_s;
-/* Update check interval in minutes (if != 0 overrides the configured default) */
-static u32_t update_check_interval;
 /* DM server host name (if != NULL overrides the configured default) */
 static char *dm_server_host;
 /* DM server port number (if != 0 overrides the configured default) */
@@ -912,13 +909,6 @@ static void save_update_check_time()
 			  &update_check_time_s, sizeof(update_check_time_s));
 }
 
-static void save_update_check_interval()
-{
-	settings_save_one("modem_fota/update_check_interval",
-			  &update_check_interval,
-			  sizeof(update_check_interval));
-}
-
 static void save_dm_server_host()
 {
 	if (dm_server_host == NULL) {
@@ -937,26 +927,27 @@ static void save_dm_server_port()
 
 static void calculate_next_update_check_time()
 {
-	if (update_check_interval == 0) {
-		update_check_time_s = get_current_time_in_s() +
-				(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
-		if (CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS > 0) {
-			/* Add random variation to the update check interval */
-			update_check_time_s += sys_rand32_get() %
-					(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60);
-		}
-	} else {
-		/* Use value set through the Shell interface instead of the
-		 * configured default
-		 */
-		update_check_time_s = get_current_time_in_s() +
-				update_check_interval * 60;
+	u32_t seconds_to_update_check;
+	u32_t seconds_without_days;
+
+	seconds_to_update_check =
+		(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
+
+	if (CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS > 0) {
+		/* Add random variation to the update check interval */
+		seconds_to_update_check += sys_rand32_get() %
+			(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60);
 	}
 
+	update_check_time_s = get_current_time_in_s() + seconds_to_update_check;
 	save_update_check_time();
 
-	LOG_INF("Next update check in %d minutes",
-		(u32_t)(update_check_time_s - get_current_time_in_s()) / 60);
+	seconds_without_days = seconds_to_update_check % SECONDS_IN_DAY;
+	LOG_INF("Next update check in %d days, %02d:%02d:%02d",
+		seconds_to_update_check / SECONDS_IN_DAY,
+		seconds_without_days / 3600,
+		(seconds_without_days % 3600) / 60,
+		(seconds_without_days % 3600) % 60);
 }
 
 static void schedule_next_update()
@@ -1105,28 +1096,13 @@ u32_t get_time_to_next_update_check()
 		return 0;
 }
 
-u32_t get_update_check_interval()
+void set_time_to_next_update_check(u32_t seconds)
 {
-	if (update_check_interval > 0)
-		return update_check_interval;
-	else
-		return CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL;
-}
+	update_check_time_s = get_current_time_in_s() + seconds;
+	save_update_check_time();
 
-void set_update_check_interval(u32_t interval)
-{
-	update_check_interval = interval;
-	save_update_check_interval();
-
-	schedule_next_update();
-}
-
-void reset_update_check_interval()
-{
-	update_check_interval = 0;
-	save_update_check_interval();
-
-	schedule_next_update();
+	if (fota_enabled)
+		start_update_check_timer();
 }
 
 char *get_dm_server_host()
@@ -1235,12 +1211,6 @@ static int settings_set(const char *name, size_t len,
 			return -EINVAL;
 
 		if (read_cb(cb_arg, &update_check_time_s, len) > 0)
-			return 0;
-	} else if (!strcmp(name, "update_check_interval")) {
-		if (len != sizeof(update_check_interval))
-			return -EINVAL;
-
-		if (read_cb(cb_arg, &update_check_interval, len) > 0)
 			return 0;
 	} else if (!strcmp(name, "dm_server_host")) {
 		dm_server_host = k_malloc(len);

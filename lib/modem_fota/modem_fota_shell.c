@@ -8,27 +8,18 @@
 #include <shell/shell.h>
 #include "modem_fota_internal.h"
 
-static int fota_cmd_interval_set(const struct shell *shell, size_t argc,
-		char **argv)
+static int fota_cmd_timer(const struct shell *shell, size_t argc, char **argv)
 {
-	u32_t interval;
+	u32_t seconds;
 
-	interval = strtoul(argv[1], NULL, 10);
+	seconds = strtoul(argv[1], NULL, 10);
 
-	if (interval == 0) {
-		shell_error(shell, "set: invalid interval value");
+	if (seconds == 0 || seconds > MAX_TIMER_DURATION_S) {
+		shell_error(shell, "timer: invalid timer value");
 		return -EINVAL;
 	}
 
-	set_update_check_interval(interval);
-
-	return 0;
-}
-
-static int fota_cmd_interval_reset(const struct shell *shell, size_t argc,
-		char **argv)
-{
-	reset_update_check_interval();
+	set_time_to_next_update_check(seconds);
 
 	return 0;
 }
@@ -97,24 +88,11 @@ static int fota_cmd_status(const struct shell *shell, size_t argc, char **argv)
 	else
 		shell_print(shell, "Next update check not scheduled or no " \
 				   "network time");
-	shell_print(shell, "Update check interval: %d minutes",
-		    get_update_check_interval());
 	shell_print(shell, "DM server host: %s", get_dm_server_host());
 	shell_print(shell, "DM server port: %d", get_dm_server_port());
 
 	return 0;
 }
-
-SHELL_STATIC_SUBCMD_SET_CREATE(fota_interval_cmds,
-	SHELL_CMD_ARG(set, NULL,
-		      "'fota interval set <value in minutes>' overrides the " \
-		      "configured firmware update check interval.",
-		      fota_cmd_interval_set, 2, 0),
-	SHELL_CMD_ARG(reset, NULL,
-		      "Restore the configured firmware update check interval.",
-		      fota_cmd_interval_reset, 1, 0),
-	SHELL_SUBCMD_SET_END
-);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(fota_server_cmds,
 	SHELL_CMD_ARG(set, NULL,
@@ -130,8 +108,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(fota_server_cmds,
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(fota_cmds,
-	SHELL_CMD(interval, &fota_interval_cmds,
-		  "Change the firmware update check interval.", NULL),
+	SHELL_CMD_ARG(timer, NULL,
+		  "'fota timer <seconds>' sets the FOTA timer to expire in "
+		  "given number of seconds.", fota_cmd_timer, 2, 0),
 	SHELL_CMD(server, &fota_server_cmds,
 		  "Change the Device Management server hostname and " \
 		  "port number.", NULL),
