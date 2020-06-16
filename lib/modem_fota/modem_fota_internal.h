@@ -11,6 +11,9 @@
 extern "C" {
 #endif
 
+/* Currently the maximum timer duration is ~18h, so we'll use that */
+#define MAX_TIMER_DURATION_S (18 * 60 * 60)
+
 bool is_fota_enabled();
 
 void enable_fota();
@@ -19,11 +22,7 @@ void disable_fota();
 
 u32_t get_time_to_next_update_check();
 
-u32_t get_update_check_interval();
-
-void set_update_check_interval(u32_t interval);
-
-void reset_update_check_interval();
+void set_time_to_next_update_check(u32_t seconds);
 
 char *get_dm_server_host();
 
