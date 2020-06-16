@@ -378,7 +378,7 @@ static int activate_fota_pdn()
 	if (fota_apn == NULL)
 		return 0;
 
-	LOG_DBG("Activating FOTA PDN using APN: %s", log_strdup(fota_apn));
+	LOG_DBG("Activating FOTA PDN");
 
 	pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
 	if (pdn_fd < 0) {
@@ -515,7 +515,6 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
-		/* TODO: Retry */
 		finish_update_check(MODEM_FOTA_EVT_ERROR);
 		break;
 
@@ -770,6 +769,7 @@ static void start_update_check()
 static void start_update_work(struct k_work *item)
 {
 	int err;
+	int retry_count;
 	char *imei;
 	char *fw_version;
 
@@ -842,9 +842,23 @@ static void start_update_work(struct k_work *item)
 		if (IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_TLS))
 			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
-		/* TODO: Retry */
-		err = fota_download_start(fw_update_host, fw_update_file,
-					  sec_tag, port, fota_apn);
+		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
+		while (1) {
+			err = fota_download_start(fw_update_host,
+						  fw_update_file,
+						  sec_tag, port, fota_apn);
+			if (err == 0 || retry_count <= 0) {
+				/* Download started successfully or no retries
+				 * left
+				 */
+				break;
+			}
+
+			LOG_WRN("Starting FOTA download failed. %d retries "
+				"left...", retry_count);
+			retry_count--;
+		}
+
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
 			finish_update_check(MODEM_FOTA_EVT_ERROR);

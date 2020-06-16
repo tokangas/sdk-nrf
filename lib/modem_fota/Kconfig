@@ -15,27 +15,27 @@ config MODEM_FOTA_DM_SERVER_HOST
 	string "FOTA Device Management host name"
 	default "fota.nrfcloud.com"
 	help
-		FOTA Device Management server host name.
+	  FOTA Device Management server host name.
 
 config MODEM_FOTA_DM_SERVER_PORT
 	int "FOTA Device Management port number"
 	default 443
 	help
-		FOTA Device Management server port number.
+	  FOTA Device Management server port number.
 
 config MODEM_FOTA_APN
 	string "FOTA APN"
 	default ""
 	help
-		Acccess Point Name to be used for all FOTA data traffic. If not set, the
-		default APN will be used.
+	  Acccess Point Name to be used for all FOTA data traffic. If not set, the
+	  default APN will be used.
 
 choice MODEM_FOTA_APN_PDN_TYPE
 	bool "PDN type for the FOTA APN"
 	default MODEM_FOTA_APN_PDN_TYPE_IPV4V6
 	help
-		PDN type for the FOTA APN. Used only when FOTA APN is set using
-		MODEM_FOTA_APN.
+	  PDN type for the FOTA APN. Used only when FOTA APN is set using
+	  MODEM_FOTA_APN.
 
 config MODEM_FOTA_APN_PDN_TYPE_IPV4V6
 	bool "IPv4v6"
@@ -52,61 +52,67 @@ config MODEM_FOTA_UPDATE_CHECK_INTERVAL
 	int "Interval in minutes between modem firmware update checks"
 	default 20160
 	help
-		Sets the time between modem firmware update checks. The default
-		interval is 14 days (20160 minutes).
+	  Sets the time between modem firmware update checks. The default
+	  interval is 14 days (20160 minutes).
 
 config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
 	int "Maximum value in minutes for random component which is added to the update check interval"
 	default 1440
 	help
-		For example if value is set to 1440 minutes, a random component between
-		0 and 24 hours is added to the firmware update check timer. If set to 0,
-		no randomness is added.
+	  For example if value is set to 1440 minutes, a random component between
+	  0 and 24 hours is added to the firmware update check timer. If set to 0,
+	  no randomness is added.
 
 config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
 	int "Security tag to use TLS for the firmware download"
 	depends on DOWNLOAD_CLIENT_TLS
 	default -1
 	help
-		Security tag to be used for TLS connection for the firmware download. If
-		set to -1, no TLS is used.
+	  Security tag to be used for TLS connection for the firmware download. If
+	  set to -1, no TLS is used.
 
 config MODEM_FOTA_ALLOWED_IN_NBIOT
 	bool "FOTA allowed when connected to NB-IoT"
 	default y
 	help
-		Is FOTA allowed when device is connected using NB-IoT. If FOTA is not
-		allowed in NB-IoT and device is connected using NB-IoT when the timer
-		expires, the FOTA client switches to LTE M1 for the update check and
-		update.
+	  Is FOTA allowed when device is connected using NB-IoT. If FOTA is not
+	  allowed in NB-IoT and device is connected using NB-IoT when the timer
+	  expires, the FOTA client switches to LTE M1 for the update check and
+	  update.
 
 config MODEM_FOTA_ALLOWED_DURING_ROAMING
 	bool "FOTA allowed during roaming"
 	default y
 	help
-		Is FOTA allowed when device is connected to a roaming network.
+	  Is FOTA allowed when device is connected to a roaming network.
 
 config MODEM_FOTA_DISABLE_IMSI_PREFIXES
 	string "Comma separated list of USIM IMSI prefixes for which FOTA is disabled"
 	default ""
 	help
-		Comma separated list of IMSI prefixes for USIMs for which FOTA is
-		disabled. No whitespace is allowed in the string.
+	  Comma separated list of IMSI prefixes for USIMs for which FOTA is
+	  disabled. No whitespace is allowed in the string.
 
 config MODEM_FOTA_DATA_INACTIVITY_TIMEOUT
 	int "Maximum time in minutes to wait for data connection inactivity"
 	default 30
 	help
-		Sets the maximum time to wait for data connection inactivity before
-		proceeding with FOTA. The library waits until the data connection is
-		inactive before switching the LTE mode or requesting device restart.
+	  Sets the maximum time to wait for data connection inactivity before
+	  proceeding with FOTA. The library waits until the data connection is
+	  inactive before switching the LTE mode or requesting device restart.
+
+config MODEM_FOTA_SERVER_RETRY_COUNT
+	int "Number of retries when trying to connect to the servers"
+	default 5
+	help
+	  Sets the number of retries when trying to connect to the DM and the
+	  firmware download servers.
 
 config MODEM_FOTA_SHELL
 	bool "Enable shell interface"
 	depends on SHELL
-	default n
 	help
-		Enable shell interface for the FOTA Client.
+	  Enable shell interface for the FOTA Client.
 
 module=MODEM_FOTA
 module-dep=LOG
