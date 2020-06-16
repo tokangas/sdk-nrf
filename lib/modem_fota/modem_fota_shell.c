@@ -24,8 +24,7 @@ static int fota_cmd_timer(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
-static int fota_cmd_server_set(const struct shell *shell, size_t argc,
-		char **argv)
+static int fota_cmd_server(const struct shell *shell, size_t argc, char **argv)
 {
 	u32_t port;
 
@@ -38,15 +37,6 @@ static int fota_cmd_server_set(const struct shell *shell, size_t argc,
 
 	set_dm_server_host(argv[1]);
 	set_dm_server_port(port);
-
-	return 0;
-}
-
-static int fota_cmd_server_reset(const struct shell *shell, size_t argc,
-		char **argv)
-{
-	reset_dm_server_host();
-	reset_dm_server_port();
 
 	return 0;
 }
@@ -78,42 +68,35 @@ static int fota_cmd_enable(const struct shell *shell, size_t argc, char **argv)
 static int fota_cmd_status(const struct shell *shell, size_t argc, char **argv)
 {
 	u32_t time_to_check;
+	u32_t time_to_check_without_days;
 
 	shell_print(shell, "FOTA %s",
 		    is_fota_enabled() ? "enabled" : "disabled");
 	time_to_check = get_time_to_next_update_check();
-	if (time_to_check > 0)
-		shell_print(shell, "Time until next update check: %d seconds",
-			    time_to_check);
-	else
+	if (time_to_check > 0) {
+		time_to_check_without_days = time_to_check % SECONDS_IN_DAY;
+		shell_print(shell, "Time until next update check: %d days, %02d:%02d:%02d",
+			time_to_check / SECONDS_IN_DAY,
+			time_to_check_without_days / 3600,
+			(time_to_check_without_days % 3600) / 60,
+			(time_to_check_without_days % 3600) % 60);
+	} else {
 		shell_print(shell, "Next update check not scheduled or no " \
 				   "network time");
+	}
 	shell_print(shell, "DM server host: %s", get_dm_server_host());
 	shell_print(shell, "DM server port: %d", get_dm_server_port());
 
 	return 0;
 }
 
-SHELL_STATIC_SUBCMD_SET_CREATE(fota_server_cmds,
-	SHELL_CMD_ARG(set, NULL,
-		      "'fota server set <host> <port>' overrides the " \
-		      "configured Device Management server hostname and " \
-		      "port number.",
-		      fota_cmd_server_set, 3, 0),
-	SHELL_CMD_ARG(reset, NULL,
-		      "Restore the configured Device Management server " \
-		      "hostname and port number.",
-		      fota_cmd_server_reset, 1, 0),
-	SHELL_SUBCMD_SET_END
-);
-
 SHELL_STATIC_SUBCMD_SET_CREATE(fota_cmds,
 	SHELL_CMD_ARG(timer, NULL,
 		  "'fota timer <seconds>' sets the FOTA timer to expire in "
 		  "given number of seconds.", fota_cmd_timer, 2, 0),
-	SHELL_CMD(server, &fota_server_cmds,
-		  "Change the Device Management server hostname and " \
-		  "port number.", NULL),
+	SHELL_CMD_ARG(server, NULL,
+		  "'fota server <host> <port>' sets the Device Management "
+		  "server hostname and port number.", fota_cmd_server, 3, 0),
 	SHELL_CMD(disable, NULL, "Disable FOTA.", fota_cmd_disable),
 	SHELL_CMD(enable, NULL, "Enable FOTA.", fota_cmd_enable),
 	SHELL_CMD(status, NULL, "Show FOTA status.", fota_cmd_status),

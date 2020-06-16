@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#define SECONDS_IN_DAY (24 * 60 * 60)
+
 /* Currently the maximum timer duration is ~18h, so we'll use that */
 #define MAX_TIMER_DURATION_S (18 * 60 * 60)
 
@@ -28,13 +30,9 @@ char *get_dm_server_host();
 
 void set_dm_server_host(const char *host);
 
-void reset_dm_server_host();
-
 u16_t get_dm_server_port();
 
 void set_dm_server_port(u16_t port);
-
-void reset_dm_server_port();
 
 #ifdef __cplusplus
 }

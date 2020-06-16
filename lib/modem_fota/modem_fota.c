@@ -21,8 +21,6 @@
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
-#define SECONDS_IN_DAY (24 * 60 * 60)
-
 /* Time to sleep between AT+CSCON checks in seconds */
 #define WAIT_DATA_INACTIVITY_SLEEP_TIME 10
 
@@ -154,7 +152,7 @@ static void parse_network_time(const char *time_str)
 	temp[1] = time_str[10];
 	date_time.tm_sec = atoi(temp);
 
-	LOG_DBG("Got network time: %d.%d.%d %02d:%02d:%02d",
+	LOG_DBG("Current time: %d.%d.%d %02d:%02d:%02d UTC",
 		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
 		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
@@ -770,7 +768,7 @@ static void start_update_work(struct k_work *item)
 	char *imei;
 	char *fw_version;
 
-	LOG_INF("Time for update check");
+	LOG_INF("Checking for firmware update");
 
 	/* Block fovever until we have a network connection */
 	wait_until_connected_to_network(0);
@@ -880,12 +878,20 @@ static bool is_time_for_update_check()
 static void start_update_check_timer()
 {
 	s32_t duration_s;
+	u32_t duration_s_without_days;
 
 	if (!is_update_scheduled()) {
 		LOG_ERR("Update not scheduled, can't start the timer");
 	}
 
 	duration_s = update_check_time_s - get_current_time_in_s();
+
+	duration_s_without_days = duration_s % SECONDS_IN_DAY;
+	LOG_INF("Next update check in %d days, %02d:%02d:%02d",
+		duration_s / SECONDS_IN_DAY,
+		duration_s_without_days / 3600,
+		(duration_s_without_days % 3600) / 60,
+		(duration_s_without_days % 3600) % 60);
 
 	if (MAX_TIMER_DURATION_S < duration_s)
 		duration_s = MAX_TIMER_DURATION_S;
@@ -909,26 +915,11 @@ static void save_update_check_time()
 			  &update_check_time_s, sizeof(update_check_time_s));
 }
 
-static void save_dm_server_host()
-{
-	if (dm_server_host == NULL) {
-		settings_delete("modem_fota/dm_server_host");
-	} else {
-		settings_save_one("modem_fota/dm_server_host",
-				  dm_server_host, strlen(dm_server_host) + 1);
-	}
-}
-
-static void save_dm_server_port()
-{
-	settings_save_one("modem_fota/dm_server_port",
-			  &dm_server_port, sizeof(dm_server_port));
-}
-
 static void calculate_next_update_check_time()
 {
 	u32_t seconds_to_update_check;
-	u32_t seconds_without_days;
+
+	LOG_DBG("Scheduling next update check");
 
 	seconds_to_update_check =
 		(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
@@ -941,13 +932,6 @@ static void calculate_next_update_check_time()
 
 	update_check_time_s = get_current_time_in_s() + seconds_to_update_check;
 	save_update_check_time();
-
-	seconds_without_days = seconds_to_update_check % SECONDS_IN_DAY;
-	LOG_INF("Next update check in %d days, %02d:%02d:%02d",
-		seconds_to_update_check / SECONDS_IN_DAY,
-		seconds_without_days / 3600,
-		(seconds_without_days % 3600) / 60,
-		(seconds_without_days % 3600) % 60);
 }
 
 static void schedule_next_update()
@@ -971,14 +955,11 @@ static void schedule_next_update()
 				/* Scheduled update check time has passed while
 				 * device was powered off
 				 */
-				LOG_DBG("Already past update check time");
 				start_update_check();
 			} else {
 				/* Not yet time for next update check, start
 				 * timer
 				 */
-				LOG_DBG("Not yet update check time, "
-					"starting update check timer");
 				start_update_check_timer();
 			}
 		} else {
@@ -1119,15 +1100,7 @@ void set_dm_server_host(const char *host)
 	dm_server_host = k_malloc(strlen(host) + 1);
 	if (dm_server_host != NULL) {
 		strcpy(dm_server_host, host);
-		save_dm_server_host();
 	}
-}
-
-void reset_dm_server_host()
-{
-	k_free(dm_server_host);
-	dm_server_host = NULL;
-	save_dm_server_host();
 }
 
 u16_t get_dm_server_port()
@@ -1141,13 +1114,6 @@ u16_t get_dm_server_port()
 void set_dm_server_port(u16_t port)
 {
 	dm_server_port = port;
-	save_dm_server_port();
-}
-
-void reset_dm_server_port()
-{
-	dm_server_port = 0;
-	save_dm_server_port();
 }
 
 static void at_notification_handler(void *context, const char *notif)
@@ -1211,24 +1177,6 @@ static int settings_set(const char *name, size_t len,
 			return -EINVAL;
 
 		if (read_cb(cb_arg, &update_check_time_s, len) > 0)
-			return 0;
-	} else if (!strcmp(name, "dm_server_host")) {
-		dm_server_host = k_malloc(len);
-		if (dm_server_host == NULL)
-			return -ENOMEM;
-
-		if (read_cb(cb_arg, dm_server_host, len) > 0) {
-			return 0;
-		} else {
-			k_free(dm_server_host);
-			dm_server_host = NULL;
-			return -EINVAL;
-		}
-	} else if (!strcmp(name, "dm_server_port")) {
-		if (len != sizeof(dm_server_port))
-			return -EINVAL;
-
-		if (read_cb(cb_arg, &dm_server_port, len) > 0)
 			return 0;
 	}
 
