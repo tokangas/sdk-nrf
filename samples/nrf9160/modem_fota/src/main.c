@@ -33,6 +33,7 @@ void modem_fota_callback(enum modem_fota_evt_id event_id)
 		break;
 
 	case MODEM_FOTA_EVT_RESTART_PENDING:
+		printk("Rebooting...\n");
 		lte_lc_offline();
 		sys_reboot(SYS_REBOOT_WARM);
 		break;
