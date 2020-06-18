@@ -510,6 +510,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
+		LOG_ERR("Downloading the update failed");
 		finish_update_check(MODEM_FOTA_EVT_ERROR);
 		break;
 
