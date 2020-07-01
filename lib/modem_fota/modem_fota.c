@@ -8,6 +8,7 @@
 #include <date_time.h>
 #include <zephyr.h>
 #include <logging/log.h>
+#include <power/reboot.h>
 #include <sys/timeutil.h>
 #include <settings/settings.h>
 #include <modem/at_cmd.h>
@@ -19,10 +20,12 @@
 #include <nrf_socket.h>
 #include "modem_fota_internal.h"
 
-LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
+/* TODO: +CEREG=5 and +CSCON=1 are enabled by LTE link control. The
+ * documentation must state that either LTE link control must be used or these
+ * notifications must be enabled by the application to use the FOTA library.
+ */
 
-/* Time to sleep between AT+CSCON checks in seconds */
-#define WAIT_DATA_INACTIVITY_SLEEP_TIME 10
+LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
 /* Enums */
 enum modem_reg_status {
@@ -56,30 +59,34 @@ static struct finish_update_info {
 	enum modem_fota_evt_id event;
 } finish_update;
 
-static struct k_sem link;
+static struct k_sem link_sem;
+static struct k_sem rrc_idle_sem;
 
 K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 
-#define AT_CEREG_PARAMS_COUNT_MAX	10
 #define AT_CEREG_REG_STATUS_INDEX	1
 #define AT_CEREG_TAC_INDEX		2
 #define AT_CEREG_TAC_LEN		4
 #define AT_CEREG_LTE_MODE_INDEX		4
-#define AT_XTIME_PARAMS_COUNT_MAX	4
+#define AT_CEREG_PARAMS_COUNT_MAX	(AT_CEREG_LTE_MODE_INDEX + 1)
+#define AT_CSCON_MODE_INDEX		1
+#define AT_CSCON_PARAMS_COUNT_MAX	(AT_CSCON_MODE_INDEX + 1)
 #define AT_XTIME_UNIVERSAL_TIME_INDEX	2
-#define AT_XTIME_UNIVERSAL_TIME_LEN	14
 #define AT_CGSN_IMEI_INDEX		1
 #define AT_CGMR_VERSION_INDEX		0
-#define AT_CSCON_MODE_INDEX		2
 #define AT_XSYSTEMMODE_PARAMS_COUNT	5
 #define AT_XSYSTEMMODE_RESPONSE_MAX_LEN	30
 
 static const char at_cereg_notif[] = "+CEREG";
+static const char at_cscon_notif[] = "+CSCON";
 static const char at_xtime_notif[] = "\%XTIME";
-/* Set the modem to Normal mode */
 static const char at_cfun_normal[] = "AT+CFUN=1";
-/* Set the modem to Offline mode */
 static const char at_cfun_offline[] = "AT+CFUN=4";
+static const char at_xtime_enable[] = "AT\%XTIME=1";
+static const char at_xtime_disable[] = "AT\%XTIME=0";
+static const char at_cgsn_imei[] = "AT+CGSN=1";
+static const char at_cgmr[] = "AT+CGMR";
+static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
@@ -93,6 +100,7 @@ static s64_t network_time_timestamp;
 /* Current modem registration status and LTE mode */
 static enum modem_reg_status reg_status;
 static enum modem_lte_mode lte_mode;
+static bool rrc_idle = true;
 
 /* FOTA is enabled by default */
 static bool fota_enabled = true;
@@ -116,6 +124,8 @@ static int pdn_fd = -1;
 
 static bool restore_system_mode_needed = false;
 static u32_t prev_system_mode_bitmask = 0;
+
+static bool reboot_pending = false;
 
 static void parse_network_time(const char *time_str)
 {
@@ -233,7 +243,7 @@ static int parse_cereg_notification(const char *notif)
 					    NULL,
 					    &param_list,
 					    AT_CEREG_PARAMS_COUNT_MAX);
-	if (err) {
+	if (err && err != -E2BIG) {
 		LOG_ERR("Could not parse response, error: %d", err);
 		goto clean_exit;
 	}
@@ -268,10 +278,10 @@ static int parse_cereg_notification(const char *notif)
 	/* Need to be registered and have a valid TAC */
 	if (tac_valid && value == 1) {
 		reg_status = MODEM_REG_STATUS_HOME;
-		k_sem_give(&link);
+		k_sem_give(&link_sem);
 	} else if (tac_valid && value == 5) {
 		reg_status = MODEM_REG_STATUS_ROAMING;
-		k_sem_give(&link);
+		k_sem_give(&link_sem);
 	} else {
 		reg_status = MODEM_REG_STATUS_NOT_REGISTERED;
 	}
@@ -298,6 +308,47 @@ clean_exit:
 	return err;
 }
 
+static int parse_cscon_notification(const char *notif)
+{
+	int err;
+	u32_t value;
+	struct at_param_list param_list = {0};
+
+	err = at_params_list_init(&param_list, AT_CSCON_PARAMS_COUNT_MAX);
+	if (err) {
+		LOG_ERR("Could not initialize params list, error: %d", err);
+		return err;
+	}
+
+	err = at_parser_max_params_from_str(notif,
+					    NULL,
+					    &param_list,
+					    AT_CSCON_PARAMS_COUNT_MAX);
+	if (err && err != -E2BIG ) {
+		LOG_ERR("Could not parse response, error: %d", err);
+		goto clean_exit;
+	}
+
+	/* Signaling connection mode */
+	err = at_params_int_get(&param_list,
+				AT_CSCON_MODE_INDEX,
+				&value);
+	if (err) {
+		LOG_ERR("Could not get signaling connection mode, error: %d",
+			err);
+		goto clean_exit;
+	}
+
+	rrc_idle = value == 0 ? true : false;
+	if (rrc_idle)
+		k_sem_give(&rrc_idle_sem);
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	return err;
+}
+
 static int parse_time_from_xtime_notification(const char *notif)
 {
 	char *time_str;
@@ -312,11 +363,11 @@ static int parse_time_from_xtime_notification(const char *notif)
 	}
 }
 
-static void unregister_at_xtime_notification()
+static void unregister_xtime_notification()
 {
 	int err;
 
-	err = at_cmd_write("AT\%XTIME=0", NULL, 0, NULL);
+	err = at_cmd_write(at_xtime_disable, NULL, 0, NULL);
 	if (err) {
 		LOG_ERR("Failed to disable XTIME, error: %d", err);
 		return;
@@ -333,7 +384,7 @@ static char *get_modem_imei()
 	int err;
 	char response[32];
 
-	err = at_cmd_write("AT+CGSN=1", response, sizeof(response), NULL);
+	err = at_cmd_write(at_cgsn_imei, response, sizeof(response), NULL);
 	if (err) {
 		LOG_ERR("Could not execute +CGSN command, error: %d", err);
 		return NULL;
@@ -347,7 +398,7 @@ static char *get_modem_fw_version()
 	int err;
 	char response[128];
 
-	err = at_cmd_write("AT+CGMR", response, sizeof(response), NULL);
+	err = at_cmd_write(at_cgmr, response, sizeof(response), NULL);
 	if (err) {
 		LOG_ERR("Could not execute +CGMR command, error: %d", err);
 		return NULL;
@@ -461,33 +512,56 @@ static void finish_update_check(enum modem_fota_evt_id event_id)
 	k_work_submit_to_queue(&work_q, &finish_update.work);
 }
 
+static void reboot_to_apply_update()
+{
+	LOG_INF("Rebooting to apply modem firmware update...");
+
+	at_cmd_write(at_cfun_offline, NULL, 0, NULL);
+
+	k_sleep(K_SECONDS(3));
+
+	sys_reboot(SYS_REBOOT_WARM);
+}
+
 /* Performs cleanup after FW update check or FW update and schedules the next
  * update check.
  */
 static void finish_update_work(struct k_work *item)
 {
 	struct finish_update_info *info;
+	bool reboot_now = false;
 
 	info = CONTAINER_OF(item, struct finish_update_info, work);
 
-	free_fw_update_info();
-	deactivate_fota_pdn();
-	schedule_next_update();
-	restore_system_mode();
-
-	/* If modem firmware was updated, a restart is needed to apply the
-	 * update. Before restarting the device, wait until data activity has
-	 * stopped.
+	/* If modem firmware update was downloaded, a reboot is needed to
+	 * apply the update.
 	 */
-	if (info->event == MODEM_FOTA_EVT_RESTART_PENDING) {
-		wait_for_data_inactivity();
-		/* Sleep for a while before asking for restart because the
-		 * previous function returns immediately when RRC connection is
-		 * not active or there's no network connection */
-		k_sleep(K_SECONDS(1));
+	if (info->event == MODEM_FOTA_EVT_UPDATE_DOWNLOADED) {
+		reboot_now = true;
 	}
 
+	free_fw_update_info();
+	deactivate_fota_pdn();
+	restore_system_mode();
+
 	event_callback(info->event);
+
+	/* Wait for data connection to become inactive before rebooting */
+	if (reboot_now && !wait_for_data_inactivity()) {
+		/* Timed out while waiting for inactivity, the system will be
+		 * rebooted when the next update check is scheduled.
+		 */
+		LOG_INF("Reboot will be tried again later");
+
+		reboot_now = false;
+		reboot_pending = true;
+	}
+
+	schedule_next_update();
+
+	if (reboot_now) {
+		reboot_to_apply_update();
+	}
 }
 
 static void fota_download_callback(const struct fota_download_evt *evt)
@@ -498,7 +572,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 	case FOTA_DOWNLOAD_EVT_FINISHED:
 		LOG_INF("Update downloaded, reboot needed to apply update");
-		finish_update_check(MODEM_FOTA_EVT_RESTART_PENDING);
+		finish_update_check(MODEM_FOTA_EVT_UPDATE_DOWNLOADED);
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
@@ -531,33 +605,28 @@ static bool is_update_check_allowed()
 	return true;
 }
 
-/* Waits until the device is connected to the network. The function blocks
- * until connected or a timeout happens. The timeout is given in seconds.
- * Zero means no timeout, i.e. function can block forever.
+/* Waits until the device is connected to the network or a timeout happens.
+ * The return value indicates if device is connected to the network or not. The
+ * timeout is given in seconds, zero means "no wait", i.e. function returns the
+ * network connection status immediately.
  */
 static bool wait_until_connected_to_network(u32_t timeout_s)
 {
-	k_timeout_t timeout;
-	bool connected = true;
-
 	if (reg_status != MODEM_REG_STATUS_HOME &&
 	    reg_status != MODEM_REG_STATUS_ROAMING) {
 		if (timeout_s == 0) {
-			LOG_INF("Waiting for network connection "
-				"(no timeout)...");
-			timeout = K_FOREVER;
-		} else {
-			LOG_INF("Waiting for network connection "
-				"(timeout %d s)...", timeout_s);
-			timeout = K_SECONDS(timeout_s);
+			return false;
 		}
-		k_sem_reset(&link);
-		if (k_sem_take(&link, timeout) != 0) {
-			connected = false;
+
+		LOG_INF("Waiting for network connection (timeout %d s)...",
+			timeout_s);
+		k_sem_reset(&link_sem);
+		if (k_sem_take(&link_sem, K_SECONDS(timeout_s)) != 0) {
+			return false;
 		}
 	}
 
-	return connected;
+	return true;
 }
 
 /* Waits until the RRC connection is idle. This is used to wait until the
@@ -565,72 +634,20 @@ static bool wait_until_connected_to_network(u32_t timeout_s)
  */
 static bool wait_for_data_inactivity()
 {
-	int err;
-	int count = 0;
-	int wait_count;
-	bool idle = false;
-	int cscon;
-	char response[16 + 2 + 1];
-	struct at_param_list param_list = {0};
+	u32_t timeout_s;
 
-	err = at_params_list_init(&param_list, AT_CSCON_MODE_INDEX + 1);
-	if (err) {
-		LOG_ERR("Could not initialize params list, error: %d", err);
-		return false;
-	}
+	if (!rrc_idle) {
+		timeout_s = CONFIG_MODEM_FOTA_DATA_INACTIVITY_TIMEOUT * 60;
 
-	wait_count = CONFIG_MODEM_FOTA_DATA_INACTIVITY_TIMEOUT * 60 /
-			WAIT_DATA_INACTIVITY_SLEEP_TIME;
-
-	while (1) {
-		err = at_cmd_write("AT+CSCON?", response, sizeof(response),
-				   NULL);
-		if (err) {
-			LOG_ERR("Failed to request CSCON, error: %d", err);
-			break;
-		}
-
-		err = at_parser_max_params_from_str(response,
-						    NULL,
-						    &param_list,
-						    AT_CSCON_MODE_INDEX + 1);
-		if (err && err != -E2BIG) {
-			LOG_ERR("Could not parse response, error: %d", err);
-			break;
-		}
-
-		err = at_params_int_get(&param_list,
-					AT_CSCON_MODE_INDEX,
-					&cscon);
-		if (err) {
-			LOG_ERR("Could not get CSCON mode, error: %d", err);
-			break;
-		}
-
-		if (cscon == 0) {
-			idle = true;
-			break;
-		} else {
-			at_params_list_clear(&param_list);
-
-			if (count == 0) {
-				LOG_INF("Waiting for data connection to become "
-					"inactive...");
-			}
-
-			if (count++ < wait_count) {
-				k_sleep(K_SECONDS(WAIT_DATA_INACTIVITY_SLEEP_TIME));
-			} else {
-				LOG_INF("Timed out waiting for data connection "
-					"inactivity");
-				break;
-			}
+		LOG_INF("Waiting for RRC connection release (timeout %d s)...",
+			timeout_s);
+		k_sem_reset(&rrc_idle_sem);
+		if (k_sem_take(&rrc_idle_sem, K_SECONDS(timeout_s)) != 0) {
+			return false;
 		}
 	}
 
-	at_params_list_free(&param_list);
-
-	return idle;
+	return true;
 }
 
 static bool switch_system_mode_to_lte_m(void)
@@ -769,10 +786,29 @@ static void start_update_work(struct k_work *item)
 	char *imei;
 	char *fw_version;
 
-	LOG_INF("Checking for firmware update");
+	if (reboot_pending) {
+		LOG_INF("Update has already been downloaded, reboot needed");
 
-	/* Block fovever until we have a network connection */
-	wait_until_connected_to_network(0);
+		if (!wait_for_data_inactivity()) {
+			/* Timed out while waiting for inactivity, the system
+			 * will be rebooted when the next update check is
+			 * scheduled. */
+			LOG_INF("Reboot will be tried again later");
+			schedule_next_update();
+			return;
+		}
+
+		schedule_next_update();
+		reboot_to_apply_update();
+	}
+
+	LOG_INF("Time for an update check");
+
+	if (!wait_until_connected_to_network(0)) {
+		LOG_INF("Out of service, skip update check");
+		schedule_next_update();
+		return;
+	}
 
 	if (!is_update_check_allowed()) {
 		LOG_INF("Update check not allowed");
@@ -787,7 +823,13 @@ static void start_update_work(struct k_work *item)
 		if (lte_mode == MODEM_LTE_MODE_NBIOT) {
 			LOG_INF("FOTA not allowed in NB-IoT, switching to "
 				"LTE-M");
-			wait_for_data_inactivity();
+			if (!wait_for_data_inactivity()) {
+				/* Timed out, cancel check and schedule next
+				 * update check */
+				LOG_INF("Timed out, skip update check");
+				schedule_next_update();
+				return;
+			}
 			if (!switch_system_mode_to_lte_m()) {
 				/* Failed to connect to LTE-M, abort update
 				 * check
@@ -839,7 +881,7 @@ static void start_update_work(struct k_work *item)
 			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
-		while (1) {
+		while (true) {
 			err = fota_download_start(fw_update_host,
 						  fw_update_file,
 						  sec_tag, port, fota_apn);
@@ -919,16 +961,17 @@ static void save_update_check_time()
 static void calculate_next_update_check_time()
 {
 	u32_t seconds_to_update_check;
+	u32_t max_rand;
 
 	LOG_DBG("Scheduling next update check");
 
 	seconds_to_update_check =
 		(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
+	max_rand = CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60;
 
-	if (CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS > 0) {
+	if (max_rand > 0) {
 		/* Add random variation to the update check interval */
-		seconds_to_update_check += sys_rand32_get() %
-			(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60);
+		seconds_to_update_check += sys_rand32_get() % max_rand;
 	}
 
 	update_check_time_s = get_current_time_in_s() + seconds_to_update_check;
@@ -1027,7 +1070,7 @@ static bool is_fota_disabled_with_usim()
 	if (strlen(CONFIG_MODEM_FOTA_DISABLE_IMSI_PREFIXES) == 0)
 		return false;
 
-	err = at_cmd_write("AT+CIMI", imsi, sizeof(imsi), NULL);
+	err = at_cmd_write(at_cimi, imsi, sizeof(imsi), NULL);
 	if (err) {
 		LOG_ERR("Failed to request IMSI, error: %d", err);
 		return false;
@@ -1073,7 +1116,11 @@ void disable_fota()
 u32_t get_time_to_next_update_check()
 {
 	if (is_update_scheduled() && is_network_time_valid())
-		return update_check_time_s - get_current_time_in_s();
+		if (update_check_time_s > get_current_time_in_s()) {
+			return update_check_time_s - get_current_time_in_s();
+		} else {
+			return 0;
+		}
 	else
 		return 0;
 }
@@ -1139,29 +1186,24 @@ static void at_notification_handler(void *context, const char *notif)
 			if (is_fota_disabled_with_usim())
 				disable_fota();
 		}
+	} else if (strncmp(at_cscon_notif, notif, sizeof(at_cscon_notif) - 1)
+			== 0) {
+		parse_cscon_notification(notif);
 	} else if (strncmp(at_xtime_notif, notif, sizeof(at_xtime_notif) - 1)
 			== 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
 			/* Got network time, schedule next update */
-			unregister_at_xtime_notification();
+			unregister_xtime_notification();
 			schedule_next_update();
 		}
 	}
 }
 
-static int register_at_notifications()
+static int register_xtime_notification()
 {
 	int err;
 
-	at_notif_register_handler(NULL, at_notification_handler);
-
-	err = at_cmd_write("AT+CEREG=5", NULL, 0, NULL);
-	if (err) {
-		LOG_ERR("Failed to enable CEREG notification, error: %d", err);
-		return err;
-	}
-
-	err = at_cmd_write("AT\%XTIME=1", NULL, 0, NULL);
+	err = at_cmd_write(at_xtime_enable, NULL, 0, NULL);
 	if (err) {
 		LOG_ERR("Failed to enable XTIME notification, error: %d", err);
 		return err;
@@ -1209,7 +1251,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 	if (strlen(CONFIG_MODEM_FOTA_APN) > 0)
 		fota_apn = CONFIG_MODEM_FOTA_APN;
 
-	k_sem_init(&link, 0, 1);
+	k_sem_init(&link_sem, 0, 1);
+	k_sem_init(&rrc_idle_sem, 0, 1);
 
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
@@ -1225,7 +1268,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 		return err;
 	}
 
-	register_at_notifications();
+	at_notif_register_handler(NULL, at_notification_handler);
+	register_xtime_notification();
 
 	LOG_INF("FOTA Client initialized");
 

@@ -32,10 +32,7 @@ void modem_fota_callback(enum modem_fota_evt_id event_id)
 	case MODEM_FOTA_EVT_DOWNLOADING_UPDATE:
 		break;
 
-	case MODEM_FOTA_EVT_RESTART_PENDING:
-		printk("Rebooting...\n");
-		lte_lc_offline();
-		sys_reboot(SYS_REBOOT_WARM);
+	case MODEM_FOTA_EVT_UPDATE_DOWNLOADED:
 		break;
 
 	case MODEM_FOTA_EVT_ERROR:
