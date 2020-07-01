@@ -29,8 +29,8 @@ enum modem_fota_evt_id {
 	MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE,
 	/** Update available, download started */
 	MODEM_FOTA_EVT_DOWNLOADING_UPDATE,
-	/** Update downloaded, restart needed to apply the update */
-	MODEM_FOTA_EVT_RESTART_PENDING,
+	/** Update downloaded, system will restart to apply the update */
+	MODEM_FOTA_EVT_UPDATE_DOWNLOADED,
 	/** Error during update check or download */
 	MODEM_FOTA_EVT_ERROR,
 };

@@ -95,11 +95,12 @@ config MODEM_FOTA_DISABLE_IMSI_PREFIXES
 
 config MODEM_FOTA_DATA_INACTIVITY_TIMEOUT
 	int "Maximum time in minutes to wait for data connection inactivity"
-	default 30
+	default 60
 	help
 	  Sets the maximum time to wait for data connection inactivity before
-	  proceeding with FOTA. The library waits until the data connection is
-	  inactive before switching the LTE mode or requesting device restart.
+	  giving up. The library waits until the data connection is inactive
+	  before switching the LTE mode or rebooting the device to apply the
+	  update.
 
 config MODEM_FOTA_SERVER_RETRY_COUNT
 	int "Number of retries when trying to connect to the servers"
