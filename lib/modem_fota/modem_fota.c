@@ -19,6 +19,7 @@
 #include <modem/modem_fota.h>
 #include <nrf_socket.h>
 #include "modem_fota_internal.h"
+#include "fota_client_mgmt.h"
 
 /* TODO: +CEREG=5 and +CSCON=1 are enabled by LTE link control. The
  * documentation must state that either LTE link control must be used or these
@@ -47,13 +48,14 @@ static void update_check_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
 
 /* Work queue */
-#define WORK_QUEUE_STACK_SIZE 1024
+#define WORK_QUEUE_STACK_SIZE 2024
 #define WORK_QUEUE_PRIORITY 5
 
 K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
 
 static struct k_work_q work_q;
 static struct k_work update_work;
+static struct k_work provision_work;
 static struct finish_update_info {
 	struct k_work work;
 	enum modem_fota_evt_id event;
@@ -84,8 +86,6 @@ static const char at_cfun_normal[] = "AT+CFUN=1";
 static const char at_cfun_offline[] = "AT+CFUN=4";
 static const char at_xtime_enable[] = "AT\%XTIME=1";
 static const char at_xtime_disable[] = "AT\%XTIME=0";
-static const char at_cgsn_imei[] = "AT+CGSN=1";
-static const char at_cgmr[] = "AT+CGMR";
 static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
@@ -105,6 +105,9 @@ static bool rrc_idle = true;
 /* FOTA is enabled by default */
 static bool fota_enabled = true;
 
+/* Current FOTA update job */
+static struct fota_client_mgmt_job current_job;
+
 /* Settings which are saved to NV memory */
 /* Next scheduled update check time (seconds since epoch) */
 static s64_t update_check_time_s;
@@ -112,10 +115,6 @@ static s64_t update_check_time_s;
 static char *dm_server_host;
 /* DM server port number (if != 0 overrides the configured default) */
 static u16_t dm_server_port;
-
-/* Information needed to fetch the firmware update */
-static char *fw_update_host;
-static char *fw_update_file;
 
 /* FOTA APN or NULL if default APN is used */
 static const char *fota_apn;
@@ -379,42 +378,6 @@ static s64_t get_current_time_in_s()
 	return (k_uptime_get() - network_time_timestamp + network_time) / 1000;
 }
 
-static char *get_modem_imei()
-{
-	int err;
-	char response[32];
-
-	err = at_cmd_write(at_cgsn_imei, response, sizeof(response), NULL);
-	if (err) {
-		LOG_ERR("Could not execute +CGSN command, error: %d", err);
-		return NULL;
-	}
-
-	return param_string_get(response, AT_CGSN_IMEI_INDEX);
-}
-
-static char *get_modem_fw_version()
-{
-	int err;
-	char response[128];
-
-	err = at_cmd_write(at_cgmr, response, sizeof(response), NULL);
-	if (err) {
-		LOG_ERR("Could not execute +CGMR command, error: %d", err);
-		return NULL;
-	}
-
-	return param_string_get(response, AT_CGMR_VERSION_INDEX);
-}
-
-static void free_fw_update_info()
-{
-	k_free(fw_update_host);
-	k_free(fw_update_file);
-	fw_update_host = NULL;
-	fw_update_file = NULL;
-}
-
 static int activate_fota_pdn()
 {
 	int err;
@@ -424,7 +387,7 @@ static int activate_fota_pdn()
 	if (fota_apn == NULL)
 		return 0;
 
-	LOG_DBG("Activating FOTA PDN");
+	LOG_INF("Activating FOTA PDN");
 
 	pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
 	if (pdn_fd < 0) {
@@ -467,43 +430,57 @@ static void deactivate_fota_pdn()
 		nrf_close(pdn_fd);
 		pdn_fd = -1;
 
-		LOG_DBG("FOTA PDN deactivated");
+		LOG_INF("FOTA PDN deactivated");
 	}
 }
 
-static const char firmware_host[] =
-		"vehoniemi.s3.amazonaws.com";
-static const char original_to_fota_firmware_name[] =
-		"mfw_nrf9160_update_from_1.2.0_to_1.2.0-FOTA-TEST.bin";
-static const char fota_to_original_firmware_name[] =
-		"mfw_nrf9160_update_from_1.2.0-FOTA-TEST_to_1.2.0.bin";
-
-/* Temporary stub because we don't yet have the DM implementation */
-static int fota_dm_query_fw_update(const char *imei, const char *fw_version,
-				   char **fw_update_host, char **fw_update_file)
+static int get_pending_job()
 {
-	LOG_DBG("Querying for FW update");
-	LOG_DBG("Current FW version: %s", log_strdup(fw_version));
+	int ret;
 
-	*fw_update_host = k_malloc(sizeof(firmware_host));
-	/* Assuming the filenames have equal length */
-	*fw_update_file = k_malloc(sizeof(original_to_fota_firmware_name));
+	LOG_INF("Checking for FOTA update...");
 
-	if (*fw_update_host == NULL || *fw_update_file == NULL) {
-		free_fw_update_info();
-		return -ENOMEM;
-	}
+	fota_client_job_free(&current_job);
 
-	strcpy(*fw_update_host, firmware_host);
-	if (strstr(fw_version, "FOTA") == NULL) {
-		/* Original version, update to FOTA test version */
-		strcpy(*fw_update_file, original_to_fota_firmware_name);
+	ret = fota_client_get_pending_job(&current_job);
+
+	if (ret == 0) {
+		if (current_job.host) {
+			LOG_INF("FOTA update job is available");
+			LOG_DBG("ID: %s", log_strdup(current_job.id));
+			LOG_DBG("Host: %s", log_strdup(current_job.host));
+			LOG_DBG("Path: %s", log_strdup(current_job.path));
+		} else {
+			LOG_INF("No FOTA update available");
+		}
 	} else {
-		/* FOTA test version, update to original version */
-		strcpy(*fw_update_file, fota_to_original_firmware_name);
+		LOG_ERR("Failed to check for FOTA update, error: %d", ret);
 	}
 
-	return 0;
+	return ret;
+}
+
+static int update_job_status()
+{
+	int ret;
+
+	LOG_INF("Updating FOTA update job status...");
+
+	ret = fota_client_update_job(&current_job);
+
+	if (ret == 0) {
+		LOG_INF("Job status updated");
+
+		/* cleanup job only on terminal statuses */
+		if ((current_job.status != AWS_JOBS_IN_PROGRESS) &&
+		    (current_job.status != AWS_JOBS_QUEUED)) {
+			fota_client_job_free(&current_job);
+		}
+	} else {
+		LOG_ERR("Failed to update job status, error: %d\n", ret);
+	}
+
+	return ret;
 }
 
 static void finish_update_check(enum modem_fota_evt_id event_id)
@@ -540,7 +517,8 @@ static void finish_update_work(struct k_work *item)
 		reboot_now = true;
 	}
 
-	free_fw_update_info();
+	/* TODO: Have to keep the current job until update has been applied? */
+	fota_client_job_free(&current_job);
 	deactivate_fota_pdn();
 	restore_system_mode();
 
@@ -783,8 +761,6 @@ static void start_update_work(struct k_work *item)
 {
 	int err;
 	int retry_count;
-	char *imei;
-	char *fw_version;
 
 	if (reboot_pending) {
 		LOG_INF("Update has already been downloaded, reboot needed");
@@ -802,7 +778,7 @@ static void start_update_work(struct k_work *item)
 		reboot_to_apply_update();
 	}
 
-	LOG_INF("Time for an update check");
+	LOG_INF("Time for update check");
 
 	if (!wait_until_connected_to_network(0)) {
 		LOG_INF("Out of service, skip update check");
@@ -843,33 +819,16 @@ static void start_update_work(struct k_work *item)
 
 	event_callback(MODEM_FOTA_EVT_CHECKING_FOR_UPDATE);
 
-	imei = get_modem_imei();
-	fw_version = get_modem_fw_version();
-
-	if (imei == NULL || fw_version == NULL) {
-		LOG_ERR("Failed to read IMEI or modem FW version");
-		finish_update_check(MODEM_FOTA_EVT_ERROR);
-		goto clean_exit;
-	}
-
 	err = activate_fota_pdn();
 	if (err) {
 		LOG_ERR("Activating FOTA PDN failed");
 		finish_update_check(MODEM_FOTA_EVT_ERROR);
-		goto clean_exit;
+		return;
 	}
 
-	if (fota_dm_query_fw_update(imei, fw_version, &fw_update_host,
-				    &fw_update_file) != 0) {
-		LOG_DBG("Update check failed");
-		finish_update_check(MODEM_FOTA_EVT_ERROR);
-		goto clean_exit;
-	}
-
-	if (fw_update_host == NULL || fw_update_file == NULL) {
-		LOG_DBG("No update available");
-		finish_update_check(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
-	} else {
+	if (get_pending_job() == 0 &&
+			current_job.host != NULL &&
+			current_job.path != NULL) {
 		int sec_tag = -1;
 		int port = 0;
 
@@ -882,8 +841,8 @@ static void start_update_work(struct k_work *item)
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 		while (true) {
-			err = fota_download_start(fw_update_host,
-						  fw_update_file,
+			err = fota_download_start(current_job.host,
+						  current_job.path,
 						  sec_tag, port, fota_apn);
 			if (err == 0 || retry_count <= 0) {
 				/* Download started successfully or no retries
@@ -901,11 +860,9 @@ static void start_update_work(struct k_work *item)
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
 			finish_update_check(MODEM_FOTA_EVT_ERROR);
 		}
+	} else {
+		finish_update_check(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
 	}
-
-clean_exit:
-	k_free(imei);
-	k_free(fw_version);
 }
 
 static bool is_update_scheduled()
@@ -1007,15 +964,37 @@ static void schedule_next_update()
 				start_update_check_timer();
 			}
 		} else {
-			/* Next update not yet scheduled */
-			calculate_next_update_check_time();
-			start_update_check_timer();
+			/* Update not scheduled yet, provision device for FOTA
+			 * service */
+			k_work_submit_to_queue(&work_q, &provision_work);
 		}
 	} else {
 		/* Schedule next update */
 		calculate_next_update_check_time();
 		start_update_check_timer();
 	}
+}
+
+static void provision_device_work(struct k_work *item)
+{
+	int ret;
+
+	LOG_INF("Provisioning device for FOTA...");
+
+	ret = fota_client_provision_device();
+
+	if (ret == 0) {
+		LOG_INF("Device provisioned, waiting 30s before using API");
+		k_sleep(K_SECONDS(30));
+	} else if (ret == 1) {
+		LOG_INF("Device already provisioned");
+	} else {
+		LOG_ERR("Error provisioning device, error: %d", ret);
+	}
+
+	/* Schedule first update check */
+	calculate_next_update_check_time();
+	start_update_check_timer();
 }
 
 static bool prefix_matches_imsi(const char *imsi, char *prefix, int prefix_len)
@@ -1239,6 +1218,7 @@ static void init_and_load_settings()
     	settings_load();
  }
 
+
 int modem_fota_init(modem_fota_callback_t callback)
 {
 	int err = 0;
@@ -1257,6 +1237,7 @@ int modem_fota_init(modem_fota_callback_t callback)
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
 	k_work_init(&update_work, start_update_work);
+	k_work_init(&provision_work, provision_device_work);
 	k_work_init(&finish_update.work, finish_update_work);
 
 	init_and_load_settings();
