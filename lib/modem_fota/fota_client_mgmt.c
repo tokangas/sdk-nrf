@@ -86,7 +86,8 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define JOB_ID_END_STR		"\""
 #define FW_URI_BEGIN_STR	"\"uris\":[\""
 #define FW_URI_END_STR		"\"]"
-#define FW_PATH_PREFIX		"/v1/firmwares/"
+#define FW_PATH_PREFIX		"/v1/firmwares/modem/"
+#define FW_HOSTNAME 		"static." API_HOSTNAME
 
 /*
  * TODO: use http headers correctly instead of
@@ -939,12 +940,12 @@ int parse_pending_job_response(const char * const resp_buff,
 
 	// TODO: error handling / cleanup
 
-	job->host = k_calloc(sizeof(API_HOSTNAME),1);
+	job->host = k_calloc(sizeof(FW_HOSTNAME),1);
 	if (!job->host) {
 		return -ENOMEM;
 	}
-	strncpy(job->host,API_HOSTNAME,
-		sizeof(API_HOSTNAME));
+	strncpy(job->host,FW_HOSTNAME,
+		sizeof(FW_HOSTNAME));
 
 	start = strstr(resp_buff,JOB_ID_BEGIN_STR);
 	if (!start) {
