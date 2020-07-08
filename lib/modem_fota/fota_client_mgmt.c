@@ -8,6 +8,7 @@
 #include <zephyr.h>
 #include <stdlib.h>
 #include <net/socket.h>
+#include <net/net_ip.h>
 #include <modem/bsdlib.h>
 #include <net/tls_credentials.h>
 #include <net/http_client.h>
@@ -16,14 +17,14 @@
 #include <tinycrypt/hmac.h>
 #include <tinycrypt/constants.h>
 #include <sys/base64.h>
-//#include <logging/log.h>
+#include <logging/log.h>
 #include <net/aws_jobs.h> /* for enum execution_status */
 #include "fota_client_mgmt.h"
 
-/* TODO: switch to logger */
+LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
+
 #define HTTP_DEBUG 0
 #define JWT_DEBUG 0
-//LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_FOTA_CLIENT_MGMT_LOG_LEVEL);
 
 /* TODO: the nrf-<IMEI> format is for testing/certification only
  * Device ID will become a GUID for production code.
@@ -181,14 +182,14 @@ static int socket_apn_set(int fd, const char *apn)
 
 	len = strlen(apn);
 	if (len >= sizeof(ifr.ifr_name)) {
-		printk("Access point name is too long.\n");
+		LOG_ERR("Access point name is too long");
 		return -EINVAL;
 	}
 
 	memcpy(ifr.ifr_name, apn, len);
 	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
 	if (err) {
-		printk("Failed to bind socket, errno %d\n", errno);
+		LOG_ERR("Failed to bind socket, error: %d", errno);
 		return -EINVAL;
 	}
 
@@ -219,29 +220,25 @@ static int do_connect( int * const fd, struct addrinfo **addr_info,
 
 	ret = getaddrinfo(hostname, NULL, &hints, addr_info);
 	if (ret) {
-		printk("getaddrinfo() failed, err %d\n", errno);
+		LOG_ERR("getaddrinfo() failed, error: %d", errno);
 		return -EFAULT;
-	}
-	else
-	{
+	} else {
 		char peer_addr[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &(*addr_info)->ai_addr, peer_addr, INET_ADDRSTRLEN);
-#if HTTP_DEBUG
-		printk("getaddrinfo() %s\n", peer_addr);
-#endif
+		inet_ntop(AF_INET, &net_sin((*addr_info)->ai_addr)->sin_addr, peer_addr, INET_ADDRSTRLEN);
+		LOG_DBG("getaddrinfo() %s", log_strdup(peer_addr));
 	}
 
 	((struct sockaddr_in *)(*addr_info)->ai_addr)->sin_port = htons(port_num);
 
 	*fd = socket(AF_INET, SOCK_STREAM, SOCKET_PROTOCOL);
 	if (*fd == -1) {
-		printk("Failed to open socket!\n");
+		LOG_ERR("Failed to open socket, error: %d", errno);
 		ret = -ENOTCONN;
 		goto clean_up;
 	}
 
 	if (apn != NULL) {
-		printk("Setting up APN: %s\n", apn);
+		LOG_DBG("Setting up APN: %s", log_strdup(apn));
 		ret = socket_apn_set(*fd, apn);
 		if (ret) {
 			ret = -EINVAL;
@@ -255,13 +252,11 @@ static int do_connect( int * const fd, struct addrinfo **addr_info,
 		goto clean_up;
 	}
 
-#if HTTP_DEBUG
-	printk("Connecting to %s\n", hostname);
-#endif
+	LOG_DBG("Connecting to %s", log_strdup(hostname));
 
 	ret = connect(*fd, (*addr_info)->ai_addr, sizeof(struct sockaddr_in));
 	if (ret) {
-		printk("connect() failed, err: %d\n", errno);
+		LOG_ERR("Failed to connect socket, error: %d", errno);
 		ret = -ECONNREFUSED;
 		goto clean_up;
 	} else {
@@ -300,9 +295,7 @@ int fota_client_provision_device(void)
 	}
 
 	ret = http_client_req(fd, &req, JITP_HTTP_TIMEOUT_MS, &prov_data);
-#if HTTP_DEBUG
-	printk("http_client_req returned %d\n", ret);
-#endif
+	LOG_DBG("http_client_req() returned: %d", ret);
 	if (ret < 0) {
 		ret = -EIO;
 	} else if (!http_resp_rcvd) {
@@ -380,12 +373,11 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 
 	ret = generate_jwt(device_id,&jwt);
 	if (ret < 0){
-		printk("Failed to generate JWT: %d\n", ret);
+		LOG_ERR("Failed to generate JWT, error: %d", ret);
 		goto clean_up;
 	}
-#if JWT_DEBUG
-	printk("JWT: %s\n", jwt);
-#endif
+
+	LOG_DBG("JWT: %s", log_strdup(jwt));
 
 	/* Format API URL with device ID */
 	buff_size = sizeof(API_GET_JOB_URL_TEMPLATE) + strlen(device_id);
@@ -395,7 +387,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	}
 	ret = snprintk(url, buff_size, API_GET_JOB_URL_TEMPLATE, device_id);
 	if (ret < 0 || ret >= buff_size) {
-		printk("Could not format URL\n");
+		LOG_ERR("Could not format URL");
 		return -ENOBUFS;
 	}
 
@@ -407,7 +399,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	}
 	ret = snprintk(content, buff_size, API_GET_JOB_TEMPLATE, jwt);
 	if (ret < 0 || ret >= buff_size) {
-		printk("Could not format HTTP content\n");
+		LOG_ERR("Could not format HTTP content");
 		return -ENOBUFS;
 	}
 
@@ -436,9 +428,8 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	}
 
 	ret = http_client_req(fd, &req, JITP_HTTP_TIMEOUT_MS, &job_data);
-#if HTTP_DEBUG
-	printk("http_client_req returned %d\n", ret);
-#endif
+
+	LOG_DBG("http_client_req() returned: %d", ret);
 
 	if (ret < 0) {
 		ret = -EIO;
@@ -449,7 +440,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 		} else if (http_resp_status == HTTP_STATUS_OK) {
 			job->status = AWS_JOBS_IN_PROGRESS;
 		} else {
-			printk("Error: HTTP status %d\n", http_resp_status);
+			LOG_ERR("HTTP status: %d", http_resp_status);
 			ret = -ENODATA;
 		}
 	}
@@ -498,7 +489,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 
 	ret = generate_jwt(NULL,&jwt);
 	if (ret < 0){
-		printk("Failed to generate JWT: %d\n", ret);
+		LOG_ERR("Failed to generate JWT, error: %d", ret);
 		goto clean_up;
 	}
 
@@ -511,7 +502,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	ret = snprintk(url, buff_size, "%s%s",
 		       API_UPDATE_JOB_URL_PREFIX, job->id);
 	if (ret < 0 || ret >= buff_size) {
-		printk("Could not format URL\n");
+		LOG_ERR("Could not format URL");
 		return -ENOBUFS;
 	}
 
@@ -523,7 +514,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	}
 	ret = snprintk(content, buff_size, API_UPDATE_JOB_TEMPLATE, jwt);
 	if (ret < 0 || ret >= buff_size) {
-		printk("Could not format HTTP content\n");
+		LOG_ERR("Could not format HTTP content");
 		return -ENOBUFS;
 	}
 
@@ -537,7 +528,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	ret = snprintk(payload, buff_size, API_UPDATE_JOB_BODY_TEMPLATE,
 		       job_status_strings[job->status]);
 	if (ret < 0 || ret >= buff_size) {
-		printk("Could not format HTTP payload\n");
+		LOG_ERR("Could not format HTTP payload");
 		return -ENOBUFS;
 	}
 
@@ -570,16 +561,14 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 
 	ret = http_client_req(fd, &req, API_HTTP_TIMEOUT_MS, &job_data);
 
-#if HTTP_DEBUG
-	printk("http_client_req returned %d\n", ret);
-#endif
+	LOG_DBG("http_client_req() returned: %d", ret);
 
 	if (ret < 0) {
 		ret = -EIO;
 	} else {
 		ret = 0;
 		if (http_resp_status != HTTP_STATUS_OK) {
-			printk("Error: HTTP status %d\n", http_resp_status);
+			LOG_ERR("HTTP status: %d", http_resp_status);
 			ret = -ENODATA;
 		}
 	}
@@ -629,7 +618,7 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 	if (!device_id) {
 		dev_id = get_device_id_string();
 		if (!dev_id) {
-			printk("Could not get device ID string\n");
+			LOG_ERR("Could not get device ID string");
 			return -ENODEV;
 		}
 	}
@@ -643,7 +632,7 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 		dev_id = NULL;
 	}
 	if (ret < 0 || ret >= sizeof(jwt_payload)) {
-		printk("Could not format JWT payload\n");
+		LOG_ERR("Could not format JWT payload");
 		return -ENOBUFS;
 	}
 #if JWT_DEBUG
@@ -654,14 +643,14 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 	jwt_payload_b64 = get_base64url_string(jwt_payload,
 					       strlen(jwt_payload));
 	if (!jwt_payload_b64) {
-		printk("Could not encode JWT payload\n");
+		LOG_ERR("Could not encode JWT payload");
 		return -ENOMSG;
 	}
 
 	/* Allocate output JWT buffer and add header and payload */
 	jwt_buff = k_calloc(JWT_BUFF_SIZE,1);
 	if (!jwt_buff){
-		printk("Could not allocate JWT buffer.\n");
+		LOG_ERR("Could not allocate JWT buffer");
 		k_free(jwt_payload_b64);
 		return -ENOMEM;
 	}
@@ -671,7 +660,7 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 	k_free(jwt_payload_b64);
 	jwt_payload_b64 = NULL;
 	if (ret < 0 || ret >= JWT_BUFF_SIZE) {
-		printk("Could not format JWT header and payload.\n");
+		LOG_ERR("Could not format JWT header and payload");
 		k_free(jwt_buff);
 		return -ENOBUFS;
 	}
@@ -681,20 +670,20 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 	ret = get_signature((uint8_t*)jwt_buff, strlen(jwt_buff),
 			    jwt_sig, sizeof(jwt_sig));
 	if (ret) {
-		printk("Error signing JWT: %d\n", ret);
+		LOG_ERR("Error signing JWT, error: %d", ret);
 		k_free(jwt_buff);
 		return -EBADMSG;
 	}
 
 	jwt_sig_b64 = get_base64url_string(jwt_sig, TC_SHA256_DIGEST_SIZE);
 	if (!jwt_sig_b64) {
-		printk("Could not encode JWT signature\n");
+		LOG_ERR("Could not encode JWT signature");
 		k_free(jwt_buff);
 		return -ENOMSG;
 	}
 
 #if JWT_DEBUG
-	printk("signature: %s\n", jwt_sig_b64);
+	printk("Signature: %s\n", jwt_sig_b64);
 #endif
 
 	ret = snprintk(&jwt_buff[jwt_len],
@@ -704,7 +693,7 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 	k_free(jwt_sig_b64);
 	jwt_sig_b64 = NULL;
 	if (ret < 0 || ret >= (JWT_BUFF_SIZE-jwt_len)) {
-		printk("Could not format JWT signature\n");
+		LOG_ERR("Could not format JWT signature");
 		k_free(jwt_buff);
 		return -ENOBUFS;
 	}
@@ -726,7 +715,7 @@ static int get_signature(const uint8_t * const data_in,
 	if (!data_in || !data_in_size || !data_out) {
 		return -EINVAL;
 	} else if (data_out_size < TC_SHA256_DIGEST_SIZE) {
-		printk("data_out must be >= %d bytes\n",
+		LOG_ERR("data_out must be >= %d bytes",
 		       TC_SHA256_DIGEST_SIZE);
 		return -ENOBUFS;
 	}
@@ -737,24 +726,24 @@ static int get_signature(const uint8_t * const data_in,
 
 	ret = tc_hmac_set_key(&hmac, shared_secret, sizeof(shared_secret));
 	if (ret != TC_CRYPTO_SUCCESS) {
-		printk("tc_hmac_set_key failed: %d\n", ret);
+		LOG_ERR("tc_hmac_set_key failed, error: %d", ret);
 		return -EACCES;
 	}
 
 	ret = tc_hmac_init(&hmac);
 	if (ret != TC_CRYPTO_SUCCESS) {
-		printk("tc_hmac_init failed: %d\n", ret);
+		LOG_ERR("tc_hmac_init failed, error: %d", ret);
 	}
 
 	ret = tc_hmac_update(&hmac, data_in, data_in_size);
 	if (ret != TC_CRYPTO_SUCCESS) {
-		printk("tc_hmac_update failed: %d\n", ret);
+		LOG_ERR("tc_hmac_update failed, error: %d", ret);
 		return -EACCES;
 	}
 
 	ret = tc_hmac_final(data_out,data_out_size,&hmac);
 	if (ret != TC_CRYPTO_SUCCESS) {
-		printk("tc_hmac_final failed\n");
+		LOG_ERR("tc_hmac_final failed, error: %d", ret);
 		return -EACCES;
 	}
 
@@ -777,13 +766,13 @@ static char * get_device_id_string(void)
 	char * dev_id = k_calloc(DEV_ID_BUFF_SIZE,1);
 
 	if (!dev_id) {
-		printk("Could not allocate memory for device ID\n");
+		LOG_ERR("Could not allocate memory for device ID");
 		return NULL;
 	}
 
 	ret = snprintk(dev_id, DEV_ID_BUFF_SIZE,"%s", DEV_ID_PREFIX);
 	if (ret < 0 || ret >= DEV_ID_BUFF_SIZE) {
-		printk("Could not format device ID\n");
+		LOG_ERR("Could not format device ID");
 		k_free(dev_id);
 		return NULL;
 	}
@@ -796,7 +785,7 @@ static char * get_device_id_string(void)
 			   DEV_ID_BUFF_SIZE - dev_id_len,
 			   &state);
 	if (ret) {
-		printk("Failed to get IMEI: %d\n", ret);
+		LOG_ERR("Failed to get IMEI, error: %d", ret);
 		k_free(dev_id);
 		return NULL;
 	}
@@ -810,7 +799,7 @@ static char * get_device_id_string(void)
 char * get_base64url_string(const char * const input, const size_t input_size)
 {
 	if (!input || !input_size) {
-		printk("%s() Invalid input buffer\n", __func__);
+		LOG_ERR("Invalid input buffer");
 		return NULL;
 	}
 	int ret;
@@ -823,15 +812,13 @@ char * get_base64url_string(const char * const input, const size_t input_size)
 			    input,
 			    input_size);
 	if (output_str_len == ((size_t)-1)) {
-		printk("%s() Unable to encode input string to base64\n",
-		       __func__);
+		LOG_ERR("Unable to encode input string to base64");
 		return NULL;
 	}
 
 	output_str = k_calloc(output_str_len+1,1);
 	if (!output_str) {
-		printk("%s() Unable to allocate memory for base64 string\n",
-		       __func__);
+		LOG_ERR("Unable to allocate memory for base64 string");
 		return NULL;
 	}
 	ret = base64_encode(output_str,
@@ -840,7 +827,7 @@ char * get_base64url_string(const char * const input, const size_t input_size)
 			    input,
 			    input_size);
 	if (ret) {
-		printk("Error encoding input string to base64: %d\n", ret);
+		LOG_ERR("Error encoding input string to base64, error: %d", ret);
 		k_free(output_str);
 		return NULL;
 	}
@@ -921,8 +908,8 @@ static void http_response_cb(struct http_response *rsp,
 			http_resp_status = HTTP_STATUS_UNHANDLED;
 		}
 		if (!usr) {
-			printk("HTTP response to unknown request: %s\n",
-			       rsp->http_status);
+			LOG_ERR("HTTP response to unknown request: %s",
+			       log_strdup(rsp->http_status));
 			return;
 		}
 #if HTTP_DEBUG
@@ -1021,14 +1008,14 @@ int tls_setup(int fd, const char * const tls_hostname)
 
 	err = setsockopt(fd, SOL_TLS, TLS_PEER_VERIFY, &verify, sizeof(verify));
 	if (err) {
-		printk("Failed to setup peer verification, err %d\n", errno);
+		LOG_ERR("Failed to setup peer verification, error: %d", errno);
 		return err;
 	}
 
 	err = setsockopt(fd, SOL_TLS, TLS_SEC_TAG_LIST, tls_sec_tag,
 			 sizeof(tls_sec_tag));
 	if (err) {
-		printk("Failed to setup TLS sec tag, err %d\n", errno);
+		LOG_ERR("Failed to setup TLS sec tag, error: %d", errno);
 		return err;
 	}
 
@@ -1036,7 +1023,7 @@ int tls_setup(int fd, const char * const tls_hostname)
 		err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, tls_hostname,
 				 strlen(tls_hostname));
 		if (err) {
-			printk("Failed to setup TLS hostname, err %d\n", errno);
+			LOG_ERR("Failed to setup TLS hostname, error: %d", errno);
 			return err;
 		}
 	}
