@@ -71,8 +71,8 @@ static void http_response_cb(struct http_response *rsp,
 			     enum http_final_call final_data,
 			     void *user_data);
 static int tls_setup(int fd, const char * const tls_hostname);
-static int do_connect(int * const fd, struct addrinfo **addr_info,
-		      const char * const hostname, const uint16_t port_num);
+static int do_connect(int * const fd, const char * const hostname,
+		      const uint16_t port_num);
 static int parse_pending_job_response(const char * const resp_buff,
 				      struct fota_client_mgmt_job * const job);
 
@@ -196,11 +196,12 @@ static int socket_apn_set(int fd, const char *apn)
 	return 0;
 }
 
-static int do_connect( int * const fd, struct addrinfo **addr_info,
-		const char * const hostname, const uint16_t port_num)
+static int do_connect(int * const fd, const char * const hostname,
+		      const uint16_t port_num)
 {
 	int ret;
 	char *apn = NULL;
+	struct addrinfo *addr_info;
 
 	if (strlen(CONFIG_MODEM_FOTA_APN) > 0) {
 		apn = CONFIG_MODEM_FOTA_APN;
@@ -218,23 +219,27 @@ static int do_connect( int * const fd, struct addrinfo **addr_info,
 			} : NULL,
 	};
 
-	ret = getaddrinfo(hostname, NULL, &hints, addr_info);
+	/* Make sure fd is always initialized when this function is called */
+	*fd = -1;
+
+	ret = getaddrinfo(hostname, NULL, &hints, &addr_info);
 	if (ret) {
 		LOG_ERR("getaddrinfo() failed, error: %d", errno);
 		return -EFAULT;
 	} else {
 		char peer_addr[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &net_sin((*addr_info)->ai_addr)->sin_addr, peer_addr, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, &net_sin(addr_info->ai_addr)->sin_addr,
+			  peer_addr, INET_ADDRSTRLEN);
 		LOG_DBG("getaddrinfo() %s", log_strdup(peer_addr));
 	}
 
-	((struct sockaddr_in *)(*addr_info)->ai_addr)->sin_port = htons(port_num);
+	((struct sockaddr_in *)addr_info->ai_addr)->sin_port = htons(port_num);
 
 	*fd = socket(AF_INET, SOCK_STREAM, SOCKET_PROTOCOL);
 	if (*fd == -1) {
 		LOG_ERR("Failed to open socket, error: %d", errno);
 		ret = -ENOTCONN;
-		goto clean_up;
+		goto error_clean_up;
 	}
 
 	if (apn != NULL) {
@@ -242,30 +247,34 @@ static int do_connect( int * const fd, struct addrinfo **addr_info,
 		ret = socket_apn_set(*fd, apn);
 		if (ret) {
 			ret = -EINVAL;
-			goto clean_up;
+			goto error_clean_up;
 		}
 	}
 
 	ret = tls_setup(*fd, hostname);
 	if (ret) {
 		ret = -EACCES;
-		goto clean_up;
+		goto error_clean_up;
 	}
 
 	LOG_DBG("Connecting to %s", log_strdup(hostname));
 
-	ret = connect(*fd, (*addr_info)->ai_addr, sizeof(struct sockaddr_in));
+	ret = connect(*fd, addr_info->ai_addr, sizeof(struct sockaddr_in));
 	if (ret) {
 		LOG_ERR("Failed to connect socket, error: %d", errno);
 		ret = -ECONNREFUSED;
-		goto clean_up;
+		goto error_clean_up;
 	} else {
+		freeaddrinfo(addr_info);
 		return 0;
 	}
 
-clean_up:
-	freeaddrinfo(*addr_info);
-	(void)close(*fd);
+error_clean_up:
+	freeaddrinfo(addr_info);
+	if (*fd > -1) {
+		(void)close(*fd);
+		*fd = -1;
+	}
 	return ret;
 }
 
@@ -273,7 +282,6 @@ int fota_client_provision_device(void)
 {
 	int fd;
 	int ret;
-	struct addrinfo *addr_info;
 	struct http_request req;
 	struct http_user_data prov_data = { .type = HTTP_REQ_TYPE_PROVISION };
 
@@ -289,7 +297,7 @@ int fota_client_provision_device(void)
 	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, &addr_info, JITP_HOSTNAME, JITP_PORT);
+	ret = do_connect(&fd, JITP_HOSTNAME, JITP_PORT);
 	if (ret) {
 		return ret;
 	}
@@ -320,7 +328,6 @@ int fota_client_provision_device(void)
 		ret = 1;
 	}
 
-	freeaddrinfo(addr_info);
 	(void)close(fd);
 
 	return ret;
@@ -354,7 +361,6 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 
 	int fd;
 	int ret;
-	struct addrinfo *addr_info = NULL;
 	struct http_user_data job_data = { .type = HTTP_REQ_TYPE_GET_JOB };
 	struct http_request req;
 	size_t buff_size;
@@ -421,9 +427,8 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, &addr_info, API_HOSTNAME, API_PORT);
+	ret = do_connect(&fd, API_HOSTNAME, API_PORT);
 	if (ret) {
-
 		goto clean_up;
 	}
 
@@ -446,10 +451,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	}
 
 clean_up:
-	if (addr_info) {
-		freeaddrinfo(addr_info);
-	}
-	if (fd) {
+	if (fd > -1) {
 		(void)close(fd);
 	}
 	if (jwt) {
@@ -478,7 +480,6 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 
 	int fd;
 	int ret;
-	struct addrinfo *addr_info = NULL;
 	struct http_user_data job_data = { .type = HTTP_REQ_TYPE_UPDATE_JOB };
 	struct http_request req;
 	size_t buff_size;
@@ -554,7 +555,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, &addr_info, API_HOSTNAME, API_PORT);
+	ret = do_connect(&fd, API_HOSTNAME, API_PORT);
 	if (ret) {
 		goto clean_up;
 	}
@@ -574,10 +575,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	}
 
 clean_up:
-	if (addr_info) {
-		freeaddrinfo(addr_info);
-	}
-	if (fd) {
+	if (fd > -1) {
 		(void)close(fd);
 	}
 	if (jwt) {
