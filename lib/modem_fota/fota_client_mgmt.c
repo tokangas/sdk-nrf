@@ -171,13 +171,50 @@ static char http_rx_buf[HTTP_RX_BUF_SIZE];
 static bool http_resp_rcvd;
 static enum http_status http_resp_status;
 
+static int socket_apn_set(int fd, const char *apn)
+{
+	int err;
+	size_t len;
+	struct ifreq ifr = {0};
+
+	__ASSERT_NO_MSG(apn);
+
+	len = strlen(apn);
+	if (len >= sizeof(ifr.ifr_name)) {
+		printk("Access point name is too long.\n");
+		return -EINVAL;
+	}
+
+	memcpy(ifr.ifr_name, apn, len);
+	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (err) {
+		printk("Failed to bind socket, errno %d\n", errno);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int do_connect( int * const fd, struct addrinfo **addr_info,
 		const char * const hostname, const uint16_t port_num)
 {
 	int ret;
+	char *apn = NULL;
+
+	if (strlen(CONFIG_MODEM_FOTA_APN) > 0) {
+		apn = CONFIG_MODEM_FOTA_APN;
+	}
+
 	struct addrinfo hints = {
 		.ai_family = AF_INET,
 		.ai_socktype = SOCK_STREAM,
+		.ai_next =  apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL,
 	};
 
 	ret = getaddrinfo(hostname, NULL, &hints, addr_info);
@@ -201,6 +238,15 @@ static int do_connect( int * const fd, struct addrinfo **addr_info,
 		printk("Failed to open socket!\n");
 		ret = -ENOTCONN;
 		goto clean_up;
+	}
+
+	if (apn != NULL) {
+		printk("Setting up APN: %s\n", apn);
+		ret = socket_apn_set(*fd, apn);
+		if (ret) {
+			ret = -EINVAL;
+			goto clean_up;
+		}
 	}
 
 	ret = tls_setup(*fd, hostname);
