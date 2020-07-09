@@ -514,11 +514,13 @@ static void finish_update_work(struct k_work *item)
 	 * apply the update.
 	 */
 	if (info->event == MODEM_FOTA_EVT_UPDATE_DOWNLOADED) {
+		/* TODO: This should be done after modem has been updated
+		 * successfully. */
+		current_job.status = AWS_JOBS_SUCCEEDED;
+		update_job_status();
 		reboot_now = true;
 	}
 
-	/* TODO: Have to keep the current job until update has been applied? */
-	fota_client_job_free(&current_job);
 	deactivate_fota_pdn();
 	restore_system_mode();
 
