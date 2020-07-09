@@ -72,7 +72,7 @@ static void http_response_cb(struct http_response *rsp,
 			     void *user_data);
 static int tls_setup(int fd, const char * const tls_hostname);
 static int do_connect(int * const fd, const char * const hostname,
-		      const uint16_t port_num);
+		      const uint16_t port_num, bool use_fota_apn);
 static int parse_pending_job_response(const char * const resp_buff,
 				      struct fota_client_mgmt_job * const job);
 
@@ -86,7 +86,7 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define JOB_ID_END_STR		"\""
 #define FW_URI_BEGIN_STR	"\"uris\":[\""
 #define FW_URI_END_STR		"\"]"
-#define FW_PATH_PREFIX		"/v1/firmwares/modem/"
+#define FW_PATH_PREFIX		"v1/firmwares/modem/"
 #define FW_HOSTNAME 		"static." API_HOSTNAME
 
 /*
@@ -198,13 +198,13 @@ static int socket_apn_set(int fd, const char *apn)
 }
 
 static int do_connect(int * const fd, const char * const hostname,
-		      const uint16_t port_num)
+		      const uint16_t port_num, bool use_fota_apn)
 {
 	int ret;
 	char *apn = NULL;
 	struct addrinfo *addr_info;
 
-	if (strlen(CONFIG_MODEM_FOTA_APN) > 0) {
+	if (use_fota_apn && strlen(CONFIG_MODEM_FOTA_APN) > 0) {
 		apn = CONFIG_MODEM_FOTA_APN;
 	}
 
@@ -298,7 +298,7 @@ int fota_client_provision_device(void)
 	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, JITP_HOSTNAME, JITP_PORT);
+	ret = do_connect(&fd, JITP_HOSTNAME, JITP_PORT, false);
 	if (ret) {
 		return ret;
 	}
@@ -384,7 +384,9 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 		goto clean_up;
 	}
 
-	LOG_DBG("JWT: %s", log_strdup(jwt));
+#if JWT_DEBUG
+	printk("JWT: %s\n", jwt);
+#endif
 
 	/* Format API URL with device ID */
 	buff_size = sizeof(API_GET_JOB_URL_TEMPLATE) + strlen(device_id);
@@ -428,7 +430,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, API_HOSTNAME, API_PORT);
+	ret = do_connect(&fd, API_HOSTNAME, API_PORT, true);
 	if (ret) {
 		goto clean_up;
 	}
@@ -556,7 +558,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, API_HOSTNAME, API_PORT);
+	ret = do_connect(&fd, API_HOSTNAME, API_PORT, true);
 	if (ret) {
 		goto clean_up;
 	}
