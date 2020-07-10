@@ -74,7 +74,6 @@ static int parse_pending_job_response(const char * const resp_buff,
 				      struct fota_client_mgmt_job * const job);
 
 #define API_HOSTNAME "static.api.dev.nrfcloud.com"
-#define API_HOSTNAME_TLS API_HOSTNAME
 #define API_PORT 443
 #define API_HTTP_TIMEOUT_MS (15000)
 
@@ -86,37 +85,34 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define FW_PATH_PREFIX		"v1/firmwares/modem/"
 #define FW_HOSTNAME 		API_HOSTNAME
 
-/*
- * TODO: use http headers correctly instead of
- *       putting it all in content-type string
- */
+#define AUTH_BEARER_TEMPLATE "Authorization: Bearer %s\r\n"
+#define HOST_HDR "Host: " API_HOSTNAME "\r\n"
+
 #define API_UPDATE_JOB_URL_PREFIX "/v1/dfu-job-execution-statuses/"
-#define API_UPDATE_JOB_TEMPLATE	 "application/json\r\n" \
-				 "accept: */*\r\n" \
-				 "Authorization: Bearer %s\r\n" \
-				 "Host: " API_HOSTNAME
+#define API_UPDATE_JOB_CONTENT_TYPE	"application/json"
+#define API_UPDATE_JOB_HDR_ACCEPT	"accept: */*\r\n"
+#define API_UPDATE_JOB_HDR_AUTH		AUTH_BEARER_TEMPLATE
+#define API_UPDATE_JOB_HDR_HOST		HOST_HDR
+#define API_UPDATE_JOB_BODY_TEMPLATE	"{\"status\":\"%s\"}"
 
-#define API_UPDATE_JOB_BODY_TEMPLATE "{\"status\":\"%s\"}"
-
-#define API_GET_JOB_URL_TEMPLATE "/v1/dfu-jobs/device/%s/latest-pending"
-#define API_GET_JOB_TEMPLATE	 "*/*\r\n" \
-				 "accept: application/json\r\n" \
-				 "Authorization: Bearer %s\r\n" \
-				 "Host: " API_HOSTNAME "\r\n"
+#define API_GET_JOB_URL_TEMPLATE	"/v1/dfu-jobs/device/%s/latest-pending"
+#define API_GET_JOB_CONTENT_TYPE 	"*/*"
+#define API_GET_JOB_HDR_ACCEPT		"accept: application/json\r\n"
+#define API_GET_JOB_HDR_AUTH_TEMPLATE	AUTH_BEARER_TEMPLATE
+#define API_GET_JOB_HDR_HOST  		HOST_HDR
 
 // TODO: switch to PROD endpoint: "a2n7tk1kp18wix-ats.iot.us-east-1.amazonaws.com"
 #define JITP_HOSTNAME "a2wg6q8yw7gv5r-ats.iot.us-east-1.amazonaws.com"
-#define JITP_HOSTNAME_TLS JITP_HOSTNAME
-#define JITP_PORT 8443
-#define JITP_URL "/topics/jitp?qos=1"
-#define DO_JITP "*/*\r\n" \
-		"Connection: close\r\n" \
-		"Host: " JITP_HOSTNAME ":" \
-		STRINGIFY(JITP_PORT) "\r\n"
-#define JITP_HTTP_TIMEOUT_MS (15000)
+#define JITP_HOSTNAME_TLS 	JITP_HOSTNAME
+#define JITP_PORT		8443
+#define JITP_URL 	    	"/topics/jitp?qos=1"
+#define JITP_CONTENT_TYPE   	"*/*"
+#define JITP_HDR_CONNECTION 	"Connection: close\r\n"
+#define JITP_HDR_HOST		"Host: " JITP_HOSTNAME ":" \
+				STRINGIFY(JITP_PORT) "\r\n"
+#define JITP_HTTP_TIMEOUT_MS	(15000)
 
 #define SOCKET_PROTOCOL IPPROTO_TLS_1_2
-
 #define TLS_SEC_TAG 16842753
 /* TODO: assuming that the above SEC_TAG will have the right AWS CA cert
 static const char cert[] = {
@@ -282,13 +278,15 @@ int fota_client_provision_device(void)
 	int ret;
 	struct http_request req;
 	struct http_user_data prov_data = { .type = HTTP_REQ_TYPE_PROVISION };
+	const char * headers[] = { JITP_HDR_CONNECTION, JITP_HDR_HOST, NULL };
 
 	memset(&req, 0, sizeof(req));
 	req.method = HTTP_POST;
 	req.url = JITP_URL;
 	req.host = JITP_HOSTNAME;
 	req.protocol = "HTTP/1.1";
-	req.content_type_value = DO_JITP;
+	req.content_type_value = JITP_CONTENT_TYPE;
+	req.header_fields = headers;
 	req.response = http_response_cb;
 	req.recv_buf = http_rx_buf;
 	req.recv_buf_len = sizeof(http_rx_buf);
@@ -364,14 +362,14 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	size_t buff_size;
 	char * jwt = NULL;
 	char * url = NULL;
-	char * content =  NULL;
+	char * auth_hdr =  NULL;
 	char * device_id = get_device_id_string();
 
 	memset(job,0,sizeof(*job));
 	job_data.data.job = job;
 
 	if (!device_id) {
-		return -ENXIO;
+		ret = -ENXIO;
 		goto clean_up;
 	}
 
@@ -386,27 +384,35 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	url = k_calloc(buff_size, 1);
 	if (!url) {
 		ret = -ENOMEM;
+		goto clean_up;
 	}
 	ret = snprintk(url, buff_size, API_GET_JOB_URL_TEMPLATE, device_id);
 	if (ret < 0 || ret >= buff_size) {
 		LOG_ERR("Could not format URL");
-		return -ENOBUFS;
+		ret = -ENOBUFS;
+		goto clean_up;
 	}
 
-	/* Format API content with JWT */
-	buff_size = sizeof(API_GET_JOB_TEMPLATE) + strlen(jwt);
-	content = k_calloc(buff_size,1);
-	if (!content) {
+	/* Format auth header with JWT */
+	buff_size = sizeof(API_GET_JOB_HDR_AUTH_TEMPLATE) + strlen(jwt);
+	auth_hdr = k_calloc(buff_size,1);
+	if (!auth_hdr) {
 		ret = -ENOMEM;
+		goto clean_up;
 	}
-	ret = snprintk(content, buff_size, API_GET_JOB_TEMPLATE, jwt);
+	ret = snprintk(auth_hdr, buff_size, API_GET_JOB_HDR_AUTH_TEMPLATE, jwt);
 	if (ret < 0 || ret >= buff_size) {
-		LOG_ERR("Could not format HTTP content");
-		return -ENOBUFS;
+		LOG_ERR("Could not format HTTP auth header");
+		ret = -ENOBUFS;
+		goto clean_up;
 	}
 
 	LOG_DBG("URL: %s\n", log_strdup(url));
-	LOG_DBG("Content: %s\n", log_strdup(content));
+
+	const char * headers[] = { API_GET_JOB_HDR_ACCEPT,
+				   auth_hdr,
+				   API_GET_JOB_HDR_HOST,
+				   NULL};
 
 	/* Init HTTP request */
 	memset(http_rx_buf,0,HTTP_RX_BUF_SIZE);
@@ -415,7 +421,8 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	req.url = url;
 	req.host = API_HOSTNAME;
 	req.protocol = "HTTP/1.1";
-	req.content_type_value = content;
+	req.content_type_value = API_GET_JOB_CONTENT_TYPE;
+	req.header_fields = headers;
 	req.response = http_response_cb;
 	req.recv_buf = http_rx_buf;
 	req.recv_buf_len = sizeof(http_rx_buf);
@@ -458,8 +465,8 @@ clean_up:
 	if (url) {
 		k_free(url);
 	}
-	if (content) {
-		k_free(content);
+	if (auth_hdr) {
+		k_free(auth_hdr);
 	}
 
 	return ret;
@@ -480,7 +487,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	size_t buff_size;
 	char * jwt = NULL;
 	char * url = NULL;
-	char * content =  NULL;
+	char * auth_hdr =  NULL;
 	char * payload = NULL;
 
 	ret = generate_jwt(NULL,&jwt);
@@ -494,24 +501,27 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	url = k_calloc(buff_size, 1);
 	if (!url) {
 		ret = -ENOMEM;
+		goto clean_up;
 	}
 	ret = snprintk(url, buff_size, "%s%s",
 		       API_UPDATE_JOB_URL_PREFIX, job->id);
 	if (ret < 0 || ret >= buff_size) {
 		LOG_ERR("Could not format URL");
-		return -ENOBUFS;
+		ret = -ENOBUFS;
 	}
 
-	/* Format API content with JWT */
-	buff_size = sizeof(API_UPDATE_JOB_TEMPLATE) + strlen(jwt);
-	content = k_calloc(buff_size,1);
-	if (!content) {
+	/* Format auth header with JWT */
+	buff_size = sizeof(API_UPDATE_JOB_HDR_AUTH) + strlen(jwt);
+	auth_hdr = k_calloc(buff_size,1);
+	if (!auth_hdr) {
 		ret = -ENOMEM;
+		goto clean_up;
 	}
-	ret = snprintk(content, buff_size, API_UPDATE_JOB_TEMPLATE, jwt);
+	ret = snprintk(auth_hdr, buff_size, API_UPDATE_JOB_HDR_AUTH, jwt);
 	if (ret < 0 || ret >= buff_size) {
-		LOG_ERR("Could not format HTTP content");
-		return -ENOBUFS;
+		LOG_ERR("Could not format HTTP auth header");
+		ret = -ENOBUFS;
+		goto clean_up;
 	}
 
 	/* Create payload */
@@ -520,17 +530,23 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	payload = k_calloc(buff_size,1);
 	if (!payload) {
 		ret = -ENOMEM;
+		goto clean_up;
 	}
 	ret = snprintk(payload, buff_size, API_UPDATE_JOB_BODY_TEMPLATE,
 		       job_status_strings[job->status]);
 	if (ret < 0 || ret >= buff_size) {
 		LOG_ERR("Could not format HTTP payload");
-		return -ENOBUFS;
+		ret = -ENOBUFS;
+		goto clean_up;
 	}
 
 	LOG_DBG("URL: %s\n", log_strdup(url));
-	LOG_DBG("Content: %s\n", log_strdup(content));
 	LOG_DBG("Payload: %s\n", log_strdup(payload));
+
+	const char * headers[] = { API_UPDATE_JOB_HDR_ACCEPT,
+				   auth_hdr,
+				   API_UPDATE_JOB_HDR_HOST,
+				   NULL};
 
 	/* Init HTTP request */
 	memset(http_rx_buf,0,HTTP_RX_BUF_SIZE);
@@ -539,7 +555,8 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	req.url = url;
 	req.host = API_HOSTNAME;
 	req.protocol = "HTTP/1.1";
-	req.content_type_value = content;
+	req.content_type_value = API_UPDATE_JOB_CONTENT_TYPE;
+	req.header_fields = headers;
 	req.payload = payload;
 	req.payload_len = strlen(payload);
 	req.response = http_response_cb;
@@ -577,8 +594,8 @@ clean_up:
 	if (url) {
 		k_free(url);
 	}
-	if (content) {
-		k_free(content);
+	if (auth_hdr) {
+		k_free(auth_hdr);
 	}
 	if (payload) {
 		k_free(payload);
