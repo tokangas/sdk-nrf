@@ -23,9 +23,6 @@
 
 LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
-#define HTTP_DEBUG 0
-#define JWT_DEBUG 0
-
 /* TODO: the nrf-<IMEI> format is for testing/certification only
  * Device ID will become a GUID for production code.
  */
@@ -76,7 +73,7 @@ static int do_connect(int * const fd, const char * const hostname,
 static int parse_pending_job_response(const char * const resp_buff,
 				      struct fota_client_mgmt_job * const job);
 
-#define API_HOSTNAME "api.dev.nrfcloud.com"
+#define API_HOSTNAME "static.api.dev.nrfcloud.com"
 #define API_HOSTNAME_TLS API_HOSTNAME
 #define API_PORT 443
 #define API_HTTP_TIMEOUT_MS (15000)
@@ -87,7 +84,7 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define FW_URI_BEGIN_STR	"\"uris\":[\""
 #define FW_URI_END_STR		"\"]"
 #define FW_PATH_PREFIX		"v1/firmwares/modem/"
-#define FW_HOSTNAME 		"static." API_HOSTNAME
+#define FW_HOSTNAME 		API_HOSTNAME
 
 /*
  * TODO: use http headers correctly instead of
@@ -384,10 +381,6 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 		goto clean_up;
 	}
 
-#if JWT_DEBUG
-	printk("JWT: %s\n", jwt);
-#endif
-
 	/* Format API URL with device ID */
 	buff_size = sizeof(API_GET_JOB_URL_TEMPLATE) + strlen(device_id);
 	url = k_calloc(buff_size, 1);
@@ -412,10 +405,9 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 		return -ENOBUFS;
 	}
 
-#if HTTP_DEBUG
-	printk("URL: %s\n", url);
-	printk("Content: %s\n", content);
-#endif
+	LOG_DBG("URL: %s\n", log_strdup(url));
+	LOG_DBG("Content: %s\n", log_strdup(content));
+
 	/* Init HTTP request */
 	memset(http_rx_buf,0,HTTP_RX_BUF_SIZE);
 	memset(&req, 0, sizeof(req));
@@ -536,11 +528,9 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 		return -ENOBUFS;
 	}
 
-#if HTTP_DEBUG
-	printk("URL: %s\n", url);
-	printk("Content: %s\n", content);
-	printk("Payload: %s\n", payload);
-#endif
+	LOG_DBG("URL: %s\n", log_strdup(url));
+	LOG_DBG("Content: %s\n", log_strdup(content));
+	LOG_DBG("Payload: %s\n", log_strdup(payload));
 
 	/* Init HTTP request */
 	memset(http_rx_buf,0,HTTP_RX_BUF_SIZE);
@@ -636,9 +626,8 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 		LOG_ERR("Could not format JWT payload");
 		return -ENOBUFS;
 	}
-#if JWT_DEBUG
-	printk("JWT payload: %s\n", jwt_payload);
-#endif
+
+	LOG_DBG("JWT payload: %s\n", log_strdup(jwt_payload));
 
 	/* Encode payload string to base64 */
 	jwt_payload_b64 = get_base64url_string(jwt_payload,
@@ -683,9 +672,7 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 		return -ENOMSG;
 	}
 
-#if JWT_DEBUG
-	printk("Signature: %s\n", jwt_sig_b64);
-#endif
+	LOG_DBG("Signature: %s\n", log_strdup(jwt_sig_b64));
 
 	ret = snprintk(&jwt_buff[jwt_len],
 		       JWT_BUFF_SIZE,
@@ -699,9 +686,7 @@ static int generate_jwt(const char * const device_id, char ** jwt_out)
 		return -ENOBUFS;
 	}
 
-#if JWT_DEBUG
-	printk("JWT: %s\n", jwt_buff);
-#endif
+	LOG_DBG("JWT: %s\n", log_strdup(jwt_buff));
 
 	*jwt_out = jwt_buff;
 
@@ -748,13 +733,7 @@ static int get_signature(const uint8_t * const data_in,
 		return -EACCES;
 	}
 
-#if JWT_DEBUG
-	printk("HMAC hex:\n");
-	for (int i = 0; i < TC_SHA256_DIGEST_SIZE; ++i) {
-		printk("%02X",data_out[i]);
-	}
-	printk("\n");
-#endif
+	LOG_HEXDUMP_DBG(data_out, TC_SHA256_DIGEST_SIZE, "HMAC hex");
 
 	return 0;
 }
@@ -873,24 +852,20 @@ static void http_response_cb(struct http_response *rsp,
 	}
 
 	if (final_data == HTTP_DATA_MORE) {
-#if HTTP_DEBUG
-		printk("HTTP: partial data received (%zd bytes)\n", rsp->data_len);
+		LOG_DBG("HTTP: partial data received (%zd bytes)\n", rsp->data_len);
 		if (rsp->body_start) {
-			printk("BODY %s\n", rsp->body_start);
+			LOG_DBG("BODY %s\n", log_strdup(rsp->body_start));
 		}
-#endif
 	} else if (final_data == HTTP_DATA_FINAL) {
 		http_resp_rcvd = true;
 
-#if HTTP_DEBUG
-		printk("HTTP: All data received (%zd bytes)\n", rsp->data_len);
+		LOG_DBG("HTTP: All data received (%zd bytes)\n", rsp->data_len);
 		if (rsp->data_len && rsp->body_found) {
-			printk("HTTP body:\n%s\n", rsp->body_start);
+			LOG_DBG("HTTP body:\n%s\n", log_strdup(rsp->body_start));
 		}
 		else if (rsp->body_found && !rsp->body_start) {
-			printk("HTTP rx:\n%s\n", rsp->recv_buf);
+			LOG_DBG("HTTP rx:\n%s\n", log_strdup(rsp->recv_buf));
 		}
-#endif
 
 		/* TODO: handle all statuses returned from API */
 		if (strncmp(rsp->http_status,"Not Found", HTTP_STATUS_STR_SIZE) == 0) {
@@ -913,10 +888,10 @@ static void http_response_cb(struct http_response *rsp,
 			       log_strdup(rsp->http_status));
 			return;
 		}
-#if HTTP_DEBUG
-		printk("HTTP response to request type %d: \"%s\"\n",
-		       usr->type, rsp->http_status);
-#endif
+
+		LOG_DBG("HTTP response to request type %d: \"%s\"\n",
+		       usr->type, log_strdup(rsp->http_status));
+
 		switch (usr->type) {
 		case HTTP_REQ_TYPE_GET_JOB:
 			if (http_resp_status == HTTP_STATUS_OK) {
@@ -939,25 +914,31 @@ int parse_pending_job_response(const char * const resp_buff,
 	char * start;
 	char * end;
 	size_t len;
+	int err;
 
-	// TODO: error handling / cleanup
+	job->host = NULL;
+	job->id = NULL;
+	job->path = NULL;
 
 	job->host = k_calloc(sizeof(FW_HOSTNAME),1);
 	if (!job->host) {
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto error_clean_up;
 	}
 	strncpy(job->host,FW_HOSTNAME,
 		sizeof(FW_HOSTNAME));
 
 	start = strstr(resp_buff,JOB_ID_BEGIN_STR);
 	if (!start) {
-		return -ENOMSG;
+		err =  -ENOMSG;
+		goto error_clean_up;
 	}
 
 	start += strlen(JOB_ID_BEGIN_STR);
 	end = strstr(start,JOB_ID_END_STR);
 	if (!end) {
-		return -ENOMSG;
+		err =  -ENOMSG;
+		goto error_clean_up;
 	}
 
 	len = end - start;
@@ -967,19 +948,22 @@ int parse_pending_job_response(const char * const resp_buff,
 	// Get URI/path
 	start = strstr(resp_buff,FW_URI_BEGIN_STR);
 	if (!start) {
-		return -ENOMSG;
+		err =  -ENOMSG;
+		goto error_clean_up;
 	}
 
 	start += strlen(FW_URI_BEGIN_STR);
 	end = strstr(start,FW_URI_END_STR);
 	if (!end) {
-		return -ENOMSG;
+		err =  -ENOMSG;
+		goto error_clean_up;
 	}
 
 	len = end - start;
 	job->path = k_calloc(sizeof(FW_PATH_PREFIX) + len,1);
 	if (!job->path) {
-		return -ENOMEM;
+		err =  -ENOMEM;
+		goto error_clean_up;
 	}
 
 	strncpy(job->path,
@@ -989,6 +973,10 @@ int parse_pending_job_response(const char * const resp_buff,
 		start,len);
 
 	return 0;
+
+error_clean_up:
+	fota_client_job_free(job);
+	return err;
 }
 
 int tls_setup(int fd, const char * const tls_hostname)
