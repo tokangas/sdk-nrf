@@ -56,6 +56,7 @@ LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
 		       GET_BASE64_LEN(sizeof(jwt_sig)) + 1)
 
 static int generate_jwt(const char * const device_id, char ** jwt_out);
+static int generate_auth_header(const char * const jwt, char ** auth_hdr_out);
 static void base64_url_format(char * const base64_string);
 static char * get_base64url_string(const char * const input,
 				   const size_t input_size);
@@ -85,20 +86,18 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define FW_PATH_PREFIX		"v1/firmwares/modem/"
 #define FW_HOSTNAME 		API_HOSTNAME
 
-#define AUTH_BEARER_TEMPLATE "Authorization: Bearer %s\r\n"
-#define HOST_HDR "Host: " API_HOSTNAME "\r\n"
+#define AUTH_HDR_BEARER_TEMPLATE "Authorization: Bearer %s\r\n"
+#define HOST_HDR		 "Host: " API_HOSTNAME "\r\n"
 
 #define API_UPDATE_JOB_URL_PREFIX "/v1/dfu-job-execution-statuses/"
 #define API_UPDATE_JOB_CONTENT_TYPE	"application/json"
 #define API_UPDATE_JOB_HDR_ACCEPT	"accept: */*\r\n"
-#define API_UPDATE_JOB_HDR_AUTH		AUTH_BEARER_TEMPLATE
 #define API_UPDATE_JOB_HDR_HOST		HOST_HDR
 #define API_UPDATE_JOB_BODY_TEMPLATE	"{\"status\":\"%s\"}"
 
 #define API_GET_JOB_URL_TEMPLATE	"/v1/dfu-jobs/device/%s/latest-pending"
 #define API_GET_JOB_CONTENT_TYPE 	"*/*"
 #define API_GET_JOB_HDR_ACCEPT		"accept: application/json\r\n"
-#define API_GET_JOB_HDR_AUTH_TEMPLATE	AUTH_BEARER_TEMPLATE
 #define API_GET_JOB_HDR_HOST  		HOST_HDR
 
 // TODO: switch to PROD endpoint: "a2n7tk1kp18wix-ats.iot.us-east-1.amazonaws.com"
@@ -394,16 +393,9 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	}
 
 	/* Format auth header with JWT */
-	buff_size = sizeof(API_GET_JOB_HDR_AUTH_TEMPLATE) + strlen(jwt);
-	auth_hdr = k_calloc(buff_size,1);
-	if (!auth_hdr) {
-		ret = -ENOMEM;
-		goto clean_up;
-	}
-	ret = snprintk(auth_hdr, buff_size, API_GET_JOB_HDR_AUTH_TEMPLATE, jwt);
-	if (ret < 0 || ret >= buff_size) {
+	ret = generate_auth_header(jwt, &auth_hdr);
+	if (ret) {
 		LOG_ERR("Could not format HTTP auth header");
-		ret = -ENOBUFS;
 		goto clean_up;
 	}
 
@@ -511,16 +503,9 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	}
 
 	/* Format auth header with JWT */
-	buff_size = sizeof(API_UPDATE_JOB_HDR_AUTH) + strlen(jwt);
-	auth_hdr = k_calloc(buff_size,1);
-	if (!auth_hdr) {
-		ret = -ENOMEM;
-		goto clean_up;
-	}
-	ret = snprintk(auth_hdr, buff_size, API_UPDATE_JOB_HDR_AUTH, jwt);
-	if (ret < 0 || ret >= buff_size) {
+	ret = generate_auth_header(jwt, &auth_hdr);
+	if (ret) {
 		LOG_ERR("Could not format HTTP auth header");
-		ret = -ENOBUFS;
 		goto clean_up;
 	}
 
@@ -602,6 +587,30 @@ clean_up:
 	}
 
 	return ret;
+}
+
+static int generate_auth_header(const char * const jwt, char ** auth_hdr_out)
+{
+	if (!jwt || !auth_hdr_out)
+	{
+		return -EINVAL;
+	}
+
+	int ret;
+	size_t buff_size = sizeof(AUTH_HDR_BEARER_TEMPLATE) + strlen(jwt);
+
+	*auth_hdr_out = k_calloc(buff_size,1);
+	if (!*auth_hdr_out) {
+		return -ENOMEM;
+	}
+	ret = snprintk(*auth_hdr_out, buff_size, AUTH_HDR_BEARER_TEMPLATE, jwt);
+	if (ret < 0 || ret >= buff_size) {
+		k_free(*auth_hdr_out);
+		*auth_hdr_out = NULL;
+		return -ENOBUFS;
+	}
+
+	return 0;
 }
 
 static int generate_jwt(const char * const device_id, char ** jwt_out)
