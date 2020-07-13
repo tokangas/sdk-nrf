@@ -78,6 +78,8 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define API_PORT 443
 #define API_HTTP_TIMEOUT_MS (15000)
 
+#define HTTP_PROTOCOL "HTTP/1.1"
+
 // TODO: determine if it is worth adding JSON parsing library to
 #define JOB_ID_BEGIN_STR	"\"jobId\":\""
 #define JOB_ID_END_STR		"\""
@@ -162,7 +164,6 @@ static const char *job_status_strings[] = {
 
 #define HTTP_RX_BUF_SIZE (4096)
 static char http_rx_buf[HTTP_RX_BUF_SIZE];
-static bool http_resp_rcvd;
 static enum http_status http_resp_status;
 
 static int socket_apn_set(int fd, const char *apn)
@@ -283,13 +284,12 @@ int fota_client_provision_device(void)
 	req.method = HTTP_POST;
 	req.url = JITP_URL;
 	req.host = JITP_HOSTNAME;
-	req.protocol = "HTTP/1.1";
+	req.protocol = HTTP_PROTOCOL;
 	req.content_type_value = JITP_CONTENT_TYPE;
 	req.header_fields = headers;
 	req.response = http_response_cb;
 	req.recv_buf = http_rx_buf;
 	req.recv_buf_len = sizeof(http_rx_buf);
-	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
 	ret = do_connect(&fd, JITP_HOSTNAME, JITP_PORT, false);
@@ -301,26 +301,18 @@ int fota_client_provision_device(void)
 	LOG_DBG("http_client_req() returned: %d", ret);
 	if (ret < 0) {
 		ret = -EIO;
-	} else if (!http_resp_rcvd) {
-		// no response = device was NOT already provisioned
-		// so provisioning should be occurring...
-		// wait 30s before attemping another API call
-		ret = 0;
-	} else {
-		// probably already provisioned...
-
-		// TODO: determine what a failure looks like
-
-		// TODO: perhaps use the settings module to save
-		// provisioned state so this call isn't made every time?
-
-		/* NOTE: when already provisioned, the following data is rcvd:
-		 * Response status Forbidden
-		 * HTTP/1.1 403 Forbidden
-		 * {"message":null,"traceId":"229ca570-9d45-e73d-6fcd-0f977ed89d9a"}
+	} else if (http_resp_status == HTTP_STATUS_NONE) {
+		/* No response means the device was NOT already provisioned,
+		 * so provisioning should be occurring. Wait 30s before
+		 * attemping an API call.
 		 */
-
+		ret = 0;
+	} else if (http_resp_status == HTTP_STATUS_FORBIDDEN) {
+		/* HTTP 403 is returned when device is already provisioned */
 		ret = 1;
+	} else {
+		/* TODO: determine if there are any other error responses */
+		ret = -ENOMSG;
 	}
 
 	(void)close(fd);
@@ -412,13 +404,12 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	req.method = HTTP_GET;
 	req.url = url;
 	req.host = API_HOSTNAME;
-	req.protocol = "HTTP/1.1";
+	req.protocol = HTTP_PROTOCOL;
 	req.content_type_value = API_GET_JOB_CONTENT_TYPE;
 	req.header_fields = headers;
 	req.response = http_response_cb;
 	req.recv_buf = http_rx_buf;
 	req.recv_buf_len = sizeof(http_rx_buf);
-	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
 	ret = do_connect(&fd, API_HOSTNAME, API_PORT, true);
@@ -437,7 +428,13 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 		if (http_resp_status == HTTP_STATUS_NOT_FOUND) {
 			/* No pending job */
 		} else if (http_resp_status == HTTP_STATUS_OK) {
-			job->status = AWS_JOBS_IN_PROGRESS;
+			if (job->host && job->path && job->path) {
+				job->status = AWS_JOBS_IN_PROGRESS;
+			} else {
+				/* Job info was returned but it was not
+				 * able to be parsed */
+				ret = -EBADMSG;
+			}
 		} else {
 			LOG_ERR("HTTP status: %d", http_resp_status);
 			ret = -ENODATA;
@@ -539,7 +536,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	req.method = HTTP_PATCH;
 	req.url = url;
 	req.host = API_HOSTNAME;
-	req.protocol = "HTTP/1.1";
+	req.protocol = HTTP_PROTOCOL;
 	req.content_type_value = API_UPDATE_JOB_CONTENT_TYPE;
 	req.header_fields = headers;
 	req.payload = payload;
@@ -547,7 +544,6 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	req.response = http_response_cb;
 	req.recv_buf = http_rx_buf;
 	req.recv_buf_len = sizeof(http_rx_buf);
-	http_resp_rcvd = false;
 	http_resp_status = HTTP_STATUS_NONE;
 
 	ret = do_connect(&fd, API_HOSTNAME, API_PORT, true);
@@ -871,6 +867,7 @@ static void http_response_cb(struct http_response *rsp,
 			enum http_final_call final_data,
 			void *user_data)
 {
+	int ret;
 	struct http_user_data * usr = NULL;
 
 	if (user_data) {
@@ -883,8 +880,6 @@ static void http_response_cb(struct http_response *rsp,
 			LOG_DBG("BODY %s\n", log_strdup(rsp->body_start));
 		}
 	} else if (final_data == HTTP_DATA_FINAL) {
-		http_resp_rcvd = true;
-
 		LOG_DBG("HTTP: All data received (%zd bytes)\n", rsp->data_len);
 		if (rsp->data_len && rsp->body_found) {
 			LOG_DBG("HTTP body:\n%s\n", log_strdup(rsp->body_start));
@@ -921,9 +916,12 @@ static void http_response_cb(struct http_response *rsp,
 		switch (usr->type) {
 		case HTTP_REQ_TYPE_GET_JOB:
 			if (http_resp_status == HTTP_STATUS_OK) {
-				// TODO: error handling
-				parse_pending_job_response(rsp->recv_buf,
-							   usr->data.job);
+				ret = parse_pending_job_response(
+					rsp->recv_buf,
+					usr->data.job);
+				if (ret) {
+					LOG_ERR("Error parsing job information");
+				}
 			}
 			break;
 		case HTTP_REQ_TYPE_PROVISION:
