@@ -54,12 +54,16 @@ static void at_notification_handler(void *context, const char *notif);
 K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
 
 static struct k_work_q work_q;
-static struct k_work update_work;
 static struct k_work provision_work;
-static struct finish_update_info {
-	struct k_work work;
+static struct k_work update_work;
+static struct k_work update_job_status_work;
+
+struct update_info {
+	struct k_work finish_update_work;
 	enum modem_fota_evt_id event;
-} finish_update;
+};
+
+static struct update_info current_update_info;
 
 static struct k_sem link_sem;
 static struct k_sem rrc_idle_sem;
@@ -111,6 +115,9 @@ static struct fota_client_mgmt_job current_job;
 /* Settings which are saved to NV memory */
 /* Next scheduled update check time (seconds since epoch) */
 static s64_t update_check_time_s;
+/* Update job ID, used to update the job after reboot */
+static char *update_job_id;
+
 /* DM server host name (if != NULL overrides the configured default) */
 static char *dm_server_host;
 /* DM server port number (if != 0 overrides the configured default) */
@@ -121,10 +128,66 @@ static const char *fota_apn;
 /* PDN socket file descriptor for FOTA PDN activation */
 static int pdn_fd = -1;
 
+/* Information for restoring the system mode */
 static bool restore_system_mode_needed = false;
 static u32_t prev_system_mode_bitmask = 0;
 
 static bool reboot_pending = false;
+
+static int settings_set(const char *name, size_t len,
+		settings_read_cb read_cb, void *cb_arg)
+{
+	if (!strcmp(name, "update_check_time")) {
+		if (len != sizeof(update_check_time_s))
+			return -EINVAL;
+
+		if (read_cb(cb_arg, &update_check_time_s, len) > 0)
+			return 0;
+	} else if (!strcmp(name, "update_job_id")) {
+		update_job_id = k_malloc(len);
+		if (update_job_id == NULL)
+			return -ENOMEM;
+
+		if (read_cb(cb_arg, update_job_id, len) > 0) {
+			return 0;
+		} else {
+			k_free(update_job_id);
+			update_job_id = NULL;
+			return -EINVAL;
+		}
+	}
+
+	return -ENOENT;
+}
+
+static void init_and_load_settings()
+{
+	settings_subsys_init();
+
+	struct settings_handler my_conf = {
+	    .name = "modem_fota",
+	    .h_set = settings_set
+	};
+
+	settings_register(&my_conf);
+	settings_load();
+}
+
+static void save_update_check_time()
+{
+	settings_save_one("modem_fota/update_check_time",
+			  &update_check_time_s, sizeof(update_check_time_s));
+}
+
+static void save_update_job_id(const char *job_id)
+{
+	if (job_id == NULL) {
+		settings_delete("modem_fota/update_job_id");
+	} else {
+		settings_save_one("modem_fota/update_job_id",
+				  job_id, strlen(job_id) + 1);
+	}
+}
 
 static void parse_network_time(const char *time_str)
 {
@@ -442,6 +505,7 @@ static int get_pending_job()
 
 	fota_client_job_free(&current_job);
 
+	/* TODO: Implement retry */
 	ret = fota_client_get_pending_job(&current_job);
 
 	if (ret == 0) {
@@ -464,8 +528,9 @@ static int update_job_status()
 {
 	int ret;
 
-	LOG_INF("Updating FOTA update job status...");
+	LOG_INF("Updating FOTA update job status to %d...", current_job.status);
 
+	/* TODO: Implement retry */
 	ret = fota_client_update_job(&current_job);
 
 	if (ret == 0) {
@@ -483,10 +548,10 @@ static int update_job_status()
 	return ret;
 }
 
-static void finish_update_check(enum modem_fota_evt_id event_id)
+static void finish_update(enum modem_fota_evt_id event_id)
 {
-	finish_update.event = event_id;
-	k_work_submit_to_queue(&work_q, &finish_update.work);
+	current_update_info.event = event_id;
+	k_work_submit_to_queue(&work_q, &current_update_info.finish_update_work);
 }
 
 static void reboot_to_apply_update()
@@ -503,22 +568,37 @@ static void reboot_to_apply_update()
 /* Performs cleanup after FW update check or FW update and schedules the next
  * update check.
  */
-static void finish_update_work(struct k_work *item)
+static void finish_update_work_fn(struct k_work *item)
 {
-	struct finish_update_info *info;
+	struct update_info *info;
 	bool reboot_now = false;
 
-	info = CONTAINER_OF(item, struct finish_update_info, work);
+	info = CONTAINER_OF(item, struct update_info, finish_update_work);
 
-	/* If modem firmware update was downloaded, a reboot is needed to
-	 * apply the update.
-	 */
-	if (info->event == MODEM_FOTA_EVT_UPDATE_DOWNLOADED) {
-		/* TODO: This should be done after modem has been updated
-		 * successfully. */
-		current_job.status = AWS_JOBS_SUCCEEDED;
-		update_job_status();
+	switch (info->event) {
+	case MODEM_FOTA_EVT_UPDATE_DOWNLOADED:
+		/* Save update job ID to NV so that the job can be updated
+		 * after reboot.
+		 */
+		save_update_job_id(current_job.id);
+
+		/* If modem firmware update was downloaded, a reboot is needed
+		 * to apply the update.
+		 */
 		reboot_now = true;
+		break;
+
+	case MODEM_FOTA_EVT_ERROR:
+		if (current_job.status == AWS_JOBS_FAILED) {
+			update_job_status();
+		} else {
+			fota_client_job_free(&current_job);
+		}
+		break;
+
+	default:
+		/* No update available */
+		break;
 	}
 
 	deactivate_fota_pdn();
@@ -552,7 +632,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 	case FOTA_DOWNLOAD_EVT_FINISHED:
 		LOG_INF("Update downloaded, reboot needed to apply update");
-		finish_update_check(MODEM_FOTA_EVT_UPDATE_DOWNLOADED);
+		finish_update(MODEM_FOTA_EVT_UPDATE_DOWNLOADED);
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
@@ -565,7 +645,11 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
 		LOG_ERR("Downloading the update failed");
-		finish_update_check(MODEM_FOTA_EVT_ERROR);
+		/* Download failed or modem rejected the update (no way to
+		 * separate these two at the moment), update job status.
+		 */
+		current_job.status = AWS_JOBS_FAILED;
+		finish_update(MODEM_FOTA_EVT_ERROR);
 		break;
 
 	default:
@@ -759,7 +843,7 @@ static void start_update_check()
 	k_work_submit_to_queue(&work_q, &update_work);
 }
 
-static void start_update_work(struct k_work *item)
+static void start_update_work_fn(struct k_work *item)
 {
 	int err;
 	int retry_count;
@@ -824,7 +908,7 @@ static void start_update_work(struct k_work *item)
 	err = activate_fota_pdn();
 	if (err) {
 		LOG_ERR("Activating FOTA PDN failed");
-		finish_update_check(MODEM_FOTA_EVT_ERROR);
+		finish_update(MODEM_FOTA_EVT_ERROR);
 		return;
 	}
 
@@ -860,11 +944,74 @@ static void start_update_work(struct k_work *item)
 
 		if (err) {
 			LOG_ERR("Couldn't start FOTA download, error: %d", err);
-			finish_update_check(MODEM_FOTA_EVT_ERROR);
+			finish_update(MODEM_FOTA_EVT_ERROR);
 		}
 	} else {
-		finish_update_check(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
+		finish_update(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
 	}
+}
+
+static void update_job_status_after_apply()
+{
+	k_work_submit_to_queue(&work_q, &update_job_status_work);
+}
+
+/* Updates the FOTA job document after the modem has been updated. Failures
+ * in this function are considered to be caused by the new modem firmware and
+ * trigger the modem firmware to be reverted.
+ */
+static void update_job_status_work_fn(struct k_work *item)
+{
+	int err;
+
+	LOG_INF("Modem firmware was updated, updating job");
+
+	if (!wait_until_connected_to_network(3600)) {
+		/* TODO: Revert modem firmware */
+		return;
+	}
+
+	/* If FOTA is not allowed in NB-IoT and the current mode is NB-IoT,
+	 * we need to switch to M1 for the job update
+	 */
+	if (!IS_ENABLED(CONFIG_MODEM_FOTA_ALLOWED_IN_NBIOT)) {
+		if (lte_mode == MODEM_LTE_MODE_NBIOT) {
+			LOG_INF("Switching to LTE-M for job update");
+			/* Wait for inactivity, but ignore possible timeout */
+			wait_for_data_inactivity();
+			if (!switch_system_mode_to_lte_m()) {
+				/* If connecting to LTE-M failed */
+				restore_system_mode();
+				/* TODO: Revert modem firmware */
+				return;
+			}
+		}
+	}
+
+	err = activate_fota_pdn();
+	if (err) {
+		LOG_ERR("Activating FOTA PDN failed");
+		restore_system_mode();
+		/* TODO: Revert modem firmware */
+		return;
+	}
+
+	/* Update job status to server */
+	current_job.id = update_job_id;
+	update_job_id = NULL;
+	current_job.status = AWS_JOBS_SUCCEEDED;
+	err = update_job_status();
+
+	if (err) {
+		/* TODO: Revert modem firmware */
+		return;
+	}
+
+	deactivate_fota_pdn();
+	restore_system_mode();
+
+	/* Clear job ID from NV */
+	save_update_job_id(NULL);
 }
 
 static bool is_update_scheduled()
@@ -909,12 +1056,6 @@ static void update_check_timer_handler(struct k_timer *dummy)
 		start_update_check();
 	else
 		start_update_check_timer();
-}
-
-static void save_update_check_time()
-{
-	settings_save_one("modem_fota/update_check_time",
-			  &update_check_time_s, sizeof(update_check_time_s));
 }
 
 static void calculate_next_update_check_time()
@@ -977,12 +1118,15 @@ static void schedule_next_update()
 	}
 }
 
-static void provision_device_work(struct k_work *item)
+static void provision_device_work_fn(struct k_work *item)
 {
 	int ret;
 
 	LOG_INF("Provisioning device for FOTA...");
 
+	/* TODO: Wait until device is connected to network (forever?) */
+
+	/* TODO: Implement retry */
 	ret = fota_client_provision_device();
 
 	if (ret == 0) {
@@ -1193,34 +1337,6 @@ static int register_xtime_notification()
 	return err;
 }
 
-static int settings_set(const char *name, size_t len,
-		settings_read_cb read_cb, void *cb_arg)
-{
-	if (!strcmp(name, "update_check_time")) {
-		if (len != sizeof(update_check_time_s))
-			return -EINVAL;
-
-		if (read_cb(cb_arg, &update_check_time_s, len) > 0)
-			return 0;
-	}
-
-	return -ENOENT;
-}
-
-static void init_and_load_settings()
-{
-    	settings_subsys_init();
-
-	struct settings_handler my_conf = {
-	    .name = "modem_fota",
-	    .h_set = settings_set
-	};
-
-    	settings_register(&my_conf);
-    	settings_load();
- }
-
-
 int modem_fota_init(modem_fota_callback_t callback)
 {
 	int err = 0;
@@ -1238,9 +1354,10 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
-	k_work_init(&update_work, start_update_work);
-	k_work_init(&provision_work, provision_device_work);
-	k_work_init(&finish_update.work, finish_update_work);
+	k_work_init(&provision_work, provision_device_work_fn);
+	k_work_init(&update_work, start_update_work_fn);
+	k_work_init(&current_update_info.finish_update_work, finish_update_work_fn);
+	k_work_init(&update_job_status_work, update_job_status_work_fn);
 
 	init_and_load_settings();
 
@@ -1253,6 +1370,10 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	at_notif_register_handler(NULL, at_notification_handler);
 	register_xtime_notification();
+
+	if (update_job_id != NULL) {
+		update_job_status_after_apply();
+	}
 
 	LOG_INF("FOTA Client initialized");
 
