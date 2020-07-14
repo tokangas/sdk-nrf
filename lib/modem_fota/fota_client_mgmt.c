@@ -114,12 +114,6 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define JITP_HTTP_TIMEOUT_MS	(15000)
 
 #define SOCKET_PROTOCOL IPPROTO_TLS_1_2
-#define TLS_SEC_TAG 16842753
-/* TODO: assuming that the above SEC_TAG will have the right AWS CA cert
-static const char cert[] = {
-	#include "../cert/AmazonRootCA1"
-};
-*/
 
 enum http_status {
 	HTTP_STATUS_UNHANDLED = -1,
@@ -1008,7 +1002,7 @@ int tls_setup(int fd, const char * const tls_hostname)
 	int err;
 	int verify;
 	const sec_tag_t tls_sec_tag[] = {
-		TLS_SEC_TAG,
+		CONFIG_MODEM_FOTA_TLS_SECURITY_TAG,
 	};
 
 	enum {

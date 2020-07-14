@@ -63,13 +63,12 @@ config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
 	  0 and 24 hours is added to the firmware update check timer. If set to 0,
 	  no randomness is added.
 
-config MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG
-	int "Security tag to use TLS for the firmware download"
+config MODEM_FOTA_TLS_SECURITY_TAG
+	int "Security tag for TLS"
 	depends on DOWNLOAD_CLIENT_TLS
-	default -1
+	default 16842753
 	help
-	  Security tag to be used for TLS connection for the firmware download. If
-	  set to -1, no TLS is used.
+	  Security tag to be used for the server TLS connections.
 
 config MODEM_FOTA_ALLOWED_IN_NBIOT
 	bool "FOTA allowed when connected to NB-IoT"

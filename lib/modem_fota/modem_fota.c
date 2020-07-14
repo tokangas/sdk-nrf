@@ -500,13 +500,24 @@ static void deactivate_fota_pdn()
 static int get_pending_job()
 {
 	int ret;
+	int retry_count;
 
 	LOG_INF("Checking for FOTA update...");
 
 	fota_client_job_free(&current_job);
 
-	/* TODO: Implement retry */
-	ret = fota_client_get_pending_job(&current_job);
+	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
+	while (true) {
+		ret = fota_client_get_pending_job(&current_job);
+		if (ret == 0 || retry_count <= 0) {
+			/* Check successful or no retries left */
+			break;
+		}
+
+		LOG_WRN("Checking for FOTA update failed. %d retries left...",
+			retry_count);
+		retry_count--;
+	}
 
 	if (ret == 0) {
 		if (current_job.host) {
@@ -527,11 +538,22 @@ static int get_pending_job()
 static int update_job_status()
 {
 	int ret;
+	int retry_count;
 
 	LOG_INF("Updating FOTA update job status to %d...", current_job.status);
 
-	/* TODO: Implement retry */
-	ret = fota_client_update_job(&current_job);
+	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
+	while (true) {
+		ret = fota_client_update_job(&current_job);
+		if (ret == 0 || retry_count <= 0) {
+			/* Check successful or no retries left */
+			break;
+		}
+
+		LOG_WRN("Updating job failed. %d retries left...",
+			retry_count);
+		retry_count--;
+	}
 
 	if (ret == 0) {
 		LOG_INF("Job status updated");
@@ -846,7 +868,6 @@ static void start_update_check()
 static void start_update_work_fn(struct k_work *item)
 {
 	int err;
-	int retry_count;
 
 	if (reboot_pending) {
 		LOG_INF("Update has already been downloaded, reboot needed");
@@ -915,15 +936,13 @@ static void start_update_work_fn(struct k_work *item)
 	if (get_pending_job() == 0 &&
 			current_job.host != NULL &&
 			current_job.path != NULL) {
-		int sec_tag = -1;
+		int retry_count;
+		int sec_tag = CONFIG_MODEM_FOTA_TLS_SECURITY_TAG;
 		int port = 0;
 
 		LOG_INF("Starting firmware download");
 
 		event_callback(MODEM_FOTA_EVT_DOWNLOADING_UPDATE);
-
-		if (IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_TLS))
-			sec_tag = CONFIG_MODEM_FOTA_DOWNLOAD_TLS_SECURITY_TAG;
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 		while (true) {
@@ -1121,13 +1140,23 @@ static void schedule_next_update()
 static void provision_device_work_fn(struct k_work *item)
 {
 	int ret;
+	int retry_count;
 
 	LOG_INF("Provisioning device for FOTA...");
 
 	/* TODO: Wait until device is connected to network (forever?) */
 
-	/* TODO: Implement retry */
-	ret = fota_client_provision_device();
+	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
+	while (true) {
+		ret = fota_client_provision_device();
+		if (ret >= 0 || retry_count <= 0) {
+			/* Provisioning successful or no retries left */
+			break;
+		}
+
+		LOG_WRN("Provisioning failed. %d retries left...", retry_count);
+		retry_count--;
+	}
 
 	if (ret == 0) {
 		LOG_INF("Device provisioned, waiting 30s before using API");
