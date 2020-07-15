@@ -11,18 +11,6 @@ menuconfig MODEM_FOTA
 
 if MODEM_FOTA
 
-config MODEM_FOTA_DM_SERVER_HOST
-	string "FOTA Device Management host name"
-	default "fota.nrfcloud.com"
-	help
-	  FOTA Device Management server host name.
-
-config MODEM_FOTA_DM_SERVER_PORT
-	int "FOTA Device Management port number"
-	default 443
-	help
-	  FOTA Device Management server port number.
-
 config MODEM_FOTA_APN
 	string "FOTA APN"
 	default ""

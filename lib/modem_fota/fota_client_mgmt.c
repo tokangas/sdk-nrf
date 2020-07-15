@@ -57,6 +57,8 @@ LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
 static int generate_jwt(const char * const device_id, char ** jwt_out);
 static int generate_auth_header(const char * const jwt, char ** auth_hdr_out);
+static int generate_host_header(const char * const hostname,
+				char ** host_hdr_out);
 static void base64_url_format(char * const base64_string);
 static char * get_base64url_string(const char * const input,
 				   const size_t input_size);
@@ -89,18 +91,16 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define FW_HOSTNAME 		API_HOSTNAME
 
 #define AUTH_HDR_BEARER_TEMPLATE "Authorization: Bearer %s\r\n"
-#define HOST_HDR		 "Host: " API_HOSTNAME "\r\n"
+#define HOST_HDR_TEMPLATE	 "Host: %s\r\n"
 
-#define API_UPDATE_JOB_URL_PREFIX "/v1/dfu-job-execution-statuses/"
+#define API_UPDATE_JOB_URL_PREFIX	"/v1/dfu-job-execution-statuses/"
 #define API_UPDATE_JOB_CONTENT_TYPE	"application/json"
 #define API_UPDATE_JOB_HDR_ACCEPT	"accept: */*\r\n"
-#define API_UPDATE_JOB_HDR_HOST		HOST_HDR
 #define API_UPDATE_JOB_BODY_TEMPLATE	"{\"status\":\"%s\"}"
 
 #define API_GET_JOB_URL_TEMPLATE	"/v1/dfu-jobs/device/%s/latest-pending"
 #define API_GET_JOB_CONTENT_TYPE 	"*/*"
 #define API_GET_JOB_HDR_ACCEPT		"accept: application/json\r\n"
-#define API_GET_JOB_HDR_HOST  		HOST_HDR
 
 // TODO: switch to PROD endpoint: "a2n7tk1kp18wix-ats.iot.us-east-1.amazonaws.com"
 #define JITP_HOSTNAME "a2wg6q8yw7gv5r-ats.iot.us-east-1.amazonaws.com"
@@ -159,6 +159,11 @@ static const char *job_status_strings[] = {
 #define HTTP_RX_BUF_SIZE (4096)
 static char http_rx_buf[HTTP_RX_BUF_SIZE];
 static enum http_status http_resp_status;
+
+/* API hostname (if != NULL overrides the default) */
+static char *api_hostname;
+/* API port number (if != 0 overrides the default) */
+static u16_t api_port;
 
 static int socket_apn_set(int fd, const char *apn)
 {
@@ -347,8 +352,18 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	size_t buff_size;
 	char * jwt = NULL;
 	char * url = NULL;
-	char * auth_hdr =  NULL;
+	char * auth_hdr = NULL;
+	char * host_hdr = NULL;
 	char * device_id = get_device_id_string();
+	char * hostname = API_HOSTNAME;
+	uint16_t port = API_PORT;
+
+	if (api_hostname != NULL) {
+		hostname = api_hostname;
+	}
+	if (api_port != 0) {
+		port = api_port;
+	}
 
 	memset(job,0,sizeof(*job));
 	job_data.data.job = job;
@@ -385,11 +400,17 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 		goto clean_up;
 	}
 
+	ret = generate_host_header(hostname, &host_hdr);
+	if (ret) {
+		LOG_ERR("Could not generate Host header");
+		goto clean_up;
+	}
+
 	LOG_DBG("URL: %s\n", log_strdup(url));
 
 	const char * headers[] = { API_GET_JOB_HDR_ACCEPT,
 				   auth_hdr,
-				   API_GET_JOB_HDR_HOST,
+				   host_hdr,
 				   NULL};
 
 	/* Init HTTP request */
@@ -397,7 +418,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	memset(&req, 0, sizeof(req));
 	req.method = HTTP_GET;
 	req.url = url;
-	req.host = API_HOSTNAME;
+	req.host = hostname;
 	req.protocol = HTTP_PROTOCOL;
 	req.content_type_value = API_GET_JOB_CONTENT_TYPE;
 	req.header_fields = headers;
@@ -406,7 +427,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 	req.recv_buf_len = sizeof(http_rx_buf);
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, API_HOSTNAME, API_PORT, true);
+	ret = do_connect(&fd, hostname, port, true);
 	if (ret) {
 		goto clean_up;
 	}
@@ -451,6 +472,9 @@ clean_up:
 	if (auth_hdr) {
 		k_free(auth_hdr);
 	}
+	if (host_hdr) {
+		k_free(host_hdr);
+	}
 
 	return ret;
 }
@@ -471,7 +495,17 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	char * jwt = NULL;
 	char * url = NULL;
 	char * auth_hdr =  NULL;
+	char * host_hdr = NULL;
 	char * payload = NULL;
+	char * hostname = API_HOSTNAME;
+	uint16_t port = API_PORT;
+
+	if (api_hostname != NULL) {
+		hostname = api_hostname;
+	}
+	if (api_port != 0) {
+		port = api_port;
+	}
 
 	ret = generate_jwt(NULL,&jwt);
 	if (ret < 0){
@@ -500,6 +534,12 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 		goto clean_up;
 	}
 
+	ret = generate_host_header(hostname, &host_hdr);
+	if (ret) {
+		LOG_ERR("Could not generate Host header");
+		goto clean_up;
+	}
+
 	/* Create payload */
 	buff_size = sizeof(API_UPDATE_JOB_BODY_TEMPLATE) +
 		    strlen(job_status_strings[job->status]);
@@ -519,9 +559,11 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	LOG_DBG("URL: %s\n", log_strdup(url));
 	LOG_DBG("Payload: %s\n", log_strdup(payload));
 
+	/* TODO: Create Host header with correct hostname */
+
 	const char * headers[] = { API_UPDATE_JOB_HDR_ACCEPT,
 				   auth_hdr,
-				   API_UPDATE_JOB_HDR_HOST,
+				   host_hdr,
 				   NULL};
 
 	/* Init HTTP request */
@@ -529,7 +571,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	memset(&req, 0, sizeof(req));
 	req.method = HTTP_PATCH;
 	req.url = url;
-	req.host = API_HOSTNAME;
+	req.host = hostname;
 	req.protocol = HTTP_PROTOCOL;
 	req.content_type_value = API_UPDATE_JOB_CONTENT_TYPE;
 	req.header_fields = headers;
@@ -540,7 +582,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	req.recv_buf_len = sizeof(http_rx_buf);
 	http_resp_status = HTTP_STATUS_NONE;
 
-	ret = do_connect(&fd, API_HOSTNAME, API_PORT, true);
+	ret = do_connect(&fd, hostname, port, true);
 	if (ret) {
 		goto clean_up;
 	}
@@ -572,6 +614,9 @@ clean_up:
 	if (auth_hdr) {
 		k_free(auth_hdr);
 	}
+	if (host_hdr) {
+		k_free(host_hdr);
+	}
 	if (payload) {
 		k_free(payload);
 	}
@@ -597,6 +642,30 @@ static int generate_auth_header(const char * const jwt, char ** auth_hdr_out)
 	if (ret < 0 || ret >= buff_size) {
 		k_free(*auth_hdr_out);
 		*auth_hdr_out = NULL;
+		return -ENOBUFS;
+	}
+
+	return 0;
+}
+
+static int generate_host_header(const char * const hostname,
+				char ** host_hdr_out)
+{
+	int ret;
+	size_t buff_size = sizeof(HOST_HDR_TEMPLATE) + strlen(hostname);
+
+	if (!hostname || !host_hdr_out)	{
+		return -EINVAL;
+	}
+
+	*host_hdr_out = k_calloc(buff_size, 1);
+	if (!*host_hdr_out) {
+		return -ENOMEM;
+	}
+	ret = snprintk(*host_hdr_out, buff_size, HOST_HDR_TEMPLATE, hostname);
+	if (ret < 0 || ret >= buff_size) {
+		k_free(*host_hdr_out);
+		*host_hdr_out = NULL;
 		return -ENOBUFS;
 	}
 
@@ -1035,4 +1104,34 @@ int tls_setup(int fd, const char * const tls_hostname)
 		}
 	}
 	return 0;
+}
+
+char *get_api_hostname()
+{
+	if (api_hostname == NULL)
+		return API_HOSTNAME;
+	else
+		return api_hostname;
+}
+
+void set_api_hostname(const char *hostname)
+{
+	k_free(api_hostname);
+	api_hostname = k_malloc(strlen(hostname) + 1);
+	if (api_hostname != NULL) {
+		strcpy(api_hostname, hostname);
+	}
+}
+
+u16_t get_api_port()
+{
+	if (api_port == 0)
+		return API_PORT;
+	else
+		return api_port;
+}
+
+void set_api_port(u16_t port)
+{
+	api_port = port;
 }
