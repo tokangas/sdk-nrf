@@ -18,6 +18,7 @@
 #include <net/fota_download.h>
 #include <modem/modem_fota.h>
 #include <nrf_socket.h>
+#include <dfu/dfu_target.h>
 #include "modem_fota_internal.h"
 #include "fota_client_mgmt.h"
 
@@ -494,6 +495,35 @@ static void deactivate_fota_pdn()
 		pdn_fd = -1;
 
 		LOG_INF("FOTA PDN deactivated");
+	}
+}
+
+void dfu_target_callback_handler(enum dfu_target_evt_id evt_id)
+{
+	LOG_DBG("Got DFU target event: %d", evt_id);
+}
+
+static void erase_modem_fw_backup()
+{
+	int err;
+
+	LOG_INF("Erasing modem FW backup...");
+
+	err = dfu_target_init(DFU_TARGET_IMAGE_TYPE_MODEM_DELTA, 0,
+			      dfu_target_callback_handler);
+	if (err != 0) {
+		LOG_ERR("Failed to initialize DFU target, error: %d", err);
+		return;
+	}
+	err = dfu_target_erase();
+	if (err != 0) {
+		LOG_ERR("Failed to erase modem FW backup, error: %d", err);
+		return;
+	}
+	err = dfu_target_reset();
+	if (err != 0) {
+		LOG_ERR("Failed to reset DFU target, error: %d", err);
+		return;
 	}
 }
 
@@ -1028,6 +1058,12 @@ static void update_job_status_work_fn(struct k_work *item)
 
 	deactivate_fota_pdn();
 	restore_system_mode();
+
+	/* TODO: This should be configurable, other possibility is to erase
+	 * the backup just before starting next update download.
+	 */
+	/* Update was successful, so erase the backup */
+	erase_modem_fw_backup();
 
 	/* Clear job ID from NV */
 	save_update_job_id(NULL);
