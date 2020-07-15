@@ -35,8 +35,8 @@ static int fota_cmd_server(const struct shell *shell, size_t argc, char **argv)
 		return -EINVAL;
 	}
 
-	set_dm_server_host(argv[1]);
-	set_dm_server_port(port);
+	set_api_hostname(argv[1]);
+	set_api_port(port);
 
 	return 0;
 }
@@ -84,8 +84,8 @@ static int fota_cmd_status(const struct shell *shell, size_t argc, char **argv)
 		shell_print(shell, "Next update check not scheduled or no " \
 				   "network time");
 	}
-	shell_print(shell, "DM server host: %s", get_dm_server_host());
-	shell_print(shell, "DM server port: %d", get_dm_server_port());
+	shell_print(shell, "DM server hostname: %s", get_api_hostname());
+	shell_print(shell, "DM server port: %d", get_api_port());
 
 	return 0;
 }
@@ -95,7 +95,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(fota_cmds,
 		  "'fota timer <seconds>' sets the FOTA timer to expire in "
 		  "given number of seconds.", fota_cmd_timer, 2, 0),
 	SHELL_CMD_ARG(server, NULL,
-		  "'fota server <host> <port>' sets the Device Management "
+		  "'fota server <hostname> <port>' sets the Device Management "
 		  "server hostname and port number.", fota_cmd_server, 3, 0),
 	SHELL_CMD(disable, NULL, "Disable FOTA.", fota_cmd_disable),
 	SHELL_CMD(enable, NULL, "Enable FOTA.", fota_cmd_enable),

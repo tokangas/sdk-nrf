@@ -119,11 +119,6 @@ static s64_t update_check_time_s;
 /* Update job ID, used to update the job after reboot */
 static char *update_job_id;
 
-/* DM server host name (if != NULL overrides the configured default) */
-static char *dm_server_host;
-/* DM server port number (if != 0 overrides the configured default) */
-static u16_t dm_server_port;
-
 /* FOTA APN or NULL if default APN is used */
 static const char *fota_apn;
 /* PDN socket file descriptor for FOTA PDN activation */
@@ -1322,36 +1317,6 @@ void set_time_to_next_update_check(u32_t seconds)
 
 	if (fota_enabled)
 		start_update_check_timer();
-}
-
-char *get_dm_server_host()
-{
-	if (dm_server_host == NULL)
-		return CONFIG_MODEM_FOTA_DM_SERVER_HOST;
-	else
-		return dm_server_host;
-}
-
-void set_dm_server_host(const char *host)
-{
-	k_free(dm_server_host);
-	dm_server_host = k_malloc(strlen(host) + 1);
-	if (dm_server_host != NULL) {
-		strcpy(dm_server_host, host);
-	}
-}
-
-u16_t get_dm_server_port()
-{
-	if (dm_server_port == 0)
-		return CONFIG_MODEM_FOTA_DM_SERVER_PORT;
-	else
-		return dm_server_port;
-}
-
-void set_dm_server_port(u16_t port)
-{
-	dm_server_port = port;
 }
 
 static void at_notification_handler(void *context, const char *notif)

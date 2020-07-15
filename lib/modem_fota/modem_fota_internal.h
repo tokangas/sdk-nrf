@@ -26,13 +26,13 @@ u32_t get_time_to_next_update_check();
 
 void set_time_to_next_update_check(u32_t seconds);
 
-char *get_dm_server_host();
+char *get_api_hostname();
 
-void set_dm_server_host(const char *host);
+void set_api_hostname(const char *hostname);
 
-u16_t get_dm_server_port();
+u16_t get_api_port();
 
-void set_dm_server_port(u16_t port);
+void set_api_port(u16_t port);
 
 #ifdef __cplusplus
 }
