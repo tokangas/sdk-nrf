@@ -95,6 +95,15 @@ static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
+static const char aws_jobs_queued[] = "QUEUED";
+static const char aws_jobs_in_progress[] = "IN PROGRESS";
+static const char aws_jobs_succeeded[] = "SUCCEEDED";
+static const char aws_jobs_failed[] = "FAILED";
+static const char aws_jobs_timed_out[] = "TIMED OUT";
+static const char aws_jobs_rejected[] = "REJECTED";
+static const char aws_jobs_removed[] = "REMOVED";
+static const char aws_jobs_canceled[] = "CANCELED";
+static const char aws_jobs_unknown[] = "UNKNOWN JOB STATUS";
 
 static modem_fota_callback_t event_callback;
 
@@ -556,12 +565,37 @@ static int get_pending_job()
 	return ret;
 }
 
+static const char *get_job_status_string(enum execution_status status) {
+	switch (status) {
+	case AWS_JOBS_QUEUED:
+		return aws_jobs_queued;
+	case AWS_JOBS_IN_PROGRESS:
+		return aws_jobs_in_progress;
+	case AWS_JOBS_SUCCEEDED:
+		return aws_jobs_succeeded;
+	case AWS_JOBS_FAILED:
+		return aws_jobs_failed;
+	case AWS_JOBS_TIMED_OUT:
+		return aws_jobs_timed_out;
+	case AWS_JOBS_REJECTED:
+		return aws_jobs_rejected;
+	case AWS_JOBS_REMOVED:
+		return aws_jobs_removed;
+	case AWS_JOBS_CANCELED:
+		return aws_jobs_canceled;
+	default:
+		LOG_ERR("Unknown job status");
+		return aws_jobs_unknown;
+	}
+}
+
 static int update_job_status()
 {
 	int ret;
 	int retry_count;
 
-	LOG_INF("Updating FOTA update job status to %d...", current_job.status);
+	LOG_INF("Updating FOTA update job status to %s...",
+		get_job_status_string(current_job.status));
 
 	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 	while (true) {
