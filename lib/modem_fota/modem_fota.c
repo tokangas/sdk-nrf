@@ -495,7 +495,7 @@ static void deactivate_fota_pdn()
 
 void dfu_target_callback_handler(enum dfu_target_evt_id evt_id)
 {
-	LOG_DBG("Got DFU target event: %d", evt_id);
+	/* Nothing to do here */
 }
 
 static void erase_modem_fw_backup()
@@ -504,15 +504,11 @@ static void erase_modem_fw_backup()
 
 	LOG_INF("Erasing modem FW backup...");
 
+	/* dfu_target_init() erases the modem backup */
 	err = dfu_target_init(DFU_TARGET_IMAGE_TYPE_MODEM_DELTA, 0,
 			      dfu_target_callback_handler);
 	if (err != 0) {
 		LOG_ERR("Failed to initialize DFU target, error: %d", err);
-		return;
-	}
-	err = dfu_target_erase();
-	if (err != 0) {
-		LOG_ERR("Failed to erase modem FW backup, error: %d", err);
 		return;
 	}
 	err = dfu_target_reset();
