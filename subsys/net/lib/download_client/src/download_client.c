@@ -173,7 +173,7 @@ static int resolve_and_connect(int family, const char *host,
 	}
 
 	if (cfg->apn != NULL) {
-		LOG_INF("Setting up APN: %s", log_strdup(cfg->apn));
+		LOG_INF("Setting up APN");
 		err = socket_apn_set(fd, cfg->apn);
 		if (err) {
 			goto cleanup;
