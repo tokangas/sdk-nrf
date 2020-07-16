@@ -248,7 +248,7 @@ int dfu_target_modem_done(bool successful)
 			return err;
 		}
 	} else {
-		LOG_INF("Modem upgrade aborted.");
+		LOG_DBG("Modem upgrade aborted.");
 	}
 
 
