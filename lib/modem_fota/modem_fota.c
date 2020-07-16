@@ -7,6 +7,7 @@
 #include <string.h>
 #include <date_time.h>
 #include <zephyr.h>
+#include <bsd.h>
 #include <logging/log.h>
 #include <power/reboot.h>
 #include <sys/timeutil.h>
@@ -87,6 +88,7 @@ K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 static const char at_cereg_notif[] = "+CEREG";
 static const char at_cscon_notif[] = "+CSCON";
 static const char at_xtime_notif[] = "\%XTIME";
+static const char at_cfun_poweroff[] = "AT+CFUN=0";
 static const char at_cfun_normal[] = "AT+CFUN=1";
 static const char at_cfun_offline[] = "AT+CFUN=4";
 static const char at_xtime_enable[] = "AT\%XTIME=1";
@@ -635,10 +637,11 @@ static void reboot_to_apply_update()
 {
 	LOG_INF("Rebooting to apply modem firmware update...");
 
-	at_cmd_write(at_cfun_offline, NULL, 0, NULL);
+	at_cmd_write(at_cfun_poweroff, NULL, 0, NULL);
 
 	k_sleep(K_SECONDS(3));
 
+	bsd_shutdown();
 	sys_reboot(SYS_REBOOT_WARM);
 }
 
