@@ -1225,6 +1225,27 @@ static void provision_device_work_fn(struct k_work *item)
 	if (ret == 0) {
 		LOG_INF("Device provisioned, waiting 30s before using API");
 		k_sleep(K_SECONDS(30));
+
+/* TODO: After provisioning, the user must associate the device
+ * with their nRF Cloud account. If the device is not associated,
+ * it is not allowed to make the UpdateDeviceState API call.
+ * For now it is recommended to have the USER make the UpdateDeviceState
+ * call after they have performed association.
+ * The goal is to have the device make the API call after provisioning,
+ * without user interaction.
+ */
+#if 0
+		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
+		LOG_INF("Setting initial device state...");
+		do
+		{
+			ret = fota_client_set_device_state();
+		} while ((ret != 0) && (retry_count--));
+
+		if (ret != 0) {
+			LOG_ERR("Failed to set deivce state, error: %d", ret);
+		}
+#endif
 	} else if (ret == 1) {
 		LOG_INF("Device already provisioned");
 	} else {
