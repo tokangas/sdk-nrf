@@ -23,12 +23,18 @@
 
 LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
-/* TODO: the nrf-<IMEI> format is for testing/certification only
+/* TODO: The nrf-<IMEI> format is for testing/certification only
  * Device ID will become a GUID for production code.
  */
 #define DEV_ID_PREFIX "nrf-"
 #define IMEI_LEN (15)
 #define DEV_ID_BUFF_SIZE (sizeof(DEV_ID_PREFIX) + IMEI_LEN + 2)
+
+/* NOTE: The AT command "request revision identification"
+ * can return up to 2048 bytes.  That is limited here to a more
+ * realistic value.
+ */
+#define MFW_VER_BUFF_SIZE (128)
 
 /* NOTE: The header is static from the device point of view
  * so there is no need to build JSON and encode it every time.
@@ -63,6 +69,7 @@ static void base64_url_format(char * const base64_string);
 static char * get_base64url_string(const char * const input,
 				   const size_t input_size);
 static char * get_device_id_string(void);
+static char * get_mfw_version_string(void);
 static int get_signature(const uint8_t * const data_in,
 			 const size_t data_in_size,
 			 uint8_t * data_out,
@@ -93,6 +100,13 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define AUTH_HDR_BEARER_TEMPLATE "Authorization: Bearer %s\r\n"
 #define HOST_HDR_TEMPLATE	 "Host: %s\r\n"
 
+#define API_DEV_STATE_URL_TEMPLATE	"/v1/devices/%s/state"
+#define API_DEV_STATE_CONTENT_TYPE	"application/json"
+#define API_DEV_STATE_HDR_ACCEPT	"accept: */*\r\n"
+#define API_DEV_STATE_BODY_TEMPLATE	"{\"reported\":{\"device\":{" \
+					"\"deviceInfo\":{\"modemFirmware\":\"%s\"}," \
+					"\"serviceInfo\":{\"fota_v1\":[\"MODEM\"]}}}}"
+
 #define API_UPDATE_JOB_URL_PREFIX	"/v1/dfu-job-execution-statuses/"
 #define API_UPDATE_JOB_CONTENT_TYPE	"application/json"
 #define API_UPDATE_JOB_HDR_ACCEPT	"accept: */*\r\n"
@@ -119,6 +133,7 @@ enum http_status {
 	HTTP_STATUS_UNHANDLED = -1,
 	HTTP_STATUS_NONE = 0,
 	HTTP_STATUS_OK = 200,
+	HTTP_STATUS_ACCEPTED = 202,
 	HTTP_STATUS_BAD_REQ = 400,
 	HTTP_STATUS_UNAUTH = 401,
 	HTTP_STATUS_FORBIDDEN = 403,
@@ -131,6 +146,7 @@ enum http_req_type {
 	HTTP_REQ_TYPE_PROVISION,
 	HTTP_REQ_TYPE_GET_JOB,
 	HTTP_REQ_TYPE_UPDATE_JOB,
+	HTTP_REQ_TYPE_DEV_STATE,
 };
 
 struct http_user_data {
@@ -559,8 +575,6 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	LOG_DBG("URL: %s\n", log_strdup(url));
 	LOG_DBG("Payload: %s\n", log_strdup(payload));
 
-	/* TODO: Create Host header with correct hostname */
-
 	const char * headers[] = { API_UPDATE_JOB_HDR_ACCEPT,
 				   auth_hdr,
 				   host_hdr,
@@ -607,6 +621,151 @@ clean_up:
 	}
 	if (jwt) {
 		k_free(jwt);
+	}
+	if (url) {
+		k_free(url);
+	}
+	if (auth_hdr) {
+		k_free(auth_hdr);
+	}
+	if (host_hdr) {
+		k_free(host_hdr);
+	}
+	if (payload) {
+		k_free(payload);
+	}
+
+	return ret;
+}
+
+int fota_client_set_device_state(void)
+{
+	int fd;
+	int ret;
+	struct http_request req;
+	struct http_user_data dev_state = { .type = HTTP_REQ_TYPE_DEV_STATE };
+	size_t buff_size;
+	uint16_t port = API_PORT;
+	char * jwt = NULL;
+	char * url = NULL;
+	char * auth_hdr =  NULL;
+	char * host_hdr = NULL;
+	char * payload = NULL;
+	char * hostname = API_HOSTNAME;
+	char * device_id = get_device_id_string();
+	char * mfw_ver = get_mfw_version_string();
+
+	if (api_hostname != NULL) {
+		hostname = api_hostname;
+	}
+	if (api_port != 0) {
+		port = api_port;
+	}
+
+	ret = generate_jwt(device_id,&jwt);
+	if (ret < 0){
+		LOG_ERR("Failed to generate JWT, error: %d", ret);
+		goto clean_up;
+	}
+
+	/* Format API URL with device ID */
+	buff_size = sizeof(API_DEV_STATE_URL_TEMPLATE) + strlen(device_id);
+	url = k_calloc(buff_size, 1);
+	if (!url) {
+		ret = -ENOMEM;
+		goto clean_up;
+	}
+	ret = snprintk(url, buff_size, API_DEV_STATE_URL_TEMPLATE, device_id);
+	if (ret < 0 || ret >= buff_size) {
+		LOG_ERR("Could not format URL");
+		ret = -ENOBUFS;
+		goto clean_up;
+	}
+
+	/* Format auth header with JWT */
+	ret = generate_auth_header(jwt, &auth_hdr);
+	if (ret) {
+		LOG_ERR("Could not format HTTP auth header");
+		goto clean_up;
+	}
+
+	ret = generate_host_header(hostname, &host_hdr);
+	if (ret) {
+		LOG_ERR("Could not generate Host header");
+		goto clean_up;
+	}
+
+	/* Create payload */
+	buff_size = sizeof(API_DEV_STATE_BODY_TEMPLATE) +
+		    strlen(mfw_ver);
+	payload = k_calloc(buff_size,1);
+	if (!payload) {
+		ret = -ENOMEM;
+		goto clean_up;
+	}
+	ret = snprintk(payload, buff_size, API_DEV_STATE_BODY_TEMPLATE,
+		       mfw_ver);
+	if (ret < 0 || ret >= buff_size) {
+		LOG_ERR("Could not format HTTP payload");
+		ret = -ENOBUFS;
+		goto clean_up;
+	}
+
+	LOG_DBG("URL: %s\n", log_strdup(url));
+	LOG_DBG("Payload: %s\n", log_strdup(payload));
+
+	const char * headers[] = { API_DEV_STATE_HDR_ACCEPT,
+				   auth_hdr,
+				   host_hdr,
+				   NULL};
+
+	/* Init HTTP request */
+	memset(http_rx_buf,0,HTTP_RX_BUF_SIZE);
+	memset(&req, 0, sizeof(req));
+	req.method = HTTP_PATCH;
+	req.url = url;
+	req.host = hostname;
+	req.protocol = HTTP_PROTOCOL;
+	req.content_type_value = API_DEV_STATE_CONTENT_TYPE;
+	req.header_fields = headers;
+	req.payload = payload;
+	req.payload_len = strlen(payload);
+	req.response = http_response_cb;
+	req.recv_buf = http_rx_buf;
+	req.recv_buf_len = sizeof(http_rx_buf);
+	http_resp_status = HTTP_STATUS_NONE;
+
+	ret = do_connect(&fd, hostname, port, true);
+	if (ret) {
+		goto clean_up;
+	}
+
+	ret = http_client_req(fd, &req, API_HTTP_TIMEOUT_MS, &dev_state);
+
+	LOG_DBG("http_client_req() returned: %d", ret);
+
+	if (ret < 0) {
+		ret = -EIO;
+	} else {
+		ret = 0;
+		if (http_resp_status != HTTP_STATUS_ACCEPTED) {
+			LOG_ERR("HTTP status: %d", http_resp_status);
+			ret = -ENODATA;
+		}
+	}
+
+clean_up:
+	if (fd > -1) {
+		(void)close(fd);
+	}
+	if (jwt) {
+		k_free(jwt);
+	}
+	if (device_id) {
+		k_free(device_id);
+	}
+	if (mfw_ver) {
+		k_free(mfw_ver);
 	}
 	if (url) {
 		k_free(url);
@@ -855,10 +1014,45 @@ static char * get_device_id_string(void)
 		return NULL;
 	}
 
-	dev_id_len += IMEI_LEN; /* remove /r/r from AT cmd result */
+	dev_id_len += IMEI_LEN; /* remove /r/n from AT cmd result */
 	dev_id[dev_id_len] = 0;
 
 	return dev_id;
+}
+
+static char * get_mfw_version_string(void)
+{
+	int ret;
+	enum at_cmd_state state;
+	char * mfw_version = k_calloc(MFW_VER_BUFF_SIZE,1);
+	char * string_end;
+
+	if (!mfw_version) {
+		LOG_ERR("Could not allocate memory for modem FW version");
+		return NULL;
+	}
+
+	at_cmd_init();
+
+	ret = at_cmd_write("AT+CGMR",
+			   mfw_version,
+			   MFW_VER_BUFF_SIZE,
+			   &state);
+	if (ret) {
+		LOG_ERR("Failed to get modem FW version, error: %d", ret);
+		k_free(mfw_version);
+		return NULL;
+	}
+
+	/* NULL terminate at /r */
+	string_end = strchr(mfw_version, '\r');
+	if (string_end) {
+		*string_end = '\0';
+	} else {
+		mfw_version[MFW_VER_BUFF_SIZE-1] = '\0';
+	}
+
+	return mfw_version;
 }
 
 char * get_base64url_string(const char * const input, const size_t input_size)
@@ -964,6 +1158,8 @@ static void http_response_cb(struct http_response *rsp,
 			http_resp_status = HTTP_STATUS_BAD_REQ;
 		} else if (strncmp(rsp->http_status,"Unprocessable Entity", HTTP_STATUS_STR_SIZE) == 0) {
 			http_resp_status = HTTP_STATUS_UNPROC_ENTITY;
+		} else if (strncmp(rsp->http_status,"Accepted", HTTP_STATUS_STR_SIZE) == 0) {
+			http_resp_status = HTTP_STATUS_ACCEPTED;
 		} else {
 			http_resp_status = HTTP_STATUS_UNHANDLED;
 		}
@@ -989,6 +1185,7 @@ static void http_response_cb(struct http_response *rsp,
 			break;
 		case HTTP_REQ_TYPE_PROVISION:
 		case HTTP_REQ_TYPE_UPDATE_JOB:
+		case HTTP_REQ_TYPE_DEV_STATE:
 		default:
 			break;
 		}
