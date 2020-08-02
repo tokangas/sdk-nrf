@@ -8,6 +8,7 @@ menuconfig MODEM_FOTA
 	bool "nRF91 modem FOTA library"
 	select BSD_LIBRARY
 	select AT_CMD_PARSER
+	select FOTA_DOWNLOAD_PROGRESS_EVT
 
 if MODEM_FOTA
 

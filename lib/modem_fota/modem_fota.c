@@ -140,6 +140,7 @@ static bool restore_system_mode_needed = false;
 static u32_t prev_system_mode_bitmask = 0;
 
 static bool reboot_pending = false;
+static int download_progress;
 
 static int settings_set(const char *name, size_t len,
 		settings_read_cb read_cb, void *cb_arg)
@@ -669,9 +670,11 @@ static void finish_update_work_fn(struct k_work *item)
 		break;
 
 	case MODEM_FOTA_EVT_ERROR:
-		if (current_job.status == AWS_JOBS_FAILED) {
+		if (current_job.status == AWS_JOBS_REJECTED) {
+			/* No point in retrying a rejected job */
 			update_job_status();
 		} else {
+			/* Free the job and try later */
 			fota_client_job_free(&current_job);
 		}
 		break;
@@ -708,6 +711,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 {
 	switch (evt->id) {
 	case FOTA_DOWNLOAD_EVT_PROGRESS:
+		download_progress = evt->progress;
 		break;
 
 	case FOTA_DOWNLOAD_EVT_FINISHED:
@@ -728,7 +732,22 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		/* Download failed or modem rejected the update (no way to
 		 * separate these two at the moment), update job status.
 		 */
-		current_job.status = AWS_JOBS_FAILED;
+		/* TODO: As mentioned above, the FOTA download errors are not
+		 * specific enough, but using the download progres we can
+		 * make assumptions.
+		 */
+		if (download_progress == 0 || download_progress == 100) {
+			/* The download wasn't started or it was fully
+			 * received.  Assume this is a rejection failure.
+			 */
+			current_job.status = AWS_JOBS_REJECTED;
+		} else {
+			/* Received some data; assume network problem.
+			 * Retry on next update interval.
+			 */
+			current_job.status = AWS_JOBS_FAILED;
+		}
+
 		finish_update(MODEM_FOTA_EVT_ERROR);
 		break;
 
@@ -1004,6 +1023,7 @@ static void start_update_work_fn(struct k_work *item)
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 		while (true) {
+			download_progress = 0;
 			err = fota_download_start(current_job.host,
 						  current_job.path,
 						  sec_tag, port, fota_apn);
