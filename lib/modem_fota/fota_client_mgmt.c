@@ -107,12 +107,12 @@ static int parse_pending_job_response(const char * const resp_buff,
 					"\"deviceInfo\":{\"modemFirmware\":\"%s\"}," \
 					"\"serviceInfo\":{\"fota_v1\":[\"MODEM\"]}}}}"
 
-#define API_UPDATE_JOB_URL_PREFIX	"/v1/dfu-job-execution-statuses/"
+#define API_UPDATE_JOB_URL_PREFIX	"/v1/fota-job-execution-statuses/"
 #define API_UPDATE_JOB_CONTENT_TYPE	"application/json"
 #define API_UPDATE_JOB_HDR_ACCEPT	"accept: */*\r\n"
 #define API_UPDATE_JOB_BODY_TEMPLATE	"{\"status\":\"%s\"}"
 
-#define API_GET_JOB_URL_TEMPLATE	"/v1/dfu-jobs/device/%s/latest-pending"
+#define API_GET_JOB_URL_TEMPLATE	"/v1/fota-jobs/device/%s/latest-pending"
 #define API_GET_JOB_CONTENT_TYPE 	"*/*"
 #define API_GET_JOB_HDR_ACCEPT		"accept: application/json\r\n"
 
