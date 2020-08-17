@@ -29,9 +29,6 @@ void modem_fota_callback(enum modem_fota_evt_id event_id)
 	case MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE:
 		break;
 
-	case MODEM_FOTA_EVT_DOWNLOADING_UPDATE:
-		break;
-
 	case MODEM_FOTA_EVT_UPDATE_DOWNLOADED:
 		break;
 
@@ -83,12 +80,17 @@ void main(void)
 	at_cmd_init();
 	at_notif_init();
 
-	modem_fota_init(&modem_fota_callback);
+	if (modem_fota_init(&modem_fota_callback) != 0) {
+		printk("Failed to initialize modem FOTA\n");
+		return;
+	}
 
 	printk("LTE link connecting...\n");
 	err = lte_lc_init_and_connect();
 	__ASSERT(err == 0, "LTE link could not be established.");
 	printk("LTE link connected!\n");
+
+	modem_fota_config();
 
 	k_sleep(K_FOREVER);
 }

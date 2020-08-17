@@ -67,7 +67,8 @@ struct update_info {
 
 static struct update_info current_update_info;
 
-static struct k_sem link_sem;
+static struct k_sem attach_sem;
+static struct k_sem detach_sem;
 static struct k_sem rrc_idle_sem;
 
 K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
@@ -97,6 +98,7 @@ static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
+static const char at_cgdcont_read[] = "AT+CGDCONT?";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
 static const char aws_jobs_succeeded[] = "SUCCEEDED";
@@ -346,12 +348,15 @@ static int parse_cereg_notification(const char *notif)
 	}
 
 	/* Need to be registered and have a valid TAC */
-	if (tac_valid && value == 1) {
+	if (value == 0) {
+		reg_status = MODEM_REG_STATUS_NOT_REGISTERED;
+		k_sem_give(&detach_sem);
+	} else if (tac_valid && value == 1) {
 		reg_status = MODEM_REG_STATUS_HOME;
-		k_sem_give(&link_sem);
+		k_sem_give(&attach_sem);
 	} else if (tac_valid && value == 5) {
 		reg_status = MODEM_REG_STATUS_ROAMING;
-		k_sem_give(&link_sem);
+		k_sem_give(&attach_sem);
 	} else {
 		reg_status = MODEM_REG_STATUS_NOT_REGISTERED;
 	}
@@ -634,13 +639,39 @@ static void finish_update(enum modem_fota_evt_id event_id)
 	k_work_submit_to_queue(&work_q, &current_update_info.finish_update_work);
 }
 
+/* Waits until the device is detached from the network or a timeout happens.
+ * The return value indicates if device is detached from the network or not.
+ * Timeout is given in seconds, zero means "no wait", i.e. function returns the
+ * network connection status immediately.
+ */
+static bool send_at_command_and_wait_until_detached(const char *at_cmd,
+						    u32_t timeout_s)
+{
+	if (reg_status == MODEM_REG_STATUS_HOME ||
+	    reg_status == MODEM_REG_STATUS_ROAMING) {
+
+		at_cmd_write(at_cmd, NULL, 0, NULL);
+		if (timeout_s == 0) {
+			return false;
+		}
+
+		LOG_INF("Waiting for network detach (timeout %d s)...",
+			timeout_s);
+		k_sem_reset(&detach_sem);
+		if (k_sem_take(&detach_sem, K_SECONDS(timeout_s)) != 0) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void reboot_to_apply_update()
 {
 	LOG_INF("Rebooting to apply modem firmware update...");
 
-	at_cmd_write(at_cfun_poweroff, NULL, 0, NULL);
-
-	k_sleep(K_SECONDS(3));
+	send_at_command_and_wait_until_detached(at_cfun_poweroff, 30);
+	at_notif_deregister_handler(NULL, at_notification_handler);
 
 	bsd_shutdown();
 	sys_reboot(SYS_REBOOT_WARM);
@@ -768,12 +799,12 @@ static bool is_update_check_allowed()
 	return true;
 }
 
-/* Waits until the device is connected to the network or a timeout happens.
- * The return value indicates if device is connected to the network or not. The
+/* Waits until the device is attached to the network or a timeout happens.
+ * The return value indicates if device is attached to the network or not. The
  * timeout is given in seconds, zero means "no wait", i.e. function returns the
  * network connection status immediately.
  */
-static bool wait_until_connected_to_network(u32_t timeout_s)
+static bool wait_until_attached(u32_t timeout_s)
 {
 	if (reg_status != MODEM_REG_STATUS_HOME &&
 	    reg_status != MODEM_REG_STATUS_ROAMING) {
@@ -781,10 +812,10 @@ static bool wait_until_connected_to_network(u32_t timeout_s)
 			return false;
 		}
 
-		LOG_INF("Waiting for network connection (timeout %d s)...",
+		LOG_INF("Waiting for network attach (timeout %d s)...",
 			timeout_s);
-		k_sem_reset(&link_sem);
-		if (k_sem_take(&link_sem, K_SECONDS(timeout_s)) != 0) {
+		k_sem_reset(&attach_sem);
+		if (k_sem_take(&attach_sem, K_SECONDS(timeout_s)) != 0) {
 			return false;
 		}
 	}
@@ -859,9 +890,8 @@ static bool switch_system_mode_to_lte_m(void)
 	}
 
 	/* Set modem offline */
-	err = at_cmd_write(at_cfun_offline, NULL, 0, NULL);
-	if (err) {
-		LOG_ERR("Failed to set modem to offline mode, error: %d", err);
+	if (send_at_command_and_wait_until_detached(at_cfun_offline, 30)) {
+		LOG_ERR("Failed to set modem to offline mode");
 		return false;
 	}
 
@@ -885,7 +915,7 @@ static bool switch_system_mode_to_lte_m(void)
 
 	if (success) {
 		/* Wait until connected to network or a timeout occurs */
-		if (!wait_until_connected_to_network(300)) {
+		if (!wait_until_attached(300)) {
 			LOG_ERR("Could not connect to LTE-M");
 			success = false;
 		}
@@ -911,9 +941,8 @@ static void restore_system_mode(void)
 	LOG_INF("Restoring previous system mode");
 
 	/* Set modem offline */
-	err = at_cmd_write(at_cfun_offline, NULL, 0, NULL);
-	if (err) {
-		LOG_ERR("Failed to set modem to offline mode, error: %d", err);
+	if (send_at_command_and_wait_until_detached(at_cfun_offline, 30)) {
+		LOG_ERR("Failed to set modem to offline mode");
 		return;
 	}
 
@@ -964,7 +993,7 @@ static void start_update_work_fn(struct k_work *item)
 
 	LOG_INF("Time for update check");
 
-	if (!wait_until_connected_to_network(0)) {
+	if (!wait_until_attached(0)) {
 		LOG_INF("Out of service, skip update check");
 		schedule_next_update();
 		return;
@@ -1019,8 +1048,6 @@ static void start_update_work_fn(struct k_work *item)
 
 		LOG_INF("Starting firmware download");
 
-		event_callback(MODEM_FOTA_EVT_DOWNLOADING_UPDATE);
-
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 		while (true) {
 			download_progress = 0;
@@ -1063,7 +1090,7 @@ static void update_job_status_work_fn(struct k_work *item)
 
 	LOG_INF("Modem firmware was updated, updating job");
 
-	if (!wait_until_connected_to_network(3600)) {
+	if (!wait_until_attached(3600)) {
 		/* TODO: Revert modem firmware */
 		return;
 	}
@@ -1372,6 +1399,11 @@ void disable_fota()
 	save_update_check_time();
 }
 
+bool is_fota_apn_enabled(void)
+{
+	return (fota_apn != NULL);
+}
+
 u32_t get_time_to_next_update_check()
 {
 	if (is_update_scheduled() && is_network_time_valid())
@@ -1397,8 +1429,6 @@ static void at_notification_handler(void *context, const char *notif)
 {
 	ARG_UNUSED(context);
 
-	static bool first_cereg_notification = true;
-
 	if (notif == NULL) {
 		LOG_ERR("Notification buffer is a NULL pointer");
 		return;
@@ -1406,15 +1436,6 @@ static void at_notification_handler(void *context, const char *notif)
 
 	if (strncmp(at_cereg_notif, notif, sizeof(at_cereg_notif) - 1) == 0) {
 		parse_cereg_notification(notif);
-		if (first_cereg_notification) {
-			first_cereg_notification = false;
-			/* After we've got the first CEREG notification
-			 * we can read the IMSI and check if FOTA needs to be
-			 * disabled with this USIM
-			 */
-			if (is_fota_disabled_with_usim())
-				disable_fota();
-		}
 	} else if (strncmp(at_cscon_notif, notif, sizeof(at_cscon_notif) - 1)
 			== 0) {
 		parse_cscon_notification(notif);
@@ -1450,10 +1471,13 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	event_callback = callback;
 
+#if 0
 	if (strlen(CONFIG_MODEM_FOTA_APN) > 0)
 		fota_apn = CONFIG_MODEM_FOTA_APN;
+#endif
 
-	k_sem_init(&link_sem, 0, 1);
+	k_sem_init(&attach_sem, 0, 1);
+	k_sem_init(&detach_sem, 0, 1);
 	k_sem_init(&rrc_idle_sem, 0, 1);
 
 	k_work_q_start(&work_q, work_q_stack_area,
@@ -1482,4 +1506,43 @@ int modem_fota_init(modem_fota_callback_t callback)
 	LOG_INF("FOTA Client initialized");
 
 	return err;
+}
+
+void modem_fota_config(void)
+{
+	/* We can read the IMSI and check if FOTA needs to be
+	 * disabled with this USIM.
+	 */
+	if (is_fota_disabled_with_usim()) {
+		disable_fota();
+	} else {
+		/* If the primary PDN for user data communication is
+		 * the same as configured FOTA APN, we don't need to
+		 * activate FOTA APN later.
+		 */
+		/* TODO: This needs to be reworked, it doesn't work correctly
+		 * with NB-IoT at the moment.
+		 */
+		int err;
+		char response[256];
+
+		fota_apn = NULL;
+		if (lte_mode == MODEM_LTE_MODE_M) {
+			err = at_cmd_write(at_cgdcont_read, response,
+						sizeof(response),  NULL);
+			/* TODO: strstr() is looking for a substring, so a
+			 * substring of the user data APN would be accepted
+			 * as well, which is incorrect.
+			 */
+			if (strstr(response, CONFIG_MODEM_FOTA_APN) == NULL) {
+				fota_apn = CONFIG_MODEM_FOTA_APN;
+				LOG_INF("FOTA APN set");
+			}
+		} else if (lte_mode == MODEM_LTE_MODE_NBIOT) {
+			fota_apn = CONFIG_MODEM_FOTA_APN;
+			LOG_INF("FOTA APN set");
+		}
+
+		fota_client_set_fota_apn(fota_apn);
+	}
 }

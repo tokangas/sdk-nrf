@@ -11,5 +11,6 @@ project(NONE)
 
 # NORDIC SDK APP START
 target_sources(app PRIVATE src/main.c)
-zephyr_library_sources_ifdef(CONFIG_MODEM_FOTA_SHELL src/shell.c)
+zephyr_library_sources_ifdef(CONFIG_SHELL src/ping.c)
+zephyr_library_sources_ifdef(CONFIG_SHELL src/shell.c)
 # NORDIC SDK APP END

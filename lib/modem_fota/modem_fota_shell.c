@@ -72,6 +72,8 @@ static int fota_cmd_status(const struct shell *shell, size_t argc, char **argv)
 
 	shell_print(shell, "FOTA %s",
 		    is_fota_enabled() ? "enabled" : "disabled");
+	shell_print(shell, "FOTA PDN %s",
+		    is_fota_apn_enabled() ? "enabled" : "disabled");
 	time_to_check = get_time_to_next_update_check();
 	if (time_to_check > 0) {
 		time_to_check_without_days = time_to_check % SECONDS_IN_DAY;

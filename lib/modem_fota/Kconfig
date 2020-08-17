@@ -13,18 +13,50 @@ menuconfig MODEM_FOTA
 if MODEM_FOTA
 
 config MODEM_FOTA_APN
-	string "FOTA APN"
+	string "FOTA APN name"
 	default ""
 	help
-	  Acccess Point Name to be used for all FOTA data traffic. If not set, the
+	  Acccess Point Name to be used for all FOTA data traffic. If empty, the
 	  default APN will be used.
+
+choice MODEM_FOTA_APN_AUTH
+	bool "FOTA APN authentication type"
+	depends on MODEM_FOTA_APN != ""
+	default MODEM_FOTA_APN_AUTH_NONE
+	help
+	  Authentication type for the FOTA APN.
+
+config MODEM_FOTA_APN_AUTH_NONE
+	bool "None"
+
+config MODEM_FOTA_APN_AUTH_PAP
+	bool "PAP"
+
+config MODEM_FOTA_APN_AUTH_CHAP
+	bool "CHAP"
+
+endchoice
+
+config MODEM_FOTA_APN_AUTH_USERNAME
+	string "FOTA APN authentication username"
+	depends on MODEM_FOTA_APN_AUTH_PAP || MODEM_FOTA_APN_AUTH_CHAP
+	default ""
+	help
+	  Username for the FOTA APN authentication.
+
+config MODEM_FOTA_APN_AUTH_PASSWORD
+	string "FOTA APN authentication password"
+	depends on MODEM_FOTA_APN_AUTH_PAP || MODEM_FOTA_APN_AUTH_CHAP
+	default ""
+	help
+	  Password for the FOTA APN authentication.
 
 choice MODEM_FOTA_APN_PDN_TYPE
 	bool "PDN type for the FOTA APN"
+	depends on MODEM_FOTA_APN != ""
 	default MODEM_FOTA_APN_PDN_TYPE_IPV4V6
 	help
-	  PDN type for the FOTA APN. Used only when FOTA APN is set using
-	  MODEM_FOTA_APN.
+	  PDN type for the FOTA APN.
 
 config MODEM_FOTA_APN_PDN_TYPE_IPV4V6
 	bool "IPv4v6"
