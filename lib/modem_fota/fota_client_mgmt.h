@@ -21,6 +21,8 @@ struct fota_client_mgmt_job {
 	char * status_details;
 };
 
+void fota_client_set_fota_apn(const char *apn);
+
 int fota_client_provision_device(void);
 int fota_client_set_device_state(void);
 

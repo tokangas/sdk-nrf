@@ -22,6 +22,8 @@ void enable_fota();
 
 void disable_fota();
 
+bool is_fota_apn_enabled(void);
+
 u32_t get_time_to_next_update_check();
 
 void set_time_to_next_update_check(u32_t seconds);

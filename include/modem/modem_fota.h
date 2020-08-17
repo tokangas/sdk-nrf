@@ -27,8 +27,6 @@ enum modem_fota_evt_id {
 	MODEM_FOTA_EVT_CHECKING_FOR_UPDATE,
 	/** No update available */
 	MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE,
-	/** Update available, download started */
-	MODEM_FOTA_EVT_DOWNLOADING_UPDATE,
 	/** Update downloaded, system will restart to apply the update */
 	MODEM_FOTA_EVT_UPDATE_DOWNLOADED,
 	/** Error during update check or download */
@@ -46,7 +44,7 @@ typedef void (*modem_fota_callback_t)(enum modem_fota_evt_id event_id);
 /**
  * @brief Initializes the modem FOTA client.
  *
- * TOOD: Add detailed description.
+ * This API should be called before LTE attach.
  *
  * @param callback Callback for the generated events.
  *
@@ -54,6 +52,14 @@ typedef void (*modem_fota_callback_t)(enum modem_fota_evt_id event_id);
  *           Otherwise, a (negative) error code is returned.
  */
 int modem_fota_init(modem_fota_callback_t callback);
+
+/**
+ * @brief Config the modem FOTA client.
+ *
+ * This API should be called right after LTE attach.
+ *
+ */
+void modem_fota_config(void);
 
 #ifdef __cplusplus
 }
