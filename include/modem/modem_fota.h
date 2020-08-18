@@ -44,7 +44,7 @@ typedef void (*modem_fota_callback_t)(enum modem_fota_evt_id event_id);
 /**
  * @brief Initializes the modem FOTA client.
  *
- * This API should be called before LTE attach.
+ * This API must be called before LTE attach.
  *
  * @param callback Callback for the generated events.
  *
@@ -54,12 +54,12 @@ typedef void (*modem_fota_callback_t)(enum modem_fota_evt_id event_id);
 int modem_fota_init(modem_fota_callback_t callback);
 
 /**
- * @brief Config the modem FOTA client.
+ * @brief Configure the modem FOTA client.
  *
- * This API should be called right after LTE attach.
+ * This API must be called right after LTE attach.
  *
  */
-void modem_fota_config(void);
+void modem_fota_configure(void);
 
 #ifdef __cplusplus
 }
