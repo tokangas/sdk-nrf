@@ -11,6 +11,13 @@
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
 
+#include <modem/modem_info.h>
+
+/* global variable defined in different files */
+struct modem_param_info modem_param;
+char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
+struct k_work_q slm_work_q;
+
 static void modem_trace_enable(void)
 {
 	/* GPIO configurations for trace and debug */
@@ -46,6 +53,15 @@ static void modem_trace_enable(void)
 
 void main(void)
 {
+	int err;
+
 	printk("The FT host sample started\n");
 	modem_trace_enable();
+
+	err = modem_info_init();
+	if (err) {
+		printk("Modem info could not be established: %d", err);
+		return;
+	}
+	modem_info_params_init(&modem_param);	
 }

@@ -7,8 +7,8 @@
 #include <shell/shell.h>
 #include <modem/at_cmd.h>
 
+#include "icmp_ping.h"
 #include "socket.h"
-
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
@@ -22,6 +22,21 @@ static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	shell_print(shell, "%sOK", response);
+
+	return 0;
+}
+static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
+{ 
+#ifdef RM_JH	
+	shell_print(shell, "argc = %d", argc);
+	for (size_t cnt = 0; cnt < argc; cnt++) {
+		shell_print(shell, "  argv[%d] = %s", cnt, argv[cnt]);
+	}
+#endif	
+	if (argc > 1) {
+        char *target_name = argv[1];
+		icmp_ping_start(shell, target_name);
+	}
 
 	return 0;
 }
@@ -46,6 +61,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sock_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(app_cmds,
 	SHELL_CMD(data, &app_data_cmds, "Send periodic UDP data over default "
 					"APN.", NULL),
+	SHELL_CMD(ping, NULL, "'ft ping [target host name]' does an ICMP ping.\n No other hooks: work very much in progress", cmd_icmp_ping),
 	SHELL_CMD(sock, &sock_cmds, "Send periodic UDP data over default "
 					"APN.", NULL),
 	SHELL_SUBCMD_SET_END
