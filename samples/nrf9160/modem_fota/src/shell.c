@@ -23,7 +23,7 @@ static const char dummy_data[] = "01234567890123456789012345678901"
 
 int ping(const char *local, const char *remote, int count);
 
-static void udp_socket_open()
+static void udp_socket_open(void)
 {
 	int err;
 	struct addrinfo hints = {

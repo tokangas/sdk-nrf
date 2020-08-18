@@ -172,9 +172,6 @@ static const char *job_status_strings[] = {
 #define JOB_STATUS_STRING_COUNT (sizeof(job_status_strings) / \
 				 sizeof(*job_status_strings))
 
-/* FOTA APN or NULL if default APN is used */
-static const char *fota_apn;
-
 #define HTTP_RX_BUF_SIZE (4096)
 static char http_rx_buf[HTTP_RX_BUF_SIZE];
 static enum http_status http_resp_status;
@@ -215,8 +212,8 @@ static int do_connect(int * const fd, const char * const hostname,
 	char *apn = NULL;
 	struct addrinfo *addr_info;
 
-	if (use_fota_apn) {
-		apn = (char *)fota_apn;
+	if (use_fota_apn && strlen(CONFIG_MODEM_FOTA_APN) > 0) {
+		apn = CONFIG_MODEM_FOTA_APN;
 	}
 
 	struct addrinfo hints = {
@@ -784,10 +781,6 @@ clean_up:
 	}
 
 	return ret;
-}
-
-void fota_client_set_fota_apn(const char *apn) {
-	fota_apn = apn;
 }
 
 static int generate_auth_header(const char * const jwt, char ** auth_hdr_out)

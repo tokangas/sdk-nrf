@@ -43,9 +43,9 @@ enum modem_lte_mode {
 };
 
 /* Forward declarations */
-static bool wait_for_data_inactivity();
-static void restore_system_mode();
-static void schedule_next_update();
+static bool wait_for_data_inactivity(void);
+static void restore_system_mode(void);
+static void schedule_next_update(void);
 static void update_check_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
 
@@ -98,7 +98,6 @@ static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
-static const char at_cgdcont_read[] = "AT+CGDCONT?";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
 static const char aws_jobs_succeeded[] = "SUCCEEDED";
@@ -170,7 +169,7 @@ static int settings_set(const char *name, size_t len,
 	return -ENOENT;
 }
 
-static void init_and_load_settings()
+static void init_and_load_settings(void)
 {
 	settings_subsys_init();
 
@@ -183,7 +182,7 @@ static void init_and_load_settings()
 	settings_load();
 }
 
-static void save_update_check_time()
+static void save_update_check_time(void)
 {
 	settings_save_one("modem_fota/update_check_time",
 			  &update_check_time_s, sizeof(update_check_time_s));
@@ -242,7 +241,7 @@ static void parse_network_time(const char *time_str)
 	network_time_timestamp = k_uptime_get();
 }
 
-static bool is_network_time_valid()
+static bool is_network_time_valid(void)
 {
 	return network_time != 0 && network_time_timestamp != 0;
 }
@@ -438,7 +437,7 @@ static int parse_time_from_xtime_notification(const char *notif)
 	}
 }
 
-static void unregister_xtime_notification()
+static void unregister_xtime_notification(void)
 {
 	int err;
 
@@ -449,12 +448,12 @@ static void unregister_xtime_notification()
 	}
 }
 
-static s64_t get_current_time_in_s()
+static s64_t get_current_time_in_s(void)
 {
 	return (k_uptime_get() - network_time_timestamp + network_time) / 1000;
 }
 
-static int activate_fota_pdn()
+static int activate_fota_pdn(void)
 {
 	int err;
 	nrf_sa_family_t af[2];
@@ -500,7 +499,7 @@ static int activate_fota_pdn()
 	return 0;
 }
 
-static void deactivate_fota_pdn()
+static void deactivate_fota_pdn(void)
 {
 	if (pdn_fd >= 0) {
 		nrf_close(pdn_fd);
@@ -515,7 +514,7 @@ void dfu_target_callback_handler(enum dfu_target_evt_id evt_id)
 	/* Nothing to do here */
 }
 
-static void erase_modem_fw_backup()
+static void erase_modem_fw_backup(void)
 {
 	int err;
 
@@ -535,7 +534,7 @@ static void erase_modem_fw_backup()
 	}
 }
 
-static int get_pending_job()
+static int get_pending_job(void)
 {
 	int ret;
 	int retry_count;
@@ -597,7 +596,7 @@ static const char *get_job_status_string(enum execution_status status) {
 	}
 }
 
-static int update_job_status()
+static int update_job_status(void)
 {
 	int ret;
 	int retry_count;
@@ -666,7 +665,7 @@ static bool send_at_command_and_wait_until_detached(const char *at_cmd,
 	return true;
 }
 
-static void reboot_to_apply_update()
+static void reboot_to_apply_update(void)
 {
 	LOG_INF("Rebooting to apply modem firmware update...");
 
@@ -788,7 +787,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 	}
 }
 
-static bool is_update_check_allowed()
+static bool is_update_check_allowed(void)
 {
 	if (!IS_ENABLED(CONFIG_MODEM_FOTA_ALLOWED_DURING_ROAMING) &&
 	    reg_status == MODEM_REG_STATUS_ROAMING) {
@@ -826,7 +825,7 @@ static bool wait_until_attached(u32_t timeout_s)
 /* Waits until the RRC connection is idle. This is used to wait until the
  * application is not transferring data before proceeding with the FW update.
  */
-static bool wait_for_data_inactivity()
+static bool wait_for_data_inactivity(void)
 {
 	u32_t timeout_s;
 
@@ -966,7 +965,7 @@ static void restore_system_mode(void)
 	restore_system_mode_needed = false;
 }
 
-static void start_update_check()
+static void start_update_check(void)
 {
 	k_work_submit_to_queue(&work_q, &update_work);
 }
@@ -1075,7 +1074,7 @@ static void start_update_work_fn(struct k_work *item)
 	}
 }
 
-static void update_job_status_after_apply()
+static void update_job_status_after_apply(void)
 {
 	k_work_submit_to_queue(&work_q, &update_job_status_work);
 }
@@ -1144,17 +1143,17 @@ static void update_job_status_work_fn(struct k_work *item)
 	save_update_job_id(NULL);
 }
 
-static bool is_update_scheduled()
+static bool is_update_scheduled(void)
 {
 	return update_check_time_s != 0;
 }
 
-static bool is_time_for_update_check()
+static bool is_time_for_update_check(void)
 {
 	return get_current_time_in_s() >= update_check_time_s;
 }
 
-static void start_update_check_timer()
+static void start_update_check_timer(void)
 {
 	s32_t duration_s;
 	u32_t duration_s_without_days;
@@ -1188,7 +1187,7 @@ static void update_check_timer_handler(struct k_timer *dummy)
 		start_update_check_timer();
 }
 
-static void calculate_next_update_check_time()
+static void calculate_next_update_check_time(void)
 {
 	u32_t seconds_to_update_check;
 	u32_t max_rand;
@@ -1208,7 +1207,7 @@ static void calculate_next_update_check_time()
 	save_update_check_time();
 }
 
-static void schedule_next_update()
+static void schedule_next_update(void)
 {
 	static bool first_time = true;
 
@@ -1345,7 +1344,7 @@ static char *get_next_imsi_prefix(char **pos, int *prefix_len)
 	return prefix_start;
 }
 
-static bool is_fota_disabled_with_usim()
+static bool is_fota_disabled_with_usim(void)
 {
 	int err;
 	char imsi[15 + 2 + 1];
@@ -1373,12 +1372,12 @@ static bool is_fota_disabled_with_usim()
 	return false;
 }
 
-bool is_fota_enabled()
+bool is_fota_enabled(void)
 {
 	return fota_enabled;
 }
 
-void enable_fota()
+void enable_fota(void)
 {
 	fota_enabled = true;
 
@@ -1387,7 +1386,7 @@ void enable_fota()
 	schedule_next_update();
 }
 
-void disable_fota()
+void disable_fota(void)
 {
 	fota_enabled = false;
 
@@ -1399,12 +1398,7 @@ void disable_fota()
 	save_update_check_time();
 }
 
-bool is_fota_apn_enabled(void)
-{
-	return (fota_apn != NULL);
-}
-
-u32_t get_time_to_next_update_check()
+u32_t get_time_to_next_update_check(void)
 {
 	if (is_update_scheduled() && is_network_time_valid())
 		if (update_check_time_s > get_current_time_in_s()) {
@@ -1449,7 +1443,7 @@ static void at_notification_handler(void *context, const char *notif)
 	}
 }
 
-static int register_xtime_notification()
+static int register_xtime_notification(void)
 {
 	int err;
 
@@ -1471,10 +1465,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	event_callback = callback;
 
-#if 0
 	if (strlen(CONFIG_MODEM_FOTA_APN) > 0)
 		fota_apn = CONFIG_MODEM_FOTA_APN;
-#endif
 
 	k_sem_init(&attach_sem, 0, 1);
 	k_sem_init(&detach_sem, 0, 1);
@@ -1508,41 +1500,12 @@ int modem_fota_init(modem_fota_callback_t callback)
 	return err;
 }
 
-void modem_fota_config(void)
+void modem_fota_configure(void)
 {
 	/* We can read the IMSI and check if FOTA needs to be
 	 * disabled with this USIM.
 	 */
 	if (is_fota_disabled_with_usim()) {
 		disable_fota();
-	} else {
-		/* If the primary PDN for user data communication is
-		 * the same as configured FOTA APN, we don't need to
-		 * activate FOTA APN later.
-		 */
-		/* TODO: This needs to be reworked, it doesn't work correctly
-		 * with NB-IoT at the moment.
-		 */
-		int err;
-		char response[256];
-
-		fota_apn = NULL;
-		if (lte_mode == MODEM_LTE_MODE_M) {
-			err = at_cmd_write(at_cgdcont_read, response,
-						sizeof(response),  NULL);
-			/* TODO: strstr() is looking for a substring, so a
-			 * substring of the user data APN would be accepted
-			 * as well, which is incorrect.
-			 */
-			if (strstr(response, CONFIG_MODEM_FOTA_APN) == NULL) {
-				fota_apn = CONFIG_MODEM_FOTA_APN;
-				LOG_INF("FOTA APN set");
-			}
-		} else if (lte_mode == MODEM_LTE_MODE_NBIOT) {
-			fota_apn = CONFIG_MODEM_FOTA_APN;
-			LOG_INF("FOTA APN set");
-		}
-
-		fota_client_set_fota_apn(fota_apn);
 	}
 }

@@ -90,7 +90,7 @@ void main(void)
 	__ASSERT(err == 0, "LTE link could not be established.");
 	printk("LTE link connected!\n");
 
-	modem_fota_config();
+	modem_fota_configure();
 
 	k_sleep(K_FOREVER);
 }

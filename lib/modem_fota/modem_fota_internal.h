@@ -16,23 +16,21 @@ extern "C" {
 /* Currently the maximum timer duration is ~18h, so we'll use that */
 #define MAX_TIMER_DURATION_S (18 * 60 * 60)
 
-bool is_fota_enabled();
+bool is_fota_enabled(void);
 
-void enable_fota();
+void enable_fota(void);
 
-void disable_fota();
+void disable_fota(void);
 
-bool is_fota_apn_enabled(void);
-
-u32_t get_time_to_next_update_check();
+u32_t get_time_to_next_update_check(void);
 
 void set_time_to_next_update_check(u32_t seconds);
 
-char *get_api_hostname();
+char *get_api_hostname(void);
 
 void set_api_hostname(const char *hostname);
 
-u16_t get_api_port();
+u16_t get_api_port(void);
 
 void set_api_port(u16_t port);
 
