@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 #include <stdio.h>
+#include <zephyr.h>
 #include <shell/shell.h>
 
 #include <modem/modem_info.h>
@@ -21,8 +22,10 @@
 
 /**@ ICMP Ping command arguments */
 static struct ping_argv_t {
+	char target_name[253];
 	struct addrinfo *src;
 	struct addrinfo *dest;
+	const struct shell *shell;
 	int len;
 	int waitms;
 	int count;
@@ -32,23 +35,8 @@ static struct ping_argv_t {
 /* global variable defined in different files */
 extern struct modem_param_info modem_param;
 extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
-/*
 
-struct zsock_addrinfo {
-	struct zsock_addrinfo *ai_next;
-	int ai_flags;
-	int ai_family;
-	int ai_socktype;
-	int ai_protocol;
-	socklen_t ai_addrlen;
-	struct sockaddr *ai_addr;
-	char *ai_canonname;
-
-	struct sockaddr _ai_addr;
-	char _ai_canonname[DNS_MAX_NAME_SIZE + 1];
-};
-*/
-static char *util_inet_ntoa(const struct sockaddr *addr)
+static char *sckt_addr_ntop(const struct sockaddr *addr)
 {
 	static char buf[NET_IPV6_ADDR_LEN];
 
@@ -66,6 +54,7 @@ static char *util_inet_ntoa(const struct sockaddr *addr)
 	strcpy(buf, "junk");
 	return buf;
 }
+
 static inline void setip(u8_t *buffer, u32_t ipaddr)
 {
 	buffer[0] = ipaddr & 0xFF;
@@ -219,7 +208,7 @@ static u32_t send_ping_wait_reply(const struct shell *shell)
 			goto close_end;
 		}
 		if (len < header_len) {
-			/* Data length error, ignore silently */
+			/* Data length error, ignore "silently" */
 			shell_print(shell, "nrf_recv() wrong data (%d)", len);
 			continue;
 		}
@@ -256,7 +245,8 @@ static u32_t send_ping_wait_reply(const struct shell *shell)
 	}
 
 	/* Result */
-	sprintf(rsp_buf, "PING results: time=%d.%03dsecs\r\n",
+	sprintf(rsp_buf, "Pinging %s results: time=%d.%03dsecs\r\n",
+	    ping_argv.target_name,
 		(u32_t)(delta_t)/1000,
 		(u32_t)(delta_t)%1000);
 	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
@@ -265,15 +255,48 @@ close_end:
 	(void)nrf_close(fd);
 	return (u32_t)delta_t;
 }
+static void icmp_ping_tasks_execute(const struct shell *shell)
+{
+	struct addrinfo *si = ping_argv.src;
+	struct addrinfo *di = ping_argv.dest;
+	u32_t sum = 0;
+	u32_t count = 0;
+
+	for (int i = 0; i < ping_argv.count; i++) {
+		u32_t ping_t = send_ping_wait_reply(shell);
+
+		if (ping_t > 0)  {
+			count++;
+			sum += ping_t;
+		}
+		k_sleep(K_MSEC(ping_argv.interval));
+	}
+
+#ifdef RM_JH
+	if (count > 1) {
+		u32_t avg = (sum + count/2) / count;
+		int avg_s = avg / 1000;
+		int avg_f = avg % 1000;
+
+		sprintf("Pinging average %d.%03d\r\n", avg_s, avg_f);
+		shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
+	}
+#endif
+
+	freeaddrinfo(si);
+	freeaddrinfo(di);
+	sprintf(rsp_buf, "Pinging DONE\r\n");
+	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
+}
 
 int icmp_ping_start(const struct shell *shell, const char *target_name)
-{
-    shell_print(shell,"initiating ping to: %s", target_name);
- 
+{ 
     int length, waittime, count, interval;
     int st;
     struct addrinfo *res;
     int addr_len;
+	
+    shell_print(shell,"initiating ping to: %s", target_name);
 
  #ifdef RM_JH
     if (length > ICMP_MAX_LEN) {
@@ -321,15 +344,17 @@ int icmp_ping_start(const struct shell *shell, const char *target_name)
     else {
         struct sockaddr *sa;
         sa = ping_argv.src->ai_addr;
-        shell_print(shell, "Source IP addr: %s", util_inet_ntoa(sa));
+        shell_print(shell, "Source IP addr: %s", sckt_addr_ntop(sa));
         sa = ping_argv.dest->ai_addr; 
-        shell_print(shell, "Destination IP addr: %s",  util_inet_ntoa(sa)); 
+        shell_print(shell, "Destination IP addr: %s",  sckt_addr_ntop(sa)); 
     }
 
     ping_argv.len = length;
     ping_argv.waitms = 3000; //TODO: waittime;
-    ping_argv.count = 1;		/* default 1 */
+    ping_argv.count = 4;		/* default 4 */
     ping_argv.interval = 1000;	/* default 1s */
+    strcpy(ping_argv.target_name, target_name); //TODO: check possible overflow or malloc dynamically based on len...
+
     if (count > 0) {
         ping_argv.count = count;
     }
@@ -337,7 +362,7 @@ int icmp_ping_start(const struct shell *shell, const char *target_name)
         ping_argv.interval = interval;
     }
 
-    //k_work_submit_to_queue(&slm_work_q, &my_work);
-    (void)send_ping_wait_reply(shell);
+    icmp_ping_tasks_execute(shell);
     return 0;
 }
+

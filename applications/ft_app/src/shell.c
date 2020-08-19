@@ -40,6 +40,7 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 
 	return 0;
 }
+#define PING_USAGE_STR "'ft ping [target host name]' does an ICMP ping.\n No other hooks: work very much in progress"
 
 SHELL_STATIC_SUBCMD_SET_CREATE(app_data_cmds,
 	SHELL_CMD(start, NULL, "'app data start [interval in seconds]' starts "
@@ -61,7 +62,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sock_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(app_cmds,
 	SHELL_CMD(data, &app_data_cmds, "Send periodic UDP data over default "
 					"APN.", NULL),
-	SHELL_CMD(ping, NULL, "'ft ping [target host name]' does an ICMP ping.\n No other hooks: work very much in progress", cmd_icmp_ping),
+	SHELL_CMD(ping, NULL, PING_USAGE_STR, cmd_icmp_ping),
 	SHELL_CMD(sock, &sock_cmds, "Send periodic UDP data over default "
 					"APN.", NULL),
 	SHELL_SUBCMD_SET_END
@@ -80,3 +81,6 @@ SHELL_CMD_REGISTER(ft, &app_cmds,
 SHELL_CMD_REGISTER(sock, &sock_cmds,
 		   "Commands for controlling the FT application",
 		   NULL);
+SHELL_CMD_REGISTER(ping, NULL,
+		   PING_USAGE_STR,
+		   cmd_icmp_ping);
