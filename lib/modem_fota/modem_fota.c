@@ -462,7 +462,7 @@ static int activate_fota_pdn(void)
 	if (fota_apn == NULL)
 		return 0;
 
-	LOG_INF("Activating FOTA PDN");
+	LOG_INF("Activating FOTA PDN if necessary");
 
 	pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
 	if (pdn_fd < 0) {
@@ -502,10 +502,10 @@ static int activate_fota_pdn(void)
 static void deactivate_fota_pdn(void)
 {
 	if (pdn_fd >= 0) {
+		LOG_INF("Deactivating FOTA PDN if necessary");
+
 		nrf_close(pdn_fd);
 		pdn_fd = -1;
-
-		LOG_INF("FOTA PDN deactivated");
 	}
 }
 
@@ -1045,6 +1045,11 @@ static void start_update_work_fn(struct k_work *item)
 		int sec_tag = CONFIG_MODEM_FOTA_TLS_SECURITY_TAG;
 		int port = 0;
 
+		/* Update available, erase previous modem FW update image before
+		 * starting download.
+		 */
+		erase_modem_fw_backup();
+
 		LOG_INF("Starting firmware download");
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
@@ -1132,12 +1137,6 @@ static void update_job_status_work_fn(struct k_work *item)
 
 	deactivate_fota_pdn();
 	restore_system_mode();
-
-	/* TODO: This should be configurable, other possibility is to erase
-	 * the backup just before starting next update download.
-	 */
-	/* Update was successful, so erase the backup */
-	erase_modem_fw_backup();
 
 	/* Clear job ID from NV */
 	save_update_job_id(NULL);
