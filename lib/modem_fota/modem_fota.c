@@ -470,6 +470,29 @@ static int activate_fota_pdn(void)
 		return -1;
 	}
 
+#ifndef CONFIG_MODEM_FOTA_APN_AUTH_NONE
+	nrf_pdn_auth_t auth_params;
+
+	strcpy(auth_params.username, CONFIG_MODEM_FOTA_APN_AUTH_USERNAME);
+	strcpy(auth_params.password, CONFIG_MODEM_FOTA_APN_AUTH_PASSWORD);
+	if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_AUTH_PAP)) {
+		auth_params.authentication_type = NRF_PDN_AUTH_TYPE_PAP;
+	} else if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_AUTH_CHAP)) {
+		auth_params.authentication_type = NRF_PDN_AUTH_TYPE_CHAP;
+	} else {
+		/* Unknown authentication type */
+		auth_params.authentication_type = NRF_PDN_AUTH_TYPE_NONE;
+	}
+
+	err = nrf_setsockopt(pdn_fd, NRF_SOL_PDN, NRF_SO_PDN_AUTH,
+			     &auth_params, sizeof(auth_params));
+	if (err) {
+		LOG_ERR("Could not set PDN authentication parameters, "
+			"error: %d", err);
+		return err;
+	}
+#endif
+
 	/* Configure PDN type (IPv4/IPv6/IPv4v6) */
 	af_count = 0;
 	if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_PDN_TYPE_IPV4)) {
