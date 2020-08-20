@@ -8,10 +8,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <sys/types.h>
+
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
 
 #include <modem/modem_info.h>
+#include <modem/lte_lc.h>
 
 /* global variable defined in different files */
 struct modem_param_info modem_param;
@@ -49,18 +52,60 @@ static void modem_trace_enable(void)
 
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
+static void lte_handler(const struct lte_lc_evt *const evt)
+{
+	switch (evt->type) {
+	case LTE_LC_EVT_NW_REG_STATUS:
+		if ((evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_HOME) &&
+		     (evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+			break;
+		}
+
+		printk("Network registration status: %s",
+			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ?
+			"Connected - home network" : "Connected - roaming");
+		break;
+	case LTE_LC_EVT_CELL_UPDATE:
+		printk("LTE cell changed: Cell ID: %d, Tracking area: %d",
+			evt->cell.id, evt->cell.tac);
+		break;
+	default:
+		break;
+	}
+}
 
 void main(void)
 {
 	int err;
 
 	printk("The FT host sample started\n");
+
+#if defined(CONFIG_BSD_LIBRARY)
+	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
+		/* Do nothing, modem is already configured and LTE connected. */
+	} else {
+		err = lte_lc_init_and_connect_async(lte_handler);
+		if (err) {
+			printk("Modem could not be configured, error: %d",
+				err);
+			return;
+		}
+
+		/* Check LTE events of type LTE_LC_EVT_NW_REG_STATUS in
+		 * lte_handler() to determine when the LTE link is up.
+		 */
+	}
+#endif
+
 	modem_trace_enable();
 
+#if defined(CONFIG_MODEM_INFO)
 	err = modem_info_init();
 	if (err) {
 		printk("Modem info could not be established: %d", err);
 		return;
 	}
 	modem_info_params_init(&modem_param);
+#endif
+
 }
