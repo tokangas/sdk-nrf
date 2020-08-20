@@ -83,7 +83,7 @@ static int do_connect(int * const fd, const char * const hostname,
 static int parse_pending_job_response(const char * const resp_buff,
 				      struct fota_client_mgmt_job * const job);
 
-#define API_HOSTNAME "static.api.dev.nrfcloud.com"
+#define API_HOSTNAME "static.api.beta.nrfcloud.com"
 #define API_PORT 443
 #define API_HTTP_TIMEOUT_MS (15000)
 
@@ -116,8 +116,13 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define API_GET_JOB_CONTENT_TYPE 	"*/*"
 #define API_GET_JOB_HDR_ACCEPT		"accept: application/json\r\n"
 
+// NOTE:
+//       The endpoint address isn't actually important... traffic is routed
+//       based on the certs, so ensure that correct dev/beta/prod certs are
+//       installed on the device.
 // TODO: switch to PROD endpoint: "a2n7tk1kp18wix-ats.iot.us-east-1.amazonaws.com"
-#define JITP_HOSTNAME "a2wg6q8yw7gv5r-ats.iot.us-east-1.amazonaws.com"
+//       BETA endpoint to be used for environment stability
+#define JITP_HOSTNAME "a1jtaajis3u27i-ats.iot.us-east-1.amazonaws.com"
 #define JITP_HOSTNAME_TLS 	JITP_HOSTNAME
 #define JITP_PORT		8443
 #define JITP_URL 	    	"/topics/jitp?qos=1"
