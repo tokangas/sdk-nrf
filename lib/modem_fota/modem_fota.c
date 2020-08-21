@@ -470,7 +470,7 @@ static int activate_fota_pdn(void)
 		return -1;
 	}
 
-#ifndef CONFIG_MODEM_FOTA_APN_AUTH_NONE
+#if defined(CONFIG_MODEM_FOTA_APN_AUTH_PAP) || defined(CONFIG_MODEM_FOTA_APN_AUTH_CHAP)
 	nrf_pdn_auth_t auth_params;
 
 	strcpy(auth_params.username, CONFIG_MODEM_FOTA_APN_AUTH_USERNAME);
@@ -672,6 +672,8 @@ static bool send_at_command_and_wait_until_detached(const char *at_cmd,
 	if (reg_status == MODEM_REG_STATUS_HOME ||
 	    reg_status == MODEM_REG_STATUS_ROAMING) {
 
+		k_sem_reset(&detach_sem);
+
 		at_cmd_write(at_cmd, NULL, 0, NULL);
 		if (timeout_s == 0) {
 			return false;
@@ -679,7 +681,6 @@ static bool send_at_command_and_wait_until_detached(const char *at_cmd,
 
 		LOG_INF("Waiting for network detach (timeout %d s)...",
 			timeout_s);
-		k_sem_reset(&detach_sem);
 		if (k_sem_take(&detach_sem, K_SECONDS(timeout_s)) != 0) {
 			return false;
 		}
@@ -693,9 +694,9 @@ static void reboot_to_apply_update(void)
 	LOG_INF("Rebooting to apply modem firmware update...");
 
 	send_at_command_and_wait_until_detached(at_cfun_poweroff, 30);
-	at_notif_deregister_handler(NULL, at_notification_handler);
 
-	bsd_shutdown();
+	k_sleep(K_SECONDS(5));
+
 	sys_reboot(SYS_REBOOT_WARM);
 }
 
@@ -912,7 +913,7 @@ static bool switch_system_mode_to_lte_m(void)
 	}
 
 	/* Set modem offline */
-	if (send_at_command_and_wait_until_detached(at_cfun_offline, 30)) {
+	if (!send_at_command_and_wait_until_detached(at_cfun_offline, 30)) {
 		LOG_ERR("Failed to set modem to offline mode");
 		return false;
 	}
@@ -963,7 +964,7 @@ static void restore_system_mode(void)
 	LOG_INF("Restoring previous system mode");
 
 	/* Set modem offline */
-	if (send_at_command_and_wait_until_detached(at_cfun_offline, 30)) {
+	if (!send_at_command_and_wait_until_detached(at_cfun_offline, 30)) {
 		LOG_ERR("Failed to set modem to offline mode");
 		return;
 	}
@@ -984,6 +985,8 @@ static void restore_system_mode(void)
 	err = at_cmd_write(at_cfun_normal, NULL, 0, NULL);
 	if (err)
 		LOG_ERR("Failed to set modem to normal mode, error: %d", err);
+
+	LOG_INF("System mode restored");
 
 	restore_system_mode_needed = false;
 }
