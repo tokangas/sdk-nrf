@@ -59,8 +59,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sock_cmds,
 		"address family, domain, ip address, port.\n"
 		"E.g., sock connect af_inet sock_stream \"5.189.130.26\" 20180",
 		socket_connect_shell, 5, 0),
-	SHELL_CMD(send, NULL, "Send data.", socket_send_shell),
-	SHELL_CMD(close, NULL, "Close socket.", socket_close_shell),
+	SHELL_CMD_ARG(send, NULL, "Send data.", socket_send_shell, 2, 0),
+	SHELL_CMD_ARG(close, NULL, "Close socket.", socket_close_shell, 2, 0),
 	SHELL_SUBCMD_SET_END
 );
 

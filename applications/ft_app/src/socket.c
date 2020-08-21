@@ -3,10 +3,20 @@
 #include <net/socket.h>
 //#include <nrf_socket.h>
 
-#define MAX_SOCKETS     8
+#define MAX_SOCKETS     4
 #define DEFAULT_DATA_SEND_INTERVAL 10
 
-static int s_fd[MAX_SOCKETS] = { -1 };
+
+typedef struct
+{
+    int fd;
+    int family;
+    int type;
+    int port;
+    bool in_use;
+} socket_info_t;
+
+static socket_info_t s_fd[MAX_SOCKETS] = {0};
 static int fd = -1;
 static struct addrinfo *addrinfo_res;
 static const char dummy_data[] = "01234567890123456789012345678901"
@@ -22,7 +32,6 @@ static const char dummy_data[] = "01234567890123456789012345678901"
 static void socket_open_and_connect(int family, int type, int proto, char* ip_address, int port, int bind_port)
 {
 	// TODO: TLS support
-	// TODO: IPv6 support
 	// TODO: Bind hasn't been done
 
 	int err;
@@ -43,10 +52,21 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 		return;
 	}
 
-	// TODO: IPv6 support needed to this:
-	((struct sockaddr_in *)addrinfo_res->ai_addr)->sin_port = htons(port);
-
 	// Create socket
+	socket_info_t *s_i = NULL;
+	int socket_id = 0;
+	while (socket_id < MAX_SOCKETS) {
+		if (!s_fd[socket_id].in_use) {
+			s_i = &(s_fd[socket_id]);
+			break;
+		}
+		socket_id++;
+	}
+	if (s_i == NULL) {
+		printk("Socket creation failed. MAX_SOCKETS=%d exceeded\n", MAX_SOCKETS);
+		return;
+	}
+
 	// If proto is set to zero to let lower stack select it,
 	// socket creation fails with errno=43 (PROTONOSUPPORT)
 	fd = socket(family, type, proto);
@@ -54,7 +74,13 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 		printk("socket create failed, err %d\n", errno);
 		return;
 	}
-	printk("socket created fd=%d\n", fd);
+	s_i->in_use = true;
+	s_i->fd = fd;
+	s_i->family = family;
+	s_i->type = type;
+	s_i->port = port;
+
+	printk("socket created socket_id=%d, fd=%d\n", socket_id, fd);
 
 	// Bind socket
 	/*
@@ -66,11 +92,20 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 		}
 	}*/
 
-	// Connect socket
-	// TODO: Handle this for UDP as no need for connect
-	err = connect(fd, addrinfo_res->ai_addr, addrinfo_res->ai_addrlen);
-	if (err) {
-		printk("Unable to connect, errno %d\n", errno);
+	if (type == SOCK_STREAM) {
+		// Connect TCP socket
+		if (family == AF_INET) {
+			((struct sockaddr_in *)addrinfo_res->ai_addr)->sin_port = htons(port);
+		} else if (family == AF_INET6) {
+			((struct sockaddr_in6 *)addrinfo_res->ai_addr)->sin6_port = htons(port);
+		} else {
+			printk("Unsupport family=%d for TCP connection\n", family);
+		}
+
+		err = connect(fd, addrinfo_res->ai_addr, addrinfo_res->ai_addrlen);
+		if (err) {
+			printk("Unable to connect, errno %d\n", errno);
+		}
 	}
 }
 
@@ -201,13 +236,6 @@ int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
 
 	socket_open_and_connect(domain, type, proto, argv[3], port, bind_port);
 
-	if (fd < -1) {
-		shell_error(shell, "start: socket not open");
-		return -EINVAL;
-	} else {
-		shell_print(shell, "socket connect fd=%d", fd);
-	}
-
 	return 0;
 }
 
@@ -215,7 +243,15 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	char data[] = "moi";
 
-	if (fd < 0) {
+	// Socket ID = argv[1]
+	int socket_id = atoi(argv[1]);
+	socket_info_t *s_i = &(s_fd[socket_id]);
+	if (!s_i->in_use) {
+		shell_print(shell, "Socket id=%d not available", socket_id);
+		return -EINVAL;
+	}
+
+	if (s_i->fd < 0) {
 		// TODO: Should we be able to send without having socket connected, i.e.,
 		// open, connect, send and close with one simple command?
 		//socket_open_and_connect(20180);
@@ -223,10 +259,10 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// TODO: Implement priodic sending here, i.e., copy paste from app_cmd_data_start()
 
-	if (fd >= 0) {
+	if (s_i->fd >= 0) {
 		shell_print(shell, "socket send data");
 		// TODO: Handle this for UDP (sendto)
-		send(fd, data, 3, 0);
+		send(s_i->fd, data, 3, 0);
 		shell_print(shell, "socket sent data");
 	} else {
 		shell_error(shell, "socket_send: socket not open");
@@ -238,8 +274,17 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 
 int socket_close_shell(const struct shell *shell, size_t argc, char **argv)
 {
-	close(fd);
-	shell_print(shell, "close socket fd=%d", fd);
-	fd = -1;
+	// Socket ID = argv[1]
+	int socket_id = atoi(argv[1]);
+	socket_info_t *s_i = &(s_fd[socket_id]);
+	if (!s_i->in_use) {
+		shell_print(shell, "Socket id=%d not available", socket_id);
+		return -EINVAL;
+	}
+
+	close(s_i->fd);
+	shell_print(shell, "close socket socket_id=%d, fd=%d", socket_id, s_i->fd);
+	s_i->fd = 0;
+	s_i->in_use = false;
 	return 0;
 }
