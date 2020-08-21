@@ -55,7 +55,7 @@ static char *sckt_addr_ntop(const struct sockaddr *addr)
 	return buf;
 }
 
-static inline void setip(u8_t *buffer, u32_t ipaddr)
+static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 {
 	buffer[0] = ipaddr & 0xFF;
 	buffer[1] = (ipaddr >> 8) & 0xFF;
@@ -63,14 +63,14 @@ static inline void setip(u8_t *buffer, u32_t ipaddr)
 	buffer[3] = ipaddr >> 24;
 }
 
-static u16_t check_ics(const u8_t *buffer, int len)
+static u16_t check_ics(const uint8_t *buffer, int len)
 {
-	const u32_t *ptr32 = (const u32_t *)buffer;
-	u32_t hcs = 0;
+	const uint32_t *ptr32 = (const uint32_t *)buffer;
+	uint32_t hcs = 0;
 	const u16_t *ptr16;
 
 	for (int i = len / 4; i > 0; i--) {
-		u32_t s = *ptr32++;
+		uint32_t s = *ptr32++;
 
 		hcs += s;
 		if (hcs < s) {
@@ -90,8 +90,8 @@ static u16_t check_ics(const u8_t *buffer, int len)
 	}
 
 	if (len & 1) {
-		const u8_t *ptr8 = (const u8_t *)ptr16;
-		u8_t s = *ptr8;
+		const uint8_t *ptr8 = (const uint8_t *)ptr16;
+		uint8_t s = *ptr8;
 
 		hcs += s;
 		if (hcs < s) {
@@ -106,7 +106,7 @@ static u16_t check_ics(const u8_t *buffer, int len)
 	return ~hcs;    /* One's complement */
 }
 
-static void calc_ics(u8_t *buffer, int len, int hcs_pos)
+static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 {
 	u16_t *ptr_hcs = (u16_t *)(buffer + hcs_pos);
 	*ptr_hcs = 0;   /* Clear checksum before calculation */
@@ -116,14 +116,14 @@ static void calc_ics(u8_t *buffer, int len, int hcs_pos)
 	*ptr_hcs = hcs;
 }
 
-static u32_t send_ping_wait_reply(const struct shell *shell)
+static uint32_t send_ping_wait_reply(const struct shell *shell)
 {
-	static u8_t seqnr;
+	static uint8_t seqnr;
 	u16_t total_length;
-	u8_t ip_buf[NET_IPV4_MTU];
-	u8_t *data = NULL;
+	uint8_t ip_buf[NET_IPV4_MTU];
+	uint8_t *data = NULL;
 	static s64_t start_t, delta_t;
-	const u8_t header_len = 20;
+	const uint8_t header_len = 20;
 	int pllen, len;
 	const u16_t icmp_hdr_len = 8;
 	struct sockaddr_in *sa;
@@ -183,7 +183,7 @@ static u32_t send_ping_wait_reply(const struct shell *shell)
 	fd = nrf_socket(NRF_AF_PACKET, NRF_SOCK_RAW, 0);
 	if (fd < 0) {
 	    shell_print(shell, "socket() failed: (%d)", -errno);
-	    return (u32_t)delta_t;
+	    return (uint32_t)delta_t;
 	}
 
 	ret = nrf_send(fd, ip_buf, total_length, 0);
@@ -247,23 +247,23 @@ static u32_t send_ping_wait_reply(const struct shell *shell)
 	/* Result */
 	sprintf(rsp_buf, "Pinging %s results: time=%d.%03dsecs\r\n",
 	    ping_argv.target_name,
-		(u32_t)(delta_t)/1000,
-		(u32_t)(delta_t)%1000);
+		(uint32_t)(delta_t)/1000,
+		(uint32_t)(delta_t)%1000);
 	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
 
 close_end:
 	(void)nrf_close(fd);
-	return (u32_t)delta_t;
+	return (uint32_t)delta_t;
 }
 static void icmp_ping_tasks_execute(const struct shell *shell)
 {
 	struct addrinfo *si = ping_argv.src;
 	struct addrinfo *di = ping_argv.dest;
-	u32_t sum = 0;
-	u32_t count = 0;
+	uint32_t sum = 0;
+	uint32_t count = 0;
 
 	for (int i = 0; i < ping_argv.count; i++) {
-		u32_t ping_t = send_ping_wait_reply(shell);
+		uint32_t ping_t = send_ping_wait_reply(shell);
 
 		if (ping_t > 0)  {
 			count++;
@@ -274,7 +274,7 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 
 #ifdef RM_JH
 	if (count > 1) {
-		u32_t avg = (sum + count/2) / count;
+		uint32_t avg = (sum + count/2) / count;
 		int avg_s = avg / 1000;
 		int avg_f = avg % 1000;
 

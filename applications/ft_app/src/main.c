@@ -4,17 +4,21 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <sys/types.h>
+#include <zephyr.h>
+#include <init.h>
 
+#include <sys/types.h>
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
 
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
+
+#include <shell/shell.h>
+#include <shell/shell_uart.h>
 
 /* global variable defined in different files */
 struct modem_param_info modem_param;
@@ -61,24 +65,33 @@ static void lte_handler(const struct lte_lc_evt *const evt)
 			break;
 		}
 
-		printk("Network registration status: %s",
+		printk("\nNetwork registration status: %s",
 			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ?
-			"Connected - home network" : "Connected - roaming");
+			"Connected - home network" : "Connected - roaming\n");
+                shell_execute_cmd(shell_backend_uart_get_ptr(), "ft\n");
 		break;
 	case LTE_LC_EVT_CELL_UPDATE:
-		printk("LTE cell changed: Cell ID: %d, Tracking area: %d",
+		printk("\nLTE cell changed: Cell ID: %d, Tracking area: %d\n",
 			evt->cell.id, evt->cell.tac);
 		break;
 	default:
 		break;
 	}
 }
+static int fta_shell_init(struct device *unused)
+{
+	ARG_UNUSED(unused);
+   
+	printk("\nThe FT app sample started\n\n");
+	
+	//shell_print(shell_backend_uart_get_ptr(), "ei toimi jos ei autoconnect");
+
+	return 0;
+}
 
 void main(void)
 {
 	int err;
-
-	printk("The FT host sample started\n");
 
 #if defined(CONFIG_BSD_LIBRARY)
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
@@ -86,7 +99,7 @@ void main(void)
 	} else {
 		err = lte_lc_init_and_connect_async(lte_handler);
 		if (err) {
-			printk("Modem could not be configured, error: %d",
+			printk("\nModem could not be configured, error: %d",
 				err);
 			return;
 		}
@@ -102,10 +115,11 @@ void main(void)
 #if defined(CONFIG_MODEM_INFO)
 	err = modem_info_init();
 	if (err) {
-		printk("Modem info could not be established: %d", err);
+		printk("\nModem info could not be established: %d", err);
 		return;
 	}
 	modem_info_params_init(&modem_param);
 #endif
-
 }
+
+SYS_INIT(fta_shell_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
