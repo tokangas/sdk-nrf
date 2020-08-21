@@ -10,6 +10,7 @@
 #include "icmp_ping.h"
 #include "socket.h"
 
+
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
@@ -25,6 +26,7 @@ static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 
 	return 0;
 }
+
 static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 { 
 #ifdef RM_JH	
@@ -52,10 +54,13 @@ SHELL_STATIC_SUBCMD_SET_CREATE(app_data_cmds,
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sock_cmds,
-	SHELL_CMD(send, NULL, "'app data start [interval in seconds]' starts "
-		               "send data", tcp_cmd_send_data),
-	SHELL_CMD(stop, NULL, "Stop periodic UDP data sending.",
-		  sc_cmd_data_stop),
+	SHELL_CMD_ARG(connect, NULL, "Open and connect socket. "
+		"4 arguments should be given:\n"
+		"address family, domain, ip address, port.\n"
+		"E.g., sock connect af_inet sock_stream \"5.189.130.26\" 20180",
+		socket_connect_shell, 5, 0),
+	SHELL_CMD(send, NULL, "Send data.", socket_send_shell),
+	SHELL_CMD(close, NULL, "Close socket.", socket_close_shell),
 	SHELL_SUBCMD_SET_END
 );
 
@@ -63,8 +68,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(app_cmds,
 	SHELL_CMD(data, &app_data_cmds, "Send periodic UDP data over default "
 					"APN.", NULL),
 	SHELL_CMD(ping, NULL, PING_USAGE_STR, cmd_icmp_ping),
-	SHELL_CMD(sock, &sock_cmds, "Send periodic UDP data over default "
-					"APN.", NULL),
+	SHELL_CMD(sock, &sock_cmds, "Perform socket related network operations.", NULL),
 	SHELL_SUBCMD_SET_END
 );
 
