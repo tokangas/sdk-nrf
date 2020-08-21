@@ -57,15 +57,14 @@ void data_send_timer_handler(struct k_timer *dummy)
 
 K_TIMER_DEFINE(data_send_timer, data_send_timer_handler, NULL);
 
-/* TODO: We should use a version number instead. */
-#define BUILD_DATE "2020/08/17"
+#define FOTA_APP_BUILD_VERSION "1.0 beta-1"
 static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 {
-	printk("Build date:\t%s\n", BUILD_DATE);
+	shell_print(shell, "Version:\t%s", FOTA_APP_BUILD_VERSION);
 #if CONFIG_LTE_NETWORK_MODE_NBIOT
-	printk("System mode:\tCat.NB\n");
+	shell_print(shell, "System mode:\tCat.NB");
 #else
-	printk("System mode:\tCat.M\n");
+	shell_print(shell, "System mode:\tCat.M");
 #endif
 
 	return 0;
