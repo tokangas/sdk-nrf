@@ -28,7 +28,11 @@ static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 }
 
 static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
-{ 
+{
+	if (argc > 3) {
+		shell_error(shell, "too many arguments");
+		return -1;
+	}
 #ifdef RM_JH	
 	shell_print(shell, "argc = %d", argc);
 	for (size_t cnt = 0; cnt < argc; cnt++) {
@@ -36,8 +40,22 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 	}
 #endif	
 	if (argc > 1) {
-        char *target_name = argv[1];
-		icmp_ping_start(shell, target_name);
+            char *target_name = argv[1];
+			int count = ICMP_PARAM_COUNT_DEFAULT;
+
+			//TODO: loop over the args
+			if (strlen(target_name) > ICMP_MAX_URL) {
+				shell_error(shell, "too long target_name");
+				return -1;
+			}
+			if (argc > 2) {
+				count = atoi(argv[2]);
+				if (count == 0) {
+					shell_warn(shell, "count not an integer (> 0), defaulting to %d", ICMP_PARAM_COUNT_DEFAULT);
+					count = ICMP_PARAM_COUNT_DEFAULT;
+				}
+			}
+            icmp_ping_start(shell, target_name, count);
 	}
 
 	return 0;

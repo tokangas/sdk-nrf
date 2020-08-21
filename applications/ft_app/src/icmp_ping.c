@@ -11,18 +11,16 @@
 #include <net/socket.h>
 #include <nrf_socket.h>
 
-#define INVALID_SOCKET		-1
-#define ICMP_MAX_URL		128
-#define ICMP_MAX_LEN		512
+#include "icmp_ping.h"
 
-#define ICMP			0x01
+#define ICMP		    	0x01
 #define ICMP_ECHO_REQ		0x08
 #define ICMP_ECHO_REP		0x00
 #define IP_PROTOCOL_POS		0x09
 
 /**@ ICMP Ping command arguments */
 static struct ping_argv_t {
-	char target_name[253];
+	char target_name[ICMP_MAX_URL];
 	struct addrinfo *src;
 	struct addrinfo *dest;
 	const struct shell *shell;
@@ -289,9 +287,9 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
 }
 
-int icmp_ping_start(const struct shell *shell, const char *target_name)
+int icmp_ping_start(const struct shell *shell, const char *target_name, int count)
 { 
-    int length, waittime, count, interval;
+    int length, waittime, interval;
     int st;
     struct addrinfo *res;
     int addr_len;
@@ -351,13 +349,10 @@ int icmp_ping_start(const struct shell *shell, const char *target_name)
 
     ping_argv.len = length;
     ping_argv.waitms = 3000; //TODO: waittime;
-    ping_argv.count = 4;		/* default 4 */
+    ping_argv.count = count;		/* default 4 */
     ping_argv.interval = 1000;	/* default 1s */
     strcpy(ping_argv.target_name, target_name); //TODO: check possible overflow or malloc dynamically based on len...
 
-    if (count > 0) {
-        ping_argv.count = count;
-    }
     if (interval > 0) {
         ping_argv.interval = interval;
     }

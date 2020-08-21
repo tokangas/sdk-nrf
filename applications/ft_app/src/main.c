@@ -68,7 +68,7 @@ static void lte_handler(const struct lte_lc_evt *const evt)
 		printk("\nNetwork registration status: %s",
 			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ?
 			"Connected - home network" : "Connected - roaming\n");
-                shell_execute_cmd(shell_backend_uart_get_ptr(), "ft\n");
+        shell_execute_cmd(shell_backend_uart_get_ptr(), "ft");
 		break;
 	case LTE_LC_EVT_CELL_UPDATE:
 		printk("\nLTE cell changed: Cell ID: %d, Tracking area: %d\n",
