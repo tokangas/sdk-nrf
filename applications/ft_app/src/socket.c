@@ -253,8 +253,6 @@ int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
 
 int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 {
-	char data[] = "moi";
-
 	// Socket ID = argv[1]
 	int socket_id = atoi(argv[1]);
 	socket_info_t *socket_info = &(s_fd[socket_id]);
@@ -264,6 +262,8 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	// Data to be sent = argv[2]
+	// TODO: what if it's not given
+	char* data = argv[2];
 	
 	if (socket_info->fd < 0) {
 		// TODO: Should we be able to send without having socket connected, i.e.,
@@ -273,22 +273,22 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// TODO: Implement periodic sending here, i.e., copy paste from app_cmd_data_start()
 
-	if (socket_info->fd >= 0) {
-		shell_print(shell, "socket data send");
-		if (socket_info->type == SOCK_STREAM) {
-			// TCP
-			send(socket_info->fd, data, 3, 0);
-		} else {
-			// UDP
-			// TODO: IPV6 support
-			sendto(fd, dummy_data, sizeof(dummy_data) - 1, 0,
-				socket_info->addrinfo->ai_addr, sizeof(struct sockaddr_in));
-		}
-		shell_print(shell, "socket data sent");
+	shell_print(shell, "socket data send");
+	if (socket_info->type == SOCK_STREAM) {
+		// TCP
+		send(socket_info->fd, data, strlen(data), 0);
 	} else {
-		shell_error(shell, "socket_send: socket not open");
-		return -EINVAL;
+		// UDP
+		int dest_addr_len = 0;
+		if (socket_info->family == AF_INET) {
+			dest_addr_len = sizeof(struct sockaddr_in);
+		} else if (socket_info->family == AF_INET6) {
+			dest_addr_len = sizeof(struct sockaddr_in6);
+		}
+		sendto(socket_info->fd, data, strlen(data), 0,
+			socket_info->addrinfo->ai_addr, dest_addr_len);
 	}
+	shell_print(shell, "socket data sent");
 
 	return 0;
 }
@@ -323,7 +323,7 @@ int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
 				socket_info->port);
 		}
 	}
-	
+
 	if (!opened_sockets) {
 		shell_print(shell, "There are no opened sockets.");
 	}
