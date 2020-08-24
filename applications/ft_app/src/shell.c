@@ -3,13 +3,13 @@
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
+#include <stdlib.h>
 
 #include <shell/shell.h>
 #include <modem/at_cmd.h>
 
 #include "icmp_ping.h"
 #include "socket.h"
-
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
@@ -29,80 +29,120 @@ static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 
 static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 {
-	if (argc > 3) {
-		shell_error(shell, "too many arguments");
+	if (argc < 4 || argc > 6) {
+		shell_error(shell, "wrong amount of arguments");
 		return -1;
 	}
-#ifdef RM_JH	
+	
+#ifdef RM_JH
 	shell_print(shell, "argc = %d", argc);
 	for (size_t cnt = 0; cnt < argc; cnt++) {
 		shell_print(shell, "  argv[%d] = %s", cnt, argv[cnt]);
 	}
-#endif	
-	if (argc > 1) {
-            char *target_name = argv[1];
-			int count = ICMP_PARAM_COUNT_DEFAULT;
+#endif
 
-			//TODO: loop over the args
-			if (strlen(target_name) > ICMP_MAX_URL) {
-				shell_error(shell, "too long target_name");
-				return -1;
+	//USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]
+	if (argc > 1) {
+		char *target_name = argv[1];
+		int length = 0;
+		int timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
+		int count = ICMP_PARAM_COUNT_DEFAULT;
+		int interval = ICMP_PARAM_INTERVAL_DEFAULT;
+
+		if (strlen(target_name) > ICMP_MAX_URL) {
+			shell_error(shell, "too long target_name");
+			return -1;
+		}
+
+		length = atoi(argv[2]);
+		if (length == 0) {
+			shell_warn(
+				shell,
+				"length not an integer (> 0), defaulting to zero length payload");
+		}
+		if (length > ICMP_MAX_LEN) {
+			shell_error(shell, "Payload size exceeds the limit %d",
+				    ICMP_MAX_LEN);
+			return -1;
+		}
+
+		timeout = atoi(argv[3]);
+		if (timeout == 0) {
+			shell_warn(
+				shell,
+				"timeout not an integer (> 0), defaulting to %d msecs",
+				ICMP_PARAM_TIMEOUT_DEFAULT);
+		}
+		if (argc > 4) {
+			/* Optional arguments: */
+			count = atoi(argv[4]);
+			if (count == 0) {
+				shell_warn(
+					shell,
+					"count not an integer (> 0), defaulting to %d",
+					ICMP_PARAM_COUNT_DEFAULT);
+				count = ICMP_PARAM_COUNT_DEFAULT;
 			}
-			if (argc > 2) {
-				count = atoi(argv[2]);
-				if (count == 0) {
-					shell_warn(shell, "count not an integer (> 0), defaulting to %d", ICMP_PARAM_COUNT_DEFAULT);
-					count = ICMP_PARAM_COUNT_DEFAULT;
+			if (argc == 6) {
+				interval = atoi(argv[5]);
+				if (interval == 0) {
+					shell_warn(
+						shell,
+						"interval not an integer (> 0), defaulting to %d",
+						ICMP_PARAM_INTERVAL_DEFAULT);
+					interval = ICMP_PARAM_INTERVAL_DEFAULT;
 				}
 			}
-            icmp_ping_start(shell, target_name, count);
+		}
+		icmp_ping_start(shell, target_name, length, timeout, count,
+				interval);
 	}
-
 	return 0;
 }
-#define PING_USAGE_STR "'ft ping [target host name]' does an ICMP ping.\n No other hooks: work very much in progress"
+#define PING_USAGE_STR                                                         \
+	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
 
-SHELL_STATIC_SUBCMD_SET_CREATE(app_data_cmds,
-	SHELL_CMD(start, NULL, "'app data start [interval in seconds]' starts "
-		               "periodic UDP data sending. The default "
-		               "interval is 10 seconds.", app_cmd_data_start),
+SHELL_STATIC_SUBCMD_SET_CREATE(
+	app_data_cmds,
+	SHELL_CMD(start, NULL,
+		  "'app data start [interval in seconds]' starts "
+		  "periodic UDP data sending. The default "
+		  "interval is 10 seconds.",
+		  app_cmd_data_start),
 	SHELL_CMD(stop, NULL, "Stop periodic UDP data sending.",
 		  app_cmd_data_stop),
-	SHELL_SUBCMD_SET_END
-);
+	SHELL_SUBCMD_SET_END);
 
-SHELL_STATIC_SUBCMD_SET_CREATE(sock_cmds,
-	SHELL_CMD_ARG(connect, NULL, "Open and connect socket. "
+SHELL_STATIC_SUBCMD_SET_CREATE(
+	sock_cmds,
+	SHELL_CMD_ARG(
+		connect, NULL,
+		"Open and connect socket. "
 		"4 arguments should be given:\n"
 		"address family, domain, ip address, port.\n"
 		"E.g., sock connect af_inet sock_stream \"5.189.130.26\" 20180",
 		socket_connect_shell, 5, 0),
 	SHELL_CMD_ARG(send, NULL, "Send data.", socket_send_shell, 2, 0),
 	SHELL_CMD_ARG(close, NULL, "Close socket.", socket_close_shell, 2, 0),
-	SHELL_SUBCMD_SET_END
-);
+	SHELL_SUBCMD_SET_END);
 
-SHELL_STATIC_SUBCMD_SET_CREATE(app_cmds,
-	SHELL_CMD(data, &app_data_cmds, "Send periodic UDP data over default "
-					"APN.", NULL),
+SHELL_STATIC_SUBCMD_SET_CREATE(
+	app_cmds,
+	SHELL_CMD(data, &app_data_cmds,
+		  "Send periodic UDP data over default "
+		  "APN.",
+		  NULL),
 	SHELL_CMD(ping, NULL, PING_USAGE_STR, cmd_icmp_ping),
-	SHELL_CMD(sock, &sock_cmds, "Perform socket related network operations.", NULL),
-	SHELL_SUBCMD_SET_END
-);
+	SHELL_CMD(sock, &sock_cmds,
+		  "Perform socket related network operations.", NULL),
+	SHELL_SUBCMD_SET_END);
 
-SHELL_CMD_ARG_REGISTER(at, NULL,
-		   "Execute an AT command.",
-		   app_cmd_at,
-		   2,
-		   0);
+SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 
-SHELL_CMD_REGISTER(ft, &app_cmds,
-		   "Commands for controlling the FT application",
+SHELL_CMD_REGISTER(ft, &app_cmds, "Commands for controlling the FT application",
 		   NULL);
 
 SHELL_CMD_REGISTER(sock, &sock_cmds,
-		   "Commands for controlling the FT application",
-		   NULL);
-SHELL_CMD_REGISTER(ping, NULL,
-		   PING_USAGE_STR,
-		   cmd_icmp_ping);
+		   "Commands for controlling the FT application", NULL);
+SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
+		       SHELL_OPT_ARG_CHECK_SKIP);

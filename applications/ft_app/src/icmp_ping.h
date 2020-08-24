@@ -18,6 +18,10 @@
 #define ICMP_MAX_URL		128
 #define ICMP_MAX_LEN		512
 #define ICMP_PARAM_COUNT_DEFAULT 4
+#define ICMP_PARAM_TIMEOUT_DEFAULT 3000
+#define ICMP_PARAM_INTERVAL_DEFAULT 1000
+
+
 /**
  * @brief ICMP AT command parser.
  *
@@ -27,6 +31,6 @@
  * @retval 0 If the operation was successful.
  *           Otherwise, a (negative) error code is returned.
  */
-int icmp_ping_start(const struct shell *shell, const char *target_name, int count);
+int icmp_ping_start(const struct shell *shell, const char *target_name, int length, int timeout, int count, int interval);
 
 #endif /* ICMP_PING_H */
