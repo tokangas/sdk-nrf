@@ -17,9 +17,6 @@
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
-#include <shell/shell.h>
-#include <shell/shell_uart.h>
-
 #include "lte_connection.h"
 
 /* global variable defined in different files */
