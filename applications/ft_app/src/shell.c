@@ -124,6 +124,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		socket_connect_shell, 5, 0),
 	SHELL_CMD_ARG(send, NULL, "Send data.", socket_send_shell, 2, 0),
 	SHELL_CMD_ARG(close, NULL, "Close socket.", socket_close_shell, 2, 0),
+	SHELL_CMD(list, NULL, "List opened sockets.", socket_list_shell),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(

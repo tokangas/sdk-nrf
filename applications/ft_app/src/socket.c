@@ -307,3 +307,25 @@ int socket_close_shell(const struct shell *shell, size_t argc, char **argv)
 	socket_info_clear(socket_info);
 	return 0;
 }
+
+int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
+{
+	bool opened_sockets = false;
+	for (int i = 0; i < MAX_SOCKETS; i++) {
+		socket_info_t* socket_info = &(s_fd[i]);
+		if (socket_info->in_use) {
+			opened_sockets = true;
+			shell_print(shell, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d", 
+				i,
+				socket_info->fd,
+				socket_info->family,
+				socket_info->type,
+				socket_info->port);
+		}
+	}
+	
+	if (!opened_sockets) {
+		shell_print(shell, "There are no opened sockets.");
+	}
+	return 0;
+}
