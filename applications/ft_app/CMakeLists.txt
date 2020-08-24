@@ -11,6 +11,7 @@ project(NONE)
 
 # NORDIC SDK APP START
 target_sources(app PRIVATE src/main.c)
+target_sources(app PRIVATE src/lte_connection.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/socket.c)
 target_sources(app PRIVATE src/icmp_ping.c)
