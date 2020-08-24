@@ -61,39 +61,65 @@ static void modem_trace_enable(void)
 
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
-static void lte_handler(const struct lte_lc_evt *const evt)
+static void lte_connection_ind_handler(const struct lte_lc_evt *const evt)
 {
 	int ret;
 
 	switch (evt->type) {
 	case LTE_LC_EVT_NW_REG_STATUS:
-		if ((evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_HOME) &&
-		    (evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+		switch (evt->nw_reg_status) {
+		case LTE_LC_NW_REG_NOT_REGISTERED:
+			printk("\nNetwork registration status: not registered");
+			break;
+		case LTE_LC_NW_REG_SEARCHING:
+			printk("\nNetwork registration status: searching");
+			break;
+		case LTE_LC_NW_REG_REGISTRATION_DENIED:
+			printk("\nNetwork registration status: denied");
+			break;
+		case LTE_LC_NW_REG_UNKNOWN:
+			printk("\nNetwork registration status: unknown");
+			break;
+		case LTE_LC_NW_REG_UICC_FAIL:
+			printk("\nNetwork registration status: UICC fail");
+			break;
+		case LTE_LC_NW_REG_REGISTERED_HOME:
+		case LTE_LC_NW_REG_REGISTERED_ROAMING:
+			printk("\nNetwork registration status: %s",
+			       evt->nw_reg_status ==
+					       LTE_LC_NW_REG_REGISTERED_HOME ?
+				       "Connected - home network" :
+				       "Connected - roaming\n");
+#if defined(CONFIG_MODEM_INFO)
+			char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
+			ret = modem_info_string_get(MODEM_INFO_OPERATOR,
+						    info_str, sizeof(info_str));
+			if (ret >= 0) {
+				printk("Operator: %s\n", info_str);
+			} else {
+				printk("\nUnable to obtain modem parameters (%d)",
+				       ret);
+			}
+			ret = modem_info_string_get(MODEM_INFO_APN, info_str,
+						    sizeof(info_str));
+			if (ret >= 0) {
+				printk("APN: %s\n", info_str);
+			} else {
+				printk("\nUnable to obtain modem parameters (%d)",
+				       ret);
+			}
+			ret = modem_info_string_get(MODEM_INFO_IP_ADDRESS,
+						    info_str, sizeof(info_str));
+			if (ret >= 0) {
+				printk("IP address: %s\n", info_str);
+			} else {
+				printk("\nUnable to obtain modem parameters (%d)",
+				       ret);
+			}
+#endif
+		default:
 			break;
 		}
-
-		printk("\nNetwork registration status: %s",
-		       evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ?
-			       "Connected - home network" :
-			       "Connected - roaming\n");
-
-#if defined(CONFIG_MODEM_INFO)
-		char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
-		ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
-					    sizeof(info_str));
-		if (ret >= 0) {
-			printk("Operator: %s\n", info_str);
-		} else {
-			printk("\nUnable to obtain modem parameters (%d)", ret);
-		}
-		ret = modem_info_string_get(MODEM_INFO_APN, info_str,
-					    sizeof(info_str));
-		if (ret >= 0) {
-			printk("APN: %s\n", info_str);
-		} else {
-			printk("\nUnable to obtain modem parameters (%d)", ret);
-		}
-#endif
 		break;
 	case LTE_LC_EVT_CELL_UPDATE:
 		printk("\nLTE cell changed: Cell ID: %d, Tracking area: %d\n",
@@ -110,7 +136,9 @@ static int fta_shell_init(struct device *unused)
 	printk("\nThe FT app sample started\n\n");
 
 	//shell_print(shell_backend_uart_get_ptr(), "ei toimi jos ei autoconnect");
-
+#if defined(CONFIG_BSD_LIBRARY)
+	lte_lc_register_handler(lte_connection_ind_handler);
+#endif
 	return 0;
 }
 
@@ -121,7 +149,7 @@ void main(void)
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
-		err = lte_lc_init_and_connect_async(lte_handler);
+		err = lte_lc_init_and_connect_async(lte_connection_ind_handler);
 		if (err) {
 			printk("\nModem could not be configured, error: %d",
 			       err);
@@ -129,9 +157,10 @@ void main(void)
 		}
 
 		/* Check LTE events of type LTE_LC_EVT_NW_REG_STATUS in
-		 * lte_handler() to determine when the LTE link is up.
+		 * lte_async_connect_handler() to determine when the LTE link is up.
 		 */
 	}
+	lte_lc_register_handler(lte_connection_ind_handler);
 #endif
 
 	modem_trace_enable();
