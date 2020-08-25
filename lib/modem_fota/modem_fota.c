@@ -582,7 +582,7 @@ static int get_pending_job(void)
 	if (ret == 0) {
 		if (current_job.host) {
 			LOG_INF("FOTA update job is available");
-			LOG_DBG("ID: %s", log_strdup(current_job.id));
+			LOG_INF("ID: %s", log_strdup(current_job.id));
 			LOG_DBG("Host: %s", log_strdup(current_job.host));
 			LOG_DBG("Path: %s", log_strdup(current_job.path));
 		} else {
