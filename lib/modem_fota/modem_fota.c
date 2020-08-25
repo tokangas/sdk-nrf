@@ -543,7 +543,7 @@ static void erase_modem_fw_backup(void)
 
 	LOG_INF("Erasing modem FW backup...");
 
-	/* dfu_target_init() erases the modem backup */
+	/* dfu_target_init() erases the modem backup if the area is dirty */
 	err = dfu_target_init(DFU_TARGET_IMAGE_TYPE_MODEM_DELTA, 0,
 			      dfu_target_callback_handler);
 	if (err != 0) {
@@ -1071,11 +1071,6 @@ static void start_update_work_fn(struct k_work *item)
 		int sec_tag = CONFIG_MODEM_FOTA_TLS_SECURITY_TAG;
 		int port = 0;
 
-		/* Update available, erase previous modem FW update image before
-		 * starting download.
-		 */
-		erase_modem_fw_backup();
-
 		LOG_INF("Starting firmware download");
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
@@ -1163,6 +1158,9 @@ static void update_job_status_work_fn(struct k_work *item)
 
 	deactivate_fota_pdn();
 	restore_system_mode();
+
+	/* Update was successful, erase the backup */
+	erase_modem_fw_backup();
 
 	/* Clear job ID from NV */
 	save_update_job_id(NULL);
