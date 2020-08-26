@@ -103,17 +103,6 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
-	app_data_cmds,
-	SHELL_CMD(start, NULL,
-		  "'app data start [interval in seconds]' starts "
-		  "periodic UDP data sending. The default "
-		  "interval is 10 seconds.",
-		  app_cmd_data_start),
-	SHELL_CMD(stop, NULL, "Stop periodic UDP data sending.",
-		  app_cmd_data_stop),
-	SHELL_SUBCMD_SET_END);
-
-SHELL_STATIC_SUBCMD_SET_CREATE(
 	sock_cmds,
 	SHELL_CMD_ARG(
 		connect, NULL,
@@ -122,17 +111,13 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		"address family, domain, ip address, port.\n"
 		"E.g., sock connect af_inet sock_stream \"5.189.130.26\" 20180",
 		socket_connect_shell, 5, 0),
-	SHELL_CMD_ARG(send, NULL, "Send data.", socket_send_shell, 2, 1),
+	SHELL_CMD_ARG(send, NULL, "Send data.", socket_send_shell, 2, 3),
 	SHELL_CMD_ARG(close, NULL, "Close socket.", socket_close_shell, 2, 0),
 	SHELL_CMD(list, NULL, "List opened sockets.", socket_list_shell),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	app_cmds,
-	SHELL_CMD(data, &app_data_cmds,
-		  "Send periodic UDP data over default "
-		  "APN.",
-		  NULL),
 	SHELL_CMD(ping, NULL, PING_USAGE_STR, cmd_icmp_ping),
 	SHELL_CMD(sock, &sock_cmds,
 		  "Perform socket related network operations.", NULL),
