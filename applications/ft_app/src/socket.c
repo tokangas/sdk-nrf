@@ -3,8 +3,11 @@
 #include <net/socket.h>
 //#include <nrf_socket.h>
 
-#define MAX_SOCKETS     4
-#define DEFAULT_DATA_SEND_INTERVAL 10
+#define MAX_SOCKETS 4
+#define RECEIVE_BUFFER_SIZE 1536
+#define RECEIVE_STACK_SIZE 2048
+#define RECEIVE_PRIORITY 5
+#define DEFAULT_DATA_SEND_INTERVAL 10 // Seconds
 
 
 typedef struct
@@ -17,7 +20,19 @@ typedef struct
     struct addrinfo *addrinfo;
 } socket_info_t;
 
-static socket_info_t s_fd[MAX_SOCKETS] = {0};
+struct data_receive_info {
+	struct k_work work;
+	int socket_id;
+};
+
+static socket_info_t sockets[MAX_SOCKETS] = {0};
+char receive_buffer[RECEIVE_BUFFER_SIZE];
+static struct data_receive_info data_receive_struct;
+static struct k_work_q my_work_q;
+
+K_THREAD_STACK_DEFINE(receive_stack_area, RECEIVE_STACK_SIZE);
+
+// TODO: DELETE THESE when sending with interval has been implemented
 static int fd = -1;
 static struct addrinfo *addrinfo_res;
 static const char dummy_data[] = "01234567890123456789012345678901"
@@ -32,10 +47,45 @@ static const char dummy_data[] = "01234567890123456789012345678901"
 
 void socket_info_clear(socket_info_t* socket_info) {
 	close(socket_info->fd);
-	socket_info->fd = 0;
+	socket_info->fd = -1;
 	socket_info->in_use = false;
 	freeaddrinfo(socket_info->addrinfo);
 	socket_info->addrinfo = NULL;
+}
+
+static void data_recv_handler(struct k_work *item)
+{
+	struct data_receive_info* data_receive_info =
+		CONTAINER_OF(item, struct data_receive_info, work);
+	int socket_id = data_receive_info->socket_id;
+	socket_info_t* socket_info = &sockets[socket_id];
+
+	if (!sockets[socket_id].in_use) {
+		printk("Socket id=%d not in use. Fatal error and receiving won't work.\n",
+			socket_id);
+		return;
+	}
+
+	printk("data receive handler started for socket_id=%d, fd=%d\n", socket_id, socket_info->fd);
+	int buffer_size;
+	while ((buffer_size = recv(socket_info->fd, receive_buffer, RECEIVE_BUFFER_SIZE, 0)) > 0) {
+		printk("\nreceived data for socket id=%d,buffer_size=%d:\n%s",
+			socket_id,
+			buffer_size,
+			receive_buffer);
+		memset(receive_buffer, '\0', RECEIVE_BUFFER_SIZE);
+	}
+	printk("data receive handler exit\n");
+}
+
+static void socket_receive(int socket_id)
+{
+	data_receive_struct.socket_id = socket_id;
+
+	k_work_q_start(&my_work_q, receive_stack_area,
+			K_THREAD_STACK_SIZEOF(receive_stack_area), RECEIVE_PRIORITY);
+	k_work_init(&data_receive_struct.work, data_recv_handler);
+	k_work_submit_to_queue(&my_work_q, &data_receive_struct.work);
 }
 
 static void socket_open_and_connect(int family, int type, int proto, char* ip_address, int port, int bind_port)
@@ -59,8 +109,8 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	socket_info_t *socket_info = NULL;
 	int socket_id = 0;
 	while (socket_id < MAX_SOCKETS) {
-		if (!s_fd[socket_id].in_use) {
-			socket_info = &(s_fd[socket_id]);
+		if (!sockets[socket_id].in_use) {
+			socket_info = &(sockets[socket_id]);
 			break;
 		}
 		socket_id++;
@@ -115,7 +165,10 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 		err = connect(fd, socket_info->addrinfo->ai_addr, socket_info->addrinfo->ai_addrlen);
 		if (err) {
 			printk("Unable to connect, errno %d\n", errno);
+			socket_info_clear(socket_info);
+			return;
 		}
+		socket_receive(socket_id);
 	}
 }
 
@@ -255,7 +308,7 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	// Socket ID = argv[1]
 	int socket_id = atoi(argv[1]);
-	socket_info_t *socket_info = &(s_fd[socket_id]);
+	socket_info_t *socket_info = &(sockets[socket_id]);
 	if (!socket_info->in_use) {
 		shell_print(shell, "Socket id=%d not available", socket_id);
 		return -EINVAL;
@@ -297,7 +350,7 @@ int socket_close_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	// Socket ID = argv[1]
 	int socket_id = atoi(argv[1]);
-	socket_info_t *socket_info = &(s_fd[socket_id]);
+	socket_info_t *socket_info = &(sockets[socket_id]);
 	if (!socket_info->in_use) {
 		shell_print(shell, "Socket id=%d not available", socket_id);
 		return -EINVAL;
@@ -312,7 +365,7 @@ int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	bool opened_sockets = false;
 	for (int i = 0; i < MAX_SOCKETS; i++) {
-		socket_info_t* socket_info = &(s_fd[i]);
+		socket_info_t* socket_info = &(sockets[i]);
 		if (socket_info->in_use) {
 			opened_sockets = true;
 			shell_print(shell, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d", 
@@ -325,7 +378,7 @@ int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	if (!opened_sockets) {
-		shell_print(shell, "There are no opened sockets.");
+		shell_print(shell, "there are no open sockets");
 	}
 	return 0;
 }
