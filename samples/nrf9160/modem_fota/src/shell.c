@@ -20,6 +20,7 @@ static const char dummy_data[] = "01234567890123456789012345678901"
 				 "01234567890123456789012345678901"
 				 "01234567890123456789012345678901"
 				 "01234567890123456789012345678901";
+static char response_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 
 int ping(const char *local, const char *remote, int count);
 
@@ -73,15 +74,14 @@ static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
-	char response[256];
 
-	err = at_cmd_write(argv[1], response, sizeof(response), NULL);
+	err = at_cmd_write(argv[1], response_buf, sizeof(response_buf), NULL);
 	if (err) {
 		shell_error(shell, "ERROR");
 		return -EINVAL;
 	}
 
-	shell_print(shell, "%sOK", response);
+	shell_print(shell, "%sOK", response_buf);
 
 	return 0;
 }
@@ -89,19 +89,18 @@ static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 static int app_cmd_ping(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
-	char response[256];
 	char ipv4[16];
 	char *tmp1, *tmp2;
 	int count = 1;
 
-	err = at_cmd_write("AT+CGPADDR", response, sizeof(response), NULL);
+	err = at_cmd_write("AT+CGPADDR", response_buf, sizeof(response_buf), NULL);
 	if (err) {
 		shell_error(shell, "AT ERROR");
 		return -EINVAL;
 	}
 
 	/* parse +CGPADDR: 0,"10.145.192.136" */
-	tmp1 = strstr(response, "\"");
+	tmp1 = strstr(response_buf, "\"");
 	if (tmp1 == NULL) {
 		shell_error(shell, "AT ERROR");
 		return -EINVAL;
