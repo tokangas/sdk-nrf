@@ -125,12 +125,7 @@ static void data_send_work_handler(struct k_work *item)
 	}
 
 	socket_send(socket_info, send_buffer);
-
-	//sendto(fd, dummy_data, sizeof(dummy_data) - 1, 0,
-	//       addrinfo_res->ai_addr, sizeof(struct sockaddr_in));
 }
-
-K_WORK_DEFINE(data_send_work, data_send_work_handler);
 
 static void data_send_timer_handler(struct k_timer *dummy)
 {
@@ -205,14 +200,41 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	printk("socket created socket_id=%d, fd=%d\n", socket_id, fd);
 
 	// Bind socket
-	/*
 	if (bind_port > 0) {
-		err = bind(fd, addrinfo_res->ai_addr, sizeof(addrinfo_res->ai_addr));
+		struct sockaddr_in sa_local;
+		struct sockaddr_in6 sa_local6;
+		memset(&sa_local, 0, sizeof(struct sockaddr_in));
+		memset(&sa_local6, 0, sizeof(struct sockaddr_in6));
+
+		sa_local.sin_family = family;
+		sa_local.sin_port = htons(bind_port);
+		sa_local.sin_addr.s_addr = INADDR_ANY;
+
+		sa_local6.sin6_family = family;
+		sa_local6.sin6_port = htons(bind_port);
+		//sa_local6.sin6_addr.s6_addr = INADDR_ANY;
+
+		struct sockaddr *sa_local_ptr = NULL;
+		int sa_local_len = 0;
+
+		if (family == AF_INET) {
+			sa_local_ptr = (struct sockaddr *)&sa_local;
+			sa_local_len = sizeof(struct sockaddr_in);
+		} else if (family == AF_INET6) {
+			sa_local_ptr = (struct sockaddr *)&sa_local6;
+			sa_local_len = sizeof(struct sockaddr_in6);
+		}
+
+		err = bind(fd, sa_local_ptr, sa_local_len);
 		if (err) {
 			printk("Unable to bind, errno %d\n", errno);
+			socket_info_clear(socket_info);
 			return;
 		}
-	}*/
+		if (type == SOCK_DGRAM) {
+			socket_receive(socket_id);
+		}
+	}
 
 	if (type == SOCK_STREAM) {
 		// Connect TCP socket
