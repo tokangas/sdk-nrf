@@ -741,6 +741,7 @@ static void finish_update_work_fn(struct k_work *item)
 		if (current_job.status == AWS_JOBS_REJECTED) {
 			/* No point in retrying a rejected job */
 			update_job_status();
+			erase_modem_fw_backup();
 		} else {
 			/* Free the job and try later */
 			fota_client_job_free(&current_job);
