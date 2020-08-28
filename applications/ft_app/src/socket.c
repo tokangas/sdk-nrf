@@ -23,6 +23,7 @@ typedef struct
 	int family;
 	int type;
 	int port;
+	int bind_port;
 	bool in_use;
 	struct addrinfo *addrinfo;
 	struct data_transfer_info receive_info;
@@ -140,19 +141,12 @@ static void data_send_timer_handler(struct k_timer *dummy)
 static void socket_open_and_connect(int family, int type, int proto, char* ip_address, int port, int bind_port)
 {
 	// TODO: TLS support
-	// TODO: Bind hasn't been done
 
 	int err;
 	struct addrinfo hints = {
 		.ai_family = family,
 		.ai_socktype = type,
 	};
-
-	/*struct sockaddr bind_addr = {
-		0,
-	};*/
-
-	//printk("socket created ip_address=%s\n", ip_address);
 
 	// Create socket
 	socket_info_t *socket_info = NULL;
@@ -181,6 +175,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	socket_info->family = family;
 	socket_info->type = type;
 	socket_info->port = port;
+	socket_info->bind_port = bind_port;
 
 	// Get address to connect to
 	err = getaddrinfo(ip_address, NULL, &hints, &socket_info->addrinfo);
@@ -212,7 +207,6 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 
 		sa_local6.sin6_family = family;
 		sa_local6.sin6_port = htons(bind_port);
-		//sa_local6.sin6_addr.s6_addr = INADDR_ANY;
 
 		struct sockaddr *sa_local_ptr = NULL;
 		int sa_local_len = 0;
@@ -377,12 +371,13 @@ int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
 		socket_info_t* socket_info = &(sockets[i]);
 		if (socket_info->in_use) {
 			opened_sockets = true;
-			shell_print(shell, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d", 
+			shell_print(shell, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d, bind_port=%d", 
 				i,
 				socket_info->fd,
 				socket_info->family,
 				socket_info->type,
-				socket_info->port);
+				socket_info->port,
+				socket_info->bind_port);
 		}
 	}
 
