@@ -126,6 +126,8 @@ static bool fota_enabled = true;
 static struct fota_client_mgmt_job current_job;
 
 /* Settings which are saved to NV memory */
+/* Flag indicating if the device has been provisioned for FOTA */
+static bool provisioning_done;
 /* Next scheduled update check time (seconds since epoch) */
 static s64_t update_check_time_s;
 /* Update job ID, used to update the job after reboot */
@@ -146,7 +148,13 @@ static int download_progress;
 static int settings_set(const char *name, size_t len,
 		settings_read_cb read_cb, void *cb_arg)
 {
-	if (!strcmp(name, "update_check_time")) {
+	if (!strcmp(name, "provisioning_done")) {
+		if (len != sizeof(provisioning_done))
+			return -EINVAL;
+
+		if (read_cb(cb_arg, &provisioning_done, len) > 0)
+			return 0;
+	} else if (!strcmp(name, "update_check_time")) {
 		if (len != sizeof(update_check_time_s))
 			return -EINVAL;
 
@@ -180,6 +188,12 @@ static void init_and_load_settings(void)
 
 	settings_register(&my_conf);
 	settings_load();
+}
+
+static void save_provisioning_done(void)
+{
+	settings_save_one("modem_fota/provisioning_done",
+			  &provisioning_done, sizeof(provisioning_done));
 }
 
 static void save_update_check_time(void)
@@ -996,9 +1010,26 @@ static void start_update_check(void)
 	k_work_submit_to_queue(&work_q, &update_work);
 }
 
+static void clear_update_check_time(void)
+{
+	update_check_time_s = 0;
+	save_update_check_time();
+}
+
 static void start_update_work_fn(struct k_work *item)
 {
 	int err;
+
+	/* Clear the stored update check time to prevent unwanted update check
+	 * if device reboots before the next update has been scheduled.
+	 */
+	clear_update_check_time();
+
+	if (!provisioning_done) {
+		/* Provisioning has failed earlier, retry */
+		k_work_submit_to_queue(&work_q, &provision_work);
+		return;
+	}
 
 	if (reboot_pending) {
 		LOG_INF("Update has already been downloaded, reboot needed");
@@ -1232,36 +1263,29 @@ static void calculate_next_update_check_time(void)
 
 static void schedule_next_update(void)
 {
-	static bool first_time = true;
-
 	if (!fota_enabled || !is_network_time_valid()) {
 		/* FOTA is either disabled or we haven't got network time yet */
 		return;
 	}
 
-	if (first_time) {
-		first_time = false;
+	if (!provisioning_done) {
+		/* Device needs to be provisioned for FOTA service */
+		k_work_submit_to_queue(&work_q, &provision_work);
+		return;
+	}
 
-		/* Client is starting, check if next update check has already
-		 * been scheduled
-		 */
-		if (is_update_scheduled()) {
-			/* Check if the scheduled time has already passed */
-			if (is_time_for_update_check()) {
-				/* Scheduled update check time has passed while
-				 * device was powered off
-				 */
-				start_update_check();
-			} else {
-				/* Not yet time for next update check, start
-				 * timer
-				 */
-				start_update_check_timer();
-			}
+	if (is_update_scheduled()) {
+		/* Check if the scheduled time has already passed */
+		if (is_time_for_update_check()) {
+			/* Scheduled update check time has passed while
+			 * device was powered off
+			 */
+			start_update_check();
 		} else {
-			/* Update not scheduled yet, provision device for FOTA
-			 * service */
-			k_work_submit_to_queue(&work_q, &provision_work);
+			/* Not yet time for next update check, start
+			 * timer
+			 */
+			start_update_check_timer();
 		}
 	} else {
 		/* Schedule next update */
@@ -1293,6 +1317,10 @@ static void provision_device_work_fn(struct k_work *item)
 
 	if (ret == 0) {
 		LOG_INF("Device provisioned, waiting 30s before using API");
+
+		provisioning_done = true;
+		save_provisioning_done();
+
 		k_sleep(K_SECONDS(30));
 
 /* TODO: After provisioning, the user must associate the device
@@ -1317,11 +1345,16 @@ static void provision_device_work_fn(struct k_work *item)
 #endif
 	} else if (ret == 1) {
 		LOG_INF("Device already provisioned");
+
+		provisioning_done = true;
+		save_provisioning_done();
 	} else {
 		LOG_ERR("Error provisioning device, error: %d", ret);
 	}
 
-	/* Schedule first update check */
+	/* Schedule first update check (or if provisioning failed, it will be
+	 * retried when the time expires.
+	 */
 	calculate_next_update_check_time();
 	start_update_check_timer();
 }
@@ -1417,8 +1450,7 @@ void disable_fota(void)
 
 	/* Stop timer and clear the next update check time */
 	k_timer_stop(&update_check_timer);
-	update_check_time_s = 0;
-	save_update_check_time();
+	clear_update_check_time();
 }
 
 u32_t get_time_to_next_update_check(void)
