@@ -7,6 +7,7 @@
 #include <shell/shell.h>
 #include <modem/at_cmd.h>
 #include <net/socket.h>
+#include <modem/lte_lc.h>
 
 #define DEFAULT_DATA_SEND_INTERVAL 10
 
@@ -74,7 +75,6 @@ static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
-
 	err = at_cmd_write(argv[1], response_buf, sizeof(response_buf), NULL);
 	if (err) {
 		shell_error(shell, "ERROR");
@@ -162,12 +162,80 @@ static int app_cmd_data_stop(const struct shell *shell, size_t argc, char **argv
 	return 0;
 }
 
+static int app_cmd_edrx_enable(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	int ret = lte_lc_edrx_req(true);
+	if (ret) {
+		shell_print(shell, "Failed to enable eDRX");
+	}
+
+	return ret;
+}
+
+static int app_cmd_edrx_disable(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	int ret = lte_lc_edrx_req(false);
+	if (ret) {
+		shell_print(shell, "Failed to disable eDRX");
+	}
+
+	return ret;
+}
+
+static int app_cmd_psm_enable(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	int ret = lte_lc_psm_req(true);
+	if (ret) {
+		shell_print(shell, "Failed to enable PSM");
+	}
+
+	return ret;
+}
+
+static int app_cmd_psm_disable(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	int ret = lte_lc_psm_req(false);
+	if (ret) {
+		shell_print(shell, "Failed to disable PSM");
+	}
+
+	return ret;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(app_data_cmds,
 	SHELL_CMD(start, NULL, "'app data start [interval in seconds]' starts "
 		               "periodic UDP data sending. The default "
 		               "interval is 10 seconds.", app_cmd_data_start),
 	SHELL_CMD(stop, NULL, "Stop periodic UDP data sending.",
 		  app_cmd_data_stop),
+	SHELL_SUBCMD_SET_END
+);
+
+SHELL_STATIC_SUBCMD_SET_CREATE(app_edrx_cmds,
+	SHELL_CMD(enable, NULL, "'app edrx enable' enable eDRX",
+		  app_cmd_edrx_enable),
+	SHELL_CMD(disable, NULL, "'app edrx disable' disable eDRX",
+		  app_cmd_edrx_disable),
+	SHELL_SUBCMD_SET_END
+);
+
+SHELL_STATIC_SUBCMD_SET_CREATE(app_psm_cmds,
+	SHELL_CMD(enable, NULL, "'app psm enable' enable PSM",
+		  app_cmd_psm_enable),
+	SHELL_CMD(disable, NULL, "'app psm disable' disable PSM",
+		  app_cmd_psm_disable),
 	SHELL_SUBCMD_SET_END
 );
 
@@ -178,6 +246,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(app_cmds,
 		      app_cmd_ping, 2, 1),
 	SHELL_CMD(data, &app_data_cmds, "Send periodic UDP data over default "
 					"APN.", NULL),
+	SHELL_CMD(edrx, &app_edrx_cmds, "Enable or disable eDRX.", NULL),
+	SHELL_CMD(psm, &app_psm_cmds, "Enable or disable PSM.", NULL),
 	SHELL_SUBCMD_SET_END
 );
 
