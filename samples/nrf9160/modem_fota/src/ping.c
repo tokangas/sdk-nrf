@@ -292,7 +292,12 @@ int ping(const char *local, const char *remote, int count)
 	}
 
 	ping_argv.len = 32;		/* default 32 bytes */
-	ping_argv.waitms = 5000;	/* default 5 seconds */
+	if (IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT) ||
+	    IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT_GPS)) {
+		ping_argv.waitms = 30000;	/* NB-IoT default 30 seconds */
+	} else {
+		ping_argv.waitms = 5000;	/* M1 default 5 seconds */
+	}
 	ping_argv.interval = 1000;	/* default 1s */
 	ping_argv.count = 1;		/* default 1, adjustable */
 	if (count > 0) {
