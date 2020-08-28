@@ -314,7 +314,7 @@ static int header_parse(struct download_client *client)
 
 	/* If file size is not known, read it from the header */
 	if (client->file_size == 0) {
-		p = strstr(client->buf, "Content-Range: bytes");
+		p = strstr(client->buf, "content-range: bytes");
 		if (!p) {
 			/* Cannot continue */
 			LOG_ERR("Server did not send "
