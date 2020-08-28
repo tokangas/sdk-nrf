@@ -88,7 +88,7 @@ static bool is_initialized;
 
 #if defined(CONFIG_BSD_LIBRARY_TRACE_ENABLED)
 /* Enable modem trace */
-static const char mdm_trace[] = "AT%XMODEMTRACE=1,2";
+static const char mdm_trace[] = "AT%XMODEMTRACE=1,5";
 #endif
 /* Subscribes to notifications with level 5 */
 static const char cereg_5_subscribe[] = AT_CEREG_5;
