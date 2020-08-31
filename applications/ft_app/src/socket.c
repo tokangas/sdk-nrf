@@ -1,9 +1,9 @@
 #include <shell/shell.h>
 #include <strings.h>
 #include <net/socket.h>
-//#include <nrf_socket.h>
 
-#define MAX_SOCKETS 4
+// Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
+#define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
 #define SEND_BUFFER_SIZE 64
 #define RECEIVE_BUFFER_SIZE 1536
 #define RECEIVE_STACK_SIZE 2048
@@ -63,7 +63,7 @@ static void data_recv_handler(struct k_work *item)
 	printk("data receive handler started for socket_id=%d, fd=%d\n", socket_id, socket_info->fd);
 	int buffer_size;
 	while ((buffer_size = recv(socket_info->fd, receive_buffer, RECEIVE_BUFFER_SIZE, 0)) > 0) {
-		printk("\nreceived data for socket id=%d,buffer_size=%d:\n%s",
+		printk("\nreceived data for socket id=%d,buffer_size=%d:\n%s\n",
 			socket_id,
 			buffer_size,
 			receive_buffer);
@@ -207,6 +207,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 
 		sa_local6.sin6_family = family;
 		sa_local6.sin6_port = htons(bind_port);
+		sa_local6.sin6_addr = in6addr_any;
 
 		struct sockaddr *sa_local_ptr = NULL;
 		int sa_local_len = 0;
