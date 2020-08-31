@@ -30,16 +30,12 @@ typedef struct
 	int bind_port;
 	bool in_use;
 	struct addrinfo *addrinfo;
-	struct data_transfer_info receive_info;
 	struct data_transfer_info send_info;
 } socket_info_t;
 
 static socket_info_t sockets[MAX_SOCKETS] = {0};
 char send_buffer[SEND_BUFFER_SIZE];
 char receive_buffer[RECEIVE_BUFFER_SIZE];
-static struct k_work_q my_work_q;
-
-K_THREAD_STACK_DEFINE(receive_stack_area, RECEIVE_STACK_SIZE);
 
 
 void socket_info_clear(socket_info_t* socket_info) {
@@ -94,49 +90,6 @@ static void socket_receive_handler()
 K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
                 socket_receive_handler, NULL, NULL, NULL,
                 RECEIVE_PRIORITY, 0, 0);
-
-static void data_recv_handler(struct k_work *item)
-{
-	struct data_transfer_info* data_receive_info =
-		CONTAINER_OF(item, struct data_transfer_info, work);
-	int socket_id = data_receive_info->socket_id;
-	socket_info_t* socket_info = &sockets[socket_id];
-
-	if (!sockets[socket_id].in_use) {
-		printk("Socket id=%d not in use. Fatal error and receiving won't work.\n",
-			socket_id);
-		return;
-	}
-
-	printk("data receive handler started for socket_id=%d, fd=%d\n", socket_id, socket_info->fd);
-	int buffer_size;
-	while ((buffer_size = recv(socket_info->fd, receive_buffer, RECEIVE_BUFFER_SIZE, 0)) > 0) {
-		printk("\nreceived data for socket id=%d,buffer_size=%d:\n%s\n",
-			socket_id,
-			buffer_size,
-			receive_buffer);
-		memset(receive_buffer, '\0', RECEIVE_BUFFER_SIZE);
-	}
-	printk("data receive handler exit\n");
-}
-
-static void socket_receive_wq(int socket_id)
-{
-	socket_info_t* socket_info = &sockets[socket_id];
-
-	if (!sockets[socket_id].in_use) {
-		printk("Socket id=%d not in use. Fatal error and receiving won't work.\n",
-			socket_id);
-		return;
-	}
-
-	socket_info->receive_info.socket_id = socket_id;
-
-	k_work_q_start(&my_work_q, receive_stack_area,
-			K_THREAD_STACK_SIZEOF(receive_stack_area), RECEIVE_PRIORITY);
-	k_work_init(&socket_info->receive_info.work, data_recv_handler);
-	k_work_submit_to_queue(&my_work_q, &socket_info->receive_info.work);
-}
 
 static void socket_send(socket_info_t *socket_info, char* data)
 {
@@ -393,7 +346,7 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
 		k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
 		k_work_init(&socket_info->send_info.work, data_send_work_handler);
-		k_work_submit_to_queue(&my_work_q, &socket_info->receive_info.work);
+		k_work_submit(&socket_info->send_info.work);
 	} else {
 		shell_print(shell, "socket data send");
 		socket_send(socket_info, data);
