@@ -1,6 +1,7 @@
 #include <shell/shell.h>
 #include <strings.h>
 #include <net/socket.h>
+#include <fcntl.h>
 
 #include "utils/getopt_port/getopt.h"
 
@@ -10,7 +11,8 @@
 #define RECEIVE_BUFFER_SIZE 1536
 #define RECEIVE_STACK_SIZE 2048
 #define RECEIVE_PRIORITY 5
-#define DEFAULT_DATA_SEND_INTERVAL 10 // Seconds
+// Timeout for polling socket receive data. This limits how quickly data can be received after socket creation.
+#define RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
 
 
 struct data_transfer_info {
@@ -46,8 +48,52 @@ void socket_info_clear(socket_info_t* socket_info) {
 	socket_info->in_use = false;
 	freeaddrinfo(socket_info->addrinfo);
 	socket_info->addrinfo = NULL;
-	// TODO: Close send and receive work handlers
 }
+
+static void socket_receive_handler()
+{
+	struct pollfd fds[MAX_SOCKETS];
+
+	while (true) {
+		int count = 0;
+
+		for (int i = 0; i < MAX_SOCKETS; i++) {
+			if (sockets[i].in_use) {
+				fds[count].fd = sockets[i].fd;
+				fds[count].events = POLLIN;
+				fds[count].revents = 0;
+				count++;
+			}
+		}
+
+		int ret = poll(fds, count, RECEIVE_POLL_TIMEOUT_MS);
+
+		if (ret > 0) {
+			for (int i = 0; i < count; i++) {
+				if (fds[i].revents & POLLIN) {
+					int buffer_size;
+					while ((buffer_size = recv(
+							fds[i].fd,
+							receive_buffer,
+							RECEIVE_BUFFER_SIZE,
+							0)) > 0) {
+						printk("\nreceived data for socket fd=%d,buffer_size=%d:\n%s\n",
+							fds[i].fd,
+							buffer_size,
+							receive_buffer);
+						memset(receive_buffer, '\0',
+							RECEIVE_BUFFER_SIZE);
+					}
+				}
+			}
+		}
+	}
+	printk("socket_receive_handler exit\n");
+}
+
+K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
+                socket_receive_handler, NULL, NULL, NULL,
+                RECEIVE_PRIORITY, 0, 0);
 
 static void data_recv_handler(struct k_work *item)
 {
@@ -74,7 +120,7 @@ static void data_recv_handler(struct k_work *item)
 	printk("data receive handler exit\n");
 }
 
-static void socket_receive(int socket_id)
+static void socket_receive_wq(int socket_id)
 {
 	socket_info_t* socket_info = &sockets[socket_id];
 
@@ -229,7 +275,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 			return;
 		}
 		if (type == SOCK_DGRAM) {
-			socket_receive(socket_id);
+			//socket_receive_wq(socket_id);
 		}
 	}
 
@@ -241,8 +287,12 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 			socket_info_clear(socket_info);
 			return;
 		}
-		socket_receive(socket_id);
+		//socket_receive_wq(socket_id);
 	}
+
+	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
+	int flags = fcntl(fd, F_GETFL, 0);
+        fcntl(fd, F_SETFL, flags | (int) O_NONBLOCK);
 }
 
 int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
