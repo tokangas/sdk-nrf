@@ -2,6 +2,8 @@
 #include <strings.h>
 #include <net/socket.h>
 
+#include "utils/getopt_port/getopt.h"
+
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
 #define SEND_BUFFER_SIZE 64
