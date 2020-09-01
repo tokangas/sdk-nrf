@@ -7,7 +7,12 @@
 #include <logging/log.h>
 #include <zephyr.h>
 #include <stdio.h>
+#if defined(CONFIG_POSIX_API)
+#include <unistd.h>
+#include <sys/socket.h>
+#else
 #include <net/socket.h>
+#endif
 #include <init.h>
 #include <bsd_limits.h>
 

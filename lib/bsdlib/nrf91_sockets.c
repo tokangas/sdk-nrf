@@ -21,6 +21,13 @@
 #include <sockets_internal.h>
 #include <sys/fdtable.h>
 #include <zephyr.h>
+//b_jh
+//#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES) && defined (CONFIG_POSIX_API)
+#if defined (CONFIG_POSIX_API)
+#include <poll.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#endif
 
 #if defined(CONFIG_NET_SOCKETS_OFFLOAD)
 
