@@ -8,7 +8,8 @@
 #include <shell/shell.h>
 
 #include <modem/modem_info.h>
-#include <net/socket.h>
+#include <netdb.h>
+#include <sys/socket.h>
 #include <nrf_socket.h>
 
 #include "icmp_ping.h"

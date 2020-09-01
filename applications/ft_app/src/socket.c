@@ -1,6 +1,8 @@
 #include <shell/shell.h>
 #include <strings.h>
-#include <net/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <sys/socket.h>
 //#include <nrf_socket.h>
 
 #define MAX_SOCKETS     4
