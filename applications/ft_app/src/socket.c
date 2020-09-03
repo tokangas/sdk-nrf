@@ -14,6 +14,10 @@
 // Timeout for polling socket receive data. This limits how quickly data can be received after socket creation.
 #define RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
 
+enum socket_mode {
+	SOCKET_MODE_BLOCKING = 0,
+	SOCKET_MODE_NONBLOCKING
+};
 
 struct data_transfer_info {
 	struct k_work work;
@@ -88,7 +92,7 @@ static void socket_receive_handler()
 							RECEIVE_BUFFER_SIZE,
 							0)) > 0) {
 						if (socket_info->log_receive_data) {
-							printk("\nreceived data for socket socket_id=%d,buffer_size=%d:\n%s\n",
+							printk("\nreceived data for socket socket_id=%d, buffer_size=%d:\n%s\n",
 								socket_id,
 							buffer_size,
 							receive_buffer);
@@ -158,6 +162,17 @@ static void data_send_timer_handler(struct k_timer *dummy)
 	socket_info_t* socket_info = &sockets[socket_id];
 
 	k_work_submit(&socket_info->send_info.work);
+}
+
+static void set_socket_mode(int fd, enum socket_mode mode)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+
+    if (mode == SOCKET_MODE_NONBLOCKING) {
+        fcntl(fd, F_SETFL, flags | (int) O_NONBLOCK);
+    } else if (mode == SOCKET_MODE_BLOCKING) {
+        fcntl(fd, F_SETFL, flags & ~(int) O_NONBLOCK);
+    }
 }
 
 static void socket_open_and_connect(int family, int type, int proto, char* ip_address, int port, int bind_port)
@@ -262,8 +277,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	}
 
 	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
-	int flags = fcntl(fd, F_GETFL, 0);
-        fcntl(fd, F_SETFL, flags | (int) O_NONBLOCK);
+	set_socket_mode(socket_info, SOCKET_MODE_NONBLOCKING);
 }
 
 int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
