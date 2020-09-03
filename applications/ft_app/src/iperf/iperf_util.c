@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
 #include <sys/select.h>
@@ -68,11 +68,11 @@
 
 //end resource.h
 /**************************************************************************/
-// static int gethostname(char *name, size_t len)
-// {
-//     strncpy(name, "Alta", len);
-//     return 0;
-// }
+static int gethostname(char *name, size_t len)
+{
+     strncpy(name, "Alta", len);
+     return 0;
+}
 
 /**************************************************************************/
 int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
@@ -106,6 +106,7 @@ int readentropy(void *out, size_t outsize)
         if (frandom == NULL) {
             iperf_errexit(NULL, "error - failed to open %s: %s\n",
                           rndfile, strerror(errno));
+            return -1;
         }
         setbuf(frandom, NULL);
     }
@@ -113,6 +114,7 @@ int readentropy(void *out, size_t outsize)
         iperf_errexit(NULL, "error - failed to read %s: %s\n",
                       rndfile,
                       feof(frandom) ? "EOF" : strerror(errno));
+        return -1;
     }
     return 0;
 }
@@ -149,6 +151,7 @@ void fill_with_repeating_pattern(void *out, size_t outsize)
  * Assumes cookie has size (COOKIE_SIZE + 1) char's.
  */
 
+#ifdef RM_JH
 void
 make_cookie(const char *cookie)
 {
@@ -162,8 +165,27 @@ make_cookie(const char *cookie)
     }
     out[pos] = '\0';
 }
+#endif
+void
+make_cookie(char *cookie)
+{
+//    static int randomized = 0;
+    char hostname[500];
+    struct timeval tv;
+    char temp[1000];
 
+//    if ( ! randomized )
+//        srandom((int) time(0) ^ getpid());
 
+    /* Generate a string based on hostname, time, randomness, and filler. */
+    (void) gethostname(hostname, sizeof(hostname));
+    (void) gettimeofday(&tv, 0);
+    (void) snprintf(temp, sizeof(temp), "%s.%ld.%06ld.%08lx%08lx.%s", hostname, (unsigned long int) tv.tv_sec, (unsigned long int) tv.tv_usec, (unsigned long int) rand(), (unsigned long int) rand(), "1234567890123456789012345678901234567890");
+
+    /* Now truncate it to 36 bytes and terminate. */
+    memcpy(cookie, temp, 36);
+    cookie[36] = '\0';
+}
 /* is_closed
  *
  * Test if the file descriptor fd is closed.

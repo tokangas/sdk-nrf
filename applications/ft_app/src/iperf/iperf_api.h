@@ -290,7 +290,7 @@ int iperf_recv(struct iperf_test *, fd_set *);
 //e_jh
 
 void usage(void);
-void usage_long(FILE * f);
+//void usage_long(FILE * f); b_jh: long options not supported
 void warning(const char *);
 int iperf_exchange_results(struct iperf_test *);
 int iperf_init_test(struct iperf_test *);
@@ -434,7 +434,8 @@ enum {
     IENEWTIMER = 300,       // Unable to create new timer (check perror)
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
     // b_jh
-    IEPDN = 302,            // Invalid PDN
+    IENOMEMORY = 302,       // no dynamic memory from heap
+    IEPDN = 303,            // Invalid PDN
     // e_jh
 };
 

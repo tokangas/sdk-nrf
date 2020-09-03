@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.8.2)
 #endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(NONE)
+project(FTA)
 target_include_directories(app PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/iperf
@@ -35,28 +35,9 @@ target_sources(app PRIVATE src/lte_connection.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/socket.c)
 target_sources(app PRIVATE src/icmp_ping.c)
-target_sources(app PRIVATE src/utils/freebsd-getopt/getopt.c)
-#target_sources(app PRIVATE src/utils/getopt_port/getopt.c)
-# target_sources(app PRIVATE src/iperf/cJSON.c)
-# target_sources(app PRIVATE src/iperf/dscp.c)
-# target_sources(app PRIVATE src/iperf/iperf_api.c)
-# target_sources(app PRIVATE src/iperf/iperf_auth.c)
-# target_sources(app PRIVATE src/iperf/iperf_client_api.c)
-# target_sources(app PRIVATE src/iperf/iperf_error.c)
-# target_sources(app PRIVATE src/iperf/iperf_locale.c)
-# target_sources(app PRIVATE src/iperf/iperf_main.c)
-# target_sources(app PRIVATE src/iperf/iperf_sctp.c)
-# target_sources(app PRIVATE src/iperf/iperf_server_api.c)
-# target_sources(app PRIVATE src/iperf/iperf_tcp.c)
-# target_sources(app PRIVATE src/iperf/iperf_time.c)
-# target_sources(app PRIVATE src/iperf/iperf_udp.c)
-# target_sources(app PRIVATE src/iperf/iperf_util.c)
-# target_sources(app PRIVATE src/iperf/net.c)
-# target_sources(app PRIVATE src/iperf/tcp_info.c)
-# target_sources(app PRIVATE src/iperf/timer.c)
-# target_sources(app PRIVATE src/iperf/units.c)
-
-add_subdirectory(src/iperf)
+target_sources_ifdef(CONFIG_FTA_IPERF3
+		     app PRIVATE src/utils/freebsd-getopt/getopt.c)
+add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
 
 # NORDIC SDK APP END
 

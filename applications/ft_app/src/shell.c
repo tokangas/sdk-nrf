@@ -106,11 +106,13 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 #define PING_USAGE_STR                                                         \
 	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
 
+#if defined (CONFIG_FTA_IPERF3)	
 static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 {
-	int return_value = iperf_main(argc, argv);
-	return return_value;
+	int return_value = = iperf_main(argc, argv);
+	return return_valuje;
 }
+#endif
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	app_data_cmds,
@@ -153,10 +155,11 @@ SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 SHELL_CMD_REGISTER(ft, &app_cmds, "Commands for controlling the FT application",
 		   NULL);
 
+#if defined (CONFIG_FTA_IPERF3)	
 SHELL_CMD_REGISTER(iperf3, NULL, 
 "iperf3 usage",
 cmd_iperf3);
-
+#endif
 SHELL_CMD_REGISTER(sock, &sock_cmds,
 		   "Commands for controlling the FT application", NULL);
 SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,

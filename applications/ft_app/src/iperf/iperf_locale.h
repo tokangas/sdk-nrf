@@ -28,7 +28,7 @@
 #define        IPERF_LOCALE_H
 
 extern const char usage_shortstr[];
-extern const char usage_longstr[];
+//extern const char usage_longstr[]; b_jh: long options not supported
 extern const char version[];
 
 extern const char seperator_line[];

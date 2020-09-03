@@ -92,8 +92,8 @@ extern    "C"
  * ------------------------------------------------------------------- */
 
 const char usage_shortstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
-                           "Try `iperf3 --help' for more information.\n";
-
+                           "See documentaion for more information.\n";
+#if 0 //b_jh: Long options not supported
 const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-h|--help] [-v|--version]\n\n"
                            "Server or Client:\n"
@@ -212,6 +212,7 @@ const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
   "-x, --reportexclude [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports\n"
   "-y, --reportstyle C      report as a Comma-Separated Values\n"
 #endif
+#endif //e_jh
 
 const char version[] = PACKAGE_STRING;
 
