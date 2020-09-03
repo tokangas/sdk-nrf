@@ -7,7 +7,7 @@
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
-#define SEND_BUFFER_SIZE 64
+#define SEND_BUFFER_SIZE 4096+1
 #define RECEIVE_BUFFER_SIZE 1536
 #define RECEIVE_STACK_SIZE 2048
 #define RECEIVE_PRIORITY 5
@@ -29,6 +29,7 @@ typedef struct
 	int port;
 	int bind_port;
 	bool in_use;
+	bool log_receive_data;
 	struct addrinfo *addrinfo;
 	struct data_transfer_info send_info;
 } socket_info_t;
@@ -42,8 +43,19 @@ void socket_info_clear(socket_info_t* socket_info) {
 	close(socket_info->fd);
 	socket_info->fd = -1;
 	socket_info->in_use = false;
+	socket_info->log_receive_data = true;
 	freeaddrinfo(socket_info->addrinfo);
 	socket_info->addrinfo = NULL;
+}
+
+int get_socket_id_by_fd(int fd)
+{
+	for (int i = 0; i < MAX_SOCKETS; i++) {
+		if (sockets[i].fd == fd) {
+			return i;
+		}
+		}
+	return -1;
 }
 
 static void socket_receive_handler()
@@ -68,15 +80,19 @@ static void socket_receive_handler()
 			for (int i = 0; i < count; i++) {
 				if (fds[i].revents & POLLIN) {
 					int buffer_size;
+					int socket_id = get_socket_id_by_fd(fds[i].fd);
+					socket_info_t* socket_info = &(sockets[i]);
 					while ((buffer_size = recv(
 							fds[i].fd,
 							receive_buffer,
 							RECEIVE_BUFFER_SIZE,
 							0)) > 0) {
-						printk("\nreceived data for socket fd=%d,buffer_size=%d:\n%s\n",
-							fds[i].fd,
+						if (socket_info->log_receive_data) {
+							printk("\nreceived data for socket socket_id=%d,buffer_size=%d:\n%s\n",
+								socket_id,
 							buffer_size,
 							receive_buffer);
+						}
 						memset(receive_buffer, '\0',
 							RECEIVE_BUFFER_SIZE);
 					}
@@ -91,13 +107,19 @@ K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
                 socket_receive_handler, NULL, NULL, NULL,
                 RECEIVE_PRIORITY, 0, 0);
 
-static void socket_send(socket_info_t *socket_info, char* data)
+static void socket_send(socket_info_t *socket_info, char* data, bool log_data)
 {
+	if (log_data) {
 	printk("socket data send: %s\n", data);
-
+	}
+	int bytes;
 	if (socket_info->type == SOCK_STREAM) {
 		// TCP
-		send(socket_info->fd, data, strlen(data), 0);
+		bytes = send(socket_info->fd, data, strlen(data), 0);
+		if (bytes < 0) {
+			printk("socket send failed, err %d\n", errno);
+			return;
+		}
 	} else {
 		// UDP
 		int dest_addr_len = 0;
@@ -113,7 +135,6 @@ static void socket_send(socket_info_t *socket_info, char* data)
 
 static void data_send_work_handler(struct k_work *item)
 {
-
 	struct data_transfer_info* data_send_info_ptr =
 		CONTAINER_OF(item, struct data_transfer_info, work);
 	int socket_id = data_send_info_ptr->socket_id;
@@ -126,7 +147,7 @@ static void data_send_work_handler(struct k_work *item)
 		return;
 	}
 
-	socket_send(socket_info, send_buffer);
+	socket_send(socket_info, send_buffer, true);
 }
 
 static void data_send_timer_handler(struct k_timer *dummy)
@@ -155,6 +176,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	while (socket_id < MAX_SOCKETS) {
 		if (!sockets[socket_id].in_use) {
 			socket_info = &(sockets[socket_id]);
+			socket_info_clear(socket_info);
 			break;
 		}
 		socket_id++;
@@ -227,10 +249,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 			socket_info_clear(socket_info);
 			return;
 		}
-		if (type == SOCK_DGRAM) {
-			//socket_receive_wq(socket_id);
 		}
-	}
 
 	if (type == SOCK_STREAM) {
 		// Connect TCP socket
@@ -240,7 +259,6 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 			socket_info_clear(socket_info);
 			return;
 		}
-		//socket_receive_wq(socket_id);
 	}
 
 	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
@@ -325,13 +343,51 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		interval = atoi(argv[3]);
 	}
 
+	// Data length = argv[4]
+	int data_len = 0;
+	if (argc > 4) {
+		data_len = atoi(argv[4]);
+	}
+
+	// Downlink data length = argv[5]
+	int dl_data_len = 0;
+	if (argc > 5) {
+		dl_data_len = atoi(argv[5]);
+	}
+
 	if (socket_info->fd < 0) {
 		// TODO: Should we be able to send without having socket connected, i.e.,
 		// open, connect, send and close with one simple command?
 		//socket_open_and_connect(20180);
 	}
 
-	if (interval == 0 ) {
+	socket_info->log_receive_data = true;
+	if (dl_data_len > 0) {
+		// Create Contabo request
+		// TODO: This is not a solution for public version as Contabo is our internal stuff
+		// We could avoid this if there is a way to pass double quotes through zephyr shell command line
+		char dl_data[300];
+		memset(dl_data, 0, 300);
+		sprintf(dl_data,
+			"trigger_dl_data: {\"wait_time\":\"1\",\"dl_data_len\":\"%d\",\"random_data\":\"True\",\"insert_packet_number\":\"True\"}",
+			dl_data_len);
+		socket_info->log_receive_data = false;
+		socket_send(socket_info, dl_data, true);
+	} else if (data_len > 0) {
+		socket_info->log_receive_data = false;
+		int data_left = data_len;
+		memset(send_buffer, 0, SEND_BUFFER_SIZE);
+		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
+		while (data_left > 0) {
+			if (data_left < SEND_BUFFER_SIZE-1) {
+				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
+				memset(send_buffer, 'l', data_left);
+			}
+			socket_send(socket_info, send_buffer, false);
+			data_left -= strlen(send_buffer);
+		}
+		memset(send_buffer, 0, SEND_BUFFER_SIZE);
+	} else if (interval == 0 ) {
 		if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 			k_timer_stop(&socket_info->send_info.timer);
 			shell_print(shell, "socket data send periodic stop");
@@ -344,12 +400,11 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		memcpy(send_buffer, data, strlen(data));
 		shell_print(shell, "socket data send periodic with interval=%d", interval);
 		k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
-		k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
 		k_work_init(&socket_info->send_info.work, data_send_work_handler);
-		k_work_submit(&socket_info->send_info.work);
+		k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
 	} else {
 		shell_print(shell, "socket data send");
-		socket_send(socket_info, data);
+		socket_send(socket_info, data, true);
 		shell_print(shell, "socket data sent");
 	}
 	return 0;
