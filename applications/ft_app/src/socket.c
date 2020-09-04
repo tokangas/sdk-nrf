@@ -374,7 +374,7 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 	socket_info->log_receive_data = true;
 	if (ul_data_len > 0) {
 		// Send given amount of data to measure performance
-		int bytes_sent = 0;
+		u32_t bytes_sent = 0;
 		int data_left = ul_data_len;
 		socket_info->log_receive_data = false;
 		set_socket_mode(socket_info->fd, SOCKET_MODE_BLOCKING);
@@ -393,22 +393,20 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 			data_left -= strlen(send_buffer);
 		}
 		s64_t ul_time_ms = k_uptime_delta(&time_stamp);
-		// 8 for bits in one byte, and 1000 for ms->s conversion
-		double throughput = (double)(8 * 1000 * bytes_sent / ul_time_ms);
-
-		shell_print(shell, "time_stamp=%d, ul_time_ms=%d, ",
-				time_stamp, ul_time_ms);
-
+		// 8 for bits in one byte, and 1000 for ms->s conversion.
+		// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
+		double throughput = 8 * 1000 * ((double)bytes_sent / ul_time_ms);
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
 
 		shell_print(shell, "Send summary:\n"
-				"Data length: %7d bytes\n"
+				"Data length: %7u bytes\n"
 				"Time:        %7.2f s\n"
 				"Throughput:  %7.0f bit/s\n",
 				bytes_sent,
 				(float)ul_time_ms / 1000,
 				throughput);
+
 	} else if (interval == 0 ) {
 		if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 			k_timer_stop(&socket_info->send_info.timer);
