@@ -81,10 +81,8 @@ int getopt(int argc, char* const argv[], const char* optstring) {
     goto no_more_optchars;
   }
 
-  if (optcursor == NULL || *optcursor == '\0') {
-    //optcursor = argv[optind] + 1;
-    optcursor = argv[optind];
-  }
+  if (optcursor == NULL || *optcursor == '\0')
+    optcursor = argv[optind] + 1;
 
   optchar = *optcursor;
 
