@@ -111,7 +111,7 @@ K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
                 socket_receive_handler, NULL, NULL, NULL,
                 RECEIVE_PRIORITY, 0, 0);
 
-static void socket_send(socket_info_t *socket_info, char* data, bool log_data)
+static int socket_send(socket_info_t *socket_info, char* data, bool log_data)
 {
 	if (log_data) {
 	printk("socket data send: %s\n", data);
@@ -120,10 +120,6 @@ static void socket_send(socket_info_t *socket_info, char* data, bool log_data)
 	if (socket_info->type == SOCK_STREAM) {
 		// TCP
 		bytes = send(socket_info->fd, data, strlen(data), 0);
-		if (bytes < 0) {
-			printk("socket send failed, err %d\n", errno);
-			return;
-		}
 	} else {
 		// UDP
 		int dest_addr_len = 0;
@@ -132,9 +128,14 @@ static void socket_send(socket_info_t *socket_info, char* data, bool log_data)
 		} else if (socket_info->family == AF_INET6) {
 			dest_addr_len = sizeof(struct sockaddr_in6);
 		}
-		sendto(socket_info->fd, data, strlen(data), 0,
+		bytes = sendto(socket_info->fd, data, strlen(data), 0,
 			socket_info->addrinfo->ai_addr, dest_addr_len);
 	}
+	if (bytes < 0) {
+		printk("socket send failed, err %d\n", errno);
+		return -1;
+}
+	return bytes;
 }
 
 static void data_send_work_handler(struct k_work *item)
@@ -277,7 +278,7 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	}
 
 	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
-	set_socket_mode(socket_info, SOCKET_MODE_NONBLOCKING);
+	set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
 }
 
 int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
@@ -358,9 +359,9 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	// Data length = argv[4]
-	int data_len = 0;
+	int ul_data_len = 0;
 	if (argc > 4) {
-		data_len = atoi(argv[4]);
+		ul_data_len = atoi(argv[4]);
 	}
 
 	// Downlink data length = argv[5]
@@ -387,20 +388,43 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 			dl_data_len);
 		socket_info->log_receive_data = false;
 		socket_send(socket_info, dl_data, true);
-	} else if (data_len > 0) {
+	} else if (ul_data_len > 0) {
+		// Send given amount of data to measure performance
+		int bytes_sent = 0;
+		int data_left = ul_data_len;
 		socket_info->log_receive_data = false;
-		int data_left = data_len;
+		set_socket_mode(socket_info->fd, SOCKET_MODE_BLOCKING);
+
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
+
+		s64_t time_stamp = k_uptime_get();
+		// TODO: Get start time
 		while (data_left > 0) {
 			if (data_left < SEND_BUFFER_SIZE-1) {
 				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
 				memset(send_buffer, 'l', data_left);
 			}
-			socket_send(socket_info, send_buffer, false);
+			bytes_sent += socket_send(socket_info, send_buffer, false);
 			data_left -= strlen(send_buffer);
 		}
+		s64_t ul_time_ms = k_uptime_delta(&time_stamp);
+		// 8 for bits in one byte, and 1000 for ms->s conversion
+		double throughput = (double)(8 * 1000 * bytes_sent / ul_time_ms);
+
+		shell_print(shell, "time_stamp=%d, ul_time_ms=%d, ",
+				time_stamp, ul_time_ms);
+
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
+		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
+
+		shell_print(shell, "Send summary:\n"
+				"Data length: %7d bytes\n"
+				"Time:        %7.2f s\n"
+				"Throughput:  %7.0f bit/s\n",
+				bytes_sent,
+				(float)ul_time_ms / 1000,
+				throughput);
 	} else if (interval == 0 ) {
 		if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 			k_timer_stop(&socket_info->send_info.timer);
