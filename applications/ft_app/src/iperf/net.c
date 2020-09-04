@@ -138,13 +138,11 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = domain;
     hints.ai_socktype = proto;
-//    if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0) {
     if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0) {
         //b_jh: 
         printf("getaddrinfo failed with error code %d (see net/dns_resolve.h for codes)\n", gerror);
         return -1;
-    }    
-
+    }
     s = socket(server_res->ai_family, proto, 0);
         if (s < 0) {
 	if (local)
