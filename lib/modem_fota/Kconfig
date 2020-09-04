@@ -106,6 +106,13 @@ config MODEM_FOTA_ALLOWED_DURING_ROAMING
 	help
 	  Is FOTA allowed when device is connected to a roaming network.
 
+config MODEM_FOTA_UPDATE_CHECK_BLOCKED_BY_PSM
+	bool "FOTA check disallowed during LTE Power Saving Mode (PSM)"
+	help
+	  Is FOTA update check blocked by LTE PSM. If enabled, FOTA check will not
+	  be performed during PSM, but a pending update check will be started once
+	  modem wakes up from PSM.
+
 config MODEM_FOTA_DISABLE_IMSI_PREFIXES
 	string "Comma separated list of USIM IMSI prefixes for which FOTA is disabled"
 	default ""

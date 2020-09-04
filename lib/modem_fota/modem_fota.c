@@ -47,6 +47,7 @@ static bool wait_for_data_inactivity(void);
 static void restore_system_mode(void);
 static void schedule_next_update(void);
 static void update_check_timer_handler(struct k_timer *dummy);
+static void active_time_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
 
 /* Work queue */
@@ -59,6 +60,7 @@ static struct k_work_q work_q;
 static struct k_work provision_work;
 static struct k_work update_work;
 static struct k_work update_job_status_work;
+static struct k_work read_lte_active_time_work;
 
 struct update_info {
 	struct k_work finish_update_work;
@@ -70,8 +72,10 @@ static struct update_info current_update_info;
 static struct k_sem attach_sem;
 static struct k_sem detach_sem;
 static struct k_sem rrc_idle_sem;
+static struct k_sem lte_active_sem;
 
 K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
+K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 
 #define AT_CEREG_REG_STATUS_INDEX	1
 #define AT_CEREG_TAC_INDEX		2
@@ -85,6 +89,18 @@ K_TIMER_DEFINE(update_check_timer, update_check_timer_handler, NULL);
 #define AT_CGMR_VERSION_INDEX		0
 #define AT_XSYSTEMMODE_PARAMS_COUNT	5
 #define AT_XSYSTEMMODE_RESPONSE_MAX_LEN	30
+#define AT_CPSMS_MODE_INDEX		1
+#define AT_CPSMS_PARAMS_COUNT_MAX	(AT_CPSMS_MODE_INDEX + 1)
+#define AT_CPSMS_RESPONSE_MAX_LEN	48
+#define AT_XMONITOR_ACTIVE_TIME_INDEX	14
+#define AT_XMONITOR_ACTIVE_TIME_LEN	8
+#define AT_XMONITOR_PARAMS_COUNT_MAX	(AT_XMONITOR_ACTIVE_TIME_INDEX + 1)
+#define AT_XMONITOR_RESPONSE_MAX_LEN	128
+
+#define AT_XMONITOR_ACTIVE_TIME_UNIT_MASK	0xe0
+#define AT_XMONITOR_ACTIVE_TIME_UNIT_2S		0x00
+#define AT_XMONITOR_ACTIVE_TIME_UNIT_1MIN	0x20
+#define AT_XMONITOR_ACTIVE_TIME_UNIT_6MIN	0x40
 
 static const char at_cereg_notif[] = "+CEREG";
 static const char at_cscon_notif[] = "+CSCON";
@@ -98,6 +114,8 @@ static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
+static const char at_cpsms[] = "AT+CPSMS?";
+static const char at_xmonitor[] = "AT\%XMONITOR";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
 static const char aws_jobs_succeeded[] = "SUCCEEDED";
@@ -114,10 +132,11 @@ static modem_fota_callback_t event_callback;
 static s64_t network_time;
 static s64_t network_time_timestamp;
 
-/* Current modem registration status and LTE mode */
+/* Current modem status */
 static enum modem_reg_status reg_status;
 static enum modem_lte_mode lte_mode;
 static bool rrc_idle = true;
+static bool lte_active = false;
 
 /* FOTA is enabled by default */
 static bool fota_enabled = true;
@@ -428,8 +447,17 @@ static int parse_cscon_notification(const char *notif)
 	}
 
 	rrc_idle = value == 0 ? true : false;
-	if (rrc_idle)
+	if (rrc_idle) {
 		k_sem_give(&rrc_idle_sem);
+
+		/* Schedule work which reads the LTE active time and starts
+		 * a timer to determine when LTE enters PSM mode */
+		k_work_submit(&read_lte_active_time_work);
+	} else {
+		k_timer_stop(&active_time_timer);
+		lte_active = true;
+		k_sem_give(&lte_active_sem);
+	}
 
 clean_exit:
 	at_params_list_free(&param_list);
@@ -1017,9 +1045,66 @@ static void clear_update_check_time(void)
 	save_update_check_time();
 }
 
+static bool is_psm_enabled(void)
+{
+	int err;
+	int value;
+	bool psm_enabled = false;
+	char response[AT_CPSMS_RESPONSE_MAX_LEN];
+	struct at_param_list param_list = {0};
+
+	err = at_cmd_write(at_cpsms, response, sizeof(response),
+			   NULL);
+	if (err) {
+		LOG_ERR("Failed to read PSM mode, error: %d", err);
+		return false;
+	}
+
+	err = at_params_list_init(&param_list, AT_CPSMS_PARAMS_COUNT_MAX);
+	if (err) {
+		LOG_ERR("Could init AT params list, error: %d", err);
+		return false;
+	}
+
+	err = at_parser_max_params_from_str(response, NULL, &param_list,
+					    AT_CPSMS_PARAMS_COUNT_MAX);
+	if (err && err != -E2BIG) {
+		LOG_ERR("Could not parse CPSMS response, error: %d", err);
+		goto clean_exit;
+	}
+
+	/* PSM mode */
+	err = at_params_int_get(&param_list,
+				AT_CPSMS_MODE_INDEX,
+				&value);
+	if (err) {
+		LOG_ERR("Could not get PSM status, error: %d", err);
+		goto clean_exit;
+	}
+
+	psm_enabled = value == 1 ? true : false;
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	return psm_enabled;
+}
+
 static void start_update_work_fn(struct k_work *item)
 {
 	int err;
+
+	/* If in PSM, delay update check until modem wakes up */
+	if (is_psm_enabled() &&
+	    IS_ENABLED(CONFIG_MODEM_FOTA_UPDATE_CHECK_BLOCKED_BY_PSM) &&
+	    !lte_active) {
+		LOG_INF("Waiting for modem to wake up from PSM...");
+		k_sem_reset(&lte_active_sem);
+		/* In theory PSM period could be days, so this might take
+		 * long.
+		 */
+		k_sem_take(&lte_active_sem, K_FOREVER);
+	}
 
 	/* Clear the stored update check time to prevent unwanted update check
 	 * if device reboots before the next update has been scheduled.
@@ -1198,6 +1283,79 @@ static void update_job_status_work_fn(struct k_work *item)
 	save_update_job_id(NULL);
 }
 
+static void read_lte_active_time_work_fn(struct k_work *item)
+{
+	int err;
+	char response[AT_XMONITOR_RESPONSE_MAX_LEN];
+	char act_time_str[AT_XMONITOR_ACTIVE_TIME_LEN + 1];
+	size_t act_time_str_len = AT_XMONITOR_ACTIVE_TIME_LEN;
+	uint32_t act_time = 0;
+	uint8_t act_time_unit;
+	struct at_param_list param_list = {0};
+
+	err = at_cmd_write(at_xmonitor, response, sizeof(response),
+			   NULL);
+	if (err) {
+		LOG_ERR("Failed to read active time, error: %d", err);
+
+		/* In this case the handler is called immediately */
+		k_timer_start(&active_time_timer, K_NO_WAIT, K_NO_WAIT);
+		return;
+	}
+
+	err = at_params_list_init(&param_list, AT_XMONITOR_PARAMS_COUNT_MAX);
+	if (err) {
+		LOG_ERR("Could init AT params list, error: %d", err);
+
+		/* In this case the handler is called immediately */
+		k_timer_start(&active_time_timer, K_NO_WAIT, K_NO_WAIT);
+		return;
+	}
+
+	err = at_parser_max_params_from_str(response, NULL, &param_list,
+					    AT_XMONITOR_PARAMS_COUNT_MAX);
+	if (err && err != -E2BIG) {
+		LOG_ERR("Could not parse XMONITOR response, error: %d", err);
+		goto clean_exit;
+	}
+
+	err = at_params_string_get(&param_list,
+				   AT_XMONITOR_ACTIVE_TIME_INDEX,
+				   act_time_str,
+				   &act_time_str_len);
+	if (err) {
+		LOG_ERR("Could not get active time, error: %d", err);
+		goto clean_exit;
+	}
+
+	act_time_str[act_time_str_len] = '\0';
+
+	act_time = strtoul(act_time_str, NULL, 2);
+	act_time_unit = act_time & AT_XMONITOR_ACTIVE_TIME_UNIT_MASK;
+	act_time &= ~AT_XMONITOR_ACTIVE_TIME_UNIT_MASK;
+
+	/* Multiply active time by unit */
+	if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_2S) {
+		act_time *= 2;
+	} else if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_1MIN) {
+		act_time *= 60;
+	} else if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_6MIN) {
+		act_time *= (6 * 60);
+	} else {
+		act_time = 0;
+	}
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	/* Timer is started also in case the time is zero, in that case the
+	 * handler is called immediately.
+	 */
+	if (act_time > 0)
+		LOG_DBG("Starting active time timer for %d seconds", act_time);
+	k_timer_start(&active_time_timer, K_SECONDS(act_time), K_NO_WAIT);
+}
+
 static bool is_update_scheduled(void)
 {
 	return update_check_time_s != 0;
@@ -1240,6 +1398,11 @@ static void update_check_timer_handler(struct k_timer *dummy)
 		start_update_check();
 	else
 		start_update_check_timer();
+}
+
+static void active_time_timer_handler(struct k_timer *dummy)
+{
+	lte_active = false;
 }
 
 static void calculate_next_update_check_time(void)
@@ -1527,6 +1690,7 @@ int modem_fota_init(modem_fota_callback_t callback)
 	k_sem_init(&attach_sem, 0, 1);
 	k_sem_init(&detach_sem, 0, 1);
 	k_sem_init(&rrc_idle_sem, 0, 1);
+	k_sem_init(&lte_active_sem, 0, 1);
 
 	k_work_q_start(&work_q, work_q_stack_area,
         	K_THREAD_STACK_SIZEOF(work_q_stack_area), WORK_QUEUE_PRIORITY);
@@ -1534,6 +1698,7 @@ int modem_fota_init(modem_fota_callback_t callback)
 	k_work_init(&update_work, start_update_work_fn);
 	k_work_init(&current_update_info.finish_update_work, finish_update_work_fn);
 	k_work_init(&update_job_status_work, update_job_status_work_fn);
+	k_work_init(&read_lte_active_time_work, read_lte_active_time_work_fn);
 
 	init_and_load_settings();
 
