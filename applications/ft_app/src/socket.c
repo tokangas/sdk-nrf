@@ -1,7 +1,9 @@
 #include <shell/shell.h>
 #include <strings.h>
-#ifdef (CONFIG_POSIX_API)
+#if defined (CONFIG_POSIX_API)
 #include <unistd.h>
+#include <netdb.h>
+#include <poll.h>
 #include <sys/socket.h>
 #else
 #include <net/socket.h>

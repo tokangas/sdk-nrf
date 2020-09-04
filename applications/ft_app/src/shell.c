@@ -11,9 +11,12 @@
 #include "icmp_ping.h"
 #include "socket.h"
 
-//b_jh
+#if defined (CONFIG_POSIX_API)
 #include <sys/select.h>
+#endif
+#if defined (CONFIG_FTA_IPERF3)
 #include "iperf/iperf_api.h"
+#endif
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
