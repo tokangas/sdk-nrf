@@ -364,31 +364,8 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		ul_data_len = atoi(argv[4]);
 	}
 
-	// Downlink data length = argv[5]
-	int dl_data_len = 0;
-	if (argc > 5) {
-		dl_data_len = atoi(argv[5]);
-	}
-
-	if (socket_info->fd < 0) {
-		// TODO: Should we be able to send without having socket connected, i.e.,
-		// open, connect, send and close with one simple command?
-		//socket_open_and_connect(20180);
-	}
-
 	socket_info->log_receive_data = true;
-	if (dl_data_len > 0) {
-		// Create Contabo request
-		// TODO: This is not a solution for public version as Contabo is our internal stuff
-		// We could avoid this if there is a way to pass double quotes through zephyr shell command line
-		char dl_data[300];
-		memset(dl_data, 0, 300);
-		sprintf(dl_data,
-			"trigger_dl_data: {\"wait_time\":\"1\",\"dl_data_len\":\"%d\",\"random_data\":\"True\",\"insert_packet_number\":\"True\"}",
-			dl_data_len);
-		socket_info->log_receive_data = false;
-		socket_send(socket_info, dl_data, true);
-	} else if (ul_data_len > 0) {
+	if (ul_data_len > 0) {
 		// Send given amount of data to measure performance
 		int bytes_sent = 0;
 		int data_left = ul_data_len;
