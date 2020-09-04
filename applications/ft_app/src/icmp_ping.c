@@ -8,7 +8,12 @@
 #include <shell/shell.h>
 
 #include <modem/modem_info.h>
+#if defined (CONFIG_POSIX_API)
+#include <netdb.h>
+#include <sys/socket.h>
+#else
 #include <net/socket.h>
+#endif
 #include <nrf_socket.h>
 
 #include "icmp_ping.h"

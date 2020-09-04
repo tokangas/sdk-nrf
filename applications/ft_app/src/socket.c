@@ -1,6 +1,13 @@
 #include <shell/shell.h>
 #include <strings.h>
+#if defined (CONFIG_POSIX_API)
+#include <unistd.h>
+#include <netdb.h>
+#include <poll.h>
+#include <sys/socket.h>
+#else
 #include <net/socket.h>
+#endif
 #include <fcntl.h>
 
 #include "utils/getopt_port/getopt.h"

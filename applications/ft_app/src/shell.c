@@ -11,6 +11,13 @@
 #include "icmp_ping.h"
 #include "socket.h"
 
+#if defined (CONFIG_POSIX_API)
+#include <sys/select.h>
+#endif
+#if defined (CONFIG_FTA_IPERF3)
+#include "iperf/iperf_api.h"
+#endif
+
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
@@ -102,6 +109,14 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 #define PING_USAGE_STR                                                         \
 	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
 
+#if defined (CONFIG_FTA_IPERF3)	
+static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
+{
+	int return_value = iperf_main(argc, argv);
+	return return_value;
+}
+#endif
+
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	sock_cmds,
 	SHELL_CMD_ARG(
@@ -128,6 +143,11 @@ SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 SHELL_CMD_REGISTER(ft, &app_cmds, "Commands for controlling the FT application",
 		   NULL);
 
+#if defined (CONFIG_FTA_IPERF3)	
+SHELL_CMD_REGISTER(iperf3, NULL, 
+"iperf3 usage",
+cmd_iperf3);
+#endif
 SHELL_CMD_REGISTER(sock, &sock_cmds,
 		   "Commands for controlling the FT application", NULL);
 SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
