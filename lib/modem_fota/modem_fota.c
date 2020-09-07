@@ -1324,7 +1324,10 @@ static void read_lte_active_time_work_fn(struct k_work *item)
 				   act_time_str,
 				   &act_time_str_len);
 	if (err) {
-		LOG_ERR("Could not get active time, error: %d", err);
+		/* Active time is present only when registration status is
+		 * 1 or 5. If no active time is found, the timer handler is
+		 * called immediately.
+		 */
 		goto clean_exit;
 	}
 
