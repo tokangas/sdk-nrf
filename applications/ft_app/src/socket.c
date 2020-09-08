@@ -41,6 +41,10 @@ typedef struct
 	int bind_port;
 	bool in_use;
 	bool log_receive_data;
+	s64_t recv_start_time_ms;
+	s64_t recv_end_time_ms;
+	u32_t recv_data_len;
+	bool recv_start_throughput;
 	struct addrinfo *addrinfo;
 	struct data_transfer_info send_info;
 } socket_info_t;
@@ -52,11 +56,12 @@ char receive_buffer[RECEIVE_BUFFER_SIZE];
 
 void socket_info_clear(socket_info_t* socket_info) {
 	close(socket_info->fd);
-	socket_info->fd = -1;
-	socket_info->in_use = false;
-	socket_info->log_receive_data = true;
 	freeaddrinfo(socket_info->addrinfo);
-	socket_info->addrinfo = NULL;
+
+	memset(socket_info, 0, sizeof(socket_info_t));
+
+	socket_info->fd = -1;
+	socket_info->log_receive_data = true;
 }
 
 int get_socket_id_by_fd(int fd)
@@ -65,7 +70,7 @@ int get_socket_id_by_fd(int fd)
 		if (sockets[i].fd == fd) {
 			return i;
 		}
-		}
+	}
 	return -1;
 }
 
@@ -93,6 +98,12 @@ static void socket_receive_handler()
 					int buffer_size;
 					int socket_id = get_socket_id_by_fd(fds[i].fd);
 					socket_info_t* socket_info = &(sockets[i]);
+
+					if (socket_info->recv_start_throughput) {
+						socket_info->recv_start_time_ms = k_uptime_get();
+						socket_info->recv_start_throughput = false;
+					}
+
 					while ((buffer_size = recv(
 							fds[i].fd,
 							receive_buffer,
@@ -104,9 +115,11 @@ static void socket_receive_handler()
 							buffer_size,
 							receive_buffer);
 						}
+						socket_info->recv_data_len += buffer_size;
 						memset(receive_buffer, '\0',
 							RECEIVE_BUFFER_SIZE);
 					}
+					socket_info->recv_end_time_ms = k_uptime_get();
 				}
 			}
 		}
@@ -345,6 +358,21 @@ int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static void calculate_throughput(const struct shell *shell, u32_t data_len, s64_t time_ms)
+{
+	// 8 for bits in one byte, and 1000 for ms->s conversion.
+	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
+	double throughput = 8 * 1000 * ((double)data_len / time_ms);
+
+	shell_print(shell, "Summary:\n"
+			"Data length: %7u bytes\n"
+			"Time:        %7.2f s\n"
+			"Throughput:  %7.0f bit/s\n",
+			data_len,
+			(float)time_ms / 1000,
+			throughput);
+}
+
 int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	// Socket ID = argv[1]
@@ -374,7 +402,7 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 	socket_info->log_receive_data = true;
 	if (ul_data_len > 0) {
 		// Send given amount of data to measure performance
-		int bytes_sent = 0;
+		u32_t bytes_sent = 0;
 		int data_left = ul_data_len;
 		socket_info->log_receive_data = false;
 		set_socket_mode(socket_info->fd, SOCKET_MODE_BLOCKING);
@@ -383,7 +411,6 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
 
 		s64_t time_stamp = k_uptime_get();
-		// TODO: Get start time
 		while (data_left > 0) {
 			if (data_left < SEND_BUFFER_SIZE-1) {
 				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
@@ -393,22 +420,10 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 			data_left -= strlen(send_buffer);
 		}
 		s64_t ul_time_ms = k_uptime_delta(&time_stamp);
-		// 8 for bits in one byte, and 1000 for ms->s conversion
-		double throughput = (double)(8 * 1000 * bytes_sent / ul_time_ms);
-
-		shell_print(shell, "time_stamp=%d, ul_time_ms=%d, ",
-				time_stamp, ul_time_ms);
-
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
+		calculate_throughput(shell, bytes_sent, ul_time_ms);
 
-		shell_print(shell, "Send summary:\n"
-				"Data length: %7d bytes\n"
-				"Time:        %7.2f s\n"
-				"Throughput:  %7.0f bit/s\n",
-				bytes_sent,
-				(float)ul_time_ms / 1000,
-				throughput);
 	} else if (interval == 0 ) {
 		if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 			k_timer_stop(&socket_info->send_info.timer);
@@ -418,7 +433,7 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 			return -ENOEXEC;
 		}
 	} else if (interval > 0 ) {
-		// TODO: This only work with data less than SEND_BUFFER_SIZE which is now 64 bytes.
+		// TODO: This only work with data less than SEND_BUFFER_SIZE
 		memcpy(send_buffer, data, strlen(data));
 		shell_print(shell, "socket data send periodic with interval=%d", interval);
 		k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
@@ -429,6 +444,35 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		socket_send(socket_info, data, true);
 		shell_print(shell, "socket data sent");
 	}
+	return 0;
+}
+
+int socket_recv_shell(const struct shell *shell, size_t argc, char **argv)
+{
+	// Socket ID = argv[1]
+	int socket_id = atoi(argv[1]);
+	socket_info_t *socket_info = &(sockets[socket_id]);
+	if (!socket_info->in_use) {
+		shell_print(shell, "Socket id=%d not available", socket_id);
+		return -EINVAL;
+	}
+
+	// command = argv[2]
+	char* command = argv[2];
+
+	if (!strcmp(command, "start")) {
+		shell_print(shell, "receive data calculation start socket id=%d", socket_id);
+		socket_info->recv_start_throughput = true;
+		socket_info->recv_data_len = 0;
+		socket_info->log_receive_data = false;
+		socket_info->recv_start_time_ms = 0;
+		socket_info->recv_end_time_ms = 0;
+	} else if (!strcmp(command, "status")) {
+		calculate_throughput(shell, socket_info->recv_data_len, socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
+	} else {
+		shell_print(shell, "Unknown command=%s", command);
+	}
+
 	return 0;
 }
 

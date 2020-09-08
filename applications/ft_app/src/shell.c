@@ -127,6 +127,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		"E.g., sock connect af_inet sock_stream \"5.189.130.26\" 20180",
 		socket_connect_shell, 5, 1),
 	SHELL_CMD_ARG(send, NULL, "Send data.", socket_send_shell, 2, 3),
+	SHELL_CMD_ARG(recv, NULL, "Start/Stop receive data transfer rate calculation.", socket_recv_shell, 3, 0),
 	SHELL_CMD_ARG(close, NULL, "Close socket.", socket_close_shell, 2, 0),
 	SHELL_CMD(list, NULL, "List opened sockets.", socket_list_shell),
 	SHELL_SUBCMD_SET_END);
