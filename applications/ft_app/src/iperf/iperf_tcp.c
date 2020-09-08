@@ -96,9 +96,9 @@ iperf_tcp_send(struct iperf_stream *sp)
     sp->result->bytes_sent += r;
     sp->result->bytes_sent_this_interval += r;
 
-    if (sp->test->debug)
-	printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
-
+    if (sp->test->debug) {
+	    printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
+    }
     return r;
 }
 
@@ -410,8 +410,10 @@ iperf_tcp_connect(struct iperf_test *test)
         i_errno = IESTREAMCONNECT;
         return -1;
     }
+//b_jh
+//    if ((s = socket(server_res->ai_family, SOCK_STREAM, 0)) < 0) {
 
-    if ((s = socket(server_res->ai_family, SOCK_STREAM, 0)) < 0) {
+    if ((s = socket(server_res->ai_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 	if (test->bind_address)
 	    freeaddrinfo(local_res);
 	freeaddrinfo(server_res);
@@ -509,17 +511,14 @@ iperf_tcp_connect(struct iperf_test *test)
     if ((opt = test->settings->socket_bufsize)) {
 #ifdef RM_JH //not supported
         if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
-#endif
 	    saved_errno = errno;
 	    close(s);
 	    freeaddrinfo(server_res);
 	    errno = saved_errno;
             i_errno = IESETBUF;
             return -1;
-#ifdef RM_JH //not supported
         }
-#endif
-#ifdef RM_JH //not supported
+
         if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &opt, sizeof(opt)) < 0) {
 	    saved_errno = errno;
 	    close(s);
@@ -528,23 +527,24 @@ iperf_tcp_connect(struct iperf_test *test)
             i_errno = IESETBUF;
             return -1;
         }
+#else
+    if (test->debug) {
+	   printf("Setting of socket buffers are not supported, ignored to set as %d\n", test->settings->socket_bufsize);
+    }
 #endif
     }
 
     /* Read back and verify the sender socket buffer size */
-    optlen = sizeof(sndbuf_actual);
 #ifdef RM_JH //not supported
+    optlen = sizeof(sndbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_actual, &optlen) < 0) {
-#endif
 	saved_errno = errno;
 	close(s);
 	freeaddrinfo(server_res);
 	errno = saved_errno;
 	i_errno = IESETBUF;
 	return -1;
-#ifdef RM_JH //not supported
     }
-#endif
     if (test->debug) {
 	printf("SNDBUF is %u, expecting %u\n", sndbuf_actual, test->settings->socket_bufsize);
     }
@@ -552,21 +552,19 @@ iperf_tcp_connect(struct iperf_test *test)
 	i_errno = IESETBUF2;
 	return -1;
     }
+#endif
 
+#ifdef RM_JH //not supported
     /* Read back and verify the receiver socket buffer size */
     optlen = sizeof(rcvbuf_actual);
-#ifdef RM_JH //not supported
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {
-#endif
 	saved_errno = errno;
 	close(s);
 	freeaddrinfo(server_res);
 	errno = saved_errno;
 	i_errno = IESETBUF;
 	return -1;
-#ifdef RM_JH //not supported
     }
-#endif
     if (test->debug) {
 	printf("RCVBUF is %u, expecting %u\n", rcvbuf_actual, test->settings->socket_bufsize);
     }
@@ -574,6 +572,7 @@ iperf_tcp_connect(struct iperf_test *test)
 	i_errno = IESETBUF2;
 	return -1;
     }
+#endif
 
     if (test->json_output) {
 	cJSON_AddNumberToObject(test->json_start, "sock_bufsize", test->settings->socket_bufsize);

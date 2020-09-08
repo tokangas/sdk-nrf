@@ -155,11 +155,31 @@ tmr_timeout( struct iperf_time* nowP )
 {
     struct iperf_time now, diff;
     int64_t usecs;
+    int64_t tmp;
     int past;
     static struct timeval timeout;
 
-    getnow( nowP, &now );
+    getnow(nowP, &now);
     /* Since the list is sorted, we only need to look at the first timer. */
+#if 1 /* b_jh */
+#define MAX_TIMEOUT_IN_MICROSECS (1000000LL * 5LL)  // XXX 5 seconds
+#define MIN_TIMEOUT_IN_MICROSECS 1000LL              // XXX 1 ms
+    if (timers == NULL) {
+	    usecs = MAX_TIMEOUT_IN_MICROSECS;
+    } else {
+        past = iperf_time_diff(&timers->time, &now, &diff);
+        if (past)
+            usecs = 0;
+        else
+            usecs = iperf_time_in_usecs(&diff);
+    }
+    if (usecs > MAX_TIMEOUT_IN_MICROSECS) {
+        usecs = MAX_TIMEOUT_IN_MICROSECS;
+    }
+    if (usecs <= MIN_TIMEOUT_IN_MICROSECS) {
+        usecs = MIN_TIMEOUT_IN_MICROSECS;
+    }
+#else
     if ( timers == NULL )
 	return NULL;
     past = iperf_time_diff(&timers->time, &now, &diff);
@@ -167,7 +187,10 @@ tmr_timeout( struct iperf_time* nowP )
         usecs = 0;
     else
         usecs = iperf_time_in_usecs(&diff);
-    timeout.tv_sec = usecs / 1000000LL;
+#endif
+//    timeout.tv_sec = usecs / 1000000LL;
+    tmp = usecs / 1000000LL;
+    timeout.tv_sec = tmp;
     timeout.tv_usec = usecs % 1000000LL;
     return &timeout;
 }

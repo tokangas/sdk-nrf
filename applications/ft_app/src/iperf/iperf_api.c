@@ -739,7 +739,13 @@ static void mapped_v4_to_regular_v4(char *str)
 		memmove(str, str + prefix_len, str_len - prefix_len + 1);
 	}
 }
-
+//b_jh: default to 70's
+time_t time(time_t *t)
+{
+    //at+cclk? TODO to get real time? or use date_time.h sertvices?
+    return 0;
+}
+//endif
 void iperf_on_connect(struct iperf_test *test)
 {
 	time_t now_secs;
@@ -4757,8 +4763,6 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 #endif
 
 	sp = (struct iperf_stream *)malloc(sizeof(struct iperf_stream));
-	//b_jh
-	printf("iperf_stream size %d allocated:", sizeof(struct iperf_stream));
 	if (!sp) {
 		i_errno = IECREATESTREAM;
 		return NULL;
@@ -4843,11 +4847,19 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 		sp->diskfile_fd = -1;
 
 	/* Initialize stream */
-	if (test->repeating_payload)
+	//b_jh: only repeating pattern
+	if (test->repeating_payload) {
 		fill_with_repeating_pattern(sp->buffer,
 					    test->settings->blksize);
-	else
-		ret = readentropy(sp->buffer, test->settings->blksize);
+    }						
+	else {
+		//ret = readentropy(sp->buffer, test->settings->blksize);
+		if (test->debug) {
+			printf("note: only repeating pattern supported\n");
+	    }
+		fill_with_repeating_pattern(sp->buffer,
+					    test->settings->blksize);
+	}
 
 	if ((ret < 0) || (iperf_init_stream(sp, test) < 0)) {
 		close(sp->buffer_fd);

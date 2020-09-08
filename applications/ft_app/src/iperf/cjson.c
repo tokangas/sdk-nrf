@@ -206,6 +206,7 @@ static unsigned char* cJSON_strdup(const unsigned char* string, const internal_h
     copy = (unsigned char*)hooks->allocate(length);
     if (copy == NULL)
     {
+	    printf("b_jh: cJSON_strdup alloc failed: %d\n", length);
         return NULL;
     }
     memcpy(copy, string, length);
@@ -1204,6 +1205,7 @@ static unsigned char *print(const cJSON * const item, cJSON_bool format, const i
     buffer->hooks = *hooks;
     if (buffer->buffer == NULL)
     {
+	    printf("print alloc failed: %d\n", default_buffer_size);
         goto fail;
     }
 
@@ -1228,6 +1230,7 @@ static unsigned char *print(const cJSON * const item, cJSON_bool format, const i
         printed = (unsigned char*) hooks->allocate(buffer->offset + 1);
         if (printed == NULL)
         {
+	        printf("print alloc 2 failed: %d\n", buffer->offset + 1);
             goto fail;
         }
         memcpy(printed, buffer->buffer, cjson_min(buffer->length, buffer->offset + 1));

@@ -70,7 +70,7 @@
 /**************************************************************************/
 static int gethostname(char *name, size_t len)
 {
-     strncpy(name, "Alta", len);
+     strncpy(name, "nrf9160", len);
      return 0;
 }
 
@@ -169,10 +169,11 @@ make_cookie(const char *cookie)
 void
 make_cookie(char *cookie)
 {
+    //b_jh
 //    static int randomized = 0;
-    char hostname[500];
+    char hostname[20];
     struct timeval tv;
-    char temp[1000];
+    char temp[100];
 
 //    if ( ! randomized )
 //        srandom((int) time(0) ^ getpid());
@@ -185,6 +186,7 @@ make_cookie(char *cookie)
     /* Now truncate it to 36 bytes and terminate. */
     memcpy(cookie, temp, 36);
     cookie[36] = '\0';
+    //end_jh
 }
 /* is_closed
  *
@@ -287,21 +289,16 @@ cpu_util(double pcpu[3])
 const char *
 get_system_info(void)
 {
-    static char buf[1024];
-#ifdef RM_JH //not supported
-    struct utsname  uts;
-#endif
-    memset(buf, 0, 1024);
-#ifdef RM_JH //not supported
-    uname(&uts);
-#endif
+    static const char *buf = "utsname not supported to priont sys info";
 
 #ifdef RM_JH //not supported
+    static char buf[1024];
+    struct utsname  uts;
+    memset(buf, 0, 1024);
+    uname(&uts);
     snprintf(buf, sizeof(buf), "%s %s %s %s %s", uts.sysname, uts.nodename, 
 	     uts.release, uts.version, uts.machine);
 #endif
-    snprintf(buf, sizeof(buf), "utsname not supported to priont sys info");
-
     return buf;
 }
 
@@ -309,8 +306,10 @@ get_system_info(void)
 const char *
 get_optional_features(void)
 {
-    static char features[1024];
+    static char *features = "None";
+
     unsigned int numfeatures = 0;
+#ifdef RM_JH    
 
     snprintf(features, sizeof(features), "Optional features available: ");
 
@@ -383,7 +382,7 @@ get_optional_features(void)
 	sizeof(features) - strlen(features) - 1);
     numfeatures++;
 #endif /* HAVE_SSL */
-
+#endif
     if (numfeatures == 0) {
 	strncat(features, "None", 
 		sizeof(features) - strlen(features) - 1);

@@ -112,8 +112,8 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 #if defined (CONFIG_FTA_IPERF3)	
 static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 {
-	int return_value = iperf_main(argc, argv);
-	return return_value;
+	(void)iperf_main(argc, argv);
+	return 0;
 }
 #endif
 

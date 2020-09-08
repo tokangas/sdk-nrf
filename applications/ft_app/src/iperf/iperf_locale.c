@@ -91,8 +91,9 @@ extern    "C"
  * usage
  * ------------------------------------------------------------------- */
 
-const char usage_shortstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
-                           "See documentaion for more information.\n";
+const char usage_shortstr[] = "Usage: iperf3 [-c host] [options]\n"
+                           "See iperf3 documentation for more information.\n"
+                           "Note: long options and server side not supported.\n";
 #if 0 //b_jh: Long options not supported
 const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-h|--help] [-v|--version]\n\n"
@@ -410,8 +411,11 @@ const char server_reporting[] =
 const char reportCSV_peer[] =
 "%s,%u,%s,%u";
 
+/* b_jh:
 const char report_cpu[] =
-"CPU Utilization: %s/%s %.1f%% (%.1f%%u/%.1f%%s), %s/%s %.1f%% (%.1f%%u/%.1f%%s)\n";
+"CPU Utilization: %s/%s %.1f%% (%.1f%%u/%.1f%%s), %s/%s %.1f%% (%.1f%%u/%.1f%%s)\n"; 
+*/
+const char report_cpu[] = "CPU Utilization: not supported\n"; 
 
 const char report_local[] = "local";
 const char report_remote[] = "remote";

@@ -143,7 +143,11 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
         printf("getaddrinfo failed with error code %d (see net/dns_resolve.h for codes)\n", gerror);
         return -1;
     }
-    s = socket(server_res->ai_family, proto, 0);
+//    s = socket(server_res->ai_family, proto, 0);
+//static inline int socket(int family, int type, int proto)
+//TODO: above is mixed protos & types -> fix those
+
+    s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (s < 0) {
 	if (local)
 	    freeaddrinfo(local_res);
@@ -354,6 +358,7 @@ Nwrite(int fd, const char *buf, size_t count, int prot)
 
     while (nleft > 0) {
 	r = write(fd, buf, nleft);
+
 	if (r < 0) {
 	    switch (errno) {
 		case EINTR:
@@ -374,6 +379,7 @@ Nwrite(int fd, const char *buf, size_t count, int prot)
 	nleft -= r;
 	buf += r;
     }
+
     return count;
 }
 
