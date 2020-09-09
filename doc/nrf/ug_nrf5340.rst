@@ -24,7 +24,7 @@ With regards to the nRF5340 samples, this means that the network core runs the r
 
 Currently, the |NCS| provides the following solutions for the network core:
 
-* :ref:`ug_ble_controller` (both the nRF Bluetooth LE Controller and the Zephyr Bluetooth LE Controller)
+* :ref:`ug_ble_controller` (both the SoftDevice Controller and the Zephyr Bluetooth LE Controller)
 * Samples that directly use the radio peripheral
 
 See `Network samples`_ for more information.
@@ -47,13 +47,16 @@ See `Application samples`_ for more information.
 
 In general, this core should be used for tasks that require high performance and for application-level logic.
 
-The user application can run in the secure or non-secure domain.
-Therefore, it can be built for two different build targets:
+The M33 TrustZone divides the application MCU into secure and non-secure domains.
+When the MCU boots, it always starts executing from the secure area.
+The secure bootloader chain starts the :ref:`secure_partition_manager` sample, which configures a part of memory and peripherals to be non-secure and then jumps to the main application located in the non-secure area.
+
+In Zephyr, :ref:`zephyr:nrf5340pdk_nrf5340` is divided into two different build targets:
 
 * ``nrf5340pdk_nrf5340_cpuapp`` for the secure domain
 * ``nrf5340pdk_nrf5340_cpuappns`` for the non-secure domain
 
-When built for the ``nrf5340pdk_nrf5340_cpuappns`` board, the :ref:`nrf9160_ug_secure_partition_manager` is automatically included in the build.
+When built for the ``nrf5340pdk_nrf5340_cpuappns`` board, the :ref:`secure_partition_manager` sample is automatically included in the build.
 
 Inter-core communication
 ========================
@@ -96,7 +99,7 @@ This Zephyr sample is designed specifically to enable the Bluetooth LE Controlle
 The sample implements the RPMsg transport using the `OpenAMP`_ library to communicate with a Bluetooth Host stack that runs on a separate core (for example, the nRF5340 application core).
 
 This sample must be programmed to the network core to run standard Bluetooth Low Energy samples on nRF5340.
-You can choose whether to use the nRF Bluetooth LE Controller or the Zephyr Bluetooth LE Controller for this sample.
+You can choose whether to use the SoftDevice Controller or the Zephyr Bluetooth LE Controller for this sample.
 See :ref:`ug_ble_controller` for more information.
 
 You might need to adjust the Kconfig configuration of this sample to make it compatible with the peer application.
@@ -126,6 +129,7 @@ These samples run only on the application core and do not require any firmware f
 When programming any of these samples to the application core, configure :option:`CONFIG_BOARD_ENABLE_CPUNET` to select whether the network core should be enabled.
 When radio protocols (Bluetooth LE, IEEE 802.15.4) are used, this option is enabled by default.
 
+.. _ug_nrf5340_building:
 
 Building and programming a sample
 *********************************

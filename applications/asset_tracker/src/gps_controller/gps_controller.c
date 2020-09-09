@@ -33,7 +33,8 @@ static void start(struct k_work *work)
 		.power_mode = GPS_POWER_MODE_DISABLED,
 		.timeout = CONFIG_GPS_CONTROL_FIX_TRY_TIME,
 		.interval = CONFIG_GPS_CONTROL_FIX_TRY_TIME +
-			gps_reporting_interval_seconds
+			gps_reporting_interval_seconds,
+		.priority = true,
 	};
 
 	if (gps_dev == NULL) {
@@ -122,13 +123,13 @@ bool gps_control_set_active(bool active)
 	return atomic_set(&gps_is_active, active ? 1 : 0);
 }
 
-void gps_control_start(u32_t delay_ms)
+void gps_control_start(uint32_t delay_ms)
 {
 	k_delayed_work_submit_to_queue(app_work_q, &start_work,
 				       K_MSEC(delay_ms));
 }
 
-void gps_control_stop(u32_t delay_ms)
+void gps_control_stop(uint32_t delay_ms)
 {
 	k_delayed_work_submit_to_queue(app_work_q, &stop_work,
 				       K_MSEC(delay_ms));

@@ -6,6 +6,7 @@
 
 #include <lwm2m_os.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <zephyr.h>
@@ -26,6 +27,7 @@
 #include <errno.h>
 #include <nrf_errno.h>
 #include <modem/modem_key_mgmt.h>
+#include <random/rand32.h>
 
 /* NVS-related defines */
 
@@ -174,7 +176,7 @@ void *lwm2m_os_timer_get(lwm2m_os_timer_handler_t handler)
 {
 	struct lwm2m_work *work = NULL;
 
-	u32_t key = irq_lock();
+	uint32_t key = irq_lock();
 
 	/* Find free delayed work */
 	for (int i = 0; i < ARRAY_SIZE(lwm2m_works); i++) {
@@ -245,7 +247,7 @@ int32_t lwm2m_os_timer_remaining(void *timer)
 
 LOG_MODULE_REGISTER(lwm2m, CONFIG_LOG_DEFAULT_LEVEL);
 
-static const u8_t log_level_lut[] = {
+static const uint8_t log_level_lut[] = {
 	LOG_LEVEL_NONE, /* LWM2M_LOG_LEVEL_NONE */
 	LOG_LEVEL_ERR, /* LWM2M_LOG_LEVEL_ERR */
 	LOG_LEVEL_WRN, /* LWM2M_LOG_LEVEL_WRN */
@@ -274,7 +276,7 @@ void lwm2m_os_log(int level, const char *fmt, ...)
 		va_list ap;
 
 		va_start(ap, fmt);
-		log_generic(src_level, fmt, ap);
+		log_generic(src_level, fmt, ap, LOG_STRDUP_SKIP);
 		va_end(ap);
 	}
 }
@@ -559,13 +561,18 @@ static lwm2m_os_download_callback_t lwm2m_os_lib_callback;
 int lwm2m_os_download_connect(const char *host,
 			      const struct lwm2m_os_download_cfg *cfg)
 {
+	#define HOST 128
+	#define PORT 8
+
+	static char hostname[HOST + PORT];
 	struct download_client_cfg config = {
 		.sec_tag = cfg->sec_tag,
 		.apn = cfg->apn,
-		.port = cfg->port,
 	};
 
-	return download_client_connect(&http_downloader, host, &config);
+	snprintf(hostname, sizeof(hostname), "%s:%d", host, cfg->port);
+
+	return download_client_connect(&http_downloader, hostname, &config);
 }
 
 int lwm2m_os_download_disconnect(void)

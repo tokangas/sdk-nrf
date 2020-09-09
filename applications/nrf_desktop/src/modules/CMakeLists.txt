@@ -62,6 +62,9 @@ target_sources_ifdef(CONFIG_DESKTOP_WATCHDOG_ENABLE
 target_sources_ifdef(CONFIG_DESKTOP_BAS_ENABLE
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/bas.c)
 
+target_sources_ifdef(CONFIG_DESKTOP_QOS_ENABLE
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/qos.c)
+
 target_sources_ifdef(CONFIG_BT_PERIPHERAL
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dev_descr.c)
 
@@ -76,3 +79,12 @@ target_sources_ifdef(CONFIG_DESKTOP_CONSTLAT_ENABLE
 
 target_sources_ifdef(CONFIG_DESKTOP_FAILSAFE_ENABLE
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/failsafe.c)
+
+target_sources_ifdef(CONFIG_DESKTOP_CPU_MEAS_ENABLE
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cpu_meas.c)
+
+target_sources_ifdef(CONFIG_DESKTOP_SMP_ENABLE
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/smp.c)
+
+target_sources_ifdef(CONFIG_DESKTOP_PROFILER_SYNC_GPIO_ENABLE
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/profiler_sync.c)

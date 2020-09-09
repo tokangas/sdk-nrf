@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
-source "$ZEPHYR_BASE/Kconfig.zephyr"
+source "Kconfig.zephyr"
 
 menu "Nordic UART BLE GATT service sample"
 
@@ -26,5 +26,11 @@ config BT_GATT_NUS_SECURITY_ENABLED
 	select BT_SMP
 	help
 	  "Enable BLE security for the UART service"
+
+config BT_GATT_NUS_UART_RX_WAIT_TIME
+	int "Timeout for UART RX complete event"
+	default 50
+	help
+	  Wait for RX complete event time in milliseconds
 
 endmenu

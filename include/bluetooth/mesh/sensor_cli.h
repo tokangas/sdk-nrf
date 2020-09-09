@@ -76,13 +76,13 @@ struct bt_mesh_sensor_cadence_status {
 	 *  The sensor's fast period interval is
 	 *  publish_period / (1 << fast_period_div).
 	 */
-	u8_t fast_period_div;
+	uint8_t fast_period_div;
 	/** Logarithmic minimum publish period.
 	 *
 	 *  The sensor's fast period interval is never lower than
 	 *  (1 << min_int).
 	 */
-	u8_t min_int;
+	uint8_t min_int;
 	/** Sensor threshold values. */
 	struct bt_mesh_sensor_threshold threshold;
 };
@@ -108,7 +108,7 @@ struct bt_mesh_sensor_series_entry {
 /** Sensor info structure. */
 struct bt_mesh_sensor_info {
 	/** Sensor Device Property ID */
-	u16_t id;
+	uint16_t id;
 	/** Sensor descriptor. */
 	struct bt_mesh_sensor_descriptor descriptor;
 };
@@ -184,7 +184,7 @@ struct bt_mesh_sensor_cli_handlers {
 	void (*settings)(struct bt_mesh_sensor_cli *cli,
 			 struct bt_mesh_msg_ctx *ctx,
 			 const struct bt_mesh_sensor_type *sensor,
-			 const u16_t *ids, u32_t count);
+			 const uint16_t *ids, uint32_t count);
 
 	/** @brief Sensor setting status callback.
 	 *
@@ -229,7 +229,7 @@ struct bt_mesh_sensor_cli_handlers {
 	void (*series_entry)(struct bt_mesh_sensor_cli *cli,
 			     struct bt_mesh_msg_ctx *ctx,
 			     const struct bt_mesh_sensor_type *sensor,
-			     u8_t index, u8_t count,
+			     uint8_t index, uint8_t count,
 			     const struct bt_mesh_sensor_series_entry *entry);
 
 	/** @brief Unknown type callback.
@@ -244,15 +244,15 @@ struct bt_mesh_sensor_cli_handlers {
 	 *                    sensor type.
 	 */
 	void (*unknown_type)(struct bt_mesh_sensor_cli *cli,
-			     struct bt_mesh_msg_ctx *ctx, u16_t id,
-			     u32_t opcode);
+			     struct bt_mesh_msg_ctx *ctx, uint16_t id,
+			     uint32_t opcode);
 };
 
 /** @brief Retrieve a list of all sensors in a sensor server.
  *
  *  This call is blocking if the @c sensors buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::sensor callback as a list of sensor
+ *  bt_mesh_sensor_cli_handlers::sensor callback as a list of sensor
  *  descriptors.
  *
  *  If a @c sensors array is provided and the client received a response, the
@@ -285,13 +285,13 @@ struct bt_mesh_sensor_cli_handlers {
 int bt_mesh_sensor_cli_list_get(struct bt_mesh_sensor_cli *cli,
 				struct bt_mesh_msg_ctx *ctx,
 				struct bt_mesh_sensor_info *sensors,
-				u32_t *count);
+				uint32_t *count);
 
 /** @brief Get the descriptor for the given sensor.
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::sensor callback.
+ *  bt_mesh_sensor_cli_handlers::sensor callback.
  *
  *  @param[in]  cli    Sensor client instance.
  *  @param[in]  ctx    Message context parameters, or NULL to use the configured
@@ -310,14 +310,14 @@ int bt_mesh_sensor_cli_list_get(struct bt_mesh_sensor_cli *cli,
  */
 int bt_mesh_sensor_cli_desc_get(struct bt_mesh_sensor_cli *cli,
 				struct bt_mesh_msg_ctx *ctx,
-				struct bt_mesh_sensor_type *sensor,
+				const struct bt_mesh_sensor_type *sensor,
 				struct bt_mesh_sensor_descriptor *rsp);
 
 /** @brief Get the cadence state.
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::cadence callback.
+ *  bt_mesh_sensor_cli_handlers::cadence callback.
  *
  *  @param[in]  cli    Sensor client instance.
  *  @param[in]  ctx    Message context parameters, or NULL to use the configured
@@ -336,14 +336,14 @@ int bt_mesh_sensor_cli_desc_get(struct bt_mesh_sensor_cli *cli,
  */
 int bt_mesh_sensor_cli_cadence_get(struct bt_mesh_sensor_cli *cli,
 				   struct bt_mesh_msg_ctx *ctx,
-				   struct bt_mesh_sensor_type *sensor,
+				   const struct bt_mesh_sensor_type *sensor,
 				   struct bt_mesh_sensor_cadence_status *rsp);
 
 /** @brief Set the cadence state for the given sensor.
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::cadence callback.
+ *  bt_mesh_sensor_cli_handlers::cadence callback.
  *
  *  @note Only single-channel sensors support cadence.
  *
@@ -365,7 +365,7 @@ int bt_mesh_sensor_cli_cadence_get(struct bt_mesh_sensor_cli *cli,
  */
 int bt_mesh_sensor_cli_cadence_set(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	const struct bt_mesh_sensor_cadence_status *cadence,
 	struct bt_mesh_sensor_cadence_status *rsp);
 
@@ -387,14 +387,14 @@ int bt_mesh_sensor_cli_cadence_set(
  */
 int bt_mesh_sensor_cli_cadence_set_unack(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	const struct bt_mesh_sensor_cadence_status *cadence);
 
 /** @brief Get the list of settings for the given sensor.
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::settings callback.
+ *  bt_mesh_sensor_cli_handlers::settings callback.
  *
  *  If an @c ids array is provided and the client received a response, the array
  *  will be filled with as many of the response ids as it can fit, even if the
@@ -426,13 +426,13 @@ int bt_mesh_sensor_cli_cadence_set_unack(
 int bt_mesh_sensor_cli_settings_get(struct bt_mesh_sensor_cli *cli,
 				    struct bt_mesh_msg_ctx *ctx,
 				    struct bt_mesh_sensor_type *sensor,
-				    u16_t *ids, u32_t *count);
+				    uint16_t *ids, uint32_t *count);
 
 /** @brief Get a setting value for a sensor.
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::setting callback.
+ *  bt_mesh_sensor_cli_handlers::setting_status callback.
  *
  *  @param[in]  cli     Sensor client instance.
  *  @param[in]  ctx     Message context parameters, or NULL to use the
@@ -452,7 +452,7 @@ int bt_mesh_sensor_cli_settings_get(struct bt_mesh_sensor_cli *cli,
  */
 int bt_mesh_sensor_cli_setting_get(struct bt_mesh_sensor_cli *cli,
 				   struct bt_mesh_msg_ctx *ctx,
-				   struct bt_mesh_sensor_type *sensor,
+				   const struct bt_mesh_sensor_type *sensor,
 				   const struct bt_mesh_sensor_type *setting,
 				   struct bt_mesh_sensor_setting_status *rsp);
 
@@ -460,7 +460,7 @@ int bt_mesh_sensor_cli_setting_get(struct bt_mesh_sensor_cli *cli,
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::setting callback.
+ *  bt_mesh_sensor_cli_handlers::setting_status callback.
  *
  *  @param[in]  cli     Sensor client instance.
  *  @param[in]  ctx     Message context parameters, or NULL to use the
@@ -483,7 +483,7 @@ int bt_mesh_sensor_cli_setting_get(struct bt_mesh_sensor_cli *cli,
  */
 int bt_mesh_sensor_cli_setting_set(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	const struct bt_mesh_sensor_type *setting,
 	const struct sensor_value *value,
 	struct bt_mesh_sensor_setting_status *rsp);
@@ -505,7 +505,7 @@ int bt_mesh_sensor_cli_setting_set(
  */
 int bt_mesh_sensor_cli_setting_set_unack(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	const struct bt_mesh_sensor_type *setting,
 	const struct sensor_value *value);
 
@@ -513,7 +513,7 @@ int bt_mesh_sensor_cli_setting_set_unack(
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::data callback.
+ *  bt_mesh_sensor_cli_handlers::data callback.
  *
  *  @param[in]  cli    Sensor client instance.
  *  @param[in]  ctx    Message context parameters, or NULL to use the configured
@@ -531,14 +531,14 @@ int bt_mesh_sensor_cli_setting_set_unack(
  */
 int bt_mesh_sensor_cli_get(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	struct sensor_value *rsp);
 
 /** @brief Read a single sensor series data entry.
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::series_entries callback as a list of
+ *  bt_mesh_sensor_cli_handlers::series_entry callback as a list of
  *  sensor descriptors.
  *
  *  @param[in]  cli    Sensor client instance.
@@ -561,7 +561,7 @@ int bt_mesh_sensor_cli_get(
  */
 int bt_mesh_sensor_cli_series_entry_get(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	const struct bt_mesh_sensor_column *column,
 	struct bt_mesh_sensor_series_entry *rsp);
 
@@ -579,7 +579,7 @@ int bt_mesh_sensor_cli_series_entry_get(
  *
  *  This call is blocking if the @c rsp buffer is non-NULL. Otherwise, this
  *  function will return, and the response will be passed to the
- *  @ref bt_mesh_sensor_cli_handlers::series_entries callback as a list of
+ *  bt_mesh_sensor_cli_handlers::series_entry callback as a list of
  *  sensor descriptors.
  *
  *  @param[in]     cli    Sensor client instance.
@@ -609,9 +609,9 @@ int bt_mesh_sensor_cli_series_entry_get(
  */
 int bt_mesh_sensor_cli_series_entries_get(
 	struct bt_mesh_sensor_cli *cli, struct bt_mesh_msg_ctx *ctx,
-	struct bt_mesh_sensor_type *sensor,
+	const struct bt_mesh_sensor_type *sensor,
 	const struct bt_mesh_sensor_column *range,
-	struct bt_mesh_sensor_series_entry *rsp, u32_t *count);
+	struct bt_mesh_sensor_series_entry *rsp, uint32_t *count);
 
 /** @cond INTERNAL_HIDDEN */
 extern const struct bt_mesh_model_op _bt_mesh_sensor_cli_op[];

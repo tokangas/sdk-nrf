@@ -3,9 +3,7 @@
 Building the |NCS| documentation
 ################################
 
-The |NCS| documentation is written using the reStructuredText markup
-language (.rst file extension) with Sphinx extensions and processed
-using Sphinx.
+The |NCS| documentation is written using the reStructuredText markup language (.rst file extension) with Sphinx extensions and processed using Sphinx.
 API documentation is included from Doxygen comments.
 
 See the *Documentation overview* section in the :ref:`zephyr:zephyr_doc` developer guide for information about reStructuredText.
@@ -18,13 +16,12 @@ Before you can build the documentation, install the |NCS| as described in :ref:`
 Make sure that you have installed the required :ref:`Python dependencies <additional_deps>`.
 
 See the *Installing the documentation processors* section in the :ref:`zephyr:zephyr_doc` developer guide for information about installing the required tools to build the documentation and their supported versions.
+In addition to these tools, you must install `mscgen`_ and make sure the ``mscgen`` executable is in your ``PATH``.
 
 .. note::
-   On Windows, the Sphinx executable ``sphinx-build.exe`` is placed in
-   the ``Scripts`` folder of your Python installation path.
-   Dependending on how you have installed Python, you may need to
-   add this folder to your ``PATH`` environment variable. Follow
-   the instructions in `Windows Python Path`_ to add those if needed.
+   On Windows, the Sphinx executable ``sphinx-build.exe`` is placed in the ``Scripts`` folder of your Python installation path.
+   Dependending on how you have installed Python, you might need to add this folder to your ``PATH`` environment variable.
+   Follow the instructions in `Windows Python Path`_ if needed.
 
 
 Documentation structure
@@ -63,53 +60,75 @@ Complete the following steps to build the documentation output:
 
 #. Generate the Ninja build files:
 
-        .. code-block:: console
+   .. code-block:: console
 
-           cmake -GNinja -B_build .
+      cmake -GNinja -B_build .
 
 #. Enter the generated build folder:
 
-        .. code-block:: console
+   .. code-block:: console
 
-           cd _build
+      cd _build
 
-#. Run ninja to build the Kconfig documentation:
+#. Run ninja to build the documentation:
 
-        .. code-block:: console
+   .. code-block:: console
 
-           ninja kconfig-html
+      ninja build-all
 
-#. Run ninja to build the Zephyr documentation:
+   This command will build all documentation sets.
+   Note that this process can take quite some time.
 
-        .. code-block:: console
+   Alternatively, if you want to build each documentation set separately, complete the following steps:
 
-           ninja zephyr
+   a. Run ninja to build the Kconfig documentation:
 
-   This step can take up to 15 minutes.
-#. Run ninja to build the nrfxlib documentation:
+      .. code-block:: console
 
-        .. code-block:: console
+         ninja kconfig-html
 
-           ninja nrfxlib
+   #. Run ninja to build the Zephyr documentation:
 
-#. Run ninja to build the mcuboot documentation:
+      .. code-block:: console
 
-        .. code-block:: console
+         ninja zephyr
 
-           ninja mcuboot
+      This step can take up to 15 minutes.
 
-#. Run ninja to build the |NCS| documentation:
+   #. Run ninja to build the mcuboot documentation:
 
-        .. code-block:: console
+      .. code-block:: console
 
-           ninja nrf
+         ninja mcuboot
 
-The documentation output is written to ``_build\html``. Double-click the ``index.html`` file to display the documentation in your browser.
+   #. Run ninja to build the nrfxlib inventory file (used by nrf):
+
+      .. code-block:: console
+
+         ninja nrfxlib-inventory
+
+   #. Run ninja to build the |NCS| documentation:
+
+      .. code-block:: console
+
+         ninja nrf
+
+   #. Run ninja to build the nrfxlib documentation:
+
+      .. code-block:: console
+
+         ninja nrfxlib
+
+The documentation output is written to ``_build\html``.
+Double-click the ``index.html`` file to display the documentation in your browser.
 
 .. tip::
-   If you modify or add RST files, you only need to rerun the steps that build the respective documentation: step 4 (if you did changes to Kconfig), step 5 (if you modified the Zephyr documentation), step 6 (if you modified the nrfxlib documentation), step 7 (if you modified the MCUboot documentation), or step 8 (if you modified the |NCS| documentation).
 
+   If you modify or add RST files, you do not need to rerun the full documentation build.
+   For simple changes, it is sufficient to run the substep that builds the respective documentation (for example, only ``ninja nrf`` for changes to the |NCS| documentation).
+   If this results in unexpected build errors, follow :ref:`caching_and_cleaning` and rerun ``ninja build-all``.
 
+.. _caching_and_cleaning:
 
 Caching and cleaning
 ********************
@@ -167,13 +186,29 @@ the source tree:
    cmake -GNinja -Bbuild/ -Hncs/nrf/doc
    # Now run ninja on the generated build system:
    ninja -C build/ zephyr
-   ninja -C build/ nrfxlib
    ninja -C build/ mcuboot
+   ninja -C build/ nrfxlib-inventory
    ninja -C build/ nrf
+   ninja -C build/ nrfxlib
    # If you modify or add .rst files in the nRF repository, run ninja again:
    ninja -C build/ nrf
 
-If you want to build the documentation from scratch just delete the contents
-of the build folder and run ``cmake`` and then ``ninja`` again.
+If you want to build the documentation from scratch, delete the contents of the build folder and run ``cmake`` and then ``ninja`` again.
 
-.. _Windows Python Path: https://docs.python.org/3/using/windows.html#finding-the-python-executable
+Different versions
+******************
+
+Documentation sets for different versions of the |NCS| are defined in the :file:`doc/versions.json` file.
+This file is used to display the version drop-down in the top-left corner of the documentation.
+
+The version drop-down is displayed only if the documentation files are organized in the required folder structure and the documentation is hosted on a web server.
+To test the version drop-down locally, complete the following steps:
+
+1. In the documentation build folder (for example, :file:`_build`), rename the :file:`html` folder to :file:`latest`.
+#. Open a command window in the documentation build folder and enter the following command to start a Python web server::
+
+      python -m http.server
+
+#. Access http://localhost:8000/latest/index.html with your browser to see the documentation.
+
+To add other versions of the documentation to your local documentation output, build the versions from a tagged release and rename the :file:`html` folder to the respective version (for example, ``1.3.0``).

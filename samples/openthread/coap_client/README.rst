@@ -29,12 +29,14 @@ For example usage of the native Thread CoAP API, see the :ref:`coap_server_sampl
 Requirements
 ************
 
-* One or more of the following development kits for Thread CoAP Client:
+The sample supports the following development kits:
 
-  * |nRF52840DK|
-  * |nRF52833DK|
+.. include:: /includes/boardname_tables/sample_boardnames.txt
+   :start-after: set8_start
+   :end-before: set8_end
 
-* One or more compatible development kits programmed with the :ref:`coap_server_sample` sample.
+You can use one or more of the development kits listed above as the Thread CoAP Client.
+You also need one or more compatible development kits programmed with the :ref:`coap_server_sample` sample.
 
 User interface
 **************
@@ -85,11 +87,11 @@ Building and running
 Activating sample extensions
 ============================
 
-To activate the extensions supported by this sample, modify :makevar:`CONF_FILE` in the following manner:
+To activate the extensions supported by this sample, modify :makevar:`OVERLAY_CONFIG` in the following manner:
 
-* For the Minimal Thread Device variant, apply :file:`overlay-mtd.conf`.
+* For the Minimal Thread Device variant, set :file:`overlay-mtd.conf`.
 
-For more information, see :ref:`important-build-vars` in the Zephyr documentation.
+See :ref:`cmake_options` for instructions on how to add this option.
 
 Testing
 =======
@@ -117,15 +119,16 @@ After building the sample and programming it to your development kit, test it by
 Testing Minimal Thread Device
 -----------------------------
 
-After building the MTD variant of this sample and programming it, the device starts in the SED mode with LED 3 disabled.
-You can switch to the MED mode at any moment during the standard testing procedure.
+After building the MTD variant of this sample and programming it, the device starts in the MED mode with **LED 3** on.
+This means that the radio is enabled when idle and the serial console is operating.
+You can switch to the SED mode at any moment during the standard testing procedure.
 
-To toggle MED, press **Button 3** on the client node.
-**LED 3** turns on to indicate the switch to the MED mode.
-At this point, the radio is enabled and power consumption increases.
+To toggle SED, press **Button 3** on the client node.
+**LED 3** turns off to indicate the switch to the SED mode.
+At this point, the radio is disabled when it is idle and the serial console is not working to decrease the power consumption.
 
-Pressing **Button 3** again will switch the mode back to SED.
-This does not affect the standard testing procedure.
+Pressing **Button 3** again will switch the mode back to MED.
+Switching between SED and MED modes does not affect the standard testing procedure, but terminal logs are not available in the SED mode.
 
 Sample output
 =============

@@ -42,7 +42,7 @@ LOG_MODULE_REGISTER(nfc_t4t_isodep, CONFIG_NFC_T4T_ISODEP_LOG_LEVEL);
 #define T4T_RATS_CMD 0xE0
 #define T4T_RATS_DID_MASK 0x0F
 #define T4T_RATS_FSDI_MASK 0xF0
-#define T4T_RATS_FSDI BIT(3)
+#define T4T_RATS_FSDI_OFFSET 4
 #define T4T_RATS_CMD_LEN 0x02
 
 #define T4T_FWT_ACTIVATION 71680
@@ -102,15 +102,15 @@ enum isodep_state {
 };
 
 struct nfc_t4t_buf {
-	u8_t *data;
+	uint8_t *data;
 	size_t len;
 	size_t buf_size;
 };
 
 struct nfc_t4t_err {
 	enum isodep_frame last_frame;
-	u8_t frame_retry_cnt;
-	u8_t wtx;
+	uint8_t frame_retry_cnt;
+	uint8_t wtx;
 };
 
 struct nfc_t4t_isodep {
@@ -119,10 +119,10 @@ struct nfc_t4t_isodep {
 	struct nfc_t4t_buf tx_data;
 	struct nfc_t4t_buf rx_data;
 	struct nfc_t4t_err err_status;
-	u16_t fsd;
-	u8_t block_num;
-	u8_t retransmit_cnt;
-	const u8_t *transmit_data;
+	uint16_t fsd;
+	uint8_t block_num;
+	uint8_t retransmit_cnt;
+	const uint8_t *transmit_data;
 	size_t transmit_len;
 	size_t transmitted_len;
 	bool chaining;
@@ -132,12 +132,12 @@ struct nfc_t4t_isodep {
 };
 
 /* Map FSD value in terms of FSDI according to NFC Forum Digital Specification 2.0 14.16.1 */
-static const u16_t fsd_value_map[] = {16, 24, 32, 40, 48, 64, 96, 128, 256};
+static const uint16_t fsd_value_map[] = {16, 24, 32, 40, 48, 64, 96, 128, 256};
 
 static struct nfc_t4t_isodep t4t_isodep;
 static const struct nfc_t4t_isodep_cb *t4t_isodep_cb;
 static struct k_delayed_work isodep_work;
-static s64_t ats_received_time;
+static int64_t ats_received_time;
 
 static void isodep_transmission_clear(void)
 {
@@ -150,7 +150,7 @@ static void isodep_transmission_clear(void)
 	t4t_isodep.err_status.last_frame      = ISODEP_FRAME_NONE;
 }
 
-static size_t did_include(u8_t *data, size_t pos)
+static size_t did_include(uint8_t *data, size_t pos)
 {
 	if (t4t_isodep.tag.did_supported && (t4t_isodep.tag.did != 0)) {
 		data[pos] |= I_BLOCK_DID_BIT;
@@ -172,17 +172,17 @@ static void err_notify(int err)
 	}
 }
 
-static int ats_parse(const u8_t *data, size_t len)
+static int ats_parse(const uint8_t *data, size_t len)
 {
-	u8_t tl;
-	u8_t t0;
-	u8_t ta;
-	u8_t tb;
-	u8_t tc;
-	u8_t fsci;
-	u8_t fwi;
-	u8_t sfgi;
-	u8_t index = 0;
+	uint8_t tl;
+	uint8_t t0;
+	uint8_t ta;
+	uint8_t tb;
+	uint8_t tc;
+	uint8_t fsci;
+	uint8_t fwi;
+	uint8_t sfgi;
+	uint8_t index = 0;
 
 	ats_received_time = k_uptime_get();
 
@@ -288,10 +288,10 @@ static int ats_parse(const u8_t *data, size_t len)
 static void isodep_chunk_send(void)
 {
 	size_t data_len;
-	u32_t fdt;
+	uint32_t fdt;
 	size_t index = 0;
-	const u8_t *data = t4t_isodep.transmit_data;
-	u8_t *tx_data = t4t_isodep.tx_data.data;
+	const uint8_t *data = t4t_isodep.transmit_data;
+	uint8_t *tx_data = t4t_isodep.tx_data.data;
 
 	__ASSERT_NO_MSG(data);
 	__ASSERT_NO_MSG(tx_data);
@@ -312,6 +312,11 @@ static void isodep_chunk_send(void)
 		data_len = t4t_isodep.transmit_len - t4t_isodep.transmitted_len;
 		t4t_isodep.chaining = false;
 	}
+
+	/* Restore last frame type in case nfc_t4t_isodep_transmit() was called
+	 * as it clears the transmission status.
+	 */
+	t4t_isodep.err_status.last_frame = ISODEP_FRAME_I;
 
 	memcpy(&tx_data[index], &data[t4t_isodep.transmitted_len], data_len);
 
@@ -335,8 +340,8 @@ static void block_num_toggle(void)
 static void isodep_r_frame_send(bool ack)
 {
 	size_t index = 0;
-	u32_t fdt;
-	u8_t *tx_data = t4t_isodep.tx_data.data;
+	uint32_t fdt;
+	uint8_t *tx_data = t4t_isodep.tx_data.data;
 
 	tx_data[index] = ISODEP_R_BLOCK | (t4t_isodep.block_num & 1);
 
@@ -358,13 +363,13 @@ static void isodep_r_frame_send(bool ack)
 	}
 }
 
-static int isodep_s_frame_handle(const u8_t *data, size_t len)
+static int isodep_s_frame_handle(const uint8_t *data, size_t len)
 {
 	size_t index = 0;
-	u8_t s_block;
-	u8_t wtxm;
-	u32_t fdt;
-	u8_t *tx_data;
+	uint8_t s_block;
+	uint8_t wtxm;
+	uint32_t fdt;
+	uint8_t *tx_data;
 
 	__ASSERT_NO_MSG(len >= 1);
 
@@ -440,11 +445,11 @@ static int isodep_s_frame_handle(const u8_t *data, size_t len)
 	return 0;
 }
 
-static int isodep_r_frame_handle(const u8_t *data, size_t len)
+static int isodep_r_frame_handle(const uint8_t *data, size_t len)
 {
 	size_t index = 0;
-	u8_t r_block;
-	u32_t fdt;
+	uint8_t r_block;
+	uint32_t fdt;
 
 	__ASSERT_NO_MSG(len >= 1);
 
@@ -462,14 +467,14 @@ static int isodep_r_frame_handle(const u8_t *data, size_t len)
 	/* Check if ACK or NAK */
 	if (r_block & R_BLOCK_NAK)  {
 		LOG_DBG("R-frame NAK received.");
-		return -NFC_T4T_ISODEP_SEMATIC_ERROR;
+		return -NFC_T4T_ISODEP_SEMANTIC_ERROR;
 	}
 
 	LOG_DBG("R-frame ACK received.");
 
 	/* Check if Reader/Writer is in chaining state. */
 	if (!t4t_isodep.chaining) {
-		return -NFC_T4T_ISODEP_SEMATIC_ERROR;
+		return -NFC_T4T_ISODEP_SEMANTIC_ERROR;
 	}
 
 	/* ACK Received. Check if current block number is equal to receieved. */
@@ -482,7 +487,7 @@ static int isodep_r_frame_handle(const u8_t *data, size_t len)
 		/* Retransmit last data block */
 		if (t4t_isodep.retransmit_cnt > ISODEP_MAX_RETRANSMIT_CNT) {
 			/* If to much retransmission, return error. */
-			return -NFC_T4T_ISODEP_SEMATIC_ERROR;
+			return -NFC_T4T_ISODEP_SEMANTIC_ERROR;
 		}
 
 		fdt = t4t_isodep.tag.fwt + T4T_FWT_DELTA + NFCA_T4T_FWT_T_FC;
@@ -498,10 +503,10 @@ static int isodep_r_frame_handle(const u8_t *data, size_t len)
 	return 0;
 }
 
-static int isodep_i_frame_handle(const u8_t *data, size_t len)
+static int isodep_i_frame_handle(const uint8_t *data, size_t len)
 {
 	size_t index = 0;
-	u8_t i_block;
+	uint8_t i_block;
 
 	__ASSERT_NO_MSG(len >= 1);
 
@@ -652,8 +657,8 @@ static void isodep_delay_handler(struct k_work *work)
 	isodep_chunk_send();
 }
 
-int nfc_t4t_isodep_init(u8_t *tx_buf, size_t size_tx,
-			u8_t *rx_buf, size_t size_rx,
+int nfc_t4t_isodep_init(uint8_t *tx_buf, size_t size_tx,
+			uint8_t *rx_buf, size_t size_rx,
 			const struct nfc_t4t_isodep_cb *cb)
 {
 	if (!tx_buf || !rx_buf) {
@@ -700,9 +705,9 @@ void nfc_t4t_isodep_on_timeout(void)
 	isodep_error_handle(true);
 }
 
-int nfc_t4t_isodep_rats_send(enum nfc_t4t_isodep_fsd fsd, u8_t did)
+int nfc_t4t_isodep_rats_send(enum nfc_t4t_isodep_fsd fsd, uint8_t did)
 {
-	u8_t param;
+	uint8_t param;
 
 	if (atomic_cas(&t4t_isodep.state, ISODEP_STATE_INITIALIZED,
 		       ISODEP_STATE_TRANSFER)) {
@@ -728,7 +733,7 @@ int nfc_t4t_isodep_rats_send(enum nfc_t4t_isodep_fsd fsd, u8_t did)
 	param = did & T4T_RATS_DID_MASK;
 
 	/* Set FSDI field. */
-	param |= (fsd << T4T_RATS_FSDI) & T4T_RATS_FSDI_MASK;
+	param |= (fsd << T4T_RATS_FSDI_OFFSET) & T4T_RATS_FSDI_MASK;
 
 	t4t_isodep.tx_data.data[0] = T4T_RATS_CMD;
 	t4t_isodep.tx_data.data[1] = param;
@@ -755,7 +760,7 @@ int nfc_t4t_isodep_rats_send(enum nfc_t4t_isodep_fsd fsd, u8_t did)
 int nfc_t4t_isodep_tag_deselect(void)
 {
 	size_t index = 0;
-	u8_t *tx_data;
+	uint8_t *tx_data;
 
 	if (!atomic_cas(&t4t_isodep.state,
 			ISODEP_STATE_SELECTED,
@@ -782,10 +787,10 @@ int nfc_t4t_isodep_tag_deselect(void)
 	return 0;
 }
 
-int nfc_t4t_isodep_data_received(const u8_t *data, size_t data_len,
+int nfc_t4t_isodep_data_received(const uint8_t *data, size_t data_len,
 				 int err)
 {
-	u8_t block_data;
+	uint8_t block_data;
 
 	if (!data) {
 		return -EINVAL;
@@ -825,7 +830,7 @@ int nfc_t4t_isodep_data_received(const u8_t *data, size_t data_len,
 			err = isodep_i_frame_handle(data, data_len);
 		}
 	} else {
-		err = -NFC_T4T_ISODEP_SEMATIC_ERROR;
+		err = -NFC_T4T_ISODEP_SEMANTIC_ERROR;
 	}
 
 	if (err) {
@@ -835,10 +840,10 @@ int nfc_t4t_isodep_data_received(const u8_t *data, size_t data_len,
 	return 0;
 }
 
-int nfc_t4t_isodep_transmit(const u8_t *data, size_t data_len)
+int nfc_t4t_isodep_transmit(const uint8_t *data, size_t data_len)
 {
-	s64_t spent_time;
-	u32_t delay;
+	int64_t spent_time;
+	uint32_t delay;
 
 	if (!data) {
 		return -EINVAL;

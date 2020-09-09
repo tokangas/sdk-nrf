@@ -39,7 +39,6 @@ static struct ftp_client {
 static struct k_work_q ftp_work_q;
 static char ctrl_buf[NET_IPV4_MTU];
 static K_SEM_DEFINE(tx_done, 0, 1);
-static K_SEM_DEFINE(rx_done, 0, 1);
 
 enum data_task_type {
 	TASK_SEND,
@@ -49,12 +48,12 @@ enum data_task_type {
 static struct data_task {
 	struct k_work work;
 	enum data_task_type task;
-	char ctrl_msg[64];	/* PSAV resposne */
-	u8_t *data;		/* TX data */
-	u16_t length;		/* TX length */
+	char *ctrl_msg;		/* PSAV resposne */
+	uint8_t *data;		/* TX data */
+	uint16_t length;	/* TX length */
 } data_task_param;
 
-static int parse_return_code(const u8_t *message, int success_code)
+static int parse_return_code(const uint8_t *message, int success_code)
 {
 	char code_str[6]; /* max 1xxxx*/
 	int ret = FTP_CODE_500;
@@ -72,7 +71,7 @@ static int establish_data_channel(const char *pasv_msg)
 	int ret;
 	char tmp[16];
 	char *tmp1, *tmp2;
-	u16_t data_port;
+	uint16_t data_port;
 	int data_sock;
 
 	/* Parse Server port from passive message
@@ -135,10 +134,10 @@ static int establish_data_channel(const char *pasv_msg)
 
 /**@brief Send FTP message via socket
  */
-static int do_ftp_send_ctrl(const u8_t *message, int length)
+static int do_ftp_send_ctrl(const uint8_t *message, int length)
 {
 	int ret;
-	u32_t offset = 0;
+	uint32_t offset = 0;
 
 	LOG_HEXDUMP_DBG(message, length, "TXC");
 
@@ -159,11 +158,11 @@ static int do_ftp_send_ctrl(const u8_t *message, int length)
 
 /**@brief Send FTP data via socket
  */
-static int do_ftp_send_data(const char *pasv_msg, u8_t *message, u16_t length)
+static int do_ftp_send_data(const char *pasv_msg, uint8_t *message, uint16_t length)
 {
 	int data_sock;
 	int ret;
-	u32_t offset = 0;
+	uint32_t offset = 0;
 
 	/* Establish data channel */
 	ret = establish_data_channel(pasv_msg);
@@ -215,6 +214,7 @@ static int do_ftp_recv_ctrl(bool post_result, int success_code)
 		return -ECONNRESET;
 	}
 
+	ctrl_buf[ret] = 0x00;
 	LOG_HEXDUMP_DBG(ctrl_buf, ret, "RXC");
 
 	if (post_result) {
@@ -280,7 +280,6 @@ static void data_task(struct k_work *item)
 
 	if (task_param->task == TASK_RECEIVE) {
 		do_ftp_recv_data(task_param->ctrl_msg);
-		k_sem_give(&rx_done);
 	} else if (task_param->task == TASK_SEND) {
 		do_ftp_send_data(task_param->ctrl_msg,
 				task_param->data,
@@ -308,7 +307,7 @@ static void keepalive_timeout(struct k_timer *dummy)
 
 K_TIMER_DEFINE(keepalive_timer, keepalive_timeout, NULL);
 
-int ftp_open(const char *hostname, u16_t port, int sec_tag)
+int ftp_open(const char *hostname, uint16_t port, int sec_tag)
 {
 	int ret;
 	struct addrinfo *result;
@@ -429,12 +428,14 @@ int ftp_login(const char *username, const char *password)
 
 int ftp_close(void)
 {
-	int ret;
+	int ret = 0;
 
-	ret = do_ftp_send_ctrl(CMD_QUIT, sizeof(CMD_QUIT) - 1);
-	if (ret == 0) {
-		ret = do_ftp_recv_ctrl(true, FTP_CODE_221);
-		k_timer_stop(&keepalive_timer);
+	if (client.connected) {
+		ret = do_ftp_send_ctrl(CMD_QUIT, sizeof(CMD_QUIT) - 1);
+		if (ret == 0) {
+			ret = do_ftp_recv_ctrl(true, FTP_CODE_221);
+			k_timer_stop(&keepalive_timer);
+		}
 	}
 
 	close(client.sock);
@@ -514,7 +515,7 @@ int ftp_list(const char *options, const char *target)
 	if (ret != FTP_CODE_227) {
 		return ret;
 	}
-	strcpy(data_task_param.ctrl_msg, ctrl_buf);
+	data_task_param.ctrl_msg = ctrl_buf;
 	data_task_param.task = TASK_RECEIVE;
 
 	/* Send LIST/NLST command in control channel */
@@ -640,7 +641,7 @@ int ftp_get(const char *file)
 	if (ret != FTP_CODE_227) {
 		return ret;
 	}
-	strcpy(data_task_param.ctrl_msg, ctrl_buf);
+	data_task_param.ctrl_msg = ctrl_buf;
 	data_task_param.task = TASK_RECEIVE;
 
 	/* Send RETR command in control channel */
@@ -652,8 +653,6 @@ int ftp_get(const char *file)
 
 	/* Set up data connection */
 	k_work_submit_to_queue(&ftp_work_q, &data_task_param.work);
-	k_sem_take(&rx_done, K_FOREVER);
-	client.ctrl_callback("\r\n", 2);
 
 	/* Receive control */
 	do {
@@ -670,7 +669,7 @@ int ftp_get(const char *file)
 	return ret;
 }
 
-int ftp_put(const char *file, const u8_t *data, u16_t length)
+int ftp_put(const char *file, const uint8_t *data, uint16_t length)
 {
 	int ret;
 	char put_cmd[128];
@@ -685,9 +684,9 @@ int ftp_put(const char *file, const u8_t *data, u16_t length)
 		if (ret != FTP_CODE_227) {
 			return ret;
 		}
-		strcpy(data_task_param.ctrl_msg, ctrl_buf);
+		data_task_param.ctrl_msg = ctrl_buf;
 		data_task_param.task = TASK_SEND;
-		data_task_param.data = (u8_t *)data;
+		data_task_param.data = (uint8_t *)data;
 		data_task_param.length = length;
 	}
 
@@ -734,5 +733,11 @@ int ftp_init(ftp_client_callback_t ctrl_callback,
 
 int ftp_uninit(void)
 {
-	return ftp_close();
+	int ret = 0;
+
+	if (client.sock != INVALID_SOCKET) {
+		ret = ftp_close();
+	}
+
+	return ret;
 }

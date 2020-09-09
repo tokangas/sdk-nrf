@@ -29,7 +29,7 @@ static void cloud_update_work_fn(struct k_work *work)
 		.qos = CLOUD_QOS_AT_MOST_ONCE,
 		.endpoint.type = CLOUD_EP_TOPIC_MSG,
 		.buf = CONFIG_CLOUD_MESSAGE,
-		.len = sizeof(CONFIG_CLOUD_MESSAGE)
+		.len = strlen(CONFIG_CLOUD_MESSAGE)
 	};
 
 	err = cloud_send(cloud_backend, &msg);
@@ -52,6 +52,9 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 	ARG_UNUSED(backend);
 
 	switch (evt->type) {
+	case CLOUD_EVT_CONNECTING:
+		LOG_INF("CLOUD_EVT_CONNECTING");
+		break;
 	case CLOUD_EVT_CONNECTED:
 		LOG_INF("CLOUD_EVT_CONNECTED");
 		break;
@@ -178,7 +181,7 @@ static void modem_configure(void)
 }
 
 #if defined(CONFIG_CLOUD_PUBLICATION_BUTTON_PRESS)
-static void button_handler(u32_t button_states, u32_t has_changed)
+static void button_handler(uint32_t button_states, uint32_t has_changed)
 {
 	if (has_changed & button_states & DK_BTN1_MSK) {
 		k_delayed_work_submit(&cloud_update_work, K_NO_WAIT);

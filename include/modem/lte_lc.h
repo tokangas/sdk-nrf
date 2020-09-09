@@ -90,8 +90,8 @@ struct lte_lc_edrx_cfg {
 };
 
 struct lte_lc_cell {
-	u32_t id;	/* E-UTRAN cell ID */
-	u32_t tac;	/* Tracking Area Code */
+	uint32_t id;	/* E-UTRAN cell ID */
+	uint32_t tac;	/* Tracking Area Code */
 };
 
 struct lte_lc_evt {
@@ -130,7 +130,8 @@ void lte_lc_register_handler(lte_lc_evt_handler_t handler);
 /**@brief Initializes the module and configures the modem.
  *
  * @note a follow-up call to lte_lc_connect() or lte_lc_connect_async() must be
- * 	 made to establish an LTE connection.
+ *	 made to establish an LTE connection. The module can be initialized
+ *	 only once, and subsequent calls will return -EALREADY.
  *
  * @return Zero on success or (negative) error code otherwise.
  */
@@ -150,6 +151,10 @@ int lte_lc_connect(void);
  *	  network. The function blocks until connection is established, or
  *	  the connection attempt times out.
  *
+ * @note The module can be initialized only once, and repeated calls will
+ *	 return -EALREADY. lte_lc_connect_async() should be used on subsequent
+ *	 calls.
+ *
  * @return Zero on success or (negative) error code otherwise.
  */
 int lte_lc_init_and_connect(void);
@@ -168,6 +173,9 @@ int lte_lc_connect_async(lte_lc_evt_handler_t handler);
 
 /**@brief Initializes the LTE module, configures the modem and connects to LTE
  *	  network. Non-blocking.
+ *
+ * @note The module can be initialized only once, and repeated calls will
+ *	 return -EALREADY. lte_lc_connect() should be used on subsequent calls.
  *
  * @param handler Event handler for receiving LTE events. The parameter can be
  *		  NULL if an event handler is already registered.
@@ -228,11 +236,21 @@ int lte_lc_psm_req(bool enable);
  */
 int lte_lc_psm_get(int *tau, int *active_time);
 
+/** @brief Function for setting Paging Time Window (PTW) value to be used when
+ *	   eDRX is requested using `lte_lc_edrx_req`.
+ *	   For reference see subclause 10.5.5.32 of 3GPP TS 24.008.
+ *
+ * @param ptw Paging Time Window value as null-terminated string.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_ptw_set(const char *ptw);
+
 /** @brief Function for setting modem eDRX value to be used when
  * eDRX is subsequently enabled using `lte_lc_edrx_req`.
  * For reference see 3GPP 27.007 Ch. 7.40.
  *
- * @param edrx eDRX value
+ * @param edrx eDRX value.
  *
  * @return Zero on success or (negative) error code otherwise.
  */
@@ -243,9 +261,32 @@ int lte_lc_edrx_param_set(const char *edrx);
  * default values are defined in kconfig.
  * For reference see 3GPP 27.007 Ch. 7.40.
  *
+ * @param enable Boolean value enabling or disabling the use of eDRX.
+ *
  * @return Zero on success or (negative) error code otherwise.
  */
 int lte_lc_edrx_req(bool enable);
+
+
+/** @brief Function for setting modem RAI value to be used when
+ * RAI is subsequently enabled using `lte_lc_rai_req`.
+ * For reference see 3GPP 24.301 Ch. 9.9.4.25.
+ *
+ * @param value RAI value.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_rai_param_set(const char *value);
+
+/** @brief Function for requesting modem to enable or disable
+ * use of RAI using values set by `lte_lc_rai_param_set`. The
+ * default values are defined in Kconfig.
+ *
+ * @param enable Boolean value enabling or disabling the use of RAI.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_rai_req(bool enable);
 
 /**
  * @brief Set the parameters for the default PDP context.

@@ -18,28 +18,6 @@
 #include <zb_nrf_platform.h>
 #include <zboss_api.h>
 
-#if defined CONFIG_BOARD_NRF52840DK_NRF52840 || \
-	defined CONFIG_BOARD_NRF52833DK_NRF52833
-/* Start address of RAM. */
-#define RAM_START_ADDR              0x20000000UL
-/* Size of RAM section for banks 0-7. */
-#define RAM_BANK_0_7_SECTION_SIZE   0x1000
-/* Number of sections in banks 0-7. */
-#define RAM_BANK_0_7_SECTIONS_NBR   2
-/* Size of RAM section for bank 8. */
-#define RAM_BANK_8_SECTION_SIZE     0x8000
-/* Number of sections in bank 8. */
-#define RAM_BANK_8_SECTIONS_NBR     6
-/* Number of RAM banks available at the SoC. */
-#define RAM_BANKS_NBR               8
-/* End of RAM used by the application. */
-#define RAM_END_ADDR                ((u32_t)&_image_ram_end)
-extern char _image_ram_end;
-#else
-#define UNUSED_RAM_POWER_OFF_UNSUPPORTED
-#warning Unused RAM will not be powered off - selected board is not supported!
-#endif
-
 /* Number of retries until the pin value stabilizes. */
 #define READ_RETRIES  10
 
@@ -62,7 +40,7 @@ static bool           stack_initialised;
 static bool           is_rejoin_procedure_started;
 static bool           is_rejoin_stop_requested;
 static bool           is_rejoin_in_progress;
-static u8_t           rejoin_attempt_cnt;
+static uint8_t           rejoin_attempt_cnt;
 #if defined ZB_ED_ROLE
 static volatile bool  wait_for_user_input;
 static volatile bool  is_rejoin_start_scheduled;
@@ -76,15 +54,15 @@ static void stop_network_rejoin(zb_uint8_t was_scheduled);
 /**@brief Function to set the Erase persistent storage
  *        depending on the erase pin
  */
-zb_void_t zigbee_erase_persistent_storage(zb_bool_t erase)
+void zigbee_erase_persistent_storage(zb_bool_t erase)
 {
 #ifdef ZB_USE_NVRAM
 	zb_set_nvram_erase_at_start(erase);
 #endif
 }
 
-int to_hex_str(char *out, u16_t out_size, const u8_t *in,
-	       u8_t in_size, bool reverse)
+int to_hex_str(char *out, uint16_t out_size, const uint8_t *in,
+	       uint8_t in_size, bool reverse)
 {
 	int bytes_written = 0;
 	int status;
@@ -106,18 +84,18 @@ int to_hex_str(char *out, u16_t out_size, const u8_t *in,
 	return bytes_written;
 }
 
-int ieee_addr_to_str(char *str_buf, u16_t buf_len,
+int ieee_addr_to_str(char *str_buf, uint16_t buf_len,
 		     const zb_ieee_addr_t addr)
 {
-	return to_hex_str(str_buf, buf_len, (const u8_t *)addr,
+	return to_hex_str(str_buf, buf_len, (const uint8_t *)addr,
 			  sizeof(zb_ieee_addr_t), true);
 }
 
-bool parse_hex_str(char const *in_str, u8_t in_str_len, u8_t *out_buff,
-		   u8_t out_buff_size, bool reverse)
+bool parse_hex_str(char const *in_str, uint8_t in_str_len, uint8_t *out_buff,
+		   uint8_t out_buff_size, bool reverse)
 {
-	u8_t i = 0;
-	s8_t delta = 1;
+	uint8_t i = 0;
+	int8_t delta = 1;
 
 	/* Skip 0x suffix if present. */
 	if ((in_str_len > 2) && (in_str[0] == '0') &&
@@ -139,7 +117,7 @@ bool parse_hex_str(char const *in_str, u8_t in_str_len, u8_t *out_buff,
 	memset(out_buff, 0, out_buff_size);
 
 	while (i < in_str_len) {
-		u8_t nibble;
+		uint8_t nibble;
 
 		if (char2hex(*in_str, &nibble)) {
 			break;
@@ -178,14 +156,14 @@ addr_type_t parse_address(const char *input, zb_addr_u *addr,
 	if ((len == 2 * sizeof(zb_ieee_addr_t)) &&
 	    (addr_type == ADDR_ANY || addr_type == ADDR_LONG)) {
 		result = ADDR_LONG;
-	} else if ((len == 2 * sizeof(u16_t)) &&
+	} else if ((len == 2 * sizeof(uint16_t)) &&
 		   (addr_type == ADDR_ANY || addr_type == ADDR_SHORT)) {
 		result = ADDR_SHORT;
 	} else {
 		return ADDR_INVALID;
 	}
 
-	return parse_hex_str(input, len, (u8_t *)addr, len / 2, true) ?
+	return parse_hex_str(input, len, (uint8_t *)addr, len / 2, true) ?
 			     result :
 			     ADDR_INVALID;
 }
@@ -419,8 +397,18 @@ zb_ret_t zigbee_default_signal_handler(zb_bufid_t bufid)
 					zb_zdo_signal_leave_params_t);
 			LOG_INF("Network left (leave type: %d)",
 				leave_params->leave_type);
-			/* Start network rejoin procedure */
-			start_network_rejoin();
+
+			if (zb_get_network_role() ==
+			    ZB_NWK_DEVICE_TYPE_COORDINATOR) {
+				/* For coordinator node,
+				 * start network formation.
+				 */
+				comm_status = bdb_start_top_level_commissioning(
+						ZB_BDB_NETWORK_FORMATION);
+			} else {
+				/* Start network rejoin procedure. */
+				start_network_rejoin();
+			}
 		} else {
 			LOG_ERR("Unable to leave network (status: %d)", status);
 		}
@@ -459,7 +447,7 @@ zb_ret_t zigbee_default_signal_handler(zb_bufid_t bufid)
 		 * Note: if the application shares some resources between Zigbee
 		 *       stack and other tasks/contexts, device disabling should
 		 *       be overwritten by implementing one of the weak
-		 *       functions inside zb_nrf_common.c.
+		 *       functions inside zb_nrf_pwr_mgmt.c.
 		 */
 		zb_sleep_now();
 		break;
@@ -632,7 +620,7 @@ zb_ret_t zigbee_default_signal_handler(zb_bufid_t bufid)
 	return ret_code;
 }
 
-void zigbee_led_status_update(zb_bufid_t bufid, u32_t led_idx)
+void zigbee_led_status_update(zb_bufid_t bufid, uint32_t led_idx)
 {
 	zb_zdo_app_signal_hdr_t *p_sg_p = NULL;
 	zb_zdo_app_signal_type_t sig = zb_get_app_signal(bufid, &p_sg_p);
@@ -864,90 +852,3 @@ void zigbee_configure_sleepy_behavior(bool enable)
 	}
 }
 #endif
-
-#ifndef UNUSED_RAM_POWER_OFF_UNSUPPORTED
-
-/**@brief Calculate bottom address of RAM bank with given id.
- *
- * @param[in] bank_id  ID of RAM bank to get start address of.
- *
- * @return    Start address of RAM bank.
- */
-static inline u32_t ram_bank_bottom_addr(u8_t bank_id)
-{
-	u32_t bank_addr = RAM_START_ADDR + bank_id
-			  * RAM_BANK_0_7_SECTION_SIZE
-			  * RAM_BANK_0_7_SECTIONS_NBR;
-	return bank_addr;
-}
-
-/**@brief Calculate bottom address of section of RAM bank with given bank
- *        and section ids.
- *
- * @param[in] bank_id     ID of RAM bank sectionn is placed in.
- * @param[in] section_id  ID of section of RAM bank to get start address of.
- *
- * @return    Start address of section of RAM bank.
- */
-static u32_t ram_sect_bank_bottom_addr(u8_t bank_id, u8_t section_id)
-{
-	/* Get base address of given RAM bank. */
-	u32_t section_addr = ram_bank_bottom_addr(bank_id);
-
-	/* Calculate section address offset. */
-	if (bank_id == 8) {
-		section_addr += section_id * RAM_BANK_8_SECTION_SIZE;
-	} else {
-		section_addr += section_id * RAM_BANK_0_7_SECTION_SIZE;
-	}
-
-	return section_addr;
-}
-#endif /* ifndef UNUSED_RAM_POWER_OFF_UNSUPPORTED */
-
-void zigbee_power_down_unused_ram(void)
-{
-#ifdef UNUSED_RAM_POWER_OFF_UNSUPPORTED
-	return;
-#else
-	/* ID of top RAM bank. Depends of amount of RAM available at SoC. */
-	u8_t     bank_id                 = RAM_BANKS_NBR;
-	u8_t     section_id              = 5;
-	u32_t    section_size            = 0;
-	/* Mask to power down whole RAM bank. */
-	u32_t    ram_bank_power_off_mask = 0xFFFFFFFF;
-	/* Mask to select sections of RAM bank to power off. */
-	u32_t    mask_off;
-
-	/* Power off banks with unused RAM only. */
-	while (ram_bank_bottom_addr(bank_id) >= RAM_END_ADDR) {
-		LOG_DBG("Powering off bank: %d.", bank_id);
-		nrf_power_rampower_mask_off(NRF_POWER,
-					    bank_id,
-					    ram_bank_power_off_mask);
-		bank_id--;
-	}
-
-	/* Set id of top section and section size for given bank. */
-	if (bank_id == 8) {
-		section_id = RAM_BANK_8_SECTIONS_NBR - 1;
-		section_size = RAM_BANK_8_SECTION_SIZE;
-	} else {
-		section_id = RAM_BANK_0_7_SECTIONS_NBR - 1;
-		section_size = RAM_BANK_0_7_SECTION_SIZE;
-	}
-
-	/* Power off remaining sections of unused RAM. */
-	while (ram_sect_bank_bottom_addr(bank_id, section_id) >= RAM_END_ADDR) {
-		LOG_DBG("Powering off section %d of bank %d.",
-			section_id,
-			bank_id);
-
-		mask_off = (NRF_POWER_RAMPOWER_S0POWER << section_id);
-		mask_off |= (NRF_POWER_RAMPOWER_S0RETENTION << section_id);
-
-		nrf_power_rampower_mask_off(NRF_POWER, bank_id, mask_off);
-		section_id--;
-	}
-#endif /* ifdef UNUSED_RAM_POWER_OFF_UNSUPPORTED */
-}

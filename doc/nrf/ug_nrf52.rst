@@ -88,7 +88,7 @@ The |NCS| Bluetooth stack is fully supported by Nordic Semiconductor for nRF52 S
 The :ref:`ug_ble_controller` user guide contains more information about the two available Bluetooth LE Controllers and instructions for switching between them.
 
 See :ref:`zephyr:bluetooth` for documentation on the Bluetooth Host and open source LE Controller.
-For documentation about the nRF Bluetooth LE Controller and information on what variants of the controller support which chips, see :ref:`nrfxlib:ble_controller`.
+For documentation about the SoftDevice Controller and information on what variants of the controller support which chips, see :ref:`nrfxlib:softdevice_controller`.
 
 The |NCS| contains a variety of :ref:`ble_samples` that target nRF52 Series devices.
 In addition, you can run the :ref:`zephyr:bluetooth-samples` that are included from Zephyr.
@@ -115,7 +115,7 @@ The range of NFC is typically <10 cm.
 
 |NCS| provides two protocol stacks for developing NFC applications: Type 2 Tag and Type 4 Tag.
 These stacks are provided in binary format in the `nrfxlib`_ repository.
-See :ref:`nrfxlib:nfc` for documentation about the NFC stacks.
+See :ref:`nrfxlib:nfc` for documentation about the NFC stacks, and :ref:`ug_nfc` for general information.
 
 The NFC stack requires the NFCT driver for nRF52 devices, which is available as part of `nrfx`_.
 The nrfx repository is included in the |NCS| as a module of the Zephyr repository.
@@ -136,7 +136,7 @@ The nrfx repository is included in the |NCS| as a module of the Zephyr repositor
 Multi-protocol support
 **********************
 
-The nRF52 Series devices support running another protocol in parallel with the nRF Bluetooth LE Controller.
+The nRF52 Series devices support running another protocol in parallel with the SoftDevice Controller.
 
 The :ref:`Multi-Protocol Service Layer (MPSL) <nrfxlib:mpsl>` library provides services for multi-protocol applications.
 

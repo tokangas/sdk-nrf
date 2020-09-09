@@ -76,9 +76,17 @@ div.figure {
  background-color: #e82424
 }
 
-
-/* dbk tweak for doxygen-generated API headings (for RTD theme) */
-.rst-content dl.group>dt, .rst-content dl.group>dd>p, .rst-content dl.class p.breathe-sectiondef-title{
+/*
+ * dbk tweak for doxygen-generated API headings (for RTD theme)
+ */
+/* hide a heading doxygen adds before details and the details section */
+.rst-content dl.group > dt, .rst-content dl.group > dd > p,
+/* hide the #include line for every class (aka struct) and union */
+.rst-content dl.class > dd > em, .rst-content dl.union > dd > em,
+/* hide <ul> inside description blocks */
+.rst-content dl.group > dd > ul,
+/* hide "Public Members"/"Defines"/etc heading for structs */
+.rst-content dl.class p.breathe-sectiondef-title {
    display:none !important;
 }
 .rst-content dl.group {
@@ -95,4 +103,24 @@ div.figure {
 }
 .rst-content div.breathe-sectiondef {
   padding-left: 0 !important;
+}
+p.highlight-link {
+  font-size: 90%;
+  margin: 0;
+  margin-top: 5px;
+}
+p.highlight-link > a {
+  color: white;
+}
+div.version .dropdown a {
+ color: #fff;
+}
+div.version ul.dropdown {
+ padding-top: 10px;
+}
+div#version_status {
+ background-color: #f0f0a8;
+ border: 1px dotted black;
+ padding: 5px;
+ margin-top: 10px;
 }

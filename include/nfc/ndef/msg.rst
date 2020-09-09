@@ -11,7 +11,7 @@ Finally, encode and create the message.
 
 By default, NDEF messages are encoded for the Type 2 Tag platform.
 See :ref:`ug_nfc_ndef_format` for a description of the format.
-You can choose to encode the message for the Type 4 Tag platform by setting :option:`CONFIG_NFC_NDEF_MSG_WITH_NLEN` to ``y``.
+You can choose to encode an NDEF file containing the NDEF message for the Type 4 Tag platform using the :ref:`nfc_t4t_ndef_file_readme` library.
 In this case, an additional field is added in front of an NDEF message.
 
 You can also encapsulate a message as payload for a record.
@@ -37,7 +37,7 @@ The following code example shows how to generate a record descriptor:
 .. code-block:: c
 
    int err;
-   u32_t length;
+   uint32_t length;
 
    /// Declare record descriptor by macro - create and initialize an instance of
    ///   nfc_ndef_record_desc_t.
@@ -83,9 +83,9 @@ The following code example shows how to create two messages:
 .. code-block:: c
 
    int err;
-   u8_t buffer_for_message[512];
-   u8_t buffer_for_message_2[128];
-   u32_t length;
+   uint8_t buffer_for_message[512];
+   uint8_t buffer_for_message_2[128];
+   uint32_t length;
 
    // Declare message descriptor by macro - create and initialize an instance of
    //   nfc_ndef_msg_desc_t and an array of pointers to nfc_ndef_record_desc_t.

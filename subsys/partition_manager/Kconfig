@@ -27,23 +27,41 @@ partition-size=0x6000
 rsource "Kconfig.template.partition_size"
 endif
 
-if ZIGBEE
+if ZIGBEE && !SOC_NRF52833
 partition=ZBOSS_NVRAM
 partition-size=0x8000
 rsource "Kconfig.template.partition_size"
+endif
 
+if ZIGBEE && SOC_NRF52833
+partition=ZBOSS_NVRAM
+partition-size=0x4000
+rsource "Kconfig.template.partition_size"
+endif
+
+if ZIGBEE
 partition=ZBOSS_PRODUCT_CONFIG
 partition-size=0x1000
 rsource "Kconfig.template.partition_size"
 endif
 
-endmenu
+endmenu # Zephyr subsystem configurations
+
+
+menu "Zephyr samples configurations"
+
+module=HCI_RPMSG
+source "${ZEPHYR_BASE}/../nrf/subsys/partition_manager/Kconfig.template.build_strategy_domain"
+
+endmenu # Zephyr samples configurations
 
 config PM_SINGLE_IMAGE
 	bool "Use the Partition Manager for single image builds"
 	help
 	  Use the Partition Manager feature to partition the device even if
-	  only a single image is included in the build.
+	  only a single image is included in the build. This is typically set
+	  when a subsystem that defines its own Partition Manager configuration
+	  is included in the build.
 
 menuconfig PM_EXTERNAL_FLASH
 	bool "Support external flash in Partition Manager"

@@ -38,8 +38,20 @@ config DESKTOP_INIT_LOG_BLE_DISC_COMPLETE_EVENT
 	bool "BLE discovery complete event"
 	default y
 
+config DESKTOP_INIT_LOG_BLE_SMP_TRANSFER_EVENT
+	bool "BLE SMP transfer event"
+	default y
+
+config DESKTOP_INIT_LOG_BLE_QOS_EVENT
+	bool "BLE QOS event"
+	default y
+
 config DESKTOP_INIT_LOG_BUTTON_EVENT
 	bool "Button event"
+	default y
+
+config DESKTOP_INIT_LOG_CPU_LOAD_EVENT
+	bool "CPU load event"
 	default y
 
 config DESKTOP_INIT_LOG_CLICK_EVENT
@@ -100,6 +112,10 @@ config DESKTOP_INIT_LOG_WAKE_UP_EVENT
 
 config DESKTOP_INIT_LOG_USB_STATE_EVENT
 	bool "USB state event"
+	default y
+
+config DESKTOP_INIT_LOG_USB_HID_EVENT
+	bool "USB HID event"
 	default y
 
 config DESKTOP_INIT_LOG_WHEEL_EVENT

@@ -11,21 +11,45 @@ Some examples of carrier device management platforms are listed below:
 * `Verizon's Thingspace`_
 * `AT&T's IoT Platform`_
 
-This library uses LwM2M protocol to communicate with device manager platforms, but it does not expose an LwM2M API to your application. If you want to use LwM2M for other purposes, see :ref:`lwm2m_interface`.
+This library uses LwM2M protocol to communicate with device manager platforms, but it does not expose an LwM2M API to your application.
+If you want to use LwM2M for other purposes, see :ref:`lwm2m_interface`.
 
 The :ref:`lwm2m_carrier` sample demonstrates how to run this library in an application.
 The LwM2M carrier library is also used in the :ref:`asset_tracker` application.
+
+.. _lwm2m_app_int:
 
 Application integration
 ***********************
 
 The LwM2M carrier library has an OS abstraction layer.
 See :file:`lwm2m_os.h`.
-This makes the LwM2M carrier library independent of the underlying implementation of primitives such as timers, non-volatile storage, and heap allocation.
-The OS abstraction is fully implemented for the |NCS|, and it would have to be ported if used on other systems.
+This abstraction layer makes the LwM2M carrier library independent of the |NCS| modules and underlying implementation of primitives such as timers, non-volatile storage, and heap allocation.
+It provides an abstraction of the following modules:
+
+* |NCS| modules:
+
+  .. lwm2m_osal_mod_list_start
+
+  * ``drivers/lte_link_control``
+  * :ref:`lib_download_client`
+  * :ref:`modem_key_mgmt`
+  * :ref:`at_cmd_readme`
+  * :ref:`at_cmd_parser_readme`
+  * :ref:`at_notif_readme`
+
+  .. lwm2m_osal_mod_list_end
+
+* Zephyr modules:
+
+  * :ref:`zephyr:kernel_api` (``include/kernel.h``)
+  * :ref:`zephyr:nvs_api`
+
+The OS abstraction layer is fully implemented for the |NCS|, and it would have to be ported if used with other RTOS or on other systems.
 
 To run the library in an application, you must implement the application with the API of the library.
 You can enable the module using the :option:`CONFIG_LWM2M_CARRIER` Kconfig option.
+
 
 The :ref:`lwm2m_carrier` sample project configuration (:file:`nrf/samples/nrf9160/lwm2m_carrier/prj.conf`) contains all the configurations that are needed by the LwM2M carrier library.
 
@@ -55,6 +79,7 @@ A weak implementation is included in :file:`nrf\\lib\\bin\\lwm2m_carrier\\os\\lw
 
 See :file:`nrf\\lib\\bin\\lwm2m_carrier\\include\\lwm2m_carrier.h` for all the events and API.
 
+.. _lwm2m_events:
 
 LwM2M carrier library events
 ============================
@@ -118,7 +143,7 @@ LwM2M carrier library events
 
 :c:macro:`LWM2M_CARRIER_EVENT_ERROR`
    This event indicates an error.
-   The event data struct :c:type:`lwm2m_carrier_event_error_t` contains the information about the error (:cpp:member:`code` and :cpp:member:`value`).
+   The event data struct :cpp:type:`lwm2m_carrier_event_error_t` contains the information about the error (:cpp:member:`code` and :cpp:member:`value`).
 
    :c:macro:`LWM2M_CARRIER_ERROR_CONNECT_FAIL`
       This error is generated from the :cpp:func:`lte_lc_init_and_connect` function.
@@ -137,7 +162,7 @@ LwM2M carrier library events
    :c:macro:`LWM2M_CARRIER_ERROR_FOTA_PKG`
       This error indicates that the update package has been rejected.
       The integrity check has failed because of a wrong package sent from the server, or a wrong package received by client.
-      The :cpp:member:`value` field will have an error of type :c:type:`nrf_dfu_err_t` from the file :file:`nrfxlib\\bsdlib\\include\\nrf_socket.h`.
+      The :cpp:member:`value` field will have an error of type :cpp:type:`nrf_dfu_err_t` from the file :file:`nrfxlib\\bsdlib\\include\\nrf_socket.h`.
 
    :c:macro:`LWM2M_CARRIER_ERROR_FOTA_PROTO`
       This error indicates a protocol error.
@@ -189,6 +214,17 @@ Below are some of the requirements and limitations of the application while runn
    * The LwM2M carrier library initializes and uses the :ref:`bsdlib`.
      This library is needed to track the modem FOTA states.
 
+* The application should not use the *NB-IoT* LTE mode.
+
+   * The LwM2M carrier library is currently only certified for the *LTE-M* LTE mode.
+   * The :option:`CONFIG_LTE_NETWORK_USE_FALLBACK` should be disabled in your application, as seen in the :ref:`lwm2m_carrier` sample project configuration (:file:`nrf/samples/nrf9160/lwm2m_carrier/prj.conf`).
+
+* The LwM2M carrier library registers to receive several AT event reports using the :ref:`at_cmd_readme` and :ref:`at_notif_readme` libraries. The following notifications should not be deregistered by the application:
+
+   * SMS events (AT+CNMI).
+   * Packet Domain events (AT+CGEREP).
+   * Report Network Error Codes events (AT+CNEC): EPS Session Management events are used by the LwM2M carrier library. The application may enable or disable EPS Mobility Management events.
+   * Network Registration Status events (AT+CEREG): Notification Level 2 is used by the LwM2M carrier library. The application may increase this level, but should not decrease it.
 
 * The LwM2M carrier library controls the LTE link.
 
@@ -198,8 +234,8 @@ Below are some of the requirements and limitations of the application while runn
 * The LwM2M carrier library uses a TLS session for FOTA.
   TLS handshakes performed by the application might fail if the LwM2M carrier library is performing one at the same time.
 
-   * If the application is in a TLS session and a :c:type:`LWM2M_CARRIER_EVENT_FOTA_START` event is sent to the application, the application must immediately end the TLS session.
-   * TLS becomes available again upon the next :c:type:`LWM2M_CARRIER_EVENT_READY` or :c:type:`LWM2M_CARRIER_EVENT_DEFERRED` event.
+   * If the application is in a TLS session and a :c:macro:`LWM2M_CARRIER_EVENT_FOTA_START` event is sent to the application, the application must immediately end the TLS session.
+   * TLS becomes available again upon the next :c:macro:`LWM2M_CARRIER_EVENT_READY` or :c:macro:`LWM2M_CARRIER_EVENT_DEFERRED` event.
    * The application should implement a retry mechanism so that the application can perform the TLS handshake later.
    * Another alternative is to supply TLS from a source other than the modem, for example `Mbed TLS`_.
 
@@ -253,6 +289,8 @@ See the changelog for the latest updates in the LwM2M carrier library, and for a
     :maxdepth: 1
 
     doc/CHANGELOG.rst
+
+.. _lwm2m_msc:
 
 Message Sequence Charts
 ***********************

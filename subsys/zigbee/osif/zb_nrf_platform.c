@@ -9,6 +9,9 @@
 #include <logging/log.h>
 #include <init.h>
 
+#ifdef CONFIG_ZIGBEE_SHELL
+#include <zigbee_cli.h>
+#endif
 #include <zboss_api.h>
 #include "zb_nrf_platform.h"
 #include "zb_nrf_crypto.h"
@@ -23,6 +26,10 @@ typedef enum {
 	ZB_CALLBACK_TYPE_TWO_PARAMS,
 	ZB_CALLBACK_TYPE_ALARM_SET,
 	ZB_CALLBACK_TYPE_ALARM_CANCEL,
+	ZB_GET_OUT_BUF_DELAYED,
+	ZB_GET_IN_BUF_DELAYED,
+	ZB_GET_OUT_BUF_DELAYED_EXT,
+	ZB_GET_IN_BUF_DELAYED_EXT,
 } zb_callback_type_t;
 
 /**
@@ -31,9 +38,10 @@ typedef enum {
 typedef struct {
 	zb_callback_type_t type;
 	zb_callback_t func;
-	zb_uint8_t param;
+	zb_callback2_t func2;
+	zb_uint16_t param;
 	zb_uint16_t user_param;
-	s64_t alarm_timestamp;
+	int64_t alarm_timestamp;
 } zb_app_cb_t;
 
 
@@ -70,6 +78,46 @@ volatile atomic_t zb_app_cb_process_scheduled = ATOMIC_INIT(0);
 K_THREAD_STACK_DEFINE(zboss_stack_area, CONFIG_ZBOSS_DEFAULT_THREAD_STACK_SIZE);
 static struct k_thread zboss_thread_data;
 static k_tid_t zboss_tid;
+static bool stack_is_started;
+
+#ifdef CONFIG_ZIGBEE_DEBUG_FUNCTIONS
+/**@brief Function for suspending zboss thread.
+ */
+void zigbee_debug_suspend_zboss_thread(void)
+{
+	k_thread_suspend(zboss_tid);
+}
+
+/**@brief Function for resuming zboss thread.
+ */
+void zigbee_debug_resume_zboss_thread(void)
+{
+	k_thread_resume(zboss_tid);
+}
+
+/**@brief Function for getting the state of the Zigbee stack thread
+ *        processing suspension.
+ */
+bool zigbee_is_zboss_thread_suspended(void)
+{
+	if (zboss_tid) {
+		if (!(zboss_tid->base.thread_state & _THREAD_SUSPENDED)) {
+			return false;
+		}
+	}
+	return true;
+}
+#endif /* defined(CONFIG_ZIGBEE_DEBUG_FUNCTIONS) */
+
+/**@brief Function for checking if the Zigbee stack has been started.
+ *
+ * @retval true   Zigbee stack has been started.
+ * @retval false  Zigbee stack has not been started yet.
+ */
+bool zigbee_is_stack_started(void)
+{
+	return stack_is_started;
+}
 
 static void zb_app_cb_process(zb_bufid_t bufid)
 {
@@ -87,15 +135,20 @@ static void zb_app_cb_process(zb_bufid_t bufid)
 	while (!k_msgq_peek(&zb_app_cb_msgq, &new_app_cb)) {
 		switch (new_app_cb.type) {
 		case ZB_CALLBACK_TYPE_SINGLE_PARAM:
-			ret_code = ZB_SCHEDULE_APP_CALLBACK(
+			ret_code = zb_schedule_app_callback(
 					new_app_cb.func,
-					new_app_cb.param);
+					(zb_uint8_t)new_app_cb.param,
+					ZB_FALSE,
+					0,
+					ZB_FALSE);
 			break;
 		case ZB_CALLBACK_TYPE_TWO_PARAMS:
-			ret_code = ZB_SCHEDULE_APP_CALLBACK2(
-					new_app_cb.func,
-					new_app_cb.param,
-					new_app_cb.user_param);
+			ret_code = zb_schedule_app_callback(
+					(zb_callback_t)(new_app_cb.func2),
+					(zb_uint8_t)new_app_cb.param,
+					ZB_TRUE,
+					new_app_cb.user_param,
+					ZB_FALSE);
 			break;
 		case ZB_CALLBACK_TYPE_ALARM_SET:
 		{
@@ -111,15 +164,36 @@ static void zb_app_cb_process(zb_bufid_t bufid)
 						new_app_cb.alarm_timestamp -
 						k_uptime_get())
 				);
-			ret_code = ZB_SCHEDULE_APP_ALARM(
+			ret_code = zb_schedule_app_alarm(
 					new_app_cb.func,
-					new_app_cb.param,
+					(zb_uint8_t)new_app_cb.param,
 					delay);
 			break;
 		}
 		case ZB_CALLBACK_TYPE_ALARM_CANCEL:
-			ret_code = ZB_SCHEDULE_APP_ALARM_CANCEL(
+			ret_code = zb_schedule_alarm_cancel(
 					new_app_cb.func,
+					(zb_uint8_t)new_app_cb.param,
+					NULL);
+			break;
+		case ZB_GET_OUT_BUF_DELAYED:
+			ret_code = zb_buf_get_out_delayed_func(
+				TRACE_CALL(new_app_cb.func));
+			break;
+		case ZB_GET_IN_BUF_DELAYED:
+			ret_code = zb_buf_get_in_delayed_func(
+				TRACE_CALL(new_app_cb.func));
+			break;
+		case ZB_GET_OUT_BUF_DELAYED_EXT:
+			ret_code = zb_buf_get_out_delayed_ext_func(
+					TRACE_CALL(new_app_cb.func2),
+					new_app_cb.user_param,
+					new_app_cb.param);
+			break;
+		case ZB_GET_IN_BUF_DELAYED_EXT:
+			ret_code = zb_buf_get_in_delayed_ext_func(
+					TRACE_CALL(new_app_cb.func2),
+					new_app_cb.user_param,
 					new_app_cb.param);
 			break;
 		default:
@@ -142,7 +216,6 @@ static void zb_app_cb_process(zb_bufid_t bufid)
 	if (ret_code == RET_OVERFLOW) {
 		k_work_submit(&zb_app_cb_work);
 	}
-
 }
 
 static void zb_app_cb_process_schedule(struct k_work *item)
@@ -165,7 +238,8 @@ static void zb_app_cb_process_schedule(struct k_work *item)
 	 *
 	 * Note: the ZB_SCHEDULE_APP_CALLBACK is thread-safe.
 	 */
-	while (ZB_SCHEDULE_APP_CALLBACK(zb_app_cb_process, 0) != RET_OK) {
+	while (zb_schedule_app_callback(zb_app_cb_process,
+					0, ZB_FALSE, 0, ZB_FALSE) != RET_OK) {
 		k_sleep(K_MSEC(1000));
 	}
 	zigbee_event_notify(ZIGBEE_EVENT_APP);
@@ -175,16 +249,20 @@ static void zb_app_cb_process_schedule(struct k_work *item)
 
 static int zigbee_init(struct device *unused)
 {
+	ARG_UNUSED(unused);
+
 	zb_ieee_addr_t ieee_addr;
 	zb_uint32_t channel_mask;
 
 	/* Initialise work queue for processing app callback and alarms. */
 	k_work_init(&zb_app_cb_work, zb_app_cb_process_schedule);
 
+#if ZB_TRACE_LEVEL
 	/* Set Zigbee stack logging level and traffic dump subsystem. */
 	ZB_SET_TRACE_LEVEL(CONFIG_ZBOSS_TRACE_LOG_LEVEL);
 	ZB_SET_TRACE_MASK(CONFIG_ZBOSS_TRACE_MASK);
 	ZB_SET_TRAF_DUMP_OFF();
+#endif /* ZB_TRACE_LEVEL */
 
 	/* Initialize Zigbee stack. */
 	ZB_INIT("zigbee_thread");
@@ -229,6 +307,11 @@ static void zboss_thread(void *arg1, void *arg2, void *arg3)
 	zb_err_code = zboss_start_no_autostart();
 	__ASSERT(zb_err_code == RET_OK, "Error when starting ZBOSS stack!");
 
+	stack_is_started = true;
+#ifdef CONFIG_ZIGBEE_SHELL
+	zb_cli_configure_endpoint();
+#endif /* defined(CONFIG_ZIGBEE_SHELL) */
+
 	while (1) {
 		zboss_main_loop_iteration();
 	}
@@ -250,13 +333,13 @@ zb_ret_t zigbee_schedule_callback(zb_callback_t func, zb_uint8_t param)
 	return RET_OK;
 }
 
-zb_ret_t zigbee_schedule_callback2(zb_callback_t func,
+zb_ret_t zigbee_schedule_callback2(zb_callback2_t func,
 				   zb_uint8_t param,
 				   zb_uint16_t user_param)
 {
 	zb_app_cb_t new_app_cb = {
 		.type = ZB_CALLBACK_TYPE_TWO_PARAMS,
-		.func = func,
+		.func2 = func,
 		.param = param,
 		.user_param = user_param,
 	};
@@ -305,6 +388,72 @@ zb_ret_t zigbee_schedule_alarm_cancel(zb_callback_t func, zb_uint8_t param)
 	return RET_OK;
 }
 
+zb_ret_t zigbee_get_out_buf_delayed(zb_callback_t func)
+{
+	zb_app_cb_t new_app_cb = {
+		.type = ZB_GET_OUT_BUF_DELAYED,
+		.func = func,
+	};
+
+	if (k_msgq_put(&zb_app_cb_msgq, &new_app_cb, K_NO_WAIT)) {
+		return RET_OVERFLOW;
+	}
+
+	k_work_submit(&zb_app_cb_work);
+	return RET_OK;
+}
+
+zb_ret_t zigbee_get_in_buf_delayed(zb_callback_t func)
+{
+	zb_app_cb_t new_app_cb = {
+		.type = ZB_GET_IN_BUF_DELAYED,
+		.func = func,
+	};
+
+	if (k_msgq_put(&zb_app_cb_msgq, &new_app_cb, K_NO_WAIT)) {
+		return RET_OVERFLOW;
+	}
+
+	k_work_submit(&zb_app_cb_work);
+	return RET_OK;
+}
+
+zb_ret_t zigbee_get_out_buf_delayed_ext(zb_callback2_t func, zb_uint16_t param,
+					zb_uint16_t max_size)
+{
+	zb_app_cb_t new_app_cb = {
+		.type = ZB_GET_OUT_BUF_DELAYED_EXT,
+		.func2 = func,
+		.user_param = param,
+		.param = max_size,
+	};
+
+	if (k_msgq_put(&zb_app_cb_msgq, &new_app_cb, K_NO_WAIT)) {
+		return RET_OVERFLOW;
+	}
+
+	k_work_submit(&zb_app_cb_work);
+	return RET_OK;
+}
+
+zb_ret_t zigbee_get_in_buf_delayed_ext(zb_callback2_t func, zb_uint16_t param,
+					zb_uint16_t max_size)
+{
+	zb_app_cb_t new_app_cb = {
+		.type = ZB_GET_IN_BUF_DELAYED_EXT,
+		.func2 = func,
+		.user_param = param,
+		.param = max_size,
+	};
+
+	if (k_msgq_put(&zb_app_cb_msgq, &new_app_cb, K_NO_WAIT)) {
+		return RET_OVERFLOW;
+	}
+
+	k_work_submit(&zb_app_cb_work);
+	return RET_OK;
+}
+
 /**@brief SoC general initialization. */
 void zb_osif_init(void)
 {
@@ -338,7 +487,7 @@ void zb_osif_abort(void)
 	k_fatal_halt(K_ERR_KERNEL_PANIC);
 }
 
-zb_void_t zb_reset(zb_uint8_t param)
+void zb_reset(zb_uint8_t param)
 {
 	ZVUNUSED(param);
 
@@ -353,6 +502,11 @@ void zb_osif_enable_all_inter(void)
 	k_mutex_unlock(&zigbee_mutex);
 }
 
+zb_bool_t zb_osif_is_inside_isr(void)
+{
+	return (zb_bool_t)(__get_IPSR() != 0);
+}
+
 void zb_osif_disable_all_inter(void)
 {
 	__ASSERT(zb_osif_is_inside_isr() == 0,
@@ -363,11 +517,6 @@ void zb_osif_disable_all_inter(void)
 void zb_osif_busy_loop_delay(zb_uint32_t count)
 {
 	k_busy_wait(count);
-}
-
-zb_bool_t zb_osif_is_inside_isr(void)
-{
-	return (zb_bool_t)(__get_IPSR() != 0);
 }
 
 __weak zb_uint32_t zb_get_utc_time(void)
@@ -381,7 +530,7 @@ __weak zb_uint32_t zb_get_utc_time(void)
 /**@brief Read IEEE long address from FICR registers. */
 void zb_osif_get_ieee_eui64(zb_ieee_addr_t ieee_eui64)
 {
-	u64_t factoryAddress;
+	uint64_t factoryAddress;
 
 	/* Read random address from FICR. */
 	factoryAddress = (uint64_t)NRF_FICR->DEVICEID[0] << 32;
@@ -399,7 +548,7 @@ void zigbee_event_notify(zigbee_event_t event)
 	k_poll_signal_raise(&zigbee_sig, event);
 }
 
-u32_t zigbee_event_poll(u32_t timeout_ms)
+uint32_t zigbee_event_poll(uint32_t timeout_ms)
 {
 	/* Configure event/signals to wait for in wait_for_event function */
 	static struct k_poll_event wait_events[] = {
@@ -410,7 +559,7 @@ u32_t zigbee_event_poll(u32_t timeout_ms)
 
 	unsigned int signaled;
 	int result;
-	s64_t time_stamp = k_uptime_get();
+	int64_t time_stamp = k_uptime_get();
 
 	k_poll(wait_events, 1, K_MSEC(timeout_ms));
 

@@ -103,7 +103,7 @@ struct cloud_channel_data {
 	/** Unique tag to identify the sent data.
 	 *  Useful for matching the acknowledgment.
 	 */
-	u32_t tag;
+	uint32_t tag;
 };
 
 enum cloud_cmd_group {
@@ -206,7 +206,7 @@ int cloud_encode_data(const struct cloud_channel_data *channel,
 /**
  * @brief Decode cloud data.
  *
- * @param output Pointer to the cloud data input.
+ * @param input Pointer to the cloud data input.
  *
  * @return 0 if the operation was successful, otherwise a (negative) error code.
  */
@@ -239,9 +239,9 @@ int cloud_decode_init(cloud_cmd_cb_t cb);
  */
 int cloud_encode_device_status_data(
 	void *modem_param,
-	const char *const ui[], const u32_t ui_count,
-	const char *const fota[], const u32_t fota_count,
-	const u16_t fota_version,
+	const char *const ui[], const uint32_t ui_count,
+	const char *const fota[], const uint32_t fota_count,
+	const uint16_t fota_version,
 	struct cloud_msg *output);
 
 /**

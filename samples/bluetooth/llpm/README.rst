@@ -23,13 +23,13 @@ LLPM connection interval (1 ms)
 Physical layer (PHY)
    Starting with Bluetooth 5, the over-the-air data rate in Bluetooth Low Energy supports 2 Ms/s (mega symbol per second), which allows for faster transmission.
    The LLPM connection interval is only supported on *LE 2M PHY*.
-   Otherwise, the BLE controller will deny the request command.
+   Otherwise, the SoftDevice Controller will deny the request command.
 
 QoS connection event reports
    When reports are enabled, one report will be generated on every connection event.
    The report gives information about the quality of service of the connection event.
    The values in the report are used to describe the quality of links.
-   For parameter descriptions, see :cpp:enum:`hci_vs_subevent_qos_conn_event_report_t` (in :file:`ble_controller_hci_vs.h`).
+   For parameter descriptions, see :cpp:enum:`sdc_hci_vs_subevent_qos_conn_event_report_t` (in :file:`sdc_hci_vs.h`).
 
 Transmission latency
    The definition of the latency used in this example counts the time interval from the sender's application to the GATT service of the receiver.
@@ -80,7 +80,7 @@ Requirements
   * |nRF52840DK|
   * |nRF52DK|
   * |nRF5340DK|
-  * Other boards running BLE Controller variants that support LLPM (see :ref:`nrfxlib:ble_controller` Proprietary feature support)
+  * Other boards running SoftDevice Controller variants that support LLPM (see :ref:`nrfxlib:softdevice_controller` Proprietary feature support)
 
   You can mix different boards.
 * Connection to a computer with a serial terminal for each of the boards.
@@ -116,7 +116,7 @@ After programming the sample to both boards, test it by performing the following
 #. Observe the terminal connected to the slave. The latency measurements are printed in the terminal.
    The latency is expected to be shorter than the default connection interval::
 
-       Transmission Latency: 80917 (us), CRC errors 0
+       Transmission Latency: 80917 (us), CRC mismatches: 0
 
 #. Press a key in the terminal that is connected to the master.
 #. Observe the connection gets updated to LLPM connection interval (1 ms) on both sides::
@@ -126,13 +126,13 @@ After programming the sample to both boards, test it by performing the following
 #. Observe the terminal connected to the slave.
    The measured latency on the slave becomes approximate 1 ms::
 
-       Transmission Latency: 1098 (us), CRC errors 0
+       Transmission Latency: 1098 (us), CRC mismatches: 0
 
 #. Press a key in the terminal that is connected to the master.
 #. Observe the terminal connected to the master.
    The measured latency on the master remains approximate 1 ms::
 
-       Transmission Latency: 1235 (us), CRC errors 0
+       Transmission Latency: 1235 (us), CRC mismatches: 0
 
 .. msc::
    hscale = "1.3";
@@ -184,30 +184,30 @@ The result should look similar to the following output.
    Press any key to set LLPM short connection interval (1 ms)
    Press any key to start measuring transmission latency
    Connection interval updated: LLPM (1 ms)
-   Transmission Latency: 1235 (us), CRC errors 0
-   Transmission Latency: 1007 (us), CRC errors 0
-   Transmission Latency: 1434 (us), CRC errors 0
-   Transmission Latency: 1312 (us), CRC errors 0
-   Transmission Latency: 1220 (us), CRC errors 0
-   Transmission Latency: 991 (us), CRC errors 0
-   Transmission Latency: 1419 (us), CRC errors 0
-   Transmission Latency: 1281 (us), CRC errors 0
-   Transmission Latency: 1052 (us), CRC errors 0
-   Transmission Latency: 991 (us), CRC errors 0
-   Transmission Latency: 1403 (us), CRC errors 0
-   Transmission Latency: 1296 (us), CRC errors 0
-   Transmission Latency: 1052 (us), CRC errors 0
-   Transmission Latency: 976 (us), CRC errors 0
-   Transmission Latency: 1358 (us), CRC errors 0
-   Transmission Latency: 1281 (us), CRC errors 0
-   Transmission Latency: 1052 (us), CRC errors 0
-   Transmission Latency: 976 (us), CRC errors 0
-   Transmission Latency: 1358 (us), CRC errors 0
-   Transmission Latency: 1281 (us), CRC errors 0
-   Transmission Latency: 1052 (us), CRC errors 0
-   Transmission Latency: 976 (us), CRC errors 0
-   Transmission Latency: 1358 (us), CRC errors 0
-   Transmission Latency: 1281 (us), CRC errors 0
+   Transmission Latency: 1235 (us), CRC mismatches: 0
+   Transmission Latency: 1007 (us), CRC mismatches: 0
+   Transmission Latency: 1434 (us), CRC mismatches: 0
+   Transmission Latency: 1312 (us), CRC mismatches: 0
+   Transmission Latency: 1220 (us), CRC mismatches: 0
+   Transmission Latency: 991 (us), CRC mismatches: 0
+   Transmission Latency: 1419 (us), CRC mismatches: 0
+   Transmission Latency: 1281 (us), CRC mismatches: 0
+   Transmission Latency: 1052 (us), CRC mismatches: 0
+   Transmission Latency: 991 (us), CRC mismatches: 0
+   Transmission Latency: 1403 (us), CRC mismatches: 0
+   Transmission Latency: 1296 (us), CRC mismatches: 0
+   Transmission Latency: 1052 (us), CRC mismatches: 0
+   Transmission Latency: 976 (us), CRC mismatches: 0
+   Transmission Latency: 1358 (us), CRC mismatches: 0
+   Transmission Latency: 1281 (us), CRC mismatches: 0
+   Transmission Latency: 1052 (us), CRC mismatches: 0
+   Transmission Latency: 976 (us), CRC mismatches: 0
+   Transmission Latency: 1358 (us), CRC mismatches: 0
+   Transmission Latency: 1281 (us), CRC mismatches: 0
+   Transmission Latency: 1052 (us), CRC mismatches: 0
+   Transmission Latency: 976 (us), CRC mismatches: 0
+   Transmission Latency: 1358 (us), CRC mismatches: 0
+   Transmission Latency: 1281 (us), CRC mismatches: 0
 
 - For the slave::
 
@@ -229,30 +229,30 @@ The result should look similar to the following output.
    Conn. interval is 80 units (1.25 ms/unit)
    Service discovery completed
    Press any key to start measuring transmission latency
-   Transmission Latency: 80917 (us), CRC errors 0
-   Transmission Latency: 80841 (us), CRC errors 0
-   Transmission Latency: 80749 (us), CRC errors 0
-   Transmission Latency: 80673 (us), CRC errors 0
-   Transmission Latency: 80596 (us), CRC errors 0
-   Transmission Latency: 80505 (us), CRC errors 0
-   Transmission Latency: 80429 (us), CRC errors 0
-   Transmission Latency: 80337 (us), CRC errors 0
-   Transmission Latency: 80261 (us), CRC errors 0
-   Transmission Latency: 80184 (us), CRC errors 0
-   Transmission Latency: 80093 (us), CRC errors 0
-   Transmission Latency: 80017 (us), CRC errors 0
-   Transmission Latency: 79940 (us), CRC errors 0
-   Transmission Latency: 79849 (us), CRC errors 0
+   Transmission Latency: 80917 (us), CRC mismatches: 0
+   Transmission Latency: 80841 (us), CRC mismatches: 0
+   Transmission Latency: 80749 (us), CRC mismatches: 0
+   Transmission Latency: 80673 (us), CRC mismatches: 0
+   Transmission Latency: 80596 (us), CRC mismatches: 0
+   Transmission Latency: 80505 (us), CRC mismatches: 0
+   Transmission Latency: 80429 (us), CRC mismatches: 0
+   Transmission Latency: 80337 (us), CRC mismatches: 0
+   Transmission Latency: 80261 (us), CRC mismatches: 0
+   Transmission Latency: 80184 (us), CRC mismatches: 0
+   Transmission Latency: 80093 (us), CRC mismatches: 0
+   Transmission Latency: 80017 (us), CRC mismatches: 0
+   Transmission Latency: 79940 (us), CRC mismatches: 0
+   Transmission Latency: 79849 (us), CRC mismatches: 0
    Connection interval updated: LLPM (1 ms)
-   Transmission Latency: 81604 (us), CRC errors 0
-   Transmission Latency: 30181 (us), CRC errors 0
-   Transmission Latency: 1098 (us), CRC errors 0
-   Transmission Latency: 1129 (us), CRC errors 0
-   Transmission Latency: 1037 (us), CRC errors 0
-   Transmission Latency: 930 (us), CRC errors 0
-   Transmission Latency: 1312 (us), CRC errors 0
-   Transmission Latency: 1083 (us), CRC errors 0
-   Transmission Latency: 1007 (us), CRC errors 0
+   Transmission Latency: 81604 (us), CRC mismatches: 0
+   Transmission Latency: 30181 (us), CRC mismatches: 0
+   Transmission Latency: 1098 (us), CRC mismatches: 0
+   Transmission Latency: 1129 (us), CRC mismatches: 0
+   Transmission Latency: 1037 (us), CRC mismatches: 0
+   Transmission Latency: 930 (us), CRC mismatches: 0
+   Transmission Latency: 1312 (us), CRC mismatches: 0
+   Transmission Latency: 1083 (us), CRC mismatches: 0
+   Transmission Latency: 1007 (us), CRC mismatches: 0
 
 
 Dependencies
@@ -265,7 +265,7 @@ This sample uses the following |NCS| libraries:
 
 This sample uses the following `nrfxlib`_ libraries:
 
-* :ref:`nrfxlib:ble_controller`
+* :ref:`nrfxlib:softdevice_controller`
 
 In addition, it uses the following Zephyr libraries:
 

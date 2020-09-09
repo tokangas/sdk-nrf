@@ -8,20 +8,19 @@ import struct
 import time
 import logging
 from enum import IntEnum
+import codecs
 
 REPORT_ID = 6
 REPORT_SIZE = 30
-EVENT_DATA_LEN_MAX = REPORT_SIZE - 6
+EVENT_DATA_LEN_MAX = REPORT_SIZE - 5
+
+LOCAL_RECIPIENT = 0x00
 
 MOD_FIELD_POS = 4
-MOD_BROADCAST = 0xf
-
 OPT_FIELD_POS = 0
 OPT_FIELD_MAX_OPT_CNT = 0xf
 
-OPT_BROADCAST_MAX_MOD_ID = 0x0
-
-OPT_MODULE_DEV_DESCR = 0x0
+OPT_MODULE_DESCR = 0x0
 
 POLL_INTERVAL_DEFAULT = 0.02
 POLL_RETRY_COUNT = 200
@@ -30,47 +29,73 @@ END_OF_TRANSFER_CHAR = '\n'
 
 
 class ConfigStatus(IntEnum):
-    SUCCESS            = 0
-    PENDING            = 1
-    FETCH              = 2
-    TIMEOUT            = 3
-    REJECT             = 4
-    WRITE_ERROR        = 5
-    DISCONNECTED_ERROR = 6
+    PENDING            = 0
+    GET_MAX_MOD_ID     = 1
+    GET_HWID           = 2
+    GET_BOARD_NAME     = 3
+    INDEX_PEERS        = 4
+    GET_PEER           = 5
+    SET                = 6
+    FETCH              = 7
+    SUCCESS            = 8
+    TIMEOUT            = 9
+    REJECT             = 10
+    WRITE_ERROR        = 11
+    DISCONNECTED_ERROR = 12
     FAULT              = 99
 
-class Response(object):
-    def __init__(self, recipient, event_id, status, data):
-        self.recipient = recipient
-        self.event_id  = event_id
-        self.status    = ConfigStatus(status)
-        self.data      = data
+class NrfHidTransport():
+    HEADER_FORMAT = '<BBBBB'
+    @staticmethod
+    def _create_feature_report(recipient, event_id, status, event_data):
+        assert isinstance(recipient, int)
+        assert isinstance(event_id, int)
+        assert isinstance(status, ConfigStatus)
 
-    def __repr__(self):
-        base_str = ('Response:\n'
-                    '\trecipient 0x{:04x}\n'
-                    '\tevent_id  0x{:02x}\n'
-                    '\tstatus    {}\n').format(self.recipient,
-                                               self.event_id,
-                                               str(self.status))
-        if self.data is None:
-            data_str = '\tno data'
+        if event_data:
+            assert isinstance(event_data, bytes)
+            event_data_len = len(event_data)
         else:
-            data_str = ('\tdata_len {}\n'
-                        '\tdata {}\n').format(len(self.data), self.data)
+            event_data_len = 0
 
-        return base_str + data_str
+        if status == ConfigStatus.SET:
+            # No addtional checks
+            pass
+        elif status in (ConfigStatus.GET_MAX_MOD_ID,
+                        ConfigStatus.GET_HWID,
+                        ConfigStatus.GET_BOARD_NAME,
+                        ConfigStatus.INDEX_PEERS,
+                        ConfigStatus.GET_PEER):
+            assert event_id == 0
+            assert event_data_len == 0
+        elif status == ConfigStatus.FETCH:
+            assert event_data_len == 0
+        else:
+            # Unsupported operation
+            assert False
+
+        report = struct.pack(NrfHidTransport.HEADER_FORMAT, REPORT_ID,
+                             recipient, event_id, status, event_data_len)
+
+        if event_data:
+            report += event_data
+
+        assert len(report) <= REPORT_SIZE
+        report += b'\0' * (REPORT_SIZE - len(report))
+
+        return report
 
     @staticmethod
-    def parse_response(response_raw):
-        data_field_len = len(response_raw) - struct.calcsize('<BHBBB')
+    def _parse_response(response_raw):
+        data_field_len = len(response_raw) - \
+                         struct.calcsize(NrfHidTransport.HEADER_FORMAT)
 
         if data_field_len < 0:
             logging.error('Response too short')
             return None
 
         # Report ID is not included in the feature report from device
-        fmt = '<BHBBB{}s'.format(data_field_len)
+        fmt = '{}{}s'.format(NrfHidTransport.HEADER_FORMAT, data_field_len)
 
         (report_id, rcpt, event_id, status, data_len, data) = struct.unpack(fmt, response_raw)
 
@@ -87,109 +112,17 @@ class Response(object):
         else:
             event_data = data[:data_len]
 
-        return Response(rcpt, event_id, status, event_data)
-
-class NrfHidDevice():
-    def __init__(self, board_name, vid, pid, dongle_pid):
-        self.name = board_name
-        self.vid = vid
-        self.pid = pid
-        self.dev_ptr = None
-        self.dev_config = None
-
-        direct_devs = NrfHidDevice._open_devices(vid, pid)
-        dongle_devs = []
-
-        if dongle_pid is not None:
-            dongle_devs = NrfHidDevice._open_devices(vid, dongle_pid)
-
-        devs = direct_devs + dongle_devs
-
-        for d in devs:
-            if self.dev_ptr is None:
-                board_name = NrfHidDevice._discover_board_name(d, pid)
-
-                if board_name is not None:
-                    config = NrfHidDevice._discover_device_config(d, pid)
-                else:
-                    config = None
-
-                if config is not None:
-                    self.dev_config = config
-                    self.dev_ptr = d
-                    print("Device board name is {}".format(board_name))
-                else:
-                    d.close()
-            else:
-                d.close()
+        return (rcpt, event_id, status, event_data)
 
     @staticmethod
-    def _open_devices(vid, pid):
-        devs = []
-        try:
-            devlist = hid.enumerate(vid=vid, pid=pid)
-            for d in devlist:
-                dev = hid.Device(path=d['path'])
-                devs.append(dev)
-
-        except hid.HIDException:
-            pass
-        except Exception as e:
-            logging.error('Unknown exception: {}'.format(e))
-
-        return devs
-
-    @staticmethod
-    def _create_set_report(recipient, event_id, event_data):
-        """ Function creating a report in order to set a specified configuration
-            value. """
-
-        assert isinstance(recipient, int)
-        assert isinstance(event_id, int)
-        if event_data:
-            assert isinstance(event_data, bytes)
-            event_data_len = len(event_data)
-        else:
-            event_data_len = 0
-
-        status = ConfigStatus.PENDING
-        report = struct.pack('<BHBBB', REPORT_ID, recipient, event_id, status,
-                             event_data_len)
-        if event_data:
-            report += event_data
-
-        assert len(report) <= REPORT_SIZE
-        report += b'\0' * (REPORT_SIZE - len(report))
-
-        return report
-
-    @staticmethod
-    def _create_fetch_report(recipient, event_id):
-        """ Function for creating a report which requests fetching of
-            a configuration value from a device. """
-
-        assert isinstance(recipient, int)
-        assert isinstance(event_id, int)
-
-        status = ConfigStatus.FETCH
-        report = struct.pack('<BHBBB', REPORT_ID, recipient, event_id, status, 0)
-
-        assert len(report) <= REPORT_SIZE
-        report += b'\0' * (REPORT_SIZE - len(report))
-
-        return report
-
-    @staticmethod
-    def _exchange_feature_report(dev, recipient, event_id, event_data, is_fetch,
-                                 poll_interval=POLL_INTERVAL_DEFAULT):
-        if is_fetch:
-            data = NrfHidDevice._create_fetch_report(recipient, event_id)
-        else:
-            data = NrfHidDevice._create_set_report(recipient, event_id, event_data)
+    def exchange_feature_report(dev, recipient, event_id, status, event_data,
+                                poll_interval=POLL_INTERVAL_DEFAULT):
+        data = NrfHidTransport._create_feature_report(recipient, event_id, status, event_data)
 
         try:
             dev.send_feature_report(data)
-        except Exception:
+        except Exception as e:
+            logging.debug('Send feature report problem: {}'.format(e))
             return False, None
 
         for _ in range(POLL_RETRY_COUNT):
@@ -197,74 +130,136 @@ class NrfHidDevice():
 
             try:
                 response_raw = dev.get_feature_report(REPORT_ID, REPORT_SIZE)
-                response = Response.parse_response(response_raw)
-            except Exception:
-                response = None
-
-            if response is None:
-                logging.error('Invalid response')
-                op_status = ConfigStatus.FAULT
+            except Exception as e:
+                logging.error('Get feature report problem: {}'.format(e))
+                rsp_status = ConfigStatus.FAULT
                 break
 
-            logging.debug('Parsed response: {}'.format(response))
+            rsp = NrfHidTransport._parse_response(response_raw)
+            if rsp is None:
+                logging.error('Parsing response failed')
+                rsp_status = ConfigStatus.FAULT
+                break
 
-            if (response.recipient != recipient) or (response.event_id != event_id):
+            (rsp_recipient, rsp_event_id, rsp_status, rsp_event_data) = rsp
+            rsp_status = ConfigStatus(rsp_status)
+
+            if rsp_status == ConfigStatus.PENDING:
+                # Response was not ready
+                continue
+
+            if (rsp_status != ConfigStatus.TIMEOUT) and \
+               ((rsp_recipient != recipient) or (rsp_event_id != event_id)):
                 logging.error('Response does not match the request:\n'
                               '\trequest: recipient {} event_id {}\n'
                               '\tresponse: recipient {}, event_id {}'.format(recipient,
                                                                              event_id,
-                                                                             response.recipient,
-                                                                             response.event_id))
-                op_status = ConfigStatus.FAULT
-                break
-
-            op_status = response.status
-
-            if op_status != ConfigStatus.PENDING:
-                break
+                                                                             rsp_recipient,
+                                                                             rsp_event_id))
+                rsp_status = ConfigStatus.FAULT
+            break
 
         fetched_data = None
         success = False
 
-        if op_status == ConfigStatus.SUCCESS:
-            logging.info('Success')
+        if rsp_status == ConfigStatus.SUCCESS:
             success = True
-            if is_fetch:
-                fetched_data = response.data
+            if rsp_event_data is not None:
+                fetched_data = rsp_event_data
         else:
-            logging.warning('Error: {}'.format(op_status.name))
+            logging.warning('Error response code: {}'.format(rsp_status.name))
 
         return success, fetched_data
 
+
+class NrfHidDevice():
+    def __init__(self, dev, recipient):
+        self.recipient = recipient
+        self.dev_ptr = dev
+
+        self.dev_config = None
+        self.board_name = None
+        self.hwid = None
+
+        board_name, hwid = NrfHidDevice._read_device_info(dev, recipient)
+
+        if (board_name is not None) and (hwid is not None):
+            config = NrfHidDevice._discover_device_config(dev, recipient)
+        else:
+            config = None
+
+        if config is not None:
+            self.dev_config = config
+            self.board_name = board_name
+            self.hwid = hwid
+
     @staticmethod
-    def _fetch_max_mod_id(dev, recipient):
-        event_id = (MOD_BROADCAST << MOD_FIELD_POS) | \
-                   (OPT_BROADCAST_MAX_MOD_ID << OPT_FIELD_POS)
-        event_data = struct.pack('<B', 0)
+    def open_devices(vid):
+        dir_devs = {}
+        non_dir_devs = {}
 
-        success = NrfHidDevice._exchange_feature_report(dev, recipient,
-                                                        event_id, event_data,
-                                                        False)
-        if not success:
-            return False, None
+        try:
+            devlist = hid.enumerate(vid=vid)
+            # Config channel can use only first HID interface of nrf_desktop
+            # device. Other HID interfaces do not provide proper config channel
+            # response.
+            devlist = list(filter(lambda x: x['interface_number'] in (-1, 0),
+                                  devlist))
 
-        success, fetched_data = NrfHidDevice._exchange_feature_report(dev, recipient,
-                                                                      event_id, None,
-                                                                      True)
+            for d in devlist:
+                dev = hid.Device(path=d['path'])
+                dev_active = False
+
+                discovered_dev = NrfHidDevice(dev, LOCAL_RECIPIENT)
+                if discovered_dev.initialized():
+                    hwid = discovered_dev.get_hwid()
+                    if hwid not in dir_devs:
+                        dir_devs[hwid] = discovered_dev
+                        dev_active = True
+
+                peers = NrfHidDevice._get_connected_peers(dev, LOCAL_RECIPIENT)
+                for p in peers:
+                    discovered_dev = NrfHidDevice(dev, peers[p])
+                    if discovered_dev.initialized():
+                        hwid = discovered_dev.get_hwid()
+                        if hwid not in non_dir_devs:
+                            non_dir_devs[hwid] = discovered_dev
+                            dev_active = True
+
+                if not dev_active:
+                    dev.close()
+
+        except hid.HIDException:
+            pass
+        except Exception as e:
+            logging.error('Unknown exception: {}'.format(e))
+
+        devs = non_dir_devs.copy()
+        devs.update(dir_devs)
+
+        return devs
+
+    @staticmethod
+    def _read_max_mod_id(dev, recipient):
+        success, fetched_data = NrfHidTransport.exchange_feature_report(dev,
+                                                                        recipient,
+                                                                        0,
+                                                                        ConfigStatus.GET_MAX_MOD_ID,
+                                                                        None)
         if not success or not fetched_data:
-            return False, None
+            return None
 
         max_mod_id = ord(fetched_data.decode('utf-8'))
 
-        return success, max_mod_id
+        return max_mod_id
 
     @staticmethod
     def _fetch_next_option(dev, recipient, module_id):
-        event_id = (module_id << MOD_FIELD_POS) | (OPT_MODULE_DEV_DESCR << OPT_FIELD_POS)
+        event_id = (module_id << MOD_FIELD_POS) | (OPT_MODULE_DESCR << OPT_FIELD_POS)
 
-        success, fetched_data = NrfHidDevice._exchange_feature_report(dev, recipient,
-                                                                      event_id, None,
-                                                                      True)
+        success, fetched_data = NrfHidTransport.exchange_feature_report(dev, recipient,
+                                                                        event_id, ConfigStatus.FETCH,
+                                                                        None)
         if not success or not fetched_data:
             return False, None
 
@@ -281,17 +276,9 @@ class NrfHidDevice():
 
     @staticmethod
     def _discover_module_config(dev, recipient, module_id):
-        module_config = {}
-
-        success, module_name = NrfHidDevice._fetch_next_option(dev, recipient,
-                                                               module_id)
-        if not success:
-            return None, None
-
-        module_config['id'] = module_id
-        module_config['options'] = {}
-        # First fetched option (with index 0) is module name
-        opt_idx = 1
+        fetched_options = []
+        fetch_idx = 0
+        end_of_transfer_idx = None
 
         while True:
             success, opt = NrfHidDevice._fetch_next_option(dev, recipient,
@@ -299,17 +286,41 @@ class NrfHidDevice():
             if not success:
                 return None, None
 
-            if opt[0] == END_OF_TRANSFER_CHAR:
+            if opt in fetched_options:
                 break
 
-            if opt_idx > OPT_FIELD_MAX_OPT_CNT:
+            if opt[0] == END_OF_TRANSFER_CHAR:
+                end_of_transfer_idx = len(fetched_options)
+
+            fetched_options.append(opt)
+
+            if fetch_idx > OPT_FIELD_MAX_OPT_CNT + 1:
                 print("Improper module description")
                 return None, None
 
-            module_config['options'][opt] = {
+            fetch_idx += 1
+
+        if end_of_transfer_idx is None:
+            print("Improper module description")
+            return None, None
+
+        fetched_options = fetched_options[end_of_transfer_idx:] + \
+                          fetched_options[:end_of_transfer_idx]
+        fetched_options = fetched_options[1:]
+
+        module_name = fetched_options[0]
+        fetched_options = fetched_options[1:]
+
+        module_config = {}
+        module_config['id'] = module_id
+        module_config['options'] = {}
+
+        # Option with index 0 is module description
+        opt_idx = 1
+        for o in fetched_options:
+            module_config['options'][o] = {
                 'id' : opt_idx,
             }
-
             opt_idx += 1
 
         return module_name, module_config
@@ -318,8 +329,8 @@ class NrfHidDevice():
     def _discover_device_config(dev, recipient):
         device_config = {}
 
-        success, max_mod_id = NrfHidDevice._fetch_max_mod_id(dev, recipient)
-        if not success or (max_mod_id is None):
+        max_mod_id = NrfHidDevice._read_max_mod_id(dev, recipient)
+        if max_mod_id is None:
             return None
 
         for i in range(0, max_mod_id + 1):
@@ -332,29 +343,71 @@ class NrfHidDevice():
         return device_config
 
     @staticmethod
-    def _discover_board_name(dev, recipient):
-        success, max_mod_id = NrfHidDevice._fetch_max_mod_id(dev, recipient)
+    def _read_device_info(dev, recipient):
+        success, fetched_data = NrfHidTransport.exchange_feature_report(dev,
+                                                                        recipient,
+                                                                        0,
+                                                                        ConfigStatus.GET_BOARD_NAME,
+                                                                        None)
+        if success:
+            board_name = fetched_data.decode('utf-8').replace(chr(0x00), '')
+        else:
+            return None, None
+
+        success, fetched_data = NrfHidTransport.exchange_feature_report(dev,
+                                                                        recipient,
+                                                                        0,
+                                                                        ConfigStatus.GET_HWID,
+                                                                        None)
+        if success:
+            hwid = codecs.encode(fetched_data, 'hex')
+            hwid = hwid.decode('utf-8')
+        else:
+            return None, None
+
+        return board_name, hwid
+
+    @staticmethod
+    def _get_connected_peers(dev, recipient):
+        INVALID_PEER_ID = 0xff
+
+        peers = {}
+
+        success, fetched_data = NrfHidTransport.exchange_feature_report(dev,
+                                                                        recipient,
+                                                                        0,
+                                                                        ConfigStatus.INDEX_PEERS,
+                                                                        None)
         if not success:
-            return None
+            return peers
 
-        # Module with the highest index contains information about board name.
-        # Discover only this module to recude discovery time.
-        module_name, module_config = NrfHidDevice._discover_module_config(dev,
-                                                                          recipient,
-                                                                          max_mod_id)
-        if (module_name is None) or (module_config is None):
-            return None
+        while True:
+            success, fetched_data = NrfHidTransport.exchange_feature_report(dev,
+                                                                            recipient,
+                                                                            0,
+                                                                            ConfigStatus.GET_PEER,
+                                                                            None)
 
-        dev_cfg = {module_name : module_config}
-        event_id = NrfHidDevice._get_event_id(module_name, 'board_name', dev_cfg)
+            if success:
+                peer_hwid = codecs.encode(fetched_data[:-1], 'hex')
+                peer_hwid = peer_hwid.decode('utf-8')
+                peer_id = struct.unpack('<B', fetched_data[-1:])[0]
 
-        success, fetched_data = NrfHidDevice._exchange_feature_report(dev, recipient,
-                                                                      event_id, None,
-                                                                      True)
+                if peer_id != INVALID_PEER_ID:
+                    peers[peer_hwid] = peer_id
+                    if len(peers) > INVALID_PEER_ID:
+                        # Invalidate received peer list
+                        peers = {}
+                        break
+                else:
+                    break
 
-        board_name = fetched_data.decode('utf-8').replace(chr(0x00), '')
+            else:
+                # Invalidate received peer list
+                peers = {}
+                break
 
-        return board_name
+        return peers
 
     def _config_operation(self, module_name, option_name, is_get, value, poll_interval):
         if not self.initialized():
@@ -374,9 +427,15 @@ class NrfHidDevice():
             else:
                 return False
 
-        success, fetched_data = NrfHidDevice._exchange_feature_report(self.dev_ptr, self.pid,
-                                                                      event_id, value,
-                                                                      is_get, poll_interval)
+        if is_get:
+            status = ConfigStatus.FETCH
+        else:
+            status = ConfigStatus.SET
+
+        success, fetched_data = NrfHidTransport.exchange_feature_report(self.dev_ptr,
+                                                                        self.recipient,
+                                                                        event_id, status,
+                                                                        value, poll_interval)
         if is_get:
             return success, fetched_data
         else:
@@ -392,6 +451,12 @@ class NrfHidDevice():
             return False
         else:
             return True
+
+    def get_hwid(self):
+        return self.hwid
+
+    def get_board_name(self):
+        return self.board_name
 
     def get_device_config(self):
         if not self.initialized():

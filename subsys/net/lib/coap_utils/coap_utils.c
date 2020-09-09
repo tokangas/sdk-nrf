@@ -17,7 +17,11 @@ LOG_MODULE_REGISTER(coap_utils, CONFIG_COAP_UTILS_LOG_LEVEL);
 #define COAP_MAX_REPLIES 1
 #define COAP_POOL_SLEEP 500
 #define COAP_OPEN_SOCKET_SLEEP 200
+#if defined(CONFIG_BSD_LIBRARY)
+#define COAP_RECEIVE_STACK_SIZE 1000
+#else
 #define COAP_RECEIVE_STACK_SIZE 500
+#endif
 
 const static int nfds = 1;
 static struct pollfd fds;
@@ -51,7 +55,7 @@ static void coap_close_socket(int socket)
 
 static void coap_receive(void)
 {
-	static u8_t buf[MAX_COAP_MSG_LEN + 1];
+	static uint8_t buf[MAX_COAP_MSG_LEN + 1];
 	struct coap_packet response;
 	struct coap_reply *reply = NULL;
 	static struct sockaddr from_addr;
@@ -126,9 +130,9 @@ static void coap_receive(void)
 
 static int coap_init_request(enum coap_method method,
 			     enum coap_msgtype msg_type,
-			     const char *const *uri_path_options, u8_t *payload,
-			     u16_t payload_size, struct coap_packet *request,
-			     u8_t *buf)
+			     const char *const *uri_path_options, uint8_t *payload,
+			     uint16_t payload_size, struct coap_packet *request,
+			     uint8_t *buf)
 {
 	const char *const *opt;
 	int ret;
@@ -208,12 +212,12 @@ void coap_init(int ip_family)
 }
 
 int coap_send_request(enum coap_method method, const struct sockaddr *addr,
-		      const char *const *uri_path_options, u8_t *payload,
-		      u16_t payload_size, coap_reply_t reply_cb)
+		      const char *const *uri_path_options, uint8_t *payload,
+		      uint16_t payload_size, coap_reply_t reply_cb)
 {
 	int ret;
 	struct coap_packet request;
-	u8_t buf[MAX_COAP_MSG_LEN];
+	uint8_t buf[MAX_COAP_MSG_LEN];
 
 	ret = coap_init_request(method, COAP_TYPE_NON_CON, uri_path_options,
 				payload, payload_size, &request, buf);

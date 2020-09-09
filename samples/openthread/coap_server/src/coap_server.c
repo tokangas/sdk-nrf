@@ -6,6 +6,7 @@
 #include <zephyr.h>
 #include <dk_buttons_and_leds.h>
 #include <logging/log.h>
+#include <net/openthread.h>
 #include <openthread/thread.h>
 
 #include "ot_coap_utils.h"
@@ -21,9 +22,9 @@ static struct k_work provisioning_work;
 static struct k_timer led_timer;
 static struct k_timer provisioning_timer;
 
-static void on_light_request(u8_t command)
+static void on_light_request(uint8_t command)
 {
-	static u8_t val;
+	static uint8_t val;
 
 	switch (command) {
 	case THREAD_COAP_UTILS_LIGHT_CMD_ON:
@@ -78,7 +79,7 @@ static void on_provisioning_timer_expiry(struct k_timer *timer_id)
 
 static void on_led_timer_expiry(struct k_timer *timer_id)
 {
-	static u8_t val = 1;
+	static uint8_t val = 1;
 
 	ARG_UNUSED(timer_id);
 
@@ -93,19 +94,21 @@ static void on_led_timer_stop(struct k_timer *timer_id)
 	dk_set_led_off(PROVISIONING_LED);
 }
 
-static void on_button_changed(u32_t button_state, u32_t has_changed)
+static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 {
-	u32_t buttons = button_state & has_changed;
+	uint32_t buttons = button_state & has_changed;
 
 	if (buttons & DK_BTN4_MSK) {
 		k_work_submit(&provisioning_work);
 	}
 }
 
-static void on_thread_state_changed(u32_t flags, void *p_context)
+static void on_thread_state_changed(uint32_t flags, void *context)
 {
+	struct openthread_context *ot_context = context;
+
 	if (flags & OT_CHANGED_THREAD_ROLE) {
-		switch (otThreadGetDeviceRole(p_context)) {
+		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_CHILD:
 		case OT_DEVICE_ROLE_ROUTER:
 		case OT_DEVICE_ROLE_LEADER:
@@ -120,9 +123,6 @@ static void on_thread_state_changed(u32_t flags, void *p_context)
 			break;
 		}
 	}
-
-	LOG_INF("State changed! Flags: 0x%08x Current role: %d", flags,
-		otThreadGetDeviceRole(p_context));
 }
 
 void main(void)
@@ -136,8 +136,7 @@ void main(void)
 
 	k_work_init(&provisioning_work, activate_provisioning);
 
-	ret = ot_coap_init(&on_thread_state_changed, &deactivate_provisionig,
-			   &on_light_request);
+	ret = ot_coap_init(&deactivate_provisionig, &on_light_request);
 	if (ret) {
 		LOG_ERR("Could not initialize OpenThread CoAP");
 		goto end;
@@ -154,6 +153,9 @@ void main(void)
 		LOG_ERR("Cannot init buttons (error: %d)", ret);
 		goto end;
 	}
+
+	openthread_set_state_changed_cb(on_thread_state_changed);
+	openthread_start(openthread_get_default_context());
 
 end:
 	return;

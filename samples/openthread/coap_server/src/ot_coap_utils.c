@@ -47,7 +47,7 @@ static otError provisioning_response_send(otMessage *request_message,
 	otError error = OT_ERROR_NO_BUFS;
 	otMessage *response;
 	const void *payload;
-	u16_t payload_size;
+	uint16_t payload_size;
 
 	response = otCoapNewMessage(srv_context.ot, NULL);
 	if (response == NULL) {
@@ -121,7 +121,7 @@ static void provisioning_request_handler(void *context, otMessage *message,
 static void light_request_handler(void *context, otMessage *message,
 				  const otMessageInfo *message_info)
 {
-	u8_t command;
+	uint8_t command;
 
 	ARG_UNUSED(context);
 
@@ -175,8 +175,7 @@ bool ot_coap_is_provisioning_active(void)
 	return srv_context.provisioning_enabled;
 }
 
-int ot_coap_init(otStateChangedCallback on_state_changed,
-		 provisioning_request_callback_t on_provisioning_request,
+int ot_coap_init(provisioning_request_callback_t on_provisioning_request,
 		 light_request_callback_t on_light_request)
 {
 	otError error;
@@ -198,26 +197,9 @@ int ot_coap_init(otStateChangedCallback on_state_changed,
 	light_resource.mContext = srv_context.ot;
 	light_resource.mHandler = light_request_handler;
 
-	error = otSetStateChangedCallback(srv_context.ot, on_state_changed,
-					  srv_context.ot);
-	if (error != OT_ERROR_NONE) {
-		LOG_ERR("Failed to set OpenThread callback. Error: %d", error);
-		goto end;
-	}
-
 	otCoapSetDefaultHandler(srv_context.ot, coap_default_handler, NULL);
-
-	error = otCoapAddResource(srv_context.ot, &light_resource);
-	if (error != OT_ERROR_NONE) {
-		LOG_ERR("Failed to add CoAP resources. Error: %d", error);
-		goto end;
-	}
-
-	error = otCoapAddResource(srv_context.ot, &provisioning_resource);
-	if (error != OT_ERROR_NONE) {
-		LOG_ERR("Failed to add CoAP resources. Error: %d", error);
-		goto end;
-	}
+	otCoapAddResource(srv_context.ot, &light_resource);
+	otCoapAddResource(srv_context.ot, &provisioning_resource);
 
 	error = otCoapStart(srv_context.ot, COAP_PORT);
 	if (error != OT_ERROR_NONE) {

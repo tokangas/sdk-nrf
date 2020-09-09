@@ -8,7 +8,7 @@
 
 #include "hid_report_desc.h"
 
-const u8_t hid_report_desc[] = {
+const uint8_t hid_report_desc[] = {
 
 #if CONFIG_DESKTOP_HID_REPORT_MOUSE_SUPPORT
 	0x05, 0x01,     /* Usage Page (Generic Desktop) */
@@ -17,6 +17,9 @@ const u8_t hid_report_desc[] = {
 	REPORT_MAP_MOUSE(REPORT_ID_MOUSE),
 #if CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE
 	REPORT_MAP_USER_CONFIG(REPORT_ID_USER_CONFIG),
+#if CONFIG_DESKTOP_CONFIG_CHANNEL_OUT_REPORT
+	REPORT_MAP_USER_CONFIG_OUT(REPORT_ID_USER_CONFIG_OUT),
+#endif
 #endif
 	0xC0,           /* End Collection (Application) */
 #endif
@@ -28,6 +31,9 @@ const u8_t hid_report_desc[] = {
 	REPORT_MAP_KEYBOARD(REPORT_ID_KEYBOARD_KEYS, REPORT_ID_KEYBOARD_LEDS),
 #if CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE && !CONFIG_DESKTOP_HID_REPORT_MOUSE_SUPPORT
 	REPORT_MAP_USER_CONFIG(REPORT_ID_USER_CONFIG),
+#if CONFIG_DESKTOP_CONFIG_CHANNEL_OUT_REPORT
+	REPORT_MAP_USER_CONFIG_OUT(REPORT_ID_USER_CONFIG_OUT),
+#endif
 #endif
 	0xC0,           /* End Collection (Application) */
 #endif

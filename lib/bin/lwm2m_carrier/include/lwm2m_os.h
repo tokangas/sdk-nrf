@@ -192,7 +192,7 @@ void lwm2m_os_log(int level, const char *fmt, ...);
  *
  * @return 0  on success
  * @return -1 on error
- * @return an error from @ref bsd_modem_dfu in case of modem DFU
+ * @return an error from @em bsd_modem_dfu in case of modem DFU
  */
 int lwm2m_os_bsdlib_init(void);
 
@@ -376,7 +376,7 @@ int lwm2m_os_sec_ca_chain_write(uint32_t sec_tag, const void *buf, size_t len);
  *                          Only valid if the operation is successful.
  * @param[out]  perm_flags  The permission flags of the credential.
  *                          Only valid if the operation is successful
- *                          and @param exists is @c true.
+ *                          and @p exists is @c true.
  *                          Not yet implemented.
  *
  * @retval 0        On success.
@@ -433,7 +433,7 @@ int lwm2m_os_sec_psk_delete(uint32_t sec_tag);
  *                        Only valid if the operation is successful.
  * @param[out] perm_flags The permission flags of the credential.
  *                        Only valid if the operation is successful
- *                        and @param exists is true.
+ *                        and @p exists is @c true.
  *                        Not yet implemented.
  *
  * @retval 0        On success.

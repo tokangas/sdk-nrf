@@ -20,7 +20,7 @@
 #include "config_event.h"
 
 #include "hid_report_desc.h"
-#include "config_channel.h"
+#include "config_channel_transport.h"
 
 #define MODULE hids
 #include "module_state_event.h"
@@ -33,23 +33,22 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_HIDS_LOG_LEVEL);
 
 
 BT_GATT_HIDS_DEF(hids_obj,
+		 IF_ENABLED(CONFIG_DESKTOP_HID_REPORT_MOUSE_SUPPORT,
+			    (REPORT_SIZE_MOUSE,))
+		 IF_ENABLED(CONFIG_DESKTOP_HID_REPORT_KEYBOARD_SUPPORT,
+			    (REPORT_SIZE_KEYBOARD_KEYS,
+			     REPORT_SIZE_KEYBOARD_LEDS,))
+		 IF_ENABLED(CONFIG_DESKTOP_HID_REPORT_SYSTEM_CTRL_SUPPORT,
+			    (REPORT_SIZE_SYSTEM_CTRL,))
+		 IF_ENABLED(CONFIG_DESKTOP_HID_REPORT_CONSUMER_CTRL_SUPPORT,
+			    (REPORT_SIZE_CONSUMER_CTRL,))
+		 IF_ENABLED(
+			 CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE,
+			 (REPORT_SIZE_USER_CONFIG, /* HID feature report. */
+			  IF_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_OUT_REPORT,
+				     /* HID output report. */
+				     (REPORT_SIZE_USER_CONFIG,))))
 
-#if CONFIG_DESKTOP_HID_REPORT_MOUSE_SUPPORT
-		 REPORT_SIZE_MOUSE,
-#endif
-#if CONFIG_DESKTOP_HID_REPORT_KEYBOARD_SUPPORT
-		 REPORT_SIZE_KEYBOARD_KEYS,
-		 REPORT_SIZE_KEYBOARD_LEDS,
-#endif
-#if CONFIG_DESKTOP_HID_REPORT_SYSTEM_CTRL_SUPPORT
-		 REPORT_SIZE_SYSTEM_CTRL,
-#endif
-#if CONFIG_DESKTOP_HID_REPORT_CONSUMER_CTRL_SUPPORT
-		 REPORT_SIZE_CONSUMER_CTRL,
-#endif
-#if CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE
-		 REPORT_SIZE_USER_CONFIG,
-#endif
 		 0 /* Appease macro with a dummy zero */
 );
 
@@ -62,10 +61,10 @@ static struct bt_conn *cur_conn;
 static bool secured;
 static bool protocol_boot;
 
-static struct config_channel_state cfg_chan;
+static struct config_channel_transport cfg_chan_transport;
 static struct k_delayed_work notify_secured;
 
-static void broadcast_subscription_change(u8_t report_id, bool enabled)
+static void broadcast_subscription_change(uint8_t report_id, bool enabled)
 {
 	bool boot = (report_id == REPORT_ID_BOOT_MOUSE) ||
 		    (report_id == REPORT_ID_BOOT_KEYBOARD);
@@ -122,7 +121,7 @@ static void pm_evt_handler(enum bt_gatt_hids_pm_evt evt, struct bt_conn *conn)
 
 static void sync_notif_handler(const struct hid_notification_event *event)
 {
-	u8_t report_id = event->report_id;
+	uint8_t report_id = event->report_id;
 	bool enabled = event->enabled;
 
 	__ASSERT_NO_MSG(report_id < ARRAY_SIZE(report_enabled));
@@ -137,7 +136,7 @@ static void sync_notif_handler(const struct hid_notification_event *event)
 	broadcast_subscription_change(report_id, enabled);
 }
 
-static void async_notif_handler(u8_t report_id, enum bt_gatt_hids_notif_evt evt)
+static void async_notif_handler(uint8_t report_id, enum bt_gatt_hids_notif_evt evt)
 {
 	struct hid_notification_event *event = new_hid_notification_event();
 
@@ -147,7 +146,7 @@ static void async_notif_handler(u8_t report_id, enum bt_gatt_hids_notif_evt evt)
 	EVENT_SUBMIT(event);
 }
 
-static void hid_report_sent(const struct bt_conn *conn, u8_t report_id, bool error)
+static void hid_report_sent(const struct bt_conn *conn, uint8_t report_id, bool error)
 {
 	struct hid_report_sent_event *event = new_hid_report_sent_event();
 
@@ -233,17 +232,17 @@ static void feature_report_handler(struct bt_gatt_hids_rep *rep,
 {
 	if (IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE)) {
 		if (!write) {
-			int err = config_channel_report_get(&cfg_chan, rep->data,
-							    rep->size, false,
-							    CONFIG_BT_GATT_DIS_PNP_PID);
+			int err = config_channel_transport_get(&cfg_chan_transport,
+							       rep->data,
+							       rep->size);
 
 			if (err) {
 				LOG_WRN("Failed to process report get");
 			}
 		} else {
-			int err = config_channel_report_set(&cfg_chan, rep->data,
-							    rep->size, false,
-							    CONFIG_BT_GATT_DIS_PNP_PID);
+			int err = config_channel_transport_set(&cfg_chan_transport,
+							       rep->data,
+							       rep->size);
 
 			if (err) {
 				LOG_WRN("Failed to process report set");
@@ -279,7 +278,7 @@ static int module_init(void)
 	size_t feat_pos = 0;
 
 	if (IS_ENABLED(CONFIG_DESKTOP_HID_REPORT_MOUSE_SUPPORT)) {
-		static const u8_t mask[] = REPORT_MASK_MOUSE;
+		static const uint8_t mask[] = REPORT_MASK_MOUSE;
 		BUILD_ASSERT((sizeof(mask) == 0) ||
 			     (sizeof(mask) == ceiling_fraction(REPORT_SIZE_MOUSE, 8)));
 		BUILD_ASSERT(REPORT_ID_MOUSE < ARRAY_SIZE(report_index));
@@ -294,7 +293,7 @@ static int module_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_DESKTOP_HID_REPORT_KEYBOARD_SUPPORT)) {
-		static const u8_t mask[] = REPORT_MASK_KEYBOARD_KEYS;
+		static const uint8_t mask[] = REPORT_MASK_KEYBOARD_KEYS;
 		BUILD_ASSERT((sizeof(mask) == 0) ||
 			     (sizeof(mask) == ceiling_fraction(REPORT_SIZE_KEYBOARD_KEYS, 8)));
 		BUILD_ASSERT(REPORT_ID_KEYBOARD_KEYS < ARRAY_SIZE(report_index));
@@ -309,7 +308,7 @@ static int module_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_DESKTOP_HID_REPORT_SYSTEM_CTRL_SUPPORT)) {
-		static const u8_t mask[] = REPORT_MASK_SYSTEM_CTRL;
+		static const uint8_t mask[] = REPORT_MASK_SYSTEM_CTRL;
 		BUILD_ASSERT((sizeof(mask) == 0) ||
 			     (sizeof(mask) == ceiling_fraction(REPORT_SIZE_SYSTEM_CTRL, 8)));
 		BUILD_ASSERT(REPORT_ID_SYSTEM_CTRL < ARRAY_SIZE(report_index));
@@ -324,7 +323,7 @@ static int module_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_DESKTOP_HID_REPORT_CONSUMER_CTRL_SUPPORT)) {
-		static const u8_t mask[] = REPORT_MASK_CONSUMER_CTRL;
+		static const uint8_t mask[] = REPORT_MASK_CONSUMER_CTRL;
 		BUILD_ASSERT((sizeof(mask) == 0) ||
 			     (sizeof(mask) == ceiling_fraction(REPORT_SIZE_CONSUMER_CTRL, 8)));
 		BUILD_ASSERT(REPORT_ID_CONSUMER_CTRL < ARRAY_SIZE(report_index));
@@ -360,6 +359,16 @@ static int module_init(void)
 		or_pos++;
 	}
 
+	if (IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_OUT_REPORT)) {
+		__ASSERT_NO_MSG(IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE));
+		output_report[or_pos].id      = REPORT_ID_USER_CONFIG_OUT;
+		output_report[or_pos].size    = REPORT_SIZE_USER_CONFIG;
+		output_report[or_pos].handler = feature_report_handler;
+
+		report_index[output_report[or_pos].id] = or_pos;
+		or_pos++;
+	}
+
 	hids_init_param.outp_rep_group_init.cnt = or_pos;
 
 	/* Boot protocol setup */
@@ -376,7 +385,7 @@ static int module_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE)) {
-		config_channel_init(&cfg_chan);
+		config_channel_transport_init(&cfg_chan_transport);
 	}
 
 	hids_init_param.pm_evt_handler = pm_evt_handler;
@@ -403,7 +412,7 @@ static void send_hid_report(const struct hid_report_event *event)
 	__ASSERT_NO_MSG(cur_conn);
 	__ASSERT_NO_MSG(event->dyndata.size > 0);
 
-	u8_t report_id = event->dyndata.data[0];
+	uint8_t report_id = event->dyndata.data[0];
 
 	__ASSERT_NO_MSG(report_id < ARRAY_SIZE(report_index));
 	__ASSERT_NO_MSG(report_sent_cb[report_id]);
@@ -415,7 +424,7 @@ static void send_hid_report(const struct hid_report_event *event)
 		return;
 	}
 
-	const u8_t *buffer = &event->dyndata.data[sizeof(report_id)];
+	const uint8_t *buffer = &event->dyndata.data[sizeof(report_id)];
 	size_t size = event->dyndata.size - sizeof(report_id);
 	int err;
 
@@ -483,7 +492,7 @@ static void notify_hids(const struct ble_peer_event *event)
 		}
 
 		if (IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE)) {
-			config_channel_disconnect(&cfg_chan);
+			config_channel_transport_disconnect(&cfg_chan_transport);
 		}
 
 		cur_conn = NULL;
@@ -563,19 +572,13 @@ static bool event_handler(const struct event_header *eh)
 	}
 
 	if (IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE) &&
-	    is_config_fetch_event(eh)) {
-		config_channel_fetch_receive(&cfg_chan,
-					     cast_config_fetch_event(eh));
-
-		return false;
-	}
-
-	if (IS_ENABLED(CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE) &&
 	    is_config_event(eh)) {
-		config_channel_event_done(&cfg_chan, cast_config_event(eh));
+		config_channel_transport_rsp_receive(&cfg_chan_transport,
+					cast_config_event(eh));
 
 		return false;
 	}
+
 
 	/* If event is unhandled, unsubscribe. */
 	__ASSERT_NO_MSG(false);
@@ -587,7 +590,6 @@ EVENT_SUBSCRIBE(MODULE, hid_report_event);
 EVENT_SUBSCRIBE(MODULE, hid_notification_event);
 EVENT_SUBSCRIBE(MODULE, module_state_event);
 #if CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE
-EVENT_SUBSCRIBE(MODULE, config_fetch_event);
 EVENT_SUBSCRIBE(MODULE, config_event);
 #endif
 EVENT_SUBSCRIBE_EARLY(MODULE, ble_peer_event);

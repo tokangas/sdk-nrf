@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+
+#define EHASHFF 113 /* A hash contains too many 0xFs. */
+
 /** @defgroup bl_storage Bootloader storage (protected data).
  * @{
  */
@@ -23,21 +26,29 @@ extern "C" {
  *
  * @return Address of slot 0.
  */
-u32_t s0_address_read(void);
+uint32_t s0_address_read(void);
 
 /**
  * @brief Function for reading address of slot 1.
  *
  * @return Address of slot 1.
  */
-u32_t s1_address_read(void);
+uint32_t s1_address_read(void);
 
 /**
  * @brief Function for reading number of public key data slots.
  *
  * @return Number of public key data slots.
  */
-u32_t num_public_keys_read(void);
+uint32_t num_public_keys_read(void);
+
+/**
+ * @brief Function for reading number of public key data slots.
+ *
+ * @retval 0         if all keys are ok
+ * @retval -EHASHFF  if one or more keys contains an aligned 0xFFFF.
+ */
+int verify_public_keys(void);
 
 /**
  * @brief Function for reading public key data.
@@ -51,7 +62,7 @@ u32_t num_public_keys_read(void);
  * @retval -ENOMEM  The provided buffer is too small.
  * @retval -EFAULT  key_idx is too large. There is no key with that index.
  */
-int public_key_data_read(u32_t key_idx, u8_t *p_buf, size_t buf_size);
+int public_key_data_read(uint32_t key_idx, uint8_t *p_buf, size_t buf_size);
 
 /**
  * @brief Function for invalidating a public key.
@@ -60,7 +71,7 @@ int public_key_data_read(u32_t key_idx, u8_t *p_buf, size_t buf_size);
  *
  * @param[in]  key_idx  Index of key.
  */
-void invalidate_public_key(u32_t key_idx);
+void invalidate_public_key(uint32_t key_idx);
 
 /**
  * @brief Get the number of monotonic counter slots.
@@ -68,14 +79,14 @@ void invalidate_public_key(u32_t key_idx);
  * @return The number of slots. If the provision page does not contain the
  *         information, 0 is returned.
  */
-u16_t num_monotonic_counter_slots(void);
+uint16_t num_monotonic_counter_slots(void);
 
 /**
  * @brief Get the current HW monotonic counter.
  *
  * @return The current value of the counter.
  */
-u16_t get_monotonic_counter(void);
+uint16_t get_monotonic_counter(void);
 
 /**
  * @brief Set the current HW monotonic counter.
@@ -90,10 +101,10 @@ u16_t get_monotonic_counter(void);
  * @retval 0        The counter was updated successfully.
  * @retval -EINVAL  @p new_counter is invalid (must be larger than current
  *                  counter, and cannot be 0xFFFF).
- * @retval -ENOMEM  There are no more free counter slots (see @ref
- *                  CONFIG_SB_NUM_VER_COUNTER_SLOTS).
+ * @retval -ENOMEM  There are no more free counter slots (see
+ *                  @em CONFIG_SB_NUM_VER_COUNTER_SLOTS).
  */
-int set_monotonic_counter(u16_t new_counter);
+int set_monotonic_counter(uint16_t new_counter);
 
   /** @} */
 

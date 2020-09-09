@@ -36,9 +36,9 @@ struct nfc_ndef_msg_desc {
 	/** Number of elements in the allocated record array, which defines
 	 *  the maximum number of records within the NDEF message.
 	 */
-	u32_t max_record_count;
+	uint32_t max_record_count;
 	/** Number of records in the NDEF message. */
-	u32_t record_count;
+	uint32_t record_count;
 };
 
 /**
@@ -46,10 +46,6 @@ struct nfc_ndef_msg_desc {
  *
  * This function encodes an NDEF message according to the provided message
  * descriptor.
- *
- * @note The way of encoding an NDEF message may vary depending on tag's
- * platform. Set CONFIG_NFC_NDEF_MSG_WITH_NLEN=y if you want to use Type 4 Tag
- * in application's configuration prj.conf file.
  *
  * @param ndef_msg_desc Pointer to the message descriptor.
  * @param msg_buffer Pointer to the message destination. If NULL, function
@@ -61,8 +57,8 @@ struct nfc_ndef_msg_desc {
  *           Otherwise, a (negative) error code is returned.
  */
 int nfc_ndef_msg_encode(struct nfc_ndef_msg_desc const *ndef_msg_desc,
-			u8_t *msg_buffer,
-			u32_t *msg_len);
+			uint8_t *msg_buffer,
+			uint32_t *msg_len);
 
 /**
  * @brief Clear an NDEF message.

@@ -45,7 +45,10 @@ __weak zb_uint32_t zb_osif_sleep(zb_uint32_t sleep_tmo)
 	ZVUNUSED(time_slept_ms);
 	return ZB_SLEEP_INVALID_VALUE;
 #else
+
+#if ZB_TRACE_LEVEL
 	ZB_SET_TRACE_OFF();
+#endif /* ZB_TRACE_LEVEL */
 
 	/* Lock timer value from updating during sleep period. */
 	ZVUNUSED(atomic_set((atomic_t *)&is_sleeping, 1));
@@ -70,9 +73,11 @@ __weak zb_uint32_t zb_osif_sleep(zb_uint32_t sleep_tmo)
  * wants to implement their own going-to-deep-sleep policy/share resources
  * between Zigbee stack and other components.
  */
-__weak zb_void_t zb_osif_wake_up(void)
+__weak void zb_osif_wake_up(void)
 {
+#if ZB_TRACE_LEVEL
 	ZB_SET_TRACE_ON();
+#endif /* ZB_TRACE_LEVEL */
 	/* Restore trace interrupts. TODO: Restore something else if needed */
 }
 

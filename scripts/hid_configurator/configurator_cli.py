@@ -6,16 +6,13 @@
 import argparse
 import logging
 import os
-import zipfile
-import tempfile
 
-from zipfile import ZipFile
-
-from devices import DEVICE, get_device_pid, get_device_vid
-from NrfHidDevice import NrfHidDevice
+from devices import DEVICE
+from NrfHidManager import NrfHidManager
 
 from modules.config import change_config, fetch_config
-from modules.dfu import fwinfo, fwreboot, dfu_transfer, get_dfu_image_version
+from modules.dfu import DfuImage
+from modules.dfu import fwinfo, fwreboot, dfu_transfer
 from modules.led_stream import send_continuous_led_stream
 try:
     from modules.music_led_stream import send_music_led_stream
@@ -36,37 +33,22 @@ def progress_bar(permil):
 
 
 def perform_dfu(dev, args):
-    dfu_package = args.dfu_image
-
-    if not zipfile.is_zipfile(dfu_package):
-        print('Invalid DFU package format')
-        return
-
     info = fwinfo(dev)
     if info is None:
         print('Cannot get FW info from device')
         return
     img_ver_dev = info.get_fw_version()
 
-    flash_area_id = info.get_flash_area_id()
-    if flash_area_id not in (0, 1):
-        print('Invalid area id in FW info')
+    img_file = DfuImage(args.dfu_image, info, dev.get_board_name())
+
+    img_file_bin = img_file.get_dfu_image_bin_path()
+    if img_file_bin is None:
+        print('No proper update image in file')
         return
-    dfu_slot_id = 1 - flash_area_id
 
-    dfu_image_name = 'signed_by_b0_s{}_image.bin'.format(dfu_slot_id)
+    print('DFU will use file {}'.format(os.path.basename(img_file_bin)))
 
-    temp_dir = tempfile.TemporaryDirectory(dir='.')
-    dfu_path = temp_dir.name
-
-    with ZipFile(dfu_package, 'r') as zip_file:
-        zip_file.extract(dfu_image_name, dfu_path)
-
-    dfu_image = os.path.join(dfu_path, dfu_image_name)
-
-    print('DFU will use file {}'.format(dfu_image))
-
-    img_ver_file = get_dfu_image_version(dfu_image)
+    img_ver_file = img_file.get_dfu_image_version()
     if img_ver_file is None:
         print('Cannot read image version from file')
         return
@@ -90,12 +72,10 @@ def perform_dfu(dev, args):
             print('Improper user input. Operation terminated.')
             return
 
-    success = dfu_transfer(dev, dfu_image, progress_bar)
+    success = dfu_transfer(dev, img_file_bin, progress_bar)
 
     if success:
         success = fwreboot(dev)
-
-    temp_dir.cleanup()
 
     if success:
         print('DFU transfer completed')
@@ -113,7 +93,8 @@ def perform_config(dev, args):
     value_type = option_config.type
 
     if value_type is not None and args.value is None:
-        success, val = fetch_config(dev, module_name, option_name, option_config)
+        success, val = fetch_config(dev, args.device_type, module_name,
+                                    option_name, option_config)
 
         if success:
             print('Fetched {}/{}: {}'.format(module_name, option_name, val))
@@ -131,7 +112,8 @@ def perform_config(dev, args):
                                                                    value_type))
                 return
 
-        success = change_config(dev, module_name, option_name, value, option_config)
+        success = change_config(dev, args.device_type, module_name,
+                                option_name, value, option_config)
 
         if success:
             if value_type is None:
@@ -179,6 +161,8 @@ def parse_arguments():
 
     for device_name in DEVICE:
         device_parser = sp_devices.add_parser(device_name)
+        device_parser.add_argument('--hwid', type=str,
+                                   help='Hardware ID of the device')
 
         sp_commands = device_parser.add_subparsers(dest='command')
         sp_commands.required = True
@@ -237,18 +221,28 @@ def configurator():
 
     args = parse_arguments()
 
-    dev = NrfHidDevice(args.device_type,
-                       get_device_vid(args.device_type),
-                       get_device_pid(args.device_type),
-                       get_device_pid('dongle'))
+    backend = NrfHidManager()
+    devlist = backend.list_devices()
 
-    if not dev.initialized():
-        print('Cannot find selected device')
-        return
+    print()
+    if len(devlist) > 0:
+        print('Found following nRF Desktop devices:')
+        for d in devlist:
+            print("  {}".format(d))
+    else:
+        print('Found no nRF Desktop devices')
+    print()
 
-    configurator.ALLOWED_COMMANDS[args.command](dev, args)
+    devs = backend.find_devices(device_type=args.device_type, hwid=args.hwid)
 
-    dev.close_device()
+    if len(devs) == 0:
+        print('Specified device was not found')
+    elif len(devs) == 1:
+        print('Performing {} operation on {}'.format(args.command,
+                                                     devs[0].get_board_name()))
+        configurator.ALLOWED_COMMANDS[args.command](devs[0], args)
+    else:
+        print('More than one device found. Please specify hwid.')
 
 configurator.ALLOWED_COMMANDS = {
     'dfu' : perform_dfu,

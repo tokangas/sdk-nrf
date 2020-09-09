@@ -9,32 +9,33 @@ An nRF9160 DK is used as the host, while the client can be simulated using eithe
 This application is an enhancement to the :ref:`at_client_sample` sample.
 It provides the following features:
 
- * Support for generic proprietary AT commands
- * Support for BSD Socket proprietary AT commands
- * Support for TCP/UDP proxy proprietary AT commands (optional)
- * Support for ICMP proprietary AT commands
- * Support for GPS proprietary AT commands
- * Support for MQTT client proprietary AT commands
- * Support for FTP client proprietary AT commands
- * Support for communication to external MCU over UART
+* Support for generic proprietary AT commands
+* Support for BSD Socket proprietary AT commands
+* Support for TCP/UDP proxy proprietary AT commands (optional)
+* Support for ICMP proprietary AT commands
+* Support for GPS proprietary AT commands
+* Support for MQTT client proprietary AT commands
+* Support for FTP client proprietary AT commands
+* Support for communication to external MCU over UART
 
 All nRF91 modem AT commands are also supported.
 
 Requirements
 ************
 
-* The following development board:
+The application supports the following development kit:
 
-    * |nRF9160DK|
+.. include:: /includes/boardname_tables/sample_boardnames.txt
+   :start-after: set5_start
+   :end-before: set5_end
 
-* If the client is a PC:
+If the client is a PC, the application requires any terminal software, such as TeraTerm.
 
-    * Any terminal software, such as TeraTerm.
+If the client is an nRF52 device, the application supports the following development kits:
 
-* If the client is an nRF52 device:
-
-    * |nRF52840DK|
-    * |nRF52DK|
+.. include:: /includes/boardname_tables/sample_boardnames.txt
+   :start-after: set2_start
+   :end-before: set2_end
 
 .. terminal_config
 
@@ -46,9 +47,9 @@ This means that you can use the J-Link COM port on the PC side to connect with n
 
 Terminal serial configuration:
 
-    * Hardware flow control: disabled
-    * Baud rate: 115200
-    * Parity bit: no
+* Hardware flow control: disabled
+* Baud rate: 115200
+* Parity bit: no
 
 .. note::
    * The default AT command terminator is Carrier Return and Line Feed, i.e. ``\r\n``.
@@ -80,15 +81,15 @@ The pin interconnection between nRF91 and nRF52 is presented in the following ta
 
 UART instance in use:
 
-    * nRF52840 and nRF52832 (UART0)
-    * nRF9160 (UART2)
+* nRF52840 and nRF52832 (UART0)
+* nRF9160 (UART2)
 
 UART configuration:
 
-    * Hardware flow control: enabled
-    * Baud rate: 115200
-    * Parity bit: no
-    * Operation mode: IRQ
+* Hardware flow control: enabled
+* Baud rate: 115200
+* Parity bit: no
+* Operation mode: IRQ
 
 Note that the GPIO output level on nRF91 side should be 3 V.
 
@@ -98,8 +99,11 @@ Generic commands
 The following proprietary generic AT commands are used in this application:
 
 * AT#XSLMVER
+* AT#XSLMUART=<baudrate>
 * AT#XSLEEP[=<shutdown_mode>]
 * AT#XCLAC
+
+If the client sets new UART baudrate by AT#XSLMUART, the client should wait at least 100ms to send command in new baudrate.
 
 BSD Socket AT commands
 **********************
@@ -115,19 +119,20 @@ The following proprietary BSD socket AT commands are used in this application:
 * AT#XSEND=<datatype>,<data>
 * AT#XRECV[=<length>]
 * AT#XSENDTO=<url>,<port>,<datatype>,<data>
-* AT#XRECVFROM=<url>,<port>[,<length>]
+* AT#XRECVFROM[=<length>]
 * AT#XGETADDRINFO=<url>
 
 If the configuration option ``CONFIG_SLM_TCP_PROXY`` is defined, the following AT commands are available to use the TCP proxy service:
 
-* AT#XTCPSVR=<op>[,<port>[,[sec_tag]]
-* AT#XTCPCLI=<op>[,<url>,<port>[,[sec_tag]]
+* AT#XTCPSVR=<op>[,<port>[,<sec_tag>]]
+* AT#XTCPCLI=<op>[,<url>,<port>[,<sec_tag>]
 * AT#XTCPSEND=<datatype>,<data>
+* AT#XTCPRECV[=<length>]
 
 If the configuration option ``CONFIG_SLM_UDP_PROXY`` is defined, the following AT commands are available to use the UDP proxy service:
 
-* AT#XUDPSVR=<op>[,<port>[,[sec_tag]]
-* AT#XUDPCLI=<op>[,<url>,<port>[,[sec_tag]]
+* AT#XUDPSVR=<op>[,<port>]
+* AT#XUDPCLI=<op>[,<url>,<port>[,<sec_tag>]
 * AT#XUDPSEND=<datatype>,<data>
 
 ICMP AT commands
@@ -154,7 +159,7 @@ MQTT AT Commands
 
 The following proprietary MQTT AT commands are used in this application:
 
-* AT#XMQTTCON=<op>[,<cid>,<url>,<port>[,<sec_tag>]]
+* AT#XMQTTCON=<op>[,<cid>,<username>,<password>,<url>,<port>[,<sec_tag>]]
 * AT#XMQTTPUB=<topic>,<datatype>,<msg>,<qos>,<retain>
 * AT#XMQTTSUB=<topic>,<qos>
 * AT#XMQTTUNSUB=<topic>
@@ -175,7 +180,7 @@ The following proprietary FTP AT commands are used in this application:
 
 * AT#XFTP=<cmd>[,<param1>[<param2]..]]
 
-More detailed usage for different operation commands:
+The different command options for <cmd> are listed below:
 
 * AT#XFTP="open",<username>,<password>,<hostname>[,<port>[,<sec_tag>]]
 * AT#XFTP="status"
@@ -214,24 +219,24 @@ See `Terminal connection`_ section for the serial connection configuration detai
 
 When testing the application with an nRF52 client, the DKs go through the following start-up sequence:
 
-    1. nRF91 starts up and enters sleep state.
-    #. nRF52 starts up and starts a periodical timer to toggle the GPIO interface.
-    #. nRF52 deasserts the GPIO interface.
-    #. nRF91 is woken up and sends a ``Ready\r\n`` message to the nRF52.
-    #. On receiving the message, nRF52 can proceed to issue AT commands.
+1. nRF91 starts up and enters sleep state.
+#. nRF52 starts up and starts a periodical timer to toggle the GPIO interface.
+#. nRF52 deasserts the GPIO interface.
+#. nRF91 is woken up and sends a ``Ready\r\n`` message to the nRF52.
+#. On receiving the message, nRF52 can proceed to issue AT commands.
 
 Dependencies
 ************
 
 This application uses the following |NCS| libraries and drivers:
 
-    * ``nrf/drivers/lte_link_control``
-    * ``nrf/drivers/at_cmd``
-    * ``nrf/lib/bsd_lib``
-    * ``nrf/lib/at_cmd_parser``
-    * ``nrf/lib/at_notif``
-    * ``nrf/lib/modem_info``
-    * ``nrf/subsys/net/lib/ftp_client``
+* ``nrf/drivers/lte_link_control``
+* ``nrf/drivers/at_cmd``
+* ``nrf/lib/bsd_lib``
+* ``nrf/lib/at_cmd_parser``
+* ``nrf/lib/at_notif``
+* ``nrf/lib/modem_info``
+* ``nrf/subsys/net/lib/ftp_client``
 
 In addition, it uses the Secure Partition Manager sample:
 

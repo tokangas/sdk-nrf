@@ -2,16 +2,10 @@
 
 .. _`Zephyr`: https://zephyrproject.org/
 
-.. _`Zephyr Project documentation`: http://docs.zephyrproject.org/
+.. _`Zephyr Project documentation`: https://docs.zephyrproject.org/
 
 .. _`official Zephyr repository`: https://github.com/zephyrproject-rtos/zephyr
 .. _`Zephyr repository`: https://github.com/zephyrproject-rtos/zephyr
-
-.. _`Zephyr coding style`: http://docs.zephyrproject.org/contribute/contribute_guidelines.html
-
-.. _`Devicetree vs Kconfig`: http://docs.zephyrproject.org/latest/guides/dts/index.html#devicetree-vs-kconfig
-
-.. _`RTT Viewer`: https://docs.zephyrproject.org/latest/guides/tools/nordic_segger.html
 
 .. ### Links to MCUboot
 
@@ -30,13 +24,17 @@
 .. |ncs_nrfxlib_repo| replace:: https://github.com/nrfconnect/nrfxlib
 .. _`nrfxlib`: https://github.com/nrfconnect/nrfxlib
 
-.. _`change log`: https://github.com/nrfconnect/sdk-nrf/wiki/Changelog
+.. _`nRF Connect SDK changelog`: https://github.com/nrfconnect/sdk-nrf/wiki/Changelog
+
+.. _`master branch section in the changelog`: https://github.com/nrfconnect/sdk-nrf/wiki/Changelog#master-branch
 
 .. _`Known issues`: https://github.com/nrfconnect/sdk-nrf/wiki/Known-issues
 
 .. ### Links to Nordic documentation
 
 .. _`nRF Connect SDK v1.3.0 documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.3.0/nrf/index.html
+
+.. _`nRF Connect SDK v1.2.1 documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.2.1/nrf/index.html
 
 .. _`nRF Connect SDK v1.2.0 documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.2.0/nrf/index.html
 
@@ -86,6 +84,20 @@
 .. _`antenna diversity documentation`: https://infocenter.nordicsemi.com/topic/15.4_radio_driver_v2.0.0-1.prealpha/ant_diversity.html
 
 .. _`anomaly 19`: https://infocenter.nordicsemi.com/topic/errata_nRF5340_EngA/ERR/nRF5340/EngineeringA/latest/anomaly_340_19.html
+
+.. _`nRF9160 compatibility matrix`: https://infocenter.nordicsemi.com/topic/comp_matrix_nrf9160/COMP/nrf9160/nrf9160_operator_certifications.html
+
+.. _`nAN34`: https://infocenter.nordicsemi.com/pdf/nan_34.pdf
+
+.. _`Power saving mode setting section in AT commands reference document`: https://infocenter.nordicsemi.com/topic/ref_at_commands/REF/at_commands/nw_service/cpsms.html
+
+.. _`Measuring current on nRF9160 DK`: https://infocenter.nordicsemi.com/topic/ug_nrf91_dk/UG/nrf91_DK/hw_measure_current.html
+
+.. _`Release Assistance Indication (RAI)`: https://infocenter.nordicsemi.com/topic/ref_at_commands/REF/at_commands/nw_service/xrai.html
+
+.. _`Measuring Current on Thingy:91`: https://infocenter.nordicsemi.com/topic/ug_thingy91/UG/thingy91/hw_description/hw_power_current_measurement.html
+
+.. _`DFU over Zigbee`: https://infocenter.nordicsemi.com/topic/ug_nrfutil/UG/nrfutil/nrfutil_dfu_zigbee.html
 
 .. ### Links to the Nordic website
 
@@ -169,19 +181,19 @@
 
 .. _`J-Link Software and Documentation Pack`: https://www.segger.com/downloads/jlink
 
-.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x86`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v452_win_x86.zip
-.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x64`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v452_win_x64.zip
-.. _`SEGGER Embedded Studio (Nordic Edition) - Mac OS x64`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v452_macos_x64.dmg
-.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x86`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v452_linux_x86.tar.gz
-.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x64`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v452_linux_x64.tar.gz
+.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x86`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_win_x86
+.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x64`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_win_x64
+.. _`SEGGER Embedded Studio (Nordic Edition) - Mac OS x64`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_macos
+.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x86`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_linux_x86
+.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x64`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_linux_x64
 
 .. _`HID usage tables`: https://www.usb.org/hid
 
 .. _`SEGGER SystemView`: https://www.segger.com/products/development-tools/systemview/
 
-.. _`CMock`: http://www.throwtheswitch.org/cmock
+.. _`CMock`: https://www.throwtheswitch.org/cmock
 
-.. _`Unity`: http://www.throwtheswitch.org/unity
+.. _`Unity`: https://www.throwtheswitch.org/unity
 
 .. _`MCUmgr`: https://github.com/apache/mynewt-mcumgr
 
@@ -221,6 +233,12 @@
 
 .. _`BH1749NUC-E`: https://www.rohm.com/datasheet/BH1749NUC/bh1749nuc-e
 
+.. _`JSON`: https://www.json.org/json-en.html
+
+.. _`Setting up an AWS account`: https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/
+
+.. _`mscgen`: http://www.mcternan.me.uk/mscgen/
+
 .. ### Links to Bluetooth specs
 
 .. _`Bluetooth Core Specification`: https://www.bluetooth.com/specifications/bluetooth-core-specification
@@ -228,6 +246,12 @@
 .. _`HID Service Specification`: https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=245140
 
 .. _`Battery Service Specification`: https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=245138
+
+.. _`Bluetooth Low Energy RF PHY Test Specification`: https://www.bluetooth.org/docman/handlers/DownloadDoc.ashx?doc_id=225827
+
+.. _`Bond Management Service Specification`: https://www.bluetooth.org/docman/handlers/downloaddoc.ashx?doc_id=293524
+
+.. ### Links to Bluetooth Mesh
 
 .. _`Mesh Model Specification`: https://www.bluetooth.com/specifications/mesh-specifications/
 
@@ -241,10 +265,9 @@
 
 .. _`Bluetooth Mesh Study Guide`: https://www.bluetooth.com/bluetooth-resources/bluetooth-mesh-developer-study-guide/
 
-
 .. ### Links to NFC specs
 
-.. _`Bluetooth Secure Simple Pairing Using NFC`: http://nfc-forum.org/our-work/specifications-and-application-documents/application-documents
+.. _`Bluetooth Secure Simple Pairing Using NFC`: https://www.bluetooth.com/bluetooth-resources/bluetooth-secure-simple-pairing-using-nfc-application-document/
 
 .. _`NFC Forum specification overview`: https://nfc-forum.org/our-work/specification-releases/specifications/
 
@@ -278,12 +301,28 @@
 
 .. _`Joiner CLI commands`: https://github.com/openthread/openthread/blob/master/src/cli/README_JOINER.md
 
+.. _`wpantund`: https://github.com/openthread/wpantund/blob/master/README.md
+.. _`wpantund Installation Guide`: https://github.com/openthread/wpantund/blob/master/INSTALL.md
+
+.. _`PySpinel`: https://github.com/openthread/pyspinel/blob/master/README.md
+
+.. _`Thread Group's certification information`: https://www.threadgroup.org/What-is-Thread/Certification
+
+.. _`Thread Group members`: https://www.threadgroup.org/thread-group
+
+.. _`Thread Group's Confluence wiki page`: https://threadgroup.atlassian.net/wiki/spaces/THREADTEST/pages/25900869/Supporting+Material
+
+.. _`OpenThread THCI`: https://github.com/openthread/openthread/tree/master/tools/harness-thci
+
+.. _`Openthread acting as a new reference platform`: https://openthread.io/certification/automation-setup#acting_as_a_new_reference_platform
+
 .. ### Links to Zigbee
 
 .. _`Zigbee Alliance`: https://www.zigbeealliance.org
 
 .. _`Zigbee Specification`: https://zigbeealliance.org/developer_resources/zigbee-specification
 
+.. _`Stack commissioning start sequence`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss_api_doc/using_zigbee__z_c_l.html#stack_start_initiation
 
 .. ### Links to crypto specs
 
@@ -328,11 +367,13 @@
 
 .. _`Breathe documentation`: https://breathe.readthedocs.io/en/latest/directives.html#directives
 
-.. _`reStructuredText Primer`: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+.. _`reStructuredText Primer`: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 
 .. _`ST25R3911B chip documentation`: https://www.st.com/resource/en/datasheet/st25r3911b.pdf
 
 .. _`TinyCBOR`: https://intel.github.io/tinycbor/current/
+
+.. _`RPMsg Messaging Protocol`: https://github.com/OpenAMP/open-amp/wiki/RPMsg-Messaging-Protocol
 
 .. _`generator expressions`: https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html
 
@@ -358,13 +399,13 @@
 .. _`Ephemeris`: https://en.wikipedia.org/wiki/Ephemeris
 .. _`Almanac`: https://en.wikipedia.org/wiki/GPS_signals#Almanac
 
-.. _`SUPL context model`: http://www.openmobilealliance.org/release/SUPL/V1_0-20060127-C/OMA-AD-SUPL-V1_0-20060127-C.pdf#page=16
+.. _`SUPL context model`: https://www.openmobilealliance.org/release/SUPL/V1_0-20060127-C/OMA-AD-SUPL-V1_0-20060127-C.pdf#page=16
 
 .. _`LTE Positioning Protocol (LPP)`:  https://www.etsi.org/deliver/etsi_ts/136300_136399/136355/11.01.00_60/ts_136355v110100p.pdf#page=12
 
-.. _`SET-initiated SUPL collaboration`: http://www.openmobilealliance.org/release/SUPL/V2_0_4-20181213-A/OMA-TS-ULP-V2_0_4-20181213-A.pdf#page=128
+.. _`SET-initiated SUPL collaboration`: https://www.openmobilealliance.org/release/SUPL/V2_0_4-20181213-A/OMA-TS-ULP-V2_0_4-20181213-A.pdf#page=128
 
-.. _`SET-Initiated Non-Roaming Successful Case (Proxy mode)`: http://www.openmobilealliance.org/release/SUPL/V2_0_4-20181213-A/OMA-TS-ULP-V2_0_4-20181213-A.pdf#page=129
+.. _`SET-Initiated Non-Roaming Successful Case (Proxy mode)`: https://www.openmobilealliance.org/release/SUPL/V2_0_4-20181213-A/OMA-TS-ULP-V2_0_4-20181213-A.pdf#page=129
 
 .. _`Secure Location Protocol (SLP)` : https://en.wikipedia.org/wiki/Service_Location_Protocol
 
@@ -380,6 +421,12 @@
 .. _`tutorial on SSL.com`: https://support.ssl.com/Knowledgebase/Article/View/19/0/der-vs-crt-vs-cer-vs-pem-certificates-and-how-to-convert-them
 
 .. _`RFC959 File Transfer Protocol (FTP)`: https://tools.ietf.org/html/rfc959
+
+.. _`Windows Python Path`: https://docs.python.org/3/using/windows.html#finding-the-python-executable
+
+.. _`Remote Procedure Calls (RPC)`: https://en.wikipedia.org/wiki/Remote_procedure_call
+
+.. _`Content-Range requests (IETF RFC 7233)`: https://tools.ietf.org/html/rfc7233
 
 .. ### Links to specific files on GitHub
 

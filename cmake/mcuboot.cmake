@@ -70,6 +70,10 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
       ${test_update_hex}
       ${moved_test_update_hex}
 
+      # Add Zigbee OTA header to signed application
+      COMMAND
+      ${zb_add_ota_header_cmd}
+
       DEPENDS
       ${sign_depends}
       )
@@ -99,17 +103,53 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
   set(app_sign_depends
     $<IF:${sign_merged},${merged_hex_file_depends},zephyr_final>)
 
+  if (DEFINED mcuboot_CONF_FILE)
+    get_filename_component(mcuboot_CONF_DIR ${mcuboot_CONF_FILE} DIRECTORY)
+    if (EXISTS ${mcuboot_CONF_DIR}/${CONFIG_BOOT_SIGNATURE_KEY_FILE})
+      set(mcuboot_key_file ${mcuboot_CONF_DIR}/${CONFIG_BOOT_SIGNATURE_KEY_FILE})
+    endif()
+  endif()
+
+  # Set default key
+  if (NOT DEFINED mcuboot_key_file)
+    message(WARNING "
+      ---------------------------------------------------------
+      --- WARNING: Using default MCUBoot key, it should not ---
+      --- be used for production.                           ---
+      ---------------------------------------------------------
+      \n"
+    )
+    set(mcuboot_key_file ${MCUBOOT_DIR}/${CONFIG_BOOT_SIGNATURE_KEY_FILE})
+  endif()
+
   set(sign_cmd
     ${PYTHON_EXECUTABLE}
     ${MCUBOOT_DIR}/scripts/imgtool.py
     sign
-    --key ${MCUBOOT_DIR}/${CONFIG_BOOT_SIGNATURE_KEY_FILE}
+    --key ${mcuboot_key_file}
     --header-size $<TARGET_PROPERTY:partition_manager,PM_MCUBOOT_PAD_SIZE>
     --align       ${CONFIG_MCUBOOT_FLASH_WRITE_BLOCK_SIZE}
     --version     ${CONFIG_MCUBOOT_IMAGE_VERSION}
     --slot-size   $<TARGET_PROPERTY:partition_manager,PM_MCUBOOT_PRIMARY_SIZE>
     --pad-header
     )
+
+  if(CONFIG_ZIGBEE)
+    set(zb_add_ota_header_cmd
+      ${PYTHON_EXECUTABLE}
+      ${NRF_DIR}/scripts/bootloader/zb_add_ota_header.py
+      --application ${PROJECT_BINARY_DIR}/app_update.bin
+      --application-version-string ${CONFIG_MCUBOOT_IMAGE_VERSION}
+      --zigbee-manufacturer-id ${CONFIG_ZIGBEE_FOTA_MANUFACTURER_ID}
+      --zigbee-image-type ${CONFIG_ZIGBEE_FOTA_IMAGE_TYPE}
+      --zigbee-comment ${CONFIG_ZIGBEE_FOTA_COMMENT}
+      --zigbee-ota-min-hw-version ${CONFIG_ZIGBEE_FOTA_MIN_HW_VERSION}
+      --zigbee-ota-max-hw-version ${CONFIG_ZIGBEE_FOTA_MAX_HW_VERSION}
+      --out-directory ${PROJECT_BINARY_DIR}
+      )
+    else()
+      set(zb_add_ota_header_cmd "")
+    endif(CONFIG_ZIGBEE)
 
   set(app_offset $<TARGET_PROPERTY:partition_manager,PM_MCUBOOT_PRIMARY_SIZE>)
 

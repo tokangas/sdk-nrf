@@ -41,13 +41,17 @@ enum cloud_event_type {
 	CLOUD_EVT_FOTA_DONE,
 	CLOUD_EVT_FOTA_ERASE_PENDING,
 	CLOUD_EVT_FOTA_ERASE_DONE,
+	CLOUD_EVT_FOTA_DL_PROGRESS,
 	CLOUD_EVT_COUNT
 };
 
 enum cloud_disconnect_reason {
 	CLOUD_DISCONNECT_USER_REQUEST,
+	/** The connection was closed by the cloud */
 	CLOUD_DISCONNECT_CLOSED_BY_REMOTE,
+	/** The connection is no longer valid */
 	CLOUD_DISCONNECT_INVALID_REQUEST,
+	/** Miscellaneous error */
 	CLOUD_DISCONNECT_MISC,
 	CLOUD_DISCONNECT_COUNT
 };
@@ -77,21 +81,26 @@ enum cloud_endpoint_type {
 /**@brief Cloud connect results. */
 enum cloud_connect_result {
 	CLOUD_CONNECT_RES_SUCCESS = 0,
-
+	/** Cloud backend is not initialized. */
 	CLOUD_CONNECT_RES_ERR_NOT_INITD = -1,
 	CLOUD_CONNECT_RES_ERR_INVALID_PARAM = -2,
+	/** Host cannot be found with the available network interfaces. */
 	CLOUD_CONNECT_RES_ERR_NETWORK = -3,
+	/** A backend-specific error. */
 	CLOUD_CONNECT_RES_ERR_BACKEND = -4,
+    /** Error cause cannot be determined.*/
 	CLOUD_CONNECT_RES_ERR_MISC = -5,
+	/** MQTT RX/TX buffers were not initialized. */
 	CLOUD_CONNECT_RES_ERR_NO_MEM = -6,
-	/* Invalid private key */
+	/** Invalid private key */
 	CLOUD_CONNECT_RES_ERR_PRV_KEY = -7,
-	/* Invalid CA or client cert */
+	/** Invalid CA or client certificate */
 	CLOUD_CONNECT_RES_ERR_CERT = -8,
-	/* Other cert issue */
+	/** Miscellaneous certificate error */
 	CLOUD_CONNECT_RES_ERR_CERT_MISC = -9,
-	/* Timeout, SIM card may be out of data */
+	/** Timeout; typically occurs when the inserted SIM card has no data */
 	CLOUD_CONNECT_RES_ERR_TIMEOUT_NO_DATA = -10,
+	/** Connection process has already been started. */
 	CLOUD_CONNECT_RES_ERR_ALREADY_CONNECTED = -11,
 };
 
@@ -119,6 +128,8 @@ struct cloud_event {
 	union {
 		struct cloud_msg msg;
 		int err;
+		/** FOTA progress in percentage. */
+		int fota_progress;
 		bool persistent_session;
 	} data;
 };

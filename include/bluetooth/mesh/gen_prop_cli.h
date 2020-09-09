@@ -54,8 +54,8 @@ struct bt_mesh_prop_cli;
 
 /** List of property IDs. */
 struct bt_mesh_prop_list {
-	u8_t count; /**< Number of IDs in the list. */
-	u16_t *ids; /**< Available Property IDs. */
+	uint8_t count; /**< Number of IDs in the list. */
+	uint16_t *ids; /**< Available Property IDs. */
 };
 
 /**
@@ -155,12 +155,12 @@ int bt_mesh_prop_cli_props_get(struct bt_mesh_prop_cli *cli,
  */
 int bt_mesh_prop_cli_prop_get(struct bt_mesh_prop_cli *cli,
 			      struct bt_mesh_msg_ctx *ctx,
-			      enum bt_mesh_prop_srv_kind kind, u16_t id,
+			      enum bt_mesh_prop_srv_kind kind, uint16_t id,
 			      struct bt_mesh_prop_val *rsp);
 
 /** @brief Set a property value in a User Property Server.
  *
- * @copydetails bt_mesH_prop_cli_user_prop_set_unack
+ * @copydetails bt_mesh_prop_cli_user_prop_set_unack
  *
  * This call is blocking if the @p rsp buffer is non-NULL. Otherwise, this
  * function will return, and the response will be passed to the
@@ -267,7 +267,7 @@ int bt_mesh_prop_cli_admin_prop_set_unack(struct bt_mesh_prop_cli *cli,
  * @param[in] cli Client model to send on.
  * @param[in] ctx Message context, or NULL to use the configured publish
  * parameters.
- * @param[in] val New property value to set.
+ * @param[in] prop New property value to set.
  * @param[out] rsp Response status buffer, or NULL to keep from blocking.
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
@@ -290,7 +290,7 @@ int bt_mesh_prop_cli_mfr_prop_set(struct bt_mesh_prop_cli *cli,
  * @param[in] cli Client model to send on.
  * @param[in] ctx Message context, or NULL to use the configured publish
  * parameters.
- * @param[in] val New property value to set.
+ * @param[in] prop New property value to set.
  *
  * @retval 0 Successfully sent the message.
  * @retval -ENOTSUP A message context was not provided and publishing is not

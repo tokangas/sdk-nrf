@@ -4,12 +4,13 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
-cmake_minimum_required(VERSION 3.8.2)
+cmake_minimum_required(VERSION 3.13.1)
 
 # Set supported board
 set(NRF_SUPPORTED_BOARDS
   nrf52dk_nrf52832
   nrf52840dk_nrf52840
+  nrf52833dk_nrf52833
   nrf5340pdk_nrf5340_cpuapp
   )
 

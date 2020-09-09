@@ -39,7 +39,7 @@ static struct bt_gatt_exchange_params exchange_params;
 /* Buffer for response */
 struct smp_buffer {
 	struct dfu_smp_header header;
-	u8_t payload[CBOR_BUFFER_SIZE];
+	uint8_t payload[CBOR_BUFFER_SIZE];
 };
 static struct smp_buffer smp_rsp_buff;
 
@@ -48,18 +48,12 @@ static void scan_filter_match(struct bt_scan_device_info *device_info,
 			      struct bt_scan_filter_match *filter_match,
 			      bool connectable)
 {
-	int err;
 	char addr[BT_ADDR_LE_STR_LEN];
 
 	bt_addr_le_to_str(device_info->addr, addr, sizeof(addr));
 
 	printk("Filters matched. Address: %s connectable: %s\n",
 		addr, connectable ? "yes" : "no");
-
-	err = bt_scan_stop();
-	if (err) {
-		printk("Stop LE scan failed (err %d)\n", err);
-	}
 }
 
 static void scan_connecting_error(struct bt_scan_device_info *device_info)
@@ -117,14 +111,14 @@ static const struct bt_gatt_dm_cb discovery_cb = {
 	.error_found = discovery_error_found_cb,
 };
 
-static void exchange_func(struct bt_conn *conn, u8_t err,
+static void exchange_func(struct bt_conn *conn, uint8_t err,
 			  struct bt_gatt_exchange_params *params)
 {
 	printk("MTU exchange %s\n", err == 0 ? "successful" : "failed");
 	printk("Current MTU: %u\n", bt_gatt_get_mtu(conn));
 }
 
-static void connected(struct bt_conn *conn, u8_t conn_err)
+static void connected(struct bt_conn *conn, uint8_t conn_err)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 	int err;
@@ -133,6 +127,18 @@ static void connected(struct bt_conn *conn, u8_t conn_err)
 
 	if (conn_err) {
 		printk("Failed to connect to %s (%u)\n", addr, conn_err);
+		if (conn == default_conn) {
+			bt_conn_unref(default_conn);
+			default_conn = NULL;
+
+			/* This demo doesn't require active scan */
+			err = bt_scan_start(BT_SCAN_TYPE_SCAN_ACTIVE);
+			if (err) {
+				printk("Scanning failed to start (err %d)\n",
+				       err);
+			}
+		}
+
 		return;
 	}
 
@@ -162,7 +168,7 @@ static void connected(struct bt_conn *conn, u8_t conn_err)
 	}
 }
 
-static void disconnected(struct bt_conn *conn, u8_t reason)
+static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 	int err;
@@ -246,7 +252,7 @@ static const struct bt_gatt_dfu_smp_c_init_params init_params = {
 
 static void smp_echo_rsp_proc(struct bt_gatt_dfu_smp_c *dfu_smp_c)
 {
-	u8_t *p_outdata = (u8_t *)(&smp_rsp_buff);
+	uint8_t *p_outdata = (uint8_t *)(&smp_rsp_buff);
 	const struct bt_gatt_dfu_smp_rsp_state *rsp_state;
 
 	rsp_state = bt_gatt_dfu_smp_c_rsp_state(dfu_smp_c);
@@ -269,7 +275,7 @@ static void smp_echo_rsp_proc(struct bt_gatt_dfu_smp_c *dfu_smp_c)
 			       smp_rsp_buff.header.op);
 			return;
 		}
-		u16_t group = ((u16_t)smp_rsp_buff.header.group_h8) << 8 |
+		uint16_t group = ((uint16_t)smp_rsp_buff.header.group_h8) << 8 |
 				      smp_rsp_buff.header.group_l8;
 		if (group != 0 /* OS */) {
 			printk("Unexpected command group (%u)!\n", group);
@@ -280,7 +286,7 @@ static void smp_echo_rsp_proc(struct bt_gatt_dfu_smp_c *dfu_smp_c)
 			       smp_rsp_buff.header.id);
 			return;
 		}
-		size_t payload_len = ((u16_t)smp_rsp_buff.header.len_h8) << 8 |
+		size_t payload_len = ((uint16_t)smp_rsp_buff.header.len_h8) << 8 |
 				      smp_rsp_buff.header.len_l8;
 
 		CborError cbor_error;
@@ -329,8 +335,8 @@ static int send_smp_echo(struct bt_gatt_dfu_smp_c *dfu_smp_c,
 
 	smp_cmd.header.op = 2; /* Write */
 	smp_cmd.header.flags = 0;
-	smp_cmd.header.len_h8 = (u8_t)((payload_len >> 8) & 0xFF);
-	smp_cmd.header.len_l8 = (u8_t)((payload_len >> 0) & 0xFF);
+	smp_cmd.header.len_h8 = (uint8_t)((payload_len >> 8) & 0xFF);
+	smp_cmd.header.len_l8 = (uint8_t)((payload_len >> 0) & 0xFF);
 	smp_cmd.header.group_h8 = 0;
 	smp_cmd.header.group_l8 = 0; /* OS */
 	smp_cmd.header.seq = 0;
@@ -361,7 +367,7 @@ static void button_echo(bool state)
 }
 
 
-static void button_handler(u32_t button_state, u32_t has_changed)
+static void button_handler(uint32_t button_state, uint32_t has_changed)
 {
 	if (has_changed & KEY_ECHO_MASK) {
 		button_echo(button_state & KEY_ECHO_MASK);

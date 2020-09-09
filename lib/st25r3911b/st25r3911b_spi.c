@@ -37,6 +37,7 @@ static struct device *spi_dev;
 /* SPI CS pin configuration */
 static struct spi_cs_control spi_cs = {
 	.gpio_pin = DT_SPI_DEV_CS_GPIOS_PIN(ST25R3911B_NODE),
+	.gpio_dt_flags = DT_SPI_DEV_CS_GPIOS_FLAGS(ST25R3911B_NODE),
 	.delay = T_NCS_SCLK
 };
 
@@ -50,12 +51,12 @@ static const struct spi_config spi_cfg =  {
 	.cs = &spi_cs
 };
 
-static bool reg_is_valid(u8_t reg)
+static bool reg_is_valid(uint8_t reg)
 {
 	return (reg < ST25R3911B_REG_IC_IDENTITY);
 }
 
-static bool cmd_is_valid(u8_t cmd)
+static bool cmd_is_valid(uint8_t cmd)
 {
 	return ((!((cmd >= ST25R3911B_CMD_SET_DEFAULT) && (cmd <= ST25R3911B_CMD_ANALOG_PRESET))) ||
 		(!((cmd >= ST25R3911B_CMD_MASK_RECEIVE_DATA) && (cmd <= ST25R3911B_CMD_TEST_ACCESS))));
@@ -92,11 +93,11 @@ int st25r3911b_spi_init(void)
 	return 0;
 }
 
-int st25r3911b_multiple_reg_write(u8_t start_reg, u8_t *val,
+int st25r3911b_multiple_reg_write(uint8_t start_reg, uint8_t *val,
 				  size_t len)
 {
 	int err;
-	u8_t cmd;
+	uint8_t cmd;
 
 	if ((!val) || (!reg_is_valid(start_reg)) ||
 	    (!reg_is_valid(start_reg + (len - 1)))) {
@@ -124,7 +125,7 @@ int st25r3911b_multiple_reg_write(u8_t start_reg, u8_t *val,
 	return 0;
 }
 
-int st25r3911b_multiple_reg_read(u8_t start_reg, u8_t *val, size_t len)
+int st25r3911b_multiple_reg_read(uint8_t start_reg, uint8_t *val, size_t len)
 {
 	int err;
 
@@ -164,7 +165,7 @@ int st25r3911b_multiple_reg_read(u8_t start_reg, u8_t *val, size_t len)
 	return 0;
 }
 
-int st25r3911b_cmd_execute(u8_t cmd)
+int st25r3911b_cmd_execute(uint8_t cmd)
 {
 	int err;
 
@@ -190,7 +191,7 @@ int st25r3911b_cmd_execute(u8_t cmd)
 	return 0;
 }
 
-int st25r3911b_fifo_write(u8_t *data, size_t length)
+int st25r3911b_fifo_write(uint8_t *data, size_t length)
 {
 	int err;
 
@@ -198,7 +199,7 @@ int st25r3911b_fifo_write(u8_t *data, size_t length)
 		return -EINVAL;
 	}
 
-	u8_t cmd = ST25R3911B_FIFO_WRITE;
+	uint8_t cmd = ST25R3911B_FIFO_WRITE;
 	const struct spi_buf tx_bufs[] = {
 		{.buf = &cmd, .len = 1},
 		{.buf = data, .len = length}
@@ -217,7 +218,7 @@ int st25r3911b_fifo_write(u8_t *data, size_t length)
 	return 0;
 }
 
-int st25r3911b_fifo_read(u8_t *data, size_t length)
+int st25r3911b_fifo_read(uint8_t *data, size_t length)
 {
 	int err;
 
@@ -225,7 +226,7 @@ int st25r3911b_fifo_read(u8_t *data, size_t length)
 		return -EINVAL;
 	}
 
-	u8_t cmd = ST25R3911B_FIFO_READ;
+	uint8_t cmd = ST25R3911B_FIFO_READ;
 	const struct spi_buf tx_buf = {
 		.buf = &cmd,
 		.len = 1
@@ -254,10 +255,10 @@ int st25r3911b_fifo_read(u8_t *data, size_t length)
 	return 0;
 }
 
-int st25r3911b_reg_modify(u8_t reg, u8_t clr_mask, u8_t set_mask)
+int st25r3911b_reg_modify(uint8_t reg, uint8_t clr_mask, uint8_t set_mask)
 {
 	int err;
-	u8_t tmp;
+	uint8_t tmp;
 
 	if (!reg_is_valid(reg)) {
 		return -EINVAL;

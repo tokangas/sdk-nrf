@@ -4,7 +4,7 @@ Bluetooth LE Quality of Service module
 #######################################
 
 Use the Bluetooth LE Quality of Service (QoS) module to achieve better connection quality and higher report rate by avoiding congested RF channels.
-The module can be used only by nRF Desktop central with the nrfxlib's Link Layer (:option:`CONFIG_BT_LL_NRFXLIB`).
+The module can be used only by nRF Desktop central with the nrfxlib's Link Layer (:option:`CONFIG_BT_LL_SOFTDEVICE`).
 
 Module events
 *************
@@ -98,10 +98,10 @@ Implementation details
 The QoS module uses Zephyr's :ref:`zephyr:settings_api` subsystem to store the configuration in non-volatile memory.
 The channel map is not stored.
 
-Bluetoooth LE controller interaction
+SoftDevice Controller interaction
 ====================================
 
-The module uses CRC information from the Bluetoooth LE controller to adjust the channel map.
+The module uses CRC information from the SoftDevice Controller to adjust the channel map.
 The CRC information is received through the vendor-specific Bluetooth HCI event (:cpp:enum:`HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT`).
 
 Additional thread

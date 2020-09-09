@@ -1,12 +1,11 @@
 .. _sampleboardnames:
 
-Set used by BLE (Central BAS, Central DFU SMP, Central HIDS, Central UART, EnOcean, Mesh Light, Mesh Light Switch, Peripheral HIDS Keyboard,  Peripheral HIDS mouse,
-Peripheral UART, NUS Shell Transport, Throughput) and NFC samples
+Set used by Bluetooth LE Samples and NFC samples
 
 .. set1_start
 
 +--------------------------------+-----------+------------------------------------------------+--------------------------------+
-|Hardware platforms              |PCA        |Board name                                      |Build target                   |
+|Hardware platforms              |PCA        |Board name                                      |Build target                    |
 +================================+===========+================================================+================================+
 |:ref:`nRF5340 PDK <ug_nrf5340>` |PCA10095   |:ref:`nrf5340pdk_nrf5340 <nrf5340pdk_nrf5340>`  |``nrf5340pdk_nrf5340_cpuapp``   |
 |                                |           |                                                |                                |
@@ -19,7 +18,7 @@ Peripheral UART, NUS Shell Transport, Throughput) and NFC samples
 
 .. set1_end
 
-Set used by BLE samples (LLPM, peripheral GATT Discovery Manager), Enhanced ShockBurst Transmitter/Receiver, MPSL Timeslot) and application (Serial LTE modem)
+Set used by Bluetooth LE samples, Enhanced ShockBurst Transmitter/Receiver, and application (Serial LTE modem)
 
 .. set2_start
 
@@ -33,7 +32,7 @@ Set used by BLE samples (LLPM, peripheral GATT Discovery Manager), Enhanced Shoc
 
 .. set2_end
 
-Set used by BLE samples (Peripheral LBS)
+Set used by Bluetooth LE samples (Peripheral LBS)
 
 .. set3_start
 
@@ -53,7 +52,7 @@ Set used by BLE samples (Peripheral LBS)
 
 .. set3_end
 
-Set used by samples (Radio Test)
+Set used by samples (Radio Test, MPSL Timeslot)
 
 .. set4_start
 
@@ -70,7 +69,7 @@ Set used by samples (Radio Test)
 .. set4_end
 
 Set used by nRF9160 samples (AT Client, AWS FOTA, nRF CoAP Client, GPS sockets and SUPL client library, HTTP application update, HTTPS Client,
-LTE Sensor Gateway, LwM2M carrier, LwM2M Client, Simple MQTT,  Secure Services Sample)
+LTE Sensor Gateway, LwM2M carrier, LwM2M Client, Simple MQTT,  Secure Services Sample) and application (Serial LTE modem)
 
 .. set5_start
 
@@ -96,7 +95,7 @@ Set used by nRF9160 samples (Cloud Client, nRF Cloud A-GPS) and application (Ass
 
 .. set6_end
 
-Set used by nRF9160 sample (Secure Partition Manager)
+
 
 .. set7_start
 
@@ -122,7 +121,7 @@ Set used by Thread and Zigbee samples and application (nRF Desktop - DK)
 
 .. set8_end
 
-Set used by samples (Immutable bootloader, Event Manager, Profiler, PPI Trace)
+Set used by samples (Event Manager, Profiler, PPI Trace)
 
 .. set9_start
 
@@ -150,7 +149,7 @@ Set used by samples (BH1749: Ambient Light Sensor IC)
 
 .. set10_end
 
-Set used by application (nRF Desktop- Gaming Mouse)
+Set used by application (nRF Desktop - Gaming Mouse)
 
 .. set11_start
 
@@ -162,7 +161,7 @@ Set used by application (nRF Desktop- Gaming Mouse)
 
 .. set11_end
 
-Set used by application (nRF Desktop - Mouse)
+Set used by application (nRF Desktop - Desktop Mouse)
 
 
 .. set12_start
@@ -220,7 +219,7 @@ Set used by nRF53 samples (Empty firmware for application core)
 
 .. set15_end
 
-Set used by Tests (Crypto)
+Set used by sample (Immutable bootloader)
 
 .. set16_start
 
@@ -240,7 +239,7 @@ Set used by Tests (Crypto)
 
 .. set16_end
 
-Set used by samples (USB-UART bridge, Connectivity bridge)
+Set used by samples (USB-UART bridge) and application (Connectivity bridge)
 
 .. set17_start
 
@@ -251,3 +250,58 @@ Set used by samples (USB-UART bridge, Connectivity bridge)
 +--------------------------------+-----------+------------------+---------------------------+
 
 .. set17_end
+
+Set used by Tests (Crypto)
+
+.. set18_start
+
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+|Hardware platforms              |PCA        |Board name                                      |Build target                    |
++================================+===========+================================================+================================+
+|:ref:`nRF9160 DK <ug_nrf9160>`  |PCA10090   |:ref:`nrf9160dk_nrf9160 <nrf9160dk_nrf9160>`    |``nrf9160dk_nrf9160ns``         |
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+|:ref:`nRF52840 DK <ug_nrf52>`   |PCA10056   |:ref:`nrf52840dk_nrf52840 <nrf52840dk_nrf52840>`|``nrf52840dk_nrf52840``         |
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+
+.. set18_end
+
+Set used by sample (SPM)
+
+.. set19_start
+
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+|Hardware platforms              |PCA        |Board name                                      |Build target                    |
++================================+===========+================================================+================================+
+|:ref:`nRF5340 PDK <ug_nrf5340>` |PCA10095   |:ref:`nrf5340pdk_nrf5340 <nrf5340pdk_nrf5340>`  |``nrf5340pdk_nrf5340_cpuapp``   |
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+|:ref:`nRF9160 DK <ug_nrf9160>`  |PCA10090   |:ref:`nrf9160dk_nrf9160 <nrf9160dk_nrf9160>`    |``nrf9160dk_nrf9160``           |
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+
+.. set19_end
+
+Set used by DTM sample
+
+.. set20_start
+
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+|Hardware platforms              |PCA        |Board name                                      |Build target                    |
++================================+===========+================================================+================================+
+|:ref:`nRF5340 PDK <ug_nrf5340>` |PCA10095   |:ref:`nrf5340pdk_nrf5340 <nrf5340pdk_nrf5340>`  |``nrf5340pdk_nrf5340_cpunet``   |
++--------------------------------+-----------+------------------------------------------------+--------------------------------+
+
+.. set20_end
+
+Set used by sample (nRF RPC Entropy)
+
+.. set21_start
+
++--------------------------------+-----------+-----------------------------------------------+--------------------------------+
+|Hardware platforms              |PCA        |Board name                                     |Build target                    |
++================================+===========+===============================================+================================+
+|:ref:`nRF5340 PDK <ug_nrf5340>` |PCA10095   |:ref:`nrf5340pdk_nrf5340 <nrf5340pdk_nrf5340>` |``nrf5340pdk_nrf5340_cpuapp``   |
+|                                |           |                                               |                                |
+|                                |           |                                               |``nrf5340pdk_nrf5340_cpunet``   |
++--------------------------------+-----------+-----------------------------------------------+--------------------------------+
+
+
+.. set21_end

@@ -49,7 +49,7 @@ EVENT_TYPE_DECLARE(battery_state_event);
 struct battery_level_event {
 	struct event_header header;
 
-	u8_t level;
+	uint8_t level;
 };
 
 EVENT_TYPE_DECLARE(battery_level_event);
@@ -57,5 +57,7 @@ EVENT_TYPE_DECLARE(battery_level_event);
 #ifdef __cplusplus
 }
 #endif
+
+/** @} */
 
 #endif /* _BATTERY_EVENT_H_ */

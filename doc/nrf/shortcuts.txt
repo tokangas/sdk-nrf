@@ -4,13 +4,21 @@
 
 .. |BLE| replace:: Bluetooth LE
 
-.. |connect_terminal| replace:: Connect to the board with a terminal emulator (for example, PuTTY).
+.. |config| replace:: See :ref:`configure_application` for information about how to permanently or temporarily change the configuration.
+
+.. |test_sample| replace:: After programming the sample to your development kit, test it by performing the following steps:
+
+
+.. |connect_kit| replace:: Connect the kit to the computer using a USB cable.
+   The kit is assigned a COM port (Windows) or ttyACM device (Linux), which is visible in the Device Manager.
+
+.. |connect_terminal| replace:: Connect to the kit with a terminal emulator (for example, PuTTY).
    See :ref:`putty` for the required settings.
 
-.. |connect_terminal_specific| replace:: Connect to the board that runs this sample with a terminal emulator (for example, PuTTY).
+.. |connect_terminal_specific| replace:: Connect to the kit that runs this sample with a terminal emulator (for example, PuTTY).
    See :ref:`putty` for the required settings.
 
-.. |connect_terminal_both| replace:: Connect to both boards with a terminal emulator (for example, PuTTY).
+.. |connect_terminal_both| replace:: Connect to both kits with a terminal emulator (for example, PuTTY).
    See :ref:`putty` for the required settings.
 
 .. |GSA| replace:: Getting Started Assistant
@@ -42,9 +50,14 @@
    See :ref:`ug_thread` for more information.
 
 .. |zigbee_version| replace:: Zigbee 3.0
+.. |zigbee_description| replace:: Zigbee is a portable, low-power software networking protocol that provides connectivity over an 802.15.4-based mesh network.
 .. |enable_zigbee_before_testing| replace:: Make sure to enable the Zigbee stack before building and testing this sample.
    See :ref:`ug_zigbee` for more information.
+.. |zigbee_library| replace:: This is a Zigbee library.
+   See :ref:`ug_zigbee_configuring_libraries` for information about how to configure it for you Zigbee application.
 
 .. |nrf_desktop_module_event_note| replace:: See the :ref:`nrf_desktop_architecture` for more information about the event-based communication in the nRF Desktop application and about how to read this table.
 
 .. |how_to_configure| replace:: See :ref:`configure_application` for information on how to set the required configuration options temporarily or permanently.
+
+.. |trusted_execution| replace:: nRF5340 and nRF9160

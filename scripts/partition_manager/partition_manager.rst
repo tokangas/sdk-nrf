@@ -54,15 +54,21 @@ The Partition Manager configuration can be also provided by a subsystem.
 (Here, *subsystem* means a software component, like support for a file system.)
 Subsystem Partition Manager configurations cannot define image partitions.
 
-To add a Partition Manager configuration file for a subsystem, place the following line in its :file:`CMakeLists.txt` file (this is only required for subsystems, not applications):
+See :file:`subsys/partition_manager/CMakeLists.txt` for details on how to add the subsystem-specific Partition Manager configuration files.
+The code below shows how the ``settings`` subsystem configuration is added.
 
 .. code-block:: cmake
 
-  add_partition_manager_config(pm.yml)
+   if (CONFIG_SETTINGS_FCB OR CONFIG_SETTINGS_NVS)
+     add_partition_manager_config(pm.yml.settings)
+   endif()
 
 There are some limitations when multiple application images within the same domain build the same subsystem code if it adds a Partition Manager configuration file in this way.
 In particular, partition definitions are global per domain, and must be identical across calls to ``add_partition_manager_config()``.
 If the same partition is defined twice with different configurations within a domain, the Partition Manager will fail.
+
+.. note::
+   If Partition Manager configurations are only defined by subsystems (i.e. only one image is included in the build), the option :option:`CONFIG_PM_SINGLE_IMAGE` must be set for the Partition Manager script to be executed.
 
 .. _pm_yaml_format:
 
@@ -252,7 +258,7 @@ size: hexadecimal value
    You can provide a Kconfig option as value, which allows the user to easily modify the size (see :ref:`pm_yaml_preprocessing` for an example).
 
 share_size: list
-   This properties defines the size of the current partition to be the same as the size of the first existing partition in the list.
+   This property defines the size of the current partition to be the same as the size of the first existing partition in the list.
    This property can be set for image or placeholder partitions.
    It cannot be used by container partitions.
    The list can contain any kind of partition.

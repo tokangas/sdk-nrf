@@ -69,7 +69,7 @@ set(MCUBOOT_BINARY_DIR ${CMAKE_BINARY_DIR}/mcuboot)
 set(NRFXLIB_BINARY_DIR ${CMAKE_BINARY_DIR}/nrfxlib)
 
 # Output directory for the shared Kconfig documentation
-set(KCONFIG_BINARY_DIR ${CMAKE_BINARY_DIR}/kconfig)
+set(KCONFIG_BINARY_DIR ${CMAKE_BINARY_DIR}/Kconfig)
 
 # HTML output directory
 set(HTML_DIR ${CMAKE_BINARY_DIR}/html)
@@ -111,6 +111,7 @@ foreach(target zephyr nrf mcuboot nrfxlib kconfig)
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${TARGET_BINARY_DIR}/rst
     COMMAND ${CMAKE_COMMAND} -E remove ${TARGET_BINARY_DIR}/*.log
     COMMAND ${CMAKE_COMMAND} -E remove ${TARGET_BINARY_DIR}/*.warnings
+    COMMAND ${CMAKE_COMMAND} -E remove ${TARGET_BINARY_DIR}/last_doxy_run_tstamp
     # Remove generated HTML as well
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${HTML_DIR}/${target}
   )
@@ -163,7 +164,6 @@ set(NRF_EXTRACT_CONTENT_COMMAND
   "*.rst:applications:${NRF_RST_OUT}/doc/nrf"
   "*.rst:samples:${NRF_RST_OUT}/doc/nrf"
   "*.rst:boards:${NRF_RST_OUT}/doc/nrf"
-  "release-notes*.rst:doc:${NRF_RST_OUT}/doc/nrf"
   "changelog.rst:doc:${NRF_RST_OUT}/doc/nrf"
   "*.rst:doc/nrf/drivers:${NRF_RST_OUT}"
   "*.rst:include:${NRF_RST_OUT}/doc/nrf"
@@ -211,8 +211,13 @@ add_custom_target(
 )
 add_dependencies(nrf-html nrf-doxy nrf-content)
 
+add_custom_target(
+  nrf-copy-versions
+  COMMAND ${CMAKE_COMMAND} -E copy ${NRF_BASE}/doc/versions.json ${HTML_DIR}/versions.json
+)
+
 add_custom_target(nrf)
-add_dependencies(nrf nrf-html)
+add_dependencies(nrf nrf-html nrf-copy-versions)
 
 #
 # Add mcuboot-related targets
@@ -295,6 +300,7 @@ set(NRFXLIB_DOXYFILE_OUT ${NRFXLIB_BINARY_DIR}/nrfxlib.doxyfile)
 set(NRFXLIB_RST_OUT ${NRFXLIB_BINARY_DIR}/rst)
 set(NRFXLIB_DOXY_LOG ${NRFXLIB_BINARY_DIR}/doxy.log)
 set(NRFXLIB_SPHINX_LOG ${NRFXLIB_BINARY_DIR}/sphinx.log)
+set(NRFXLIB_DOC_LOG ${NRFXLIB_BINARY_DIR}/doc.log)
 
 
 configure_file(${NRFXLIB_DOXYFILE_IN} ${NRFXLIB_DOXYFILE_OUT} @ONLY)
@@ -336,11 +342,16 @@ add_custom_target(
   nrfxlib-html
   COMMAND ${CMAKE_COMMAND} -E env
   NRF_BASE=${NRF_BASE}
+  NRF_OUTPUT=${HTML_DIR}/nrf
+  NRF_RST_SRC=${NRF_RST_OUT}/doc/nrf
   NRFXLIB_BUILD=${NRFXLIB_BINARY_DIR}
   NRFXLIB_OUTPUT=${HTML_DIR}/nrfxlib
   NRFXLIB_RST_SRC=${NRFXLIB_RST_OUT}
   KCONFIG_OUTPUT=${HTML_DIR}/kconfig
   ${SPHINXBUILD} -w ${NRFXLIB_SPHINX_LOG} -N -b html ${NRFXLIB_SPHINXOPTS} ${NRFXLIB_RST_OUT} ${HTML_DIR}/nrfxlib
+
+  # Merge the Doxygen and Sphinx logs into a single file
+  COMMAND ${CMAKE_COMMAND} -P ${ZEPHYR_BASE}/cmake/util/fmerge.cmake ${NRFXLIB_DOC_LOG} ${NRFXLIB_DOXY_LOG} ${NRFXLIB_SPHINX_LOG}
 
   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
 )
@@ -348,6 +359,21 @@ add_dependencies(nrfxlib-html nrfxlib-content nrfxlib-doxy)
 
 add_custom_target(nrfxlib)
 add_dependencies(nrfxlib nrfxlib-html)
+
+add_custom_target(
+  nrfxlib-inventory
+  COMMAND ${CMAKE_COMMAND} -E env
+  NRF_BASE=${NRF_BASE}
+  NRF_OUTPUT=${HTML_DIR}/nrf
+  NRF_RST_SRC=${NRF_RST_OUT}/doc/nrf
+  NRFXLIB_BUILD=${NRFXLIB_BINARY_DIR}
+  NRFXLIB_OUTPUT=${HTML_DIR}/nrfxlib
+  NRFXLIB_RST_SRC=${NRFXLIB_RST_OUT}
+  KCONFIG_OUTPUT=${HTML_DIR}/kconfig
+  ${SPHINXBUILD} -w ${NRFXLIB_SPHINX_LOG} -N -b inventory ${NRFXLIB_SPHINXOPTS} ${NRFXLIB_RST_OUT} ${HTML_DIR}/nrfxlib
+  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+add_dependencies(nrfxlib-inventory nrfxlib-content nrfxlib-doxy)
 
 #
 # Add targets for building the shared Kconfig documentation
@@ -376,20 +402,18 @@ add_custom_target(
     ARCH=*
     ARCH_DIR=arch/
     SOC_DIR=soc/
-    CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
+    KCONFIG_BINARY_DIR=${KCONFIG_BINARY_DIR}
     KCONFIG_WARN_UNDEF=y
     KCONFIG_TURBO_MODE=${KCONFIG_TURBO_MODE}
     KCONFIG_DOC_MODE=1
       ${PYTHON_EXECUTABLE}
-        ${NRF_BASE}/doc/scripts/genrest_custom.py
-        --custom-modules BuildDir,${CMAKE_BINARY_DIR}
-                         MCUboot,${MCUBOOT_BASE}
-        --zephyr-genrest ${ZEPHYR_BASE}/doc/scripts/genrest.py ${KCONFIG_RST_OUT}
+        ${ZEPHYR_BASE}/doc/scripts/genrest.py ${KCONFIG_RST_OUT}
         --separate-all-index
         --modules Zephyr,zephyr,${ZEPHYR_BASE}
                   nRF,nrf,${NRF_BASE}
                   nrfxlib,nrfxlib,${NRFXLIB_BASE}
-
+        --no-index-modules BuildDir,${CMAKE_BINARY_DIR}
+                           MCUboot,${MCUBOOT_BASE}
   VERBATIM
 )
 
@@ -414,3 +438,13 @@ add_custom_target(
         ${HTML_DIR}/kconfig
 )
 add_dependencies(kconfig-html kconfig-content)
+
+add_custom_target(
+  build-all
+  COMMAND ${CMAKE_MAKE_PROGRAM} kconfig-html
+  COMMAND ${CMAKE_MAKE_PROGRAM} zephyr
+  COMMAND ${CMAKE_MAKE_PROGRAM} mcuboot
+  COMMAND ${CMAKE_MAKE_PROGRAM} nrfxlib-inventory
+  COMMAND ${CMAKE_MAKE_PROGRAM} nrf
+  COMMAND ${CMAKE_MAKE_PROGRAM} nrfxlib
+)

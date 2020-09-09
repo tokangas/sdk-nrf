@@ -71,7 +71,7 @@ struct nfc_tnep_poller_ndef_api {
 	 * @retval 0 If the operation was successful.
 	 *           Otherwise, a (negative) error code is returned.
 	 */
-	int (*ndef_read)(u8_t *ndef_buf, u16_t ndef_len);
+	int (*ndef_read)(uint8_t *ndef_buf, uint16_t ndef_len);
 
 	/**@brief Function used to write the NDEF Message.
 	 *
@@ -85,7 +85,7 @@ struct nfc_tnep_poller_ndef_api {
 	 * @retval 0 If the operation was successful.
 	 *           Otherwise, a (negative) error code is returned.
 	 */
-	int (*ndef_update)(const u8_t *ndef_buf, u16_t ndef_len);
+	int (*ndef_update)(const uint8_t *ndef_buf, uint16_t ndef_len);
 };
 
 /**@brief TNEP Poller callback structure. */
@@ -155,7 +155,7 @@ struct nfc_tnep_poller_cb {
 /**@brief TNEP Poller buffer structure. */
 struct nfc_tnep_buf {
 	/** Pointer to data. */
-	u8_t *data;
+	uint8_t *data;
 
 	/** Buffer size. */
 	size_t size;
@@ -205,7 +205,7 @@ int nfc_tnep_poller_api_set(const struct nfc_tnep_poller_ndef_api *api,
  */
 int nfc_tnep_poller_svc_search(const struct nfc_ndef_msg_desc *ndef_msg,
 			       struct nfc_ndef_tnep_rec_svc_param *param,
-			       u8_t *cnt);
+			       uint8_t *cnt);
 
 /**@brief Select the TNEP Service.
  *
@@ -225,7 +225,7 @@ int nfc_tnep_poller_svc_search(const struct nfc_ndef_msg_desc *ndef_msg,
  */
 int nfc_tnep_poller_svc_select(const struct nfc_tnep_buf *svc_buf,
 			       const struct nfc_ndef_tnep_rec_svc_param *svc,
-			       u32_t max_ndef_area_size);
+			       uint32_t max_ndef_area_size);
 
 /**@brief Deselect the TNEP Service.
  *
@@ -258,8 +258,8 @@ int nfc_tnep_poller_svc_read(const struct nfc_tnep_buf *svc_buf);
  * This operation is asynchronous.
  *
  * @param[in] msg Pointer to the NDEF Message which will be written.
- * @param[in] resp_data Pointer to received data buffer. Buffer must be stored
- *                      until the update procedure is finished.
+ * @param[in] resp_buf Pointer to received data buffer. Buffer must be stored
+ *                     until the update procedure is finished.
  *
  * @retval 0 If the operation was successful.
  *           Otherwise, a (negative) error code is returned.
@@ -273,12 +273,12 @@ int nfc_tnep_poller_svc_write(const struct nfc_ndef_msg_desc *msg,
  * Device read new NDEF message from NFC TNEP Tag Device.
  *
  * @param[in] data NDEF Read raw data.
- * @param[in] Read data length.
+ * @param[in] len Read data length.
  *
  * @retval 0 If the operation was successful.
  *           Otherwise, a (negative) error code is returned.
  */
-int nfc_tnep_poller_on_ndef_read(const u8_t *data, size_t len);
+int nfc_tnep_poller_on_ndef_read(const uint8_t *data, size_t len);
 
 /**@brief Indicate NDEF data write operation finish.
  *

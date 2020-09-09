@@ -25,6 +25,7 @@ Requirements
   * |nRF5340DK|
   * |nRF52840DK|
   * |nRF52DK|
+  * |nRF52833DK|
 
 * Smartphone or tablet with NFC Tools application (or equivalent)
 
@@ -64,6 +65,7 @@ Dependencies
 This sample uses the following |NCS| libraries:
 
 * :ref:`nfc_uri`
+* :ref:`nfc_t4t_ndef_file_readme`
 
 In addition, it uses the Type 4 Tag library from nrfxlib:
 

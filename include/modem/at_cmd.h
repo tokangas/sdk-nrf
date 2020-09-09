@@ -32,11 +32,14 @@ enum at_cmd_state {
 	AT_CMD_ERROR,
 	AT_CMD_ERROR_CMS,
 	AT_CMD_ERROR_CME,
+	AT_CMD_ERROR_QUEUE, /* Error enqueueing message */
+	AT_CMD_ERROR_WRITE, /* Error during socket write */
+	AT_CMD_ERROR_READ, /* Error during socket read */
 	AT_CMD_NOTIFICATION,
 };
 
 /**
- * @typedefs at_cmd_handler_t
+ * @typedef at_cmd_handler_t
  *
  * Because this driver let multiple threads share the same socket, it must make
  * sure that the correct thread gets the correct data returned from the AT
@@ -51,7 +54,7 @@ enum at_cmd_state {
  */
 typedef void (*at_cmd_handler_t)(const char *response);
 
-/**@brief Initialize AT command driver.
+/**@brief Initialize or recover the AT command driver.
  *
  * @return Zero on success, non-zero otherwise.
  */
@@ -67,11 +70,9 @@ int at_cmd_init(void);
  *                NULL pointer is allowed, which means that any returned data
  *                will not processed other than the return code (OK, ERROR, CMS
  *                or CME).
- * @param state   Pointer to @ref enum at_cmd_state variable that can hold
- *                the error state returned by the modem. If the return state
- *                is a CMS or CME errors will the error code be returned in the
- *                the function return code as a positive value. NULL pointer is
- *                allowed.
+ *
+ * @note The handler function runs from at_cmd's thread. It must not call
+ *       at_cmd_write, as that would lead to a deadlock.
  *
  * @retval 0 If command execution was successful (same as OK returned from
  *           modem). Error codes returned from the driver or by the socket are
@@ -81,13 +82,13 @@ int at_cmd_init(void);
  *
  * @retval -ENOBUFS is returned if AT_CMD_RESPONSE_MAX_LEN is not large enough
  *         to hold the data returned from the modem.
- * @retval ENOEXEC is returned if the modem returned ERROR.
+ * @retval -ENOEXEC is returned if the modem returned ERROR.
  * @retval -ENOMEM is returned if allocation of callback worker failed.
  * @retval -EIO is returned if the function failed to send the command.
+ * @retval -EHOSTDOWN is returned if bsdlib is shutdown.
  */
 int at_cmd_write_with_callback(const char *const cmd,
-					  at_cmd_handler_t  handler,
-					  enum at_cmd_state *state);
+					  at_cmd_handler_t  handler);
 
 /**
  * @brief Function to send an AT command and receive response immediately
@@ -98,19 +99,19 @@ int at_cmd_write_with_callback(const char *const cmd,
  *
  * @param cmd Pointer to null terminated AT command string
  * @param buf Buffer to put the response in. NULL pointer is allowed, see
- *            behaviour explanation for @ref buf_len equals 0.
+ *            behaviour explanation for @p buf_len equals 0.
  * @param buf_len Length of response buffer. 0 length is allowed and will send
  *                the command, process the return code from the modem, but
  *                any returned data will be dropped.
- * @param state   Pointer to @ref enum at_cmd_state variable that can hold
+ * @param state   Pointer to enum @em at_cmd_state variable that can hold
  *                the error state returned by the modem. If the return state
  *                is a CMS or CME errors will the error code be returned in the
  *                the function return code as a positive value. NULL pointer is
  *                allowed.
  *
- * @note It is allowed to use the same buffer for both, @ref cmd and @ref buf
- *       parameters in order to save RAM. The function will not modify @ref buf
- *       contents until the entire @ref cmd is sent.
+ * @note It is allowed to use the same buffer for both, @p cmd and @p buf
+ *       parameters in order to save RAM. The function will not modify @p buf
+ *       contents until the entire @p cmd is sent.
  *
  * @retval 0 If command execution was successful (same as OK returned from
  *           modem). Error codes returned from the driver or by the socket are
@@ -120,9 +121,10 @@ int at_cmd_write_with_callback(const char *const cmd,
  *
  * @retval -ENOBUFS is returned if AT_CMD_RESPONSE_MAX_LEN is not large enough
  *         to hold the data returned from the modem.
- * @retval ENOEXEC is returned if the modem returned ERROR.
+ * @retval -ENOEXEC is returned if the modem returned ERROR.
  * @retval -EMSGSIZE is returned if the supplied buffer is to small or NULL.
  * @retval -EIO is returned if the function failed to send the command.
+ * @retval -EHOSTDOWN is returned if bsdlib is shutdown.
  *
  */
 int at_cmd_write(const char *const cmd,
@@ -135,6 +137,9 @@ int at_cmd_write(const char *const cmd,
  *
  * @param handler Pointer to a received notification handler function of type
  *                @ref at_cmd_handler_t.
+ *
+ * @note The handler function runs from at_cmd's thread. It must not call
+ *       at_cmd_write, as that would lead to a deadlock.
  */
 void at_cmd_set_notification_handler(at_cmd_handler_t handler);
 

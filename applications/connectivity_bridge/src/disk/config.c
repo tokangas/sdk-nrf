@@ -185,7 +185,7 @@ static void parse_file(const char *mnt_point)
 		return;
 	}
 
-	err = fs_open(&file, fname);
+	err = fs_open(&file, fname, FS_O_CREATE | FS_O_RDWR);
 	if (err) {
 		LOG_ERR("fs_open: %d", err);
 		return;
@@ -194,7 +194,7 @@ static void parse_file(const char *mnt_point)
 	while (read_line(&file, linebuf, sizeof(linebuf))) {
 #if CONFIG_BRIDGE_BLE_ENABLE
 		char *ptr;
-		u32_t ble_enabled_new = ble_enabled;
+		uint32_t ble_enabled_new = ble_enabled;
 
 		if (read_line_setting_val(linebuf, SETTINGS_NAME_BLE, &ptr)) {
 			ble_enabled_new = strtol(ptr, NULL, 10);

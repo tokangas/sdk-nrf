@@ -8,7 +8,8 @@ menu "Nordic MPSL"
 
 config MPSL_THREAD_COOP_PRIO
 	int
-	default BLECTLR_PRIO if BT_LL_NRFXLIB
+	default 0 if NET_L2_OPENTHREAD
+	default SDC_RX_PRIO if BT_LL_SOFTDEVICE
 	default 8
 
 config MPSL_SIGNAL_STACK_SIZE
@@ -17,6 +18,12 @@ config MPSL_SIGNAL_STACK_SIZE
 	help
 	  Size of the signal handler thread stack, used to process lower
 	  priority signals in MPSL.
+
+config MPSL_TIMESLOT_SESSION_COUNT
+	int "Number of timeslot sessions"
+	default 0
+	help
+	  Maximum number of timeslot sessions.
 
 module=MPSL
 module-str=MPSL

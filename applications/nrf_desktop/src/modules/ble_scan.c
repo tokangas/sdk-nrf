@@ -31,8 +31,8 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_BLE_SCANNING_LOG_LEVEL);
 #define SUBSCRIBED_PEERS_STORAGE_NAME "subscribers"
 
 struct subscriber_data {
-	u8_t conn_count;
-	u8_t peer_count;
+	uint8_t conn_count;
+	uint8_t peer_count;
 };
 
 struct subscribed_peer {
@@ -162,7 +162,7 @@ static void scan_stop(void)
 	}
 }
 
-static int configure_address_filters(u8_t *filter_mode)
+static int configure_address_filters(uint8_t *filter_mode)
 {
 	size_t i;
 	int err = 0;
@@ -198,18 +198,28 @@ static int configure_address_filters(u8_t *filter_mode)
 	return err;
 }
 
-static int configure_name_filters(u8_t *filter_mode)
+static int configure_name_filters(uint8_t *filter_mode)
 {
-	u8_t peers_mask = 0;
+	uint8_t peer_cnt[PEER_TYPE_COUNT] = {0};
+	static const uint8_t peer_limit[PEER_TYPE_COUNT] = {
+		[PEER_TYPE_MOUSE] = CONFIG_DESKTOP_BLE_SCAN_MOUSE_LIMIT,
+		[PEER_TYPE_KEYBOARD] = CONFIG_DESKTOP_BLE_SCAN_KEYBOARD_LIMIT,
+	};
 	int err = 0;
 
 	for (size_t i = 0; i < ARRAY_SIZE(subscribed_peers); i++) {
-		peers_mask |= BIT(subscribed_peers[i].peer_type);
+		enum peer_type type = subscribed_peers[i].peer_type;
+
+		if (type == PEER_TYPE_COUNT) {
+			continue;
+		}
+		__ASSERT_NO_MSG(peer_cnt[type] < peer_limit[type]);
+		peer_cnt[type]++;
 	}
 
 	/* Bluetooth scan filters are defined in separate header. */
 	for (size_t i = 0; i < ARRAY_SIZE(peer_name); i++) {
-		if ((BIT(i) & peers_mask) ||
+		if ((peer_cnt[i] == peer_limit[i]) ||
 		    (peer_name[i] == NULL)) {
 			continue;
 		}
@@ -232,7 +242,7 @@ static int configure_name_filters(u8_t *filter_mode)
 
 static int configure_filters(void)
 {
-	BUILD_ASSERT(CONFIG_BT_MAX_PAIRED == CONFIG_BT_MAX_CONN, "");
+	BUILD_ASSERT(CONFIG_BT_MAX_PAIRED >= CONFIG_BT_MAX_CONN, "");
 	BUILD_ASSERT(CONFIG_BT_MAX_PAIRED <= CONFIG_BT_SCAN_ADDRESS_CNT,
 			 "Insufficient number of address filters");
 	BUILD_ASSERT(ARRAY_SIZE(peer_name) <= CONFIG_BT_SCAN_NAME_CNT,
@@ -240,7 +250,7 @@ static int configure_filters(void)
 	BUILD_ASSERT(ARRAY_SIZE(peer_name) == PEER_TYPE_COUNT, "");
 	bt_scan_filter_remove_all();
 
-	u8_t filter_mode = 0;
+	uint8_t filter_mode = 0;
 	int err = configure_address_filters(&filter_mode);
 
 	bool use_name_filters = true;
@@ -267,6 +277,8 @@ static int configure_filters(void)
 static bool is_llpm_peer_connected(void)
 {
 	bool llpm_peer_connected = false;
+
+	__ASSERT_NO_MSG(IS_ENABLED(CONFIG_DESKTOP_BLE_USE_LLPM));
 
 	for (size_t i = 0; i < ARRAY_SIZE(subscribed_peers); i++) {
 		if (!bt_addr_le_cmp(&subscribed_peers[i].addr, BT_ADDR_LE_NONE)) {
@@ -328,7 +340,8 @@ static void scan_start(void)
 		return;
 	}
 
-	if (IS_ENABLED(CONFIG_BT_LL_NRFXLIB)) {
+	if (IS_ENABLED(CONFIG_DESKTOP_BLE_USE_LLPM) &&
+	    (CONFIG_BT_MAX_CONN == 2)) {
 		if (scanning) {
 			scan_stop();
 		}
@@ -400,7 +413,7 @@ static void scan_filter_match(struct bt_scan_device_info *device_info,
 	LOG_INF("Filters matched. %s %sconnectable",
 		log_strdup(addr), connectable ? "" : "non");
 
-	scan_stop();
+	/* Scanning will be stopped by nrf scan module. */
 }
 
 static void scan_connecting_error(struct bt_scan_device_info *device_info)
@@ -458,14 +471,21 @@ static void scan_init(void)
 		.window = BT_GAP_SCAN_FAST_WINDOW,
 	};
 
-	static const struct bt_le_conn_param cp = {
-		.interval_min = 6,
-		.interval_max = 6,
+	struct bt_le_conn_param cp = {
 		.latency = 0,
 		.timeout = 400,
 	};
 
-	static const struct bt_scan_init_param scan_init = {
+	if (IS_ENABLED(CONFIG_DESKTOP_BLE_USE_LLPM) &&
+	    (CONFIG_BT_MAX_CONN > 2)) {
+		cp.interval_min = 8;
+		cp.interval_max = 8;
+	} else {
+		cp.interval_min = 6;
+		cp.interval_max = 6;
+	}
+
+	struct bt_scan_init_param scan_init = {
 		.connect_if_match = true,
 		.scan_param = &sp,
 		.conn_param = &cp,

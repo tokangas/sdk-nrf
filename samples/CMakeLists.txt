@@ -7,7 +7,7 @@
 if (CONFIG_SPM)
   add_child_image(
     NAME spm
-    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/nrf9160/spm
+    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/spm
     )
 
   if (CONFIG_ARM_FIRMWARE_USES_SECURE_ENTRY_FUNCS AND
@@ -32,29 +32,36 @@ endif ()
 # Automatically include the hci_rpmsg sample as child image, and change
 # the board to be the network core.
 if (CONFIG_BT_RPMSG_NRF53)
-  if ((BOARD STREQUAL nrf5340pdk_nrf5340_cpuappns) OR
-      (BOARD STREQUAL nrf5340pdk_nrf5340_cpuapp))
+  if (CONFIG_SOC_NRF5340_CPUAPP)
 
-    if (CONFIG_BT_LL_NRFXLIB_DEFAULT)
+    message("Adding 'hci_rpmsg' sample as child image since "
+      "CONFIG_BT_RPMSG_NRF53 is set to 'y'")
+
+    if (CONFIG_BT_LL_SOFTDEVICE_DEFAULT)
       add_overlay_config(
         hci_rpmsg
-        ${NRF_DIR}/subsys/bluetooth/controller/bt_ll_nrfxlib_hci_rpmsg.conf
+        ${NRF_DIR}/subsys/bluetooth/controller/bt_ll_softdevice_hci_rpmsg.conf
         )
     endif()
 
     add_child_image(
       NAME hci_rpmsg
       SOURCE_DIR ${ZEPHYR_BASE}/samples/bluetooth/hci_rpmsg
-      DOMAIN nrf5340pdk_nrf5340_cpunet)
+      DOMAIN CPUNET
+      BOARD ${CONFIG_DOMAIN_CPUNET_BOARD})
   else()
     message(FATAL_ERROR
-      "Board ${BOARD} not supported for including hci_rpmsg as child image")
+      "SoC not supported for including hci_rpmsg as child image")
   endif()
 endif()
 
 if (CONFIG_NCS_SAMPLE_EMPTY_APP_CORE_CHILD_IMAGE)
+  message("Adding 'empty_app_core' sample as child image since "
+    "CONFIG_NCS_SAMPLE_EMPTY_APP_CORE_CHILD_IMAGE is set to 'y'")
+
   add_child_image(
     NAME empty_app_core
     SOURCE_DIR ${NRF_DIR}/samples/nrf5340/empty_app_core
-    DOMAIN nrf5340pdk_nrf5340_cpuapp)
+    DOMAIN CPUNET
+    BOARD ${CONFIG_DOMAIN_CPUNET_BOARD})
 endif()

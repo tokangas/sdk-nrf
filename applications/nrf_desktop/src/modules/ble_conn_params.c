@@ -8,9 +8,9 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/gatt_dm.h>
 
-#ifdef CONFIG_BT_LL_NRFXLIB
-#include "ble_controller_hci_vs.h"
-#endif /* CONFIG_BT_LL_NRFXLIB */
+#ifdef CONFIG_BT_LL_SOFTDEVICE
+#include "sdc_hci_vs.h"
+#endif /* CONFIG_BT_LL_SOFTDEVICE */
 
 #define MODULE ble_conn_params
 #include "module_state_event.h"
@@ -21,7 +21,11 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_BLE_CONN_PARAMS_LOG_LEVEL);
 
 #define CONN_INTERVAL_LLPM_US		1000   /* 1 ms */
 #define CONN_INTERVAL_LLPM_REG		0x0d01 /* 1 ms */
-#define CONN_INTERVAL_BLE_REG		0x0006 /* 7.5 ms */
+#if (CONFIG_DESKTOP_BLE_USE_LLPM && (CONFIG_BT_MAX_CONN > 2))
+ #define CONN_INTERVAL_BLE_REG		0x0008 /* 10 ms */
+#else
+ #define CONN_INTERVAL_BLE_REG		0x0006 /* 7.5 ms */
+#endif
 #define CONN_LATENCY_LOW		0
 #define CONN_LATENCY_DEFAULT		99
 #define CONN_SUPERVISION_TIMEOUT	400
@@ -30,8 +34,9 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_BLE_CONN_PARAMS_LOG_LEVEL);
 
 struct connected_peer {
 	struct bt_conn *conn;
+	bool discovered;
 	bool llpm_support;
-	u16_t requested_latency;
+	uint16_t requested_latency;
 };
 
 static struct connected_peer peers[CONFIG_BT_MAX_CONN];
@@ -49,16 +54,16 @@ static struct connected_peer *find_connected_peer(const struct bt_conn *conn)
 	return NULL;
 }
 
-static int set_conn_params(struct bt_conn *conn, u16_t conn_latency,
+static int set_conn_params(struct bt_conn *conn, uint16_t conn_latency,
 			   bool peer_llpm_support)
 {
 	int err;
 
-#ifdef CONFIG_BT_LL_NRFXLIB
+#ifdef CONFIG_DESKTOP_BLE_USE_LLPM
 	if (peer_llpm_support) {
 		struct net_buf *buf;
-		hci_vs_cmd_conn_update_t *cmd_conn_update;
-		u16_t conn_handle;
+		sdc_hci_vs_cmd_conn_update_t *cmd_conn_update;
+		uint16_t conn_handle;
 
 		err = bt_hci_get_conn_handle(conn, &conn_handle);
 		if (err) {
@@ -66,7 +71,7 @@ static int set_conn_params(struct bt_conn *conn, u16_t conn_latency,
 			return err;
 		}
 
-		buf = bt_hci_cmd_create(HCI_VS_OPCODE_CMD_CONN_UPDATE,
+		buf = bt_hci_cmd_create(SDC_HCI_VS_OPCODE_CMD_CONN_UPDATE,
 					sizeof(*cmd_conn_update));
 		if (!buf) {
 			LOG_ERR("Could not allocate command buffer");
@@ -79,10 +84,10 @@ static int set_conn_params(struct bt_conn *conn, u16_t conn_latency,
 		cmd_conn_update->conn_latency        = conn_latency;
 		cmd_conn_update->supervision_timeout = CONN_SUPERVISION_TIMEOUT;
 
-		err = bt_hci_cmd_send_sync(HCI_VS_OPCODE_CMD_CONN_UPDATE, buf,
+		err = bt_hci_cmd_send_sync(SDC_HCI_VS_OPCODE_CMD_CONN_UPDATE, buf,
 					   NULL);
 	} else
-#endif /* CONFIG_BT_LL_NRFXLIB */
+#endif /* CONFIG_DESKTOP_BLE_USE_LLPM */
 	{
 		struct bt_le_conn_param param = {
 			.interval_min = CONN_INTERVAL_BLE_REG,
@@ -105,8 +110,15 @@ static int set_conn_params(struct bt_conn *conn, u16_t conn_latency,
 static void update_peer_conn_params(const struct connected_peer *peer)
 {
 	__ASSERT_NO_MSG(peer);
+	/* Do not update peripheral's connection parameters before the discovery
+	 * is completed.
+	 */
+	if (!peer->discovered) {
+		return;
+	}
+
 	struct bt_conn *conn = peer->conn;
-	u16_t latency = peer->requested_latency;
+	uint16_t latency = peer->requested_latency;
 
 	__ASSERT_NO_MSG(conn);
 	int err = set_conn_params(conn, latency, peer->llpm_support);
@@ -120,7 +132,7 @@ static void update_peer_conn_params(const struct connected_peer *peer)
 	} else {
 		LOG_INF("Conn params for peer: %p set: %s, latency: %"PRIu16,
 		  peer->conn,
-		  (IS_ENABLED(CONFIG_BT_LL_NRFXLIB) && peer->llpm_support) ?
+		  (IS_ENABLED(CONFIG_DESKTOP_BLE_USE_LLPM) && peer->llpm_support) ?
 		  "LLPM" : "BLE", latency);
 	}
 }
@@ -207,6 +219,7 @@ static void peer_disconnected(struct bt_conn *conn)
 	if (peer) {
 		peer->conn = NULL;
 		peer->llpm_support = false;
+		peer->discovered = false;
 		peer->requested_latency = 0;
 	}
 }
@@ -217,10 +230,7 @@ static void peer_discovered(struct bt_conn *conn, bool peer_llpm_support)
 
 	if (peer) {
 		peer->llpm_support = peer_llpm_support;
-		/* Make sure that initial connection latency after discovery
-		 * is set to zero.
-		 */
-		peer->requested_latency = 0;
+		peer->discovered = true;
 		update_peer_conn_params(peer);
 	}
 }

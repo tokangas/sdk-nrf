@@ -88,8 +88,8 @@ defined(CONFIG_NRF_CLOUD_PROVISION_CERTIFICATES)
 #define CONN_CYCLE_AFTER_ASSOCIATION_REQ_MS K_MINUTES(5)
 
 struct rsrp_data {
-	u16_t value;
-	u16_t offset;
+	uint16_t value;
+	uint16_t offset;
 };
 
 #if CONFIG_MODEM_INFO
@@ -118,12 +118,16 @@ static struct modem_param_info modem_param;
 static struct cloud_channel_data signal_strength_cloud_data;
 #endif /* CONFIG_MODEM_INFO */
 
-static s64_t gps_last_active_time;
+static int64_t gps_last_active_time;
+static int64_t gps_last_search_start_time;
 static atomic_t carrier_requested_disconnect;
 static atomic_t cloud_connect_attempts;
 
 /* Flag used for flip detection */
 static bool flip_mode_enabled = true;
+static motion_data_t last_motion_data = {
+	.orientation = MOTION_ORIENTATION_NOT_KNOWN,
+};
 
 #if IS_ENABLED(CONFIG_GPS_START_ON_MOTION)
 /* Current state of activity monitor */
@@ -152,6 +156,8 @@ static struct k_delayed_work device_config_work;
 static struct k_delayed_work cloud_connect_work;
 static struct k_work device_status_work;
 static struct k_delayed_work send_agps_request_work;
+static struct k_work motion_data_send_work;
+static struct k_work no_sim_go_offline_work;
 
 #if defined(CONFIG_AT_CMD)
 #define MODEM_AT_CMD_BUFFER_LEN (CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1)
@@ -196,6 +202,7 @@ static void cycle_cloud_connection(struct k_work *work);
 static void set_gps_enable(const bool enable);
 static bool data_send_enabled(void);
 static void connection_evt_handler(const struct cloud_event *const evt);
+static void no_sim_go_offline(struct k_work *work);
 
 static void shutdown_modem(void)
 {
@@ -368,7 +375,7 @@ static void send_agps_request(struct k_work *work)
 
 #if defined(CONFIG_NRF_CLOUD_AGPS)
 	int err;
-	static s64_t last_request_timestamp;
+	static int64_t last_request_timestamp;
 
 /* Request A-GPS data no more often than every hour (time in milliseconds). */
 #define AGPS_UPDATE_PERIOD (60 * 60 * 1000)
@@ -482,7 +489,7 @@ static void send_button_data_work_fn(struct k_work *work)
 	sensor_data_send(&button_cloud_data);
 }
 
-void connect_to_cloud(const s32_t connect_delay_s)
+void connect_to_cloud(const int32_t connect_delay_s)
 {
 	static bool initial_connect = true;
 
@@ -622,6 +629,7 @@ static void gps_handler(struct device *dev, struct gps_event *evt)
 		LOG_INF("GPS_EVT_SEARCH_STARTED");
 		gps_control_set_active(true);
 		ui_led_set_pattern(UI_LED_GPS_SEARCHING);
+		gps_last_search_start_time = k_uptime_get();
 		break;
 	case GPS_EVT_SEARCH_STOPPED:
 		LOG_INF("GPS_EVT_SEARCH_STOPPED");
@@ -656,9 +664,13 @@ static void gps_handler(struct device *dev, struct gps_event *evt)
 			gps_cloud_data.tag = 0x1;
 		}
 
+		int64_t gps_time_from_start_to_fix_seconds = (k_uptime_get() -
+				gps_last_search_start_time) / 1000;
 		ui_led_set_pattern(UI_LED_GPS_FIX);
 		gps_control_set_active(false);
-		LOG_INF("GPS will be started in %d seconds",
+		LOG_INF("GPS will be started in %lld seconds",
+			CONFIG_GPS_CONTROL_FIX_TRY_TIME -
+			gps_time_from_start_to_fix_seconds +
 			gps_control_get_gps_reporting_interval());
 
 		k_work_submit_to_queue(&application_work_q,
@@ -737,11 +749,11 @@ static void motion_trigger_gps(motion_data_t  motion_data)
 	}
 
 	if (motion_activity_is_active() && gps_control_is_enabled()) {
-		static s64_t next_active_time;
-		s64_t last_active_time = gps_last_active_time / 1000;
-		s64_t now = k_uptime_get() / 1000;
-		s64_t time_since_fix_attempt = now - last_active_time;
-		s64_t time_until_next_attempt = next_active_time - now;
+		static int64_t next_active_time;
+		int64_t last_active_time = gps_last_active_time / 1000;
+		int64_t now = k_uptime_get() / 1000;
+		int64_t time_since_fix_attempt = now - last_active_time;
+		int64_t time_until_next_attempt = next_active_time - now;
 
 		LOG_DBG("Last at %lld s, now %lld s, next %lld s; "
 			"%lld secs since last, %lld secs until next",
@@ -755,7 +767,7 @@ static void motion_trigger_gps(motion_data_t  motion_data)
 
 		time_since_fix_attempt = MAX(0, (MIN(time_since_fix_attempt,
 			CONFIG_GPS_CONTROL_FIX_CHECK_INTERVAL)));
-		s64_t time_to_start_next_fix = 1 +
+		int64_t time_to_start_next_fix = 1 +
 			CONFIG_GPS_CONTROL_FIX_CHECK_INTERVAL -
 			time_since_fix_attempt;
 
@@ -784,8 +796,6 @@ static void motion_trigger_gps(motion_data_t  motion_data)
 /**@brief Callback from the motion module. Sends motion data to cloud. */
 static void motion_handler(motion_data_t  motion_data)
 {
-	static motion_orientation_state_t last_orientation_state =
-		MOTION_ORIENTATION_NOT_KNOWN;
 
 #if IS_ENABLED(CONFIG_GPS_START_ON_MOTION)
 	/* toggle state since the accelerometer does not yet report
@@ -795,42 +805,41 @@ static void motion_handler(motion_data_t  motion_data)
 			      MOTION_ACTIVITY_ACTIVE : MOTION_ACTIVITY_INACTIVE;
 #endif
 
-	if (!flip_mode_enabled || !data_send_enabled() ||
-	    gps_control_is_active()) {
-		return;
-	}
-
-	if (motion_data.orientation != last_orientation_state) {
-
-		if (flip_mode_enabled && data_send_enabled()) {
-
-			struct cloud_msg msg = {
-				.qos = CLOUD_QOS_AT_MOST_ONCE,
-				.endpoint.type = CLOUD_EP_TOPIC_MSG
-			};
-
-			int err = 0;
-
-			if (cloud_encode_motion_data(&motion_data, &msg) == 0) {
-				err = cloud_send(cloud_backend, &msg);
-				cloud_release_data(&msg);
-				if (err) {
-					LOG_ERR("Transmisison of "
-						"motion data failed: %d", err);
-					cloud_error_handler(err);
-				}
-			}
-
-			if (!err) {
-				last_orientation_state =
-					motion_data.orientation;
-			}
-		}
+	if (motion_data.orientation != last_motion_data.orientation) {
+		last_motion_data = motion_data;
+		k_work_submit_to_queue(&application_work_q,
+				       &motion_data_send_work);
 	}
 
 #if IS_ENABLED(CONFIG_GPS_START_ON_MOTION)
 	motion_trigger_gps(motion_data);
 #endif
+}
+
+static void motion_data_send(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	if (!flip_mode_enabled || !data_send_enabled() ||
+	    gps_control_is_active()) {
+		return;
+	}
+
+	struct cloud_msg msg = {
+		.qos = CLOUD_QOS_AT_MOST_ONCE,
+		.endpoint.type = CLOUD_EP_TOPIC_MSG
+	};
+
+	int err = 0;
+
+	if (cloud_encode_motion_data(&last_motion_data, &msg) == 0) {
+		err = cloud_send(cloud_backend, &msg);
+		cloud_release_data(&msg);
+		if (err) {
+			LOG_ERR("Transmisison of motion data failed: %d", err);
+			cloud_error_handler(err);
+		}
+	}
 }
 
 static void cloud_cmd_handle_modem_at_cmd(const char *const at_cmd)
@@ -877,37 +886,46 @@ static void cloud_cmd_handler(struct cloud_command *cmd)
 	} else if ((cmd->channel == CLOUD_CHANNEL_RGB_LED) &&
 		   (cmd->group == CLOUD_CMD_GROUP_CFG_SET) &&
 		   (cmd->type == CLOUD_CMD_COLOR)) {
-		ui_led_set_color(((u32_t)cmd->data.sv.value >> 16) & 0xFF,
-				 ((u32_t)cmd->data.sv.value >> 8) & 0xFF,
-				 ((u32_t)cmd->data.sv.value) & 0xFF);
-	} else if ((cmd->channel == CLOUD_CHANNEL_DEVICE_INFO) &&
-		   (cmd->group == CLOUD_CMD_GROUP_GET) &&
-		   (cmd->type == CLOUD_CMD_EMPTY)) {
-		k_work_submit_to_queue(&application_work_q,
-				       &device_status_work);
-	} else if ((cmd->channel == CLOUD_CHANNEL_LTE_LINK_RSRP) &&
-		   (cmd->group == CLOUD_CMD_GROUP_GET) &&
-		   (cmd->type == CLOUD_CMD_EMPTY)) {
-#if CONFIG_MODEM_INFO
-		k_delayed_work_submit_to_queue(&application_work_q, &rsrp_work,
-					       K_NO_WAIT);
-#endif
+		ui_led_set_color(((uint32_t)cmd->data.sv.value >> 16) & 0xFF,
+				 ((uint32_t)cmd->data.sv.value >> 8) & 0xFF,
+				 ((uint32_t)cmd->data.sv.value) & 0xFF);
 	} else if ((cmd->group == CLOUD_CMD_GROUP_CFG_SET) &&
 			   (cmd->type == CLOUD_CMD_INTERVAL)) {
 		if (cmd->channel == CLOUD_CHANNEL_LIGHT_SENSOR) {
 #if defined(CONFIG_LIGHT_SENSOR)
 			light_sensor_set_send_interval(
-				(u32_t)cmd->data.sv.value);
+				(uint32_t)cmd->data.sv.value);
 #endif
 		} else if (cmd->channel == CLOUD_CHANNEL_ENVIRONMENT) {
 			env_sensors_set_send_interval(
-				(u32_t)cmd->data.sv.value);
+				(uint32_t)cmd->data.sv.value);
 		} else if (cmd->channel == CLOUD_CHANNEL_GPS) {
 			/* TODO: update GPS controller to handle send */
 			/* interval */
 		} else {
 			LOG_ERR("Interval command not valid for channel %d",
 				cmd->channel);
+		}
+	} else if ((cmd->group == CLOUD_CMD_GROUP_GET) &&
+		   (cmd->type == CLOUD_CMD_EMPTY)) {
+		if (cmd->channel == CLOUD_CHANNEL_FLIP) {
+			k_work_submit_to_queue(&application_work_q,
+					       &motion_data_send_work);
+		} else if (cmd->channel == CLOUD_CHANNEL_DEVICE_INFO) {
+			k_work_submit_to_queue(&application_work_q,
+					       &device_status_work);
+		} else if (cmd->channel == CLOUD_CHANNEL_LTE_LINK_RSRP) {
+#if CONFIG_MODEM_INFO
+			k_delayed_work_submit_to_queue(&application_work_q,
+						       &rsrp_work,
+						       K_NO_WAIT);
+#endif
+		} else if (cmd->channel == CLOUD_CHANNEL_ENVIRONMENT) {
+			env_sensors_poll();
+		} else if (cmd->channel == CLOUD_CHANNEL_LIGHT_SENSOR) {
+#if IS_ENABLED(CONFIG_LIGHT_SENSOR)
+			light_sensor_poll();
+#endif
 		}
 	}
 }
@@ -940,8 +958,8 @@ static void modem_rsrp_handler(char rsrp_value)
 static void modem_rsrp_data_send(struct k_work *work)
 {
 	char buf[CONFIG_MODEM_INFO_BUFFER_SIZE] = {0};
-	static s32_t rsrp_prev; /* RSRP value last sent to cloud */
-	s32_t rsrp_current;
+	static int32_t rsrp_prev; /* RSRP value last sent to cloud */
+	int32_t rsrp_current;
 	size_t len;
 
 	if (!data_send_enabled()) {
@@ -1288,7 +1306,7 @@ static void on_user_pairing_req(const struct cloud_event *evt)
 
 static void cycle_cloud_connection(struct k_work *work)
 {
-	s32_t reboot_wait_ms = REBOOT_AFTER_DISCONNECT_WAIT_MS;
+	int32_t reboot_wait_ms = REBOOT_AFTER_DISCONNECT_WAIT_MS;
 
 	LOG_INF("Disconnecting from cloud...");
 
@@ -1421,7 +1439,7 @@ void connection_evt_handler(const struct cloud_event *const evt)
 			evt->data.persistent_session);
 #endif
 	} else if (evt->type == CLOUD_EVT_DISCONNECTED) {
-		s32_t connect_wait_s = CONFIG_CLOUD_CONNECT_RETRY_DELAY;
+		int32_t connect_wait_s = CONFIG_CLOUD_CONNECT_RETRY_DELAY;
 
 		LOG_INF("CLOUD_EVT_DISCONNECTED: %d", evt->data.err);
 		ui_led_set_pattern(UI_LTE_CONNECTED);
@@ -1470,7 +1488,7 @@ void connection_evt_handler(const struct cloud_event *const evt)
 
 static void set_gps_enable(const bool enable)
 {
-	s32_t delay_ms = 0;
+	int32_t delay_ms = 0;
 	bool changing = (enable != gps_control_is_enabled());
 
 	/* Exit early if the link is not ready or if the cloud
@@ -1532,6 +1550,8 @@ static void work_init(void)
 	k_delayed_work_init(&device_config_work, device_config_send);
 	k_delayed_work_init(&cloud_connect_work, cloud_connect_work_fn);
 	k_work_init(&device_status_work, device_status_send);
+	k_work_init(&motion_data_send_work, motion_data_send);
+	k_work_init(&no_sim_go_offline_work, no_sim_go_offline);
 #if CONFIG_MODEM_INFO
 	k_delayed_work_init(&rsrp_work, modem_rsrp_data_send);
 #endif /* CONFIG_MODEM_INFO */
@@ -1714,7 +1734,7 @@ static void ui_evt_handler(struct ui_evt evt)
 
 void handle_bsdlib_init_ret(void)
 {
-	#if defined(CONFIG_BSD_LIBRARY)
+#if defined(CONFIG_BSD_LIBRARY)
 	int ret = bsdlib_get_init_ret();
 
 	/* Handle return values relating to modem firmware update */
@@ -1736,7 +1756,67 @@ void handle_bsdlib_init_ret(void)
 	default:
 		break;
 	}
-	#endif /* CONFIG_BSD_LIBRARY */
+#endif /* CONFIG_BSD_LIBRARY */
+}
+
+static void no_sim_go_offline(struct k_work *work)
+{
+#if defined(CONFIG_BSD_LIBRARY)
+	lte_lc_offline();
+	/* Wait for lte_lc events to be processed before printing info message */
+	k_sleep(K_MSEC(100));
+	LOG_INF("No SIM card detected.");
+	LOG_INF("Insert SIM and reset device to run the asset tracker.");
+	ui_led_set_pattern(UI_LED_ERROR_LTE_LC);
+#endif /* CONFIG_BSD_LIBRARY */
+}
+
+static void lte_handler(const struct lte_lc_evt *const evt)
+{
+#if defined(CONFIG_BSD_LIBRARY)
+	switch (evt->type) {
+	case LTE_LC_EVT_NW_REG_STATUS:
+
+		if (evt->nw_reg_status == LTE_LC_NW_REG_UICC_FAIL) {
+			k_work_submit_to_queue(&application_work_q,
+				       &no_sim_go_offline_work);
+
+		} else if ((evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME) ||
+			(evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+			LOG_INF("Network registration status: %s",
+			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ?
+			"Connected - home network" : "Connected - roaming");
+		}
+		break;
+	case LTE_LC_EVT_PSM_UPDATE:
+		LOG_INF("PSM parameter update: TAU: %d, Active time: %d",
+			evt->psm_cfg.tau, evt->psm_cfg.active_time);
+		break;
+	case LTE_LC_EVT_EDRX_UPDATE: {
+		char log_buf[60];
+		ssize_t len;
+
+		len = snprintf(log_buf, sizeof(log_buf),
+					"eDRX parameter update: eDRX: %0.2f, PTW: %0.2f",
+					evt->edrx_cfg.edrx, evt->edrx_cfg.ptw);
+		if ((len > 0) && (len < sizeof(log_buf))) {
+			LOG_INF("%s", log_strdup(log_buf));
+		}
+		break;
+	}
+	case LTE_LC_EVT_RRC_UPDATE:
+		LOG_INF("RRC mode: %s",
+			evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ?
+			"Connected" : "Idle");
+		break;
+	case LTE_LC_EVT_CELL_UPDATE:
+		LOG_INF("LTE cell changed: Cell ID: %d, Tracking area: %d",
+			evt->cell.id, evt->cell.tac);
+		break;
+	default:
+		break;
+	}
+#endif /* CONFIG_BSD_LIBRARY */
 }
 
 void main(void)
@@ -1761,7 +1841,9 @@ void main(void)
 	ui_init(ui_evt_handler);
 #endif
 	work_init();
-
+#if defined(CONFIG_BSD_LIBRARY)
+	lte_lc_register_handler(lte_handler);
+#endif /* CONFIG_BSD_LIBRARY */
 	while (modem_configure() != 0) {
 		LOG_WRN("Failed to establish LTE connection.");
 		LOG_WRN("Will retry in %d seconds.",

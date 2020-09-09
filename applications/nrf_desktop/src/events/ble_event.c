@@ -36,7 +36,7 @@ static void profile_ble_peer_event(struct log_event_buf *buf,
 {
 	const struct ble_peer_event *event = cast_ble_peer_event(eh);
 
-	profiler_log_encode_u32(buf, (u32_t)event->id);
+	profiler_log_encode_u32(buf, (uint32_t)event->id);
 	profiler_log_encode_u32(buf, event->state);
 }
 
@@ -63,7 +63,7 @@ static void profile_ble_peer_search_event(struct log_event_buf *buf,
 {
 	const struct ble_peer_search_event *event = cast_ble_peer_search_event(eh);
 
-	profiler_log_encode_u32(buf, (u32_t)event->active);
+	profiler_log_encode_u32(buf, (uint32_t)event->active);
 }
 
 EVENT_INFO_DEFINE(ble_peer_search_event,
@@ -143,3 +143,34 @@ EVENT_TYPE_DEFINE(ble_discovery_complete_event,
 		  IS_ENABLED(CONFIG_DESKTOP_INIT_LOG_BLE_DISC_COMPLETE_EVENT),
 		  NULL,
 		  NULL);
+
+EVENT_TYPE_DEFINE(ble_smp_transfer_event,
+		  IS_ENABLED(CONFIG_DESKTOP_INIT_LOG_BLE_SMP_TRANSFER_EVENT),
+		  NULL,
+		  NULL);
+
+#if CONFIG_DESKTOP_BLE_QOS_ENABLE
+static int log_ble_qos_event(const struct event_header *eh,
+			     char *buf, size_t buf_len)
+{
+	const struct ble_qos_event *event = cast_ble_qos_event(eh);
+	int pos = 0;
+	int err;
+
+	err = snprintf(&buf[pos], buf_len - pos, "chmap:");
+	for (size_t i = 0; (i < CHMAP_BLE_BITMASK_SIZE) && (err > 0); i++) {
+		pos += err;
+		err = snprintf(&buf[pos], buf_len - pos, " 0x%02x", event->chmap[i]);
+	}
+	if (err < 0) {
+		pos = err;
+	}
+
+	return pos;
+}
+
+EVENT_TYPE_DEFINE(ble_qos_event,
+		  IS_ENABLED(CONFIG_DESKTOP_INIT_LOG_BLE_QOS_EVENT),
+		  log_ble_qos_event,
+		  NULL);
+#endif

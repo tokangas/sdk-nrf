@@ -14,6 +14,7 @@
 #include <sys/printk.h>
 #include <sys/byteorder.h>
 #include <st25r3911b_nfca.h>
+#include <nfc/t4t/ndef_file.h>
 #include <nfc/ndef/msg_parser.h>
 #include <nfc/ndef/text_rec.h>
 #include <nfc/t4t/isodep.h>
@@ -30,7 +31,6 @@
 #define NFC_T4T_ISODEP_FSD 256
 #define NFC_T4T_ISODEP_RX_DATA_MAX_SIZE 1024
 #define NFC_T4T_APDU_MAX_SIZE 1024
-#define TYPE_4_TAG_NLEN_FIELD_SIZE 2
 
 #define NFC_TX_DATA_LEN NFC_T4T_ISODEP_FSD
 #define NFC_RX_DATA_LEN NFC_T4T_ISODEP_FSD
@@ -38,8 +38,8 @@
 #define TRANSMIT_DELAY 3000
 #define ALL_REQ_DELAY 2000
 
-static u8_t tx_data[NFC_TX_DATA_LEN];
-static u8_t rx_data[NFC_RX_DATA_LEN];
+static uint8_t tx_data[NFC_TX_DATA_LEN];
+static uint8_t rx_data[NFC_RX_DATA_LEN];
 
 static struct k_poll_event events[ST25R3911B_NFCA_EVENT_CNT];
 static struct k_delayed_work transmit_work;
@@ -47,8 +47,8 @@ static struct k_delayed_work transmit_work;
 NFC_NDEF_MSG_DEF(poller_msg, NFC_TNEP_MAX_RECORD);
 NFC_T4T_CC_DESC_DEF(t4t_cc, MAX_TLV_BLOCKS);
 
-static u8_t tnep_tx_data[NFC_TNEP_DATA_SIZE];
-static u8_t tnep_rx_data[NFC_TNEP_DATA_SIZE];
+static uint8_t tnep_tx_data[NFC_TNEP_DATA_SIZE];
+static uint8_t tnep_rx_data[NFC_TNEP_DATA_SIZE];
 
 static const struct nfc_tnep_buf tnep_tx_buf = {
 	.data = tnep_tx_data,
@@ -71,29 +71,29 @@ static const struct st25r3911b_nfca_buf rx_buf = {
 };
 
 struct t4t_tag {
-	u8_t data[NFC_T4T_ISODEP_RX_DATA_MAX_SIZE];
-	u8_t ndef[MAX_TLV_BLOCKS][NFC_T4T_APDU_MAX_SIZE];
-	u8_t tlv_index;
+	uint8_t data[NFC_T4T_ISODEP_RX_DATA_MAX_SIZE];
+	uint8_t ndef[MAX_TLV_BLOCKS][NFC_T4T_APDU_MAX_SIZE];
+	uint8_t tlv_index;
 };
 
 static enum nfc_tnep_tag_type tag_type;
 static struct t4t_tag t4t;
 static struct nfc_ndef_tnep_rec_svc_param services[2];
-static u32_t tnep_msg_max_size;
+static uint32_t tnep_msg_max_size;
 static bool tnep_mode;
 
 /* Text message in English with its language code. */
-static const u8_t en_payload[] = {
+static const uint8_t en_payload[] = {
 	'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!'
 };
-static const u8_t en_code[] = {'e', 'n'};
+static const uint8_t en_code[] = {'e', 'n'};
 
 /* Text message in Polish with its language code. */
-static const u8_t pl_payload[] = {
+static const uint8_t pl_payload[] = {
 	'W', 'i', 't', 'a', 'j', ' ', 0xc5, 0x9a, 'w', 'i', 'e', 'c', 'i',
 	'e', '!'
 };
-static const u8_t pl_code[] = {'P', 'L'};
+static const uint8_t pl_code[] = {'P', 'L'};
 
 static void nfc_tag_detect(bool all_request)
 {
@@ -112,12 +112,12 @@ static void nfc_tag_detect(bool all_request)
 	}
 }
 
-static bool tnep_data_search(const u8_t *ndef_msg_buff, size_t nfc_data_len)
+static bool tnep_data_search(const uint8_t *ndef_msg_buff, size_t nfc_data_len)
 {
 	int  err;
-	u8_t desc_buf[NFC_NDEF_PARSER_REQIRED_MEMO_SIZE_CALC(MAX_NDEF_RECORDS)];
+	uint8_t desc_buf[NFC_NDEF_PARSER_REQIRED_MEMO_SIZE_CALC(MAX_NDEF_RECORDS)];
 	size_t desc_buf_len = sizeof(desc_buf);
-	u8_t cnt = ARRAY_SIZE(services);
+	uint8_t cnt = ARRAY_SIZE(services);
 
 	err = nfc_ndef_msg_parse(desc_buf,
 				 &desc_buf_len,
@@ -151,16 +151,16 @@ static void transfer_handler(struct k_work *work)
 	nfc_tag_detect(false);
 }
 
-static int tnep_ndef_read(u8_t *ndef_buff, u16_t ndef_len)
+static int tnep_ndef_read(uint8_t *ndef_buff, uint16_t ndef_len)
 {
 	return nfc_t4t_hl_procedure_ndef_read(&NFC_T4T_CC_DESC(t4t_cc),
 					      ndef_buff, ndef_len);
 }
 
-static int tnep_ndef_update(const u8_t *ndef_buff, u16_t ndef_len)
+static int tnep_ndef_update(const uint8_t *ndef_buff, uint16_t ndef_len)
 {
 	return nfc_t4t_hl_procedure_ndef_update(&NFC_T4T_CC_DESC(t4t_cc),
-						(u8_t *)ndef_buff, ndef_len);
+						(uint8_t *)ndef_buff, ndef_len);
 }
 
 static struct nfc_tnep_poller_ndef_api tnep_ndef_api = {
@@ -251,7 +251,7 @@ static void anticollision_completed(const struct st25r3911b_nfca_tag_info *tag_i
 	}
 }
 
-static void transfer_completed(const u8_t *data, size_t len, int err)
+static void transfer_completed(const uint8_t *data, size_t len, int err)
 {
 	if (err) {
 		printk("NFC Transfer error: %d.\n", err);
@@ -304,7 +304,7 @@ static void t4t_isodep_error(int err)
 	nfc_tag_detect(false);
 }
 
-static void t4t_isodep_data_send(u8_t *data, size_t data_len, u32_t ftd)
+static void t4t_isodep_data_send(uint8_t *data, size_t data_len, uint32_t ftd)
 {
 	int err;
 
@@ -317,7 +317,7 @@ static void t4t_isodep_data_send(u8_t *data, size_t data_len, u32_t ftd)
 	}
 }
 
-static void t4t_isodep_received(const u8_t *data, size_t data_len)
+static void t4t_isodep_received(const uint8_t *data, size_t data_len)
 {
 	int err;
 
@@ -429,7 +429,7 @@ static void t4t_hl_cc_read(struct nfc_t4t_cc_file *cc)
 	printk("No NDEF File TLV in Capability Container.");
 }
 
-static void t4t_hl_ndef_read(u16_t file_id, const u8_t *data, size_t len)
+static void t4t_hl_ndef_read(uint16_t file_id, const uint8_t *data, size_t len)
 {
 	int err;
 	struct nfc_t4t_cc_file *cc;
@@ -438,8 +438,8 @@ static void t4t_hl_ndef_read(u16_t file_id, const u8_t *data, size_t len)
 	printk("NDEF file read, id: 0x%x.\n", file_id);
 
 	if (tnep_mode) {
-		err = nfc_tnep_poller_on_ndef_read(data + TYPE_4_TAG_NLEN_FIELD_SIZE,
-						   len - TYPE_4_TAG_NLEN_FIELD_SIZE);
+		err = nfc_tnep_poller_on_ndef_read(nfc_t4t_ndef_file_msg_get(data),
+						   nfc_t4t_ndef_file_msg_size_get(len));
 		if (err) {
 			printk("TNEP Read data error: %d\n", err);
 		}
@@ -479,8 +479,8 @@ static void t4t_hl_ndef_read(u16_t file_id, const u8_t *data, size_t len)
 			/* Look for first message contains TNEP Service
 			 * Parameter Records.
 			 */
-			if (tnep_data_search(tlv_block[i].value.file.content + TYPE_4_TAG_NLEN_FIELD_SIZE,
-					     tlv_block[i].value.file.len - TYPE_4_TAG_NLEN_FIELD_SIZE)) {
+			if (tnep_data_search(nfc_t4t_ndef_file_msg_get(tlv_block[i].value.file.content),
+					     nfc_t4t_ndef_file_msg_size_get(tlv_block[i].value.file.len))) {
 				tnep_msg_max_size = tlv_block[i].value.max_file_size;
 
 				/* In case when NFC Tag device contains more
@@ -503,7 +503,7 @@ static void t4t_hl_ndef_read(u16_t file_id, const u8_t *data, size_t len)
 	}
 }
 
-static void t4t_hl_ndef_update(u16_t file_id)
+static void t4t_hl_ndef_update(uint16_t file_id)
 {
 	if (tnep_mode) {
 		nfc_tnep_poller_on_ndef_write();
@@ -656,7 +656,7 @@ void main(void)
 {
 	int err;
 
-	printk("NFC reader sample started.\n");
+	printk("NFC TNEP Poller sample started.\n");
 	nfc_t4t_hl_procedure_cb_register(&t4t_hl_procedure_cb);
 
 	k_delayed_work_init(&transmit_work, transfer_handler);

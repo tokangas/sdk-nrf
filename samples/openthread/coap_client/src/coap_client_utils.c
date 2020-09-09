@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 #include <zephyr.h>
+#include <device.h>
 #include <coap_server_client_interface.h>
 #include <net/coap_utils.h>
 #include <logging/log.h>
@@ -15,9 +16,12 @@
 
 LOG_MODULE_REGISTER(coap_client_utils, CONFIG_COAP_CLIENT_UTILS_LOG_LEVEL);
 
+#define CONSOLE_LABEL DT_LABEL(DT_CHOSEN(zephyr_console))
 #define RESPONSE_POLL_PERIOD 100
 
-static u32_t poll_period;
+static uint32_t poll_period;
+
+static bool is_connected;
 
 static struct k_work unicast_light_work;
 static struct k_work multicast_light_work;
@@ -99,8 +103,8 @@ static int on_provisioning_reply(const struct coap_packet *response,
 				 const struct sockaddr *from)
 {
 	int ret = 0;
-	const u8_t *payload;
-	u16_t payload_size = 0u;
+	const uint8_t *payload;
+	uint16_t payload_size = 0u;
 
 	ARG_UNUSED(reply);
 	ARG_UNUSED(from);
@@ -132,7 +136,7 @@ exit:
 
 static void toggle_one_light(struct k_work *item)
 {
-	u8_t payload = (u8_t)THREAD_COAP_UTILS_LIGHT_CMD_TOGGLE;
+	uint8_t payload = (uint8_t)THREAD_COAP_UTILS_LIGHT_CMD_TOGGLE;
 
 	ARG_UNUSED(item);
 
@@ -151,7 +155,7 @@ static void toggle_one_light(struct k_work *item)
 
 static void toggle_mesh_lights(struct k_work *item)
 {
-	static u8_t command = (u8_t)THREAD_COAP_UTILS_LIGHT_CMD_OFF;
+	static uint8_t command = (uint8_t)THREAD_COAP_UTILS_LIGHT_CMD_OFF;
 
 	ARG_UNUSED(item);
 
@@ -186,10 +190,24 @@ static void toggle_minimal_sleepy_end_device(struct k_work *item)
 	struct otInstance *instance = openthread_get_default_instance();
 	otLinkModeConfig mode = otThreadGetLinkMode(instance);
 
+#if IS_ENABLED(CONFIG_DEVICE_POWER_MANAGEMENT)
+	struct device *cons = device_get_binding(CONSOLE_LABEL);
+#endif
+
 	if (mode.mRxOnWhenIdle) {
 		mode.mRxOnWhenIdle = false;
+
+#if IS_ENABLED(CONFIG_DEVICE_POWER_MANAGEMENT)
+		device_set_power_state(cons, DEVICE_PM_OFF_STATE,
+				       NULL, NULL);
+#endif
 	} else {
 		mode.mRxOnWhenIdle = true;
+
+#if IS_ENABLED(CONFIG_DEVICE_POWER_MANAGEMENT)
+		device_set_power_state(cons, DEVICE_PM_ACTIVE_STATE,
+				       NULL, NULL);
+#endif
 	}
 
 	error = otThreadSetLinkMode(instance, mode);
@@ -201,75 +219,75 @@ static void toggle_minimal_sleepy_end_device(struct k_work *item)
 	on_mtd_mode_toggle(mode.mRxOnWhenIdle);
 }
 
-static void on_thread_state_changed(u32_t flags, void *p_context)
+static void on_thread_state_changed(uint32_t flags, void *context)
 {
+	struct openthread_context *ot_context = context;
+
 	if (flags & OT_CHANGED_THREAD_ROLE) {
-		switch (otThreadGetDeviceRole(p_context)) {
+		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_CHILD:
 		case OT_DEVICE_ROLE_ROUTER:
 		case OT_DEVICE_ROLE_LEADER:
 			k_work_submit(&on_connect_work);
+			is_connected = true;
 			break;
 
 		case OT_DEVICE_ROLE_DISABLED:
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
 			k_work_submit(&on_disconnect_work);
+			is_connected = false;
 			break;
 		}
 	}
+}
 
-	LOG_INF("State changed! Flags: 0x%08x Current role: %d", flags,
-		otThreadGetDeviceRole(p_context));
+static void submit_work_if_connected(struct k_work *work)
+{
+	if (is_connected) {
+		k_work_submit(work);
+	} else {
+		LOG_INF("Connection is broken");
+	}
 }
 
 void coap_client_utils_init(ot_connection_cb_t on_connect,
 			    ot_disconnection_cb_t on_disconnect,
 			    mtd_mode_toggle_cb_t on_toggle)
 {
-	otError err;
-	otInstance *instance;
-
 	on_mtd_mode_toggle = on_toggle;
+
+	coap_init(AF_INET6);
 
 	k_work_init(&on_connect_work, on_connect);
 	k_work_init(&on_disconnect_work, on_disconnect);
-
-	instance = openthread_get_default_instance();
-	err = otSetStateChangedCallback(instance, on_thread_state_changed,
-					instance);
-	if (err != OT_ERROR_NONE) {
-		LOG_ERR("Failed to set OpenThread callback. (error: %d)", err);
-		return;
-	}
-
 	k_work_init(&unicast_light_work, toggle_one_light);
 	k_work_init(&multicast_light_work, toggle_mesh_lights);
 	k_work_init(&provisioning_work, send_provisioning_request);
 
+	openthread_set_state_changed_cb(on_thread_state_changed);
+	openthread_start(openthread_get_default_context());
+
 	if (IS_ENABLED(CONFIG_OPENTHREAD_MTD_SED)) {
 		k_work_init(&toggle_MTD_SED_work,
 			    toggle_minimal_sleepy_end_device);
+		k_work_submit(&toggle_MTD_SED_work);
 	}
-
-	coap_init(AF_INET6);
-
-	on_thread_state_changed(OT_CHANGED_THREAD_ROLE, instance);
 }
 
 void coap_client_toggle_one_light(void)
 {
-	k_work_submit(&unicast_light_work);
+	submit_work_if_connected(&unicast_light_work);
 }
 
 void coap_client_toggle_mesh_lights(void)
 {
-	k_work_submit(&multicast_light_work);
+	submit_work_if_connected(&multicast_light_work);
 }
 
 void coap_client_send_provisioning_request(void)
 {
-	k_work_submit(&provisioning_work);
+	submit_work_if_connected(&provisioning_work);
 }
 
 void coap_client_toggle_minimal_sleepy_end_device(void)

@@ -174,10 +174,11 @@ The `Breathe documentation`_ contains information about what you can link to.
 To link directly to a doxygen reference from RST, use the following Breathe domains:
 
 * Function: ``:cpp:func:``
-* Structure: ``:c:type:``
+* Structure: ``:cpp:class:``
+* Type: ``:cpp:type:``
 * Enum (the list): ``:cpp:enum:``
 * Enumerator (an item): ``:cpp:enumerator:``
-* Macro: ``:c:macro:``
+* Macro or define: ``:c:macro:``
 * Structure member: ``:cpp:member:``
 
 .. note::
@@ -427,13 +428,13 @@ Functions
      * @retval 0        If the operation was successful.
      * @retval -EINVAL  If @p len is invalid. Currently, @p len must be 144.
      */
-     int spm_request_random_number(u8_t *output, size_t len, size_t *olen);
+     int spm_request_random_number(uint8_t *output, size_t len, size_t *olen);
 
 Enums
 =====
 
 The documentation block should precede the documented element.
-This is in accordance with the `Zephyr coding style`_.
+This is in accordance with the :ref:`Zephyr coding style <zephyr:contribute_guidelines>`.
 
 
 .. code-block:: c
@@ -452,7 +453,7 @@ Structs
 =======
 
 The documentation block should precede the documented element.
-This is in accordance with the `Zephyr coding style`_.
+This is in accordance with the :ref:`Zephyr coding style <zephyr:contribute_guidelines>`.
 Make sure to add ``:members:`` when you include the API documentation in RST; otherwise, the member documentation will not show up.
 
 .. code-block:: c
@@ -498,7 +499,7 @@ Typedefs
 ========
 
 The documentation block should precede the documented element.
-This is in accordance with the `Zephyr coding style`_.
+This is in accordance with the :ref:`Zephyr coding style <zephyr:contribute_guidelines>`.
 
 .. code-block:: c
 

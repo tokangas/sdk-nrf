@@ -19,7 +19,7 @@ LOG_MODULE_REGISTER(BH1749_TRIGGER, CONFIG_SENSOR_LOG_LEVEL);
 
 /* Callback for active sense pin from BH1749 */
 static void bh1749_gpio_callback(struct device *dev, struct gpio_callback *cb,
-				 u32_t pins)
+				 uint32_t pins)
 {
 	struct bh1749_data *drv_data =
 		CONTAINER_OF(cb, struct bh1749_data, gpio_cb);
@@ -48,7 +48,7 @@ int bh1749_attr_set(struct device *dev,
 		    enum sensor_attribute attr,
 		    const struct sensor_value *val)
 {
-	struct bh1749_data *data = dev->driver_data;
+	struct bh1749_data *data = dev->data;
 
 	if (chan != SENSOR_CHAN_ALL) {
 		return -ENOTSUP;
@@ -58,7 +58,7 @@ int bh1749_attr_set(struct device *dev,
 		if (i2c_reg_write_byte(data->i2c,
 				       DT_REG_ADDR(DT_DRV_INST(0)),
 				       BH1749_TH_HIGH_LSB,
-				       (u8_t)val->val1)) {
+				       (uint8_t)val->val1)) {
 			LOG_ERR("Could not set upper threshold");
 			return -EIO;
 		}
@@ -66,7 +66,7 @@ int bh1749_attr_set(struct device *dev,
 		if (i2c_reg_write_byte(data->i2c,
 				       DT_REG_ADDR(DT_DRV_INST(0)),
 				       BH1749_TH_HIGH_MSB,
-				       (u8_t)(val->val1 >> 8))) {
+				       (uint8_t)(val->val1 >> 8))) {
 			LOG_ERR("Could not set upper threshold");
 			return -EIO;
 		}
@@ -77,7 +77,7 @@ int bh1749_attr_set(struct device *dev,
 		if (i2c_reg_write_byte(data->i2c,
 				       DT_REG_ADDR(DT_DRV_INST(0)),
 				       BH1749_TH_LOW_LSB,
-				       (u8_t)val->val1)) {
+				       (uint8_t)val->val1)) {
 			LOG_ERR("Could not set lower threshold");
 			return -EIO;
 		}
@@ -85,7 +85,7 @@ int bh1749_attr_set(struct device *dev,
 		if (i2c_reg_write_byte(data->i2c,
 				       DT_REG_ADDR(DT_DRV_INST(0)),
 				       BH1749_TH_LOW_MSB,
-				       (u8_t)(val->val1 >> 8))) {
+				       (uint8_t)(val->val1 >> 8))) {
 			LOG_ERR("Could not set lower threshold");
 			return -EIO;
 		}
@@ -98,8 +98,8 @@ int bh1749_trigger_set(struct device *dev,
 		       const struct sensor_trigger *trig,
 		       sensor_trigger_handler_t handler)
 {
-	struct bh1749_data *data = dev->driver_data;
-	u8_t interrupt_source = 0;
+	struct bh1749_data *data = dev->data;
+	uint8_t interrupt_source = 0;
 
 	gpio_pin_interrupt_configure(data->gpio,
 		DT_INST_GPIO_PIN(0, int_gpios), GPIO_INT_DISABLE);
@@ -162,7 +162,7 @@ int bh1749_trigger_set(struct device *dev,
 int bh1749_gpio_interrupt_init(struct device *dev)
 {
 	int err;
-	struct bh1749_data *drv_data = dev->driver_data;
+	struct bh1749_data *drv_data = dev->data;
 
 	/* Setup gpio interrupt */
 	drv_data->gpio =

@@ -10,6 +10,7 @@
 #include <net/tls_credentials.h>
 #include <net/net_ip.h>
 #include <net/ftp_client.h>
+#include <sys/ring_buffer.h>
 #include "slm_util.h"
 #include "slm_at_host.h"
 #include "slm_at_ftp.h"
@@ -55,7 +56,7 @@ enum slm_ftp_operation {
 typedef int (*ftp_op_handler_t) (void);
 
 typedef struct ftp_op_list {
-	u8_t op_code;
+	uint8_t op_code;
 	char *op_str;
 	ftp_op_handler_t handler;
 } ftp_op_list_t;
@@ -96,33 +97,57 @@ static ftp_op_list_t ftp_op_list[FTP_OP_MAX] = {
 	{FTP_OP_PUT, "put", do_ftp_put},
 };
 
+RING_BUF_DECLARE(ftp_data_buf, CONFIG_AT_CMD_RESPONSE_MAX_LEN / 2);
+
 /* global functions defined in different files */
-void rsp_send(const u8_t *str, size_t len);
+void rsp_send(const uint8_t *str, size_t len);
 
 /* global variable defined in different files */
 extern struct at_param_list at_param_list;
 extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 extern struct k_work_q slm_work_q;
 
-void ftp_ctrl_callback(const u8_t *msg, u16_t len)
+void ftp_ctrl_callback(const uint8_t *msg, uint16_t len)
 {
-	rsp_send((u8_t *)msg, len);
+	rsp_send((uint8_t *)msg, len);
 }
 
-void ftp_data_callback(const u8_t *msg, u16_t len)
+static int ftp_data_save(uint8_t *data, uint32_t length)
 {
-	if (slm_util_hex_check((u8_t *)msg, len)) {
+	if (ring_buf_space_get(&ftp_data_buf) < length) {
+		return -1; /* RX overrun */
+	}
+
+	return ring_buf_put(&ftp_data_buf, data, length);
+}
+
+static int ftp_data_send(void)
+{
+	uint32_t sz_send = 0;
+
+	if (ring_buf_is_empty(&ftp_data_buf) == 0) {
+		sz_send = ring_buf_get(&ftp_data_buf, rsp_buf, sizeof(rsp_buf));
+		rsp_send(rsp_buf, sz_send);
+		rsp_send("\r\n", 2);
+	}
+
+	return sz_send;
+}
+
+void ftp_data_callback(const uint8_t *msg, uint16_t len)
+{
+	if (slm_util_hex_check((uint8_t *)msg, len)) {
 		int ret;
 		int size = len * 2;
 
 		ret = slm_util_htoa(msg, len, rsp_buf, size);
 		if (ret > 0) {
-			rsp_send(rsp_buf, ret);
+			ftp_data_save(rsp_buf, ret);
 		} else {
 			LOG_WRN("hex convert error: %d", ret);
 		}
 	} else {
-		rsp_send((u8_t *)msg, len);
+		ftp_data_save((uint8_t *)msg, len);
 	}
 }
 
@@ -137,7 +162,7 @@ static int do_ftp_open(void)
 	int sz_password = FTP_MAX_PASSWORD;
 	char hostname[FTP_MAX_HOSTNAME];
 	int sz_hostname = FTP_MAX_HOSTNAME;
-	u16_t port = CONFIG_SLM_FTP_SERVER_PORT;
+	uint16_t port = CONFIG_SLM_FTP_SERVER_PORT;
 	sec_tag_t sec_tag = INVALID_SEC_TAG;
 	int param_count;
 
@@ -266,8 +291,14 @@ static int do_ftp_ls(void)
 		target[sz_target] = '\0';
 	}
 
+	ring_buf_reset(&ftp_data_buf);
 	ret = ftp_list(options, target);
-	return (ret == FTP_CODE_226) ? 0 : -1;
+	if (ret == FTP_CODE_226) {
+		ftp_data_send();
+		return 0;
+	} else {
+		return -1;
+	}
 }
 
 /* AT#XFTP="cd",<folder> */
@@ -411,8 +442,14 @@ static int do_ftp_get(void)
 	}
 	file[sz_file] = '\0';
 
+	ring_buf_reset(&ftp_data_buf);
 	ret = ftp_get(file);
-	return (ret == FTP_CODE_226) ? 0 : -1;
+	if (ret == FTP_CODE_226) {
+		ftp_data_send();
+		return 0;
+	} else {
+		return -1;
+	}
 }
 
 /* AT#XFTP="put",<file>[<datatype>,<data>] */
@@ -435,7 +472,7 @@ static int do_ftp_put(void)
 	file[sz_file] = '\0';
 
 	if (param_count > 4) {
-		u16_t type;
+		uint16_t type;
 		char data[NET_IPV4_MTU];
 		int size;
 
@@ -449,7 +486,7 @@ static int do_ftp_put(void)
 			return ret;
 		}
 		if (type == DATATYPE_HEXADECIMAL) {
-			u8_t data_hex[size / 2];
+			uint8_t data_hex[size / 2];
 
 			ret = slm_util_atoh(data, size, data_hex, size / 2);
 			if (ret > 0) {
@@ -469,7 +506,7 @@ static int do_ftp_put(void)
  */
 int slm_at_ftp_parse(const char *at_cmd)
 {
-	int ret = -ENOTSUP;
+	int ret = -ENOENT;
 	char op_str[16];
 	int size = 16;
 

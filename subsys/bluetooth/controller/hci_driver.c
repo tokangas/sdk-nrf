@@ -5,6 +5,7 @@
  */
 
 #include <drivers/bluetooth/hci_driver.h>
+#include <bluetooth/controller.h>
 #include <bluetooth/hci_vs.h>
 #include <init.h>
 #include <irq.h>
@@ -13,80 +14,80 @@
 #include <sys/byteorder.h>
 #include <stdbool.h>
 
-#include <ble_controller.h>
-#include <ble_controller_hci.h>
-#include <ble_controller_hci_vs.h>
+#include <sdc.h>
+#include <sdc_hci.h>
+#include <sdc_hci_vs.h>
 #include "multithreading_lock.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
-#define LOG_MODULE_NAME bt_ctlr_hci_driver
+#define LOG_MODULE_NAME sdc_hci_driver
 #include "common/log.h"
 
 static K_SEM_DEFINE(sem_recv, 0, 1);
 
 static struct k_thread recv_thread_data;
-static K_THREAD_STACK_DEFINE(recv_thread_stack, CONFIG_BLECTLR_RX_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(recv_thread_stack, CONFIG_SDC_RX_STACK_SIZE);
 
 #if defined(CONFIG_BT_CONN)
-/* It should not be possible to set CONFIG_BLECTRL_SLAVE_COUNT larger than
+/* It should not be possible to set CONFIG_SDC_SLAVE_COUNT larger than
  * CONFIG_BT_MAX_CONN. Kconfig should make sure of that, this assert is to
  * verify that assumption.
  */
-BUILD_ASSERT(CONFIG_BLECTRL_SLAVE_COUNT <= CONFIG_BT_MAX_CONN);
+BUILD_ASSERT(CONFIG_SDC_SLAVE_COUNT <= CONFIG_BT_MAX_CONN);
 
-#define BLECTRL_MASTER_COUNT (CONFIG_BT_MAX_CONN - CONFIG_BLECTRL_SLAVE_COUNT)
+#define SDC_MASTER_COUNT (CONFIG_BT_MAX_CONN - CONFIG_SDC_SLAVE_COUNT)
 
 #else
 
-#define BLECTRL_MASTER_COUNT 0
+#define SDC_MASTER_COUNT 0
 
 #endif /* CONFIG_BT_CONN */
 
 BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_CENTRAL) ||
-			 (BLECTRL_MASTER_COUNT > 0));
+			 (SDC_MASTER_COUNT > 0));
 
 BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_PERIPHERAL) ||
-			 (CONFIG_BLECTRL_SLAVE_COUNT > 0));
+			 (CONFIG_SDC_SLAVE_COUNT > 0));
 
 #ifdef CONFIG_BT_CTLR_DATA_LENGTH_MAX
 	#define MAX_TX_PACKET_SIZE CONFIG_BT_CTLR_DATA_LENGTH_MAX
 	#define MAX_RX_PACKET_SIZE CONFIG_BT_CTLR_DATA_LENGTH_MAX
 #else
-	#define MAX_TX_PACKET_SIZE BLE_CONTROLLER_DEFAULT_TX_PACKET_SIZE
-	#define MAX_RX_PACKET_SIZE BLE_CONTROLLER_DEFAULT_RX_PACKET_SIZE
+	#define MAX_TX_PACKET_SIZE SDC_DEFAULT_TX_PACKET_SIZE
+	#define MAX_RX_PACKET_SIZE SDC_DEFAULT_RX_PACKET_SIZE
 #endif
 
-#define MASTER_MEM_SIZE (BLE_CONTROLLER_MEM_PER_MASTER_LINK( \
+#define MASTER_MEM_SIZE (SDC_MEM_PER_MASTER_LINK( \
 	MAX_TX_PACKET_SIZE, \
 	MAX_RX_PACKET_SIZE, \
-	BLE_CONTROLLER_DEFAULT_TX_PACKET_COUNT, \
-	BLE_CONTROLLER_DEFAULT_RX_PACKET_COUNT) \
-	+ BLE_CONTROLLER_MEM_MASTER_LINKS_SHARED)
+	SDC_DEFAULT_TX_PACKET_COUNT, \
+	SDC_DEFAULT_RX_PACKET_COUNT) \
+	+ SDC_MEM_MASTER_LINKS_SHARED)
 
-#define SLAVE_MEM_SIZE (BLE_CONTROLLER_MEM_PER_SLAVE_LINK( \
+#define SLAVE_MEM_SIZE (SDC_MEM_PER_SLAVE_LINK( \
 	MAX_TX_PACKET_SIZE, \
 	MAX_RX_PACKET_SIZE, \
-	BLE_CONTROLLER_DEFAULT_TX_PACKET_COUNT, \
-	BLE_CONTROLLER_DEFAULT_RX_PACKET_COUNT) \
-	+ BLE_CONTROLLER_MEM_SLAVE_LINKS_SHARED)
+	SDC_DEFAULT_TX_PACKET_COUNT, \
+	SDC_DEFAULT_RX_PACKET_COUNT) \
+	+ SDC_MEM_SLAVE_LINKS_SHARED)
 
-#define MEMPOOL_SIZE ((CONFIG_BLECTRL_SLAVE_COUNT * SLAVE_MEM_SIZE) + \
-		      (BLECTRL_MASTER_COUNT * MASTER_MEM_SIZE))
+#define MEMPOOL_SIZE ((CONFIG_SDC_SLAVE_COUNT * SLAVE_MEM_SIZE) + \
+		      (SDC_MASTER_COUNT * MASTER_MEM_SIZE))
 
-static u8_t ble_controller_mempool[MEMPOOL_SIZE];
+static uint8_t sdc_mempool[MEMPOOL_SIZE];
 
 #if IS_ENABLED(CONFIG_BT_CTLR_ASSERT_HANDLER)
-extern void bt_ctlr_assert_handle(char *file, u32_t line);
+extern void bt_ctlr_assert_handle(char *file, uint32_t line);
 
-void blectlr_assertion_handler(const char *const file, const u32_t line)
+void sdc_assertion_handler(const char *const file, const uint32_t line)
 {
 	bt_ctlr_assert_handle((char *) file, line);
 }
 
 #else /* !IS_ENABLED(CONFIG_BT_CTLR_ASSERT_HANDLER) */
-void blectlr_assertion_handler(const char *const file, const u32_t line)
+void sdc_assertion_handler(const char *const file, const uint32_t line)
 {
-	BT_ERR("BleCtlr ASSERT: %s, %d", log_strdup(file), line);
+	BT_ERR("SoftDevice Controller ASSERT: %s, %d", log_strdup(file), line);
 	k_oops();
 }
 #endif /* IS_ENABLED(CONFIG_BT_CTLR_ASSERT_HANDLER) */
@@ -99,7 +100,7 @@ static int cmd_handle(struct net_buf *cmd)
 	int errcode = MULTITHREADING_LOCK_ACQUIRE();
 
 	if (!errcode) {
-		errcode = hci_cmd_put(cmd->data);
+		errcode = sdc_hci_cmd_put(cmd->data);
 		MULTITHREADING_LOCK_RELEASE();
 	}
 	if (errcode) {
@@ -119,7 +120,7 @@ static int acl_handle(struct net_buf *acl)
 	int errcode = MULTITHREADING_LOCK_ACQUIRE();
 
 	if (!errcode) {
-		errcode = hci_data_put(acl->data);
+		errcode = sdc_hci_data_put(acl->data);
 		MULTITHREADING_LOCK_RELEASE();
 
 		if (errcode) {
@@ -135,7 +136,7 @@ static int acl_handle(struct net_buf *acl)
 static int hci_driver_send(struct net_buf *buf)
 {
 	int err;
-	u8_t type;
+	uint8_t type;
 
 	BT_DBG("");
 
@@ -167,12 +168,12 @@ static int hci_driver_send(struct net_buf *buf)
 	return err;
 }
 
-static void data_packet_process(u8_t *hci_buf)
+static void data_packet_process(uint8_t *hci_buf)
 {
 	struct net_buf *data_buf = bt_buf_get_rx(BT_BUF_ACL_IN, K_FOREVER);
 	struct bt_hci_acl_hdr *hdr = (void *)hci_buf;
-	u16_t hf, handle, len;
-	u8_t flags, pb, bc;
+	uint16_t hf, handle, len;
+	uint8_t flags, pb, bc;
 
 	if (!data_buf) {
 		BT_ERR("No data buffer available");
@@ -193,7 +194,7 @@ static void data_packet_process(u8_t *hci_buf)
 	bt_recv(data_buf);
 }
 
-static bool event_packet_is_discardable(const u8_t *hci_buf)
+static bool event_packet_is_discardable(const uint8_t *hci_buf)
 {
 	struct bt_hci_evt_hdr *hdr = (void *)hci_buf;
 
@@ -211,10 +212,10 @@ static bool event_packet_is_discardable(const u8_t *hci_buf)
 	}
 	case BT_HCI_EVT_VENDOR:
 	{
-		u8_t subevent = hci_buf[2];
+		uint8_t subevent = hci_buf[2];
 
 		switch (subevent) {
-		case HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT:
+		case SDC_HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT:
 			return true;
 		default:
 			return false;
@@ -225,7 +226,7 @@ static bool event_packet_is_discardable(const u8_t *hci_buf)
 	}
 }
 
-static void event_packet_process(u8_t *hci_buf)
+static void event_packet_process(uint8_t *hci_buf)
 {
 	bool discardable = event_packet_is_discardable(hci_buf);
 	struct bt_hci_evt_hdr *hdr = (void *)hci_buf;
@@ -239,14 +240,14 @@ static void event_packet_process(u8_t *hci_buf)
 	} else if (hdr->evt == BT_HCI_EVT_CMD_COMPLETE) {
 		struct bt_hci_evt_cmd_complete *cc = (void *)&hci_buf[2];
 		struct bt_hci_evt_cc_status *ccs = (void *)&hci_buf[5];
-		u16_t opcode = sys_le16_to_cpu(cc->opcode);
+		uint16_t opcode = sys_le16_to_cpu(cc->opcode);
 
 		BT_DBG("Command Complete (0x%04x) status: 0x%02x,"
 		       " ncmd: %u, len %u",
 		       opcode, ccs->status, cc->ncmd, hdr->len);
 	} else if (hdr->evt == BT_HCI_EVT_CMD_STATUS) {
 		struct bt_hci_evt_cmd_status *cs = (void *)&hci_buf[2];
-		u16_t opcode = sys_le16_to_cpu(cs->opcode);
+		uint16_t opcode = sys_le16_to_cpu(cs->opcode);
 
 		BT_DBG("Command Status (0x%04x) status: 0x%02x",
 		       opcode, cs->status);
@@ -268,11 +269,7 @@ static void event_packet_process(u8_t *hci_buf)
 	}
 
 	net_buf_add_mem(evt_buf, &hci_buf[0], hdr->len + sizeof(*hdr));
-	if (bt_hci_evt_is_prio(hdr->evt)) {
-		bt_recv_prio(evt_buf);
-	} else {
-		bt_recv(evt_buf);
-	}
+	bt_recv(evt_buf);
 }
 
 static bool fetch_and_process_hci_evt(uint8_t *p_hci_buffer)
@@ -281,7 +278,7 @@ static bool fetch_and_process_hci_evt(uint8_t *p_hci_buffer)
 
 	errcode = MULTITHREADING_LOCK_ACQUIRE();
 	if (!errcode) {
-		errcode = hci_evt_get(p_hci_buffer);
+		errcode = sdc_hci_evt_get(p_hci_buffer);
 		MULTITHREADING_LOCK_RELEASE();
 	}
 
@@ -299,7 +296,7 @@ static bool fetch_and_process_acl_data(uint8_t *p_hci_buffer)
 
 	errcode = MULTITHREADING_LOCK_ACQUIRE();
 	if (!errcode) {
-		errcode = hci_data_get(p_hci_buffer);
+		errcode = sdc_hci_data_get(p_hci_buffer);
 		MULTITHREADING_LOCK_RELEASE();
 	}
 
@@ -317,7 +314,7 @@ static void recv_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
-	static u8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE];
+	static uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE];
 
 	bool received_evt = false;
 	bool received_data = false;
@@ -349,35 +346,36 @@ static int hci_driver_open(void)
 
 	k_thread_create(&recv_thread_data, recv_thread_stack,
 			K_THREAD_STACK_SIZEOF(recv_thread_stack), recv_thread,
-			NULL, NULL, NULL, K_PRIO_COOP(CONFIG_BLECTLR_PRIO), 0,
+			NULL, NULL, NULL, K_PRIO_COOP(CONFIG_SDC_RX_PRIO), 0,
 			K_NO_WAIT);
+	k_thread_name_set(&recv_thread_data, "blectlr recv");
 
-	u8_t build_revision[BLE_CONTROLLER_BUILD_REVISION_SIZE];
+	uint8_t build_revision[SDC_BUILD_REVISION_SIZE];
 
-	ble_controller_build_revision_get(build_revision);
+	sdc_build_revision_get(build_revision);
 	LOG_HEXDUMP_INF(build_revision, sizeof(build_revision),
-			"BLE controller build revision: ");
+			"SoftDevice Controller build revision: ");
 
 	int err;
 	int required_memory;
-	ble_controller_cfg_t cfg;
+	sdc_cfg_t cfg;
 
-	cfg.master_count.count = BLECTRL_MASTER_COUNT;
+	cfg.master_count.count = SDC_MASTER_COUNT;
 
-	/* NOTE: ble_controller_cfg_set() returns a negative errno on error. */
+	/* NOTE: sdc_cfg_set() returns a negative errno on error. */
 	required_memory =
-		ble_controller_cfg_set(BLE_CONTROLLER_DEFAULT_RESOURCE_CFG_TAG,
-				       BLE_CONTROLLER_CFG_TYPE_MASTER_COUNT,
+		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+				       SDC_CFG_TYPE_MASTER_COUNT,
 				       &cfg);
 	if (required_memory < 0) {
 		return required_memory;
 	}
 
-	cfg.slave_count.count = CONFIG_BLECTRL_SLAVE_COUNT;
+	cfg.slave_count.count = CONFIG_SDC_SLAVE_COUNT;
 
 	required_memory =
-		ble_controller_cfg_set(BLE_CONTROLLER_DEFAULT_RESOURCE_CFG_TAG,
-				       BLE_CONTROLLER_CFG_TYPE_SLAVE_COUNT,
+		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+				       SDC_CFG_TYPE_SLAVE_COUNT,
 				       &cfg);
 	if (required_memory < 0) {
 		return required_memory;
@@ -385,54 +383,54 @@ static int hci_driver_open(void)
 
 	cfg.buffer_cfg.rx_packet_size = MAX_RX_PACKET_SIZE;
 	cfg.buffer_cfg.tx_packet_size = MAX_TX_PACKET_SIZE;
-	cfg.buffer_cfg.rx_packet_count = BLE_CONTROLLER_DEFAULT_RX_PACKET_COUNT;
-	cfg.buffer_cfg.tx_packet_count = BLE_CONTROLLER_DEFAULT_TX_PACKET_COUNT;
+	cfg.buffer_cfg.rx_packet_count = SDC_DEFAULT_RX_PACKET_COUNT;
+	cfg.buffer_cfg.tx_packet_count = SDC_DEFAULT_TX_PACKET_COUNT;
 
 	required_memory =
-		ble_controller_cfg_set(BLE_CONTROLLER_DEFAULT_RESOURCE_CFG_TAG,
-				       BLE_CONTROLLER_CFG_TYPE_BUFFER_CFG,
+		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+				       SDC_CFG_TYPE_BUFFER_CFG,
 				       &cfg);
 	if (required_memory < 0) {
 		return required_memory;
 	}
 
 	cfg.event_length.event_length_us =
-		CONFIG_BLECTRL_MAX_CONN_EVENT_LEN_DEFAULT;
+		CONFIG_SDC_MAX_CONN_EVENT_LEN_DEFAULT;
 	required_memory =
-		ble_controller_cfg_set(BLE_CONTROLLER_DEFAULT_RESOURCE_CFG_TAG,
-				       BLE_CONTROLLER_CFG_TYPE_EVENT_LENGTH,
+		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+				       SDC_CFG_TYPE_EVENT_LENGTH,
 				       &cfg);
 	if (required_memory < 0) {
 		return required_memory;
 	}
 
 	BT_DBG("BT mempool size: %u, required: %u",
-	       sizeof(ble_controller_mempool), required_memory);
+	       sizeof(sdc_mempool), required_memory);
 
-	if (required_memory > sizeof(ble_controller_mempool)) {
+	if (required_memory > sizeof(sdc_mempool)) {
 		BT_ERR("Allocated memory too low: %u < %u",
-		       sizeof(ble_controller_mempool), required_memory);
+		       sizeof(sdc_mempool), required_memory);
 		k_panic();
 		/* No return from k_panic(). */
 		return -ENOMEM;
 	}
 
 	if (IS_ENABLED(CONFIG_BT_DATA_LEN_UPDATE)) {
-		err = ble_controller_support_dle();
+		err = sdc_support_dle();
 		if (err) {
 			return -ENOTSUP;
 		}
 	}
 
 	if (IS_ENABLED(CONFIG_BT_CTLR_PHY_2M)) {
-		err = ble_controller_support_le_2m_phy();
+		err = sdc_support_le_2m_phy();
 		if (err) {
 			return -ENOTSUP;
 		}
 	}
 
 	if (IS_ENABLED(CONFIG_BT_CTLR_PHY_CODED)) {
-		err = ble_controller_support_le_coded_phy();
+		err = sdc_support_le_coded_phy();
 		if (err) {
 			return -ENOTSUP;
 		}
@@ -440,8 +438,7 @@ static int hci_driver_open(void)
 
 	err = MULTITHREADING_LOCK_ACQUIRE();
 	if (!err) {
-		err = ble_controller_enable(host_signal,
-					    ble_controller_mempool);
+		err = sdc_enable(host_signal, sdc_mempool);
 		MULTITHREADING_LOCK_RELEASE();
 	}
 	if (err < 0) {
@@ -452,7 +449,7 @@ static int hci_driver_open(void)
 }
 
 static const struct bt_hci_driver drv = {
-	.name = "Controller",
+	.name = "SoftDevice Controller",
 	.bus = BT_HCI_DRIVER_BUS_VIRTUAL,
 	.open = hci_driver_open,
 	.send = hci_driver_send,
@@ -500,6 +497,13 @@ uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr addrs[], uint8_t size)
 }
 #endif /* !defined(CONFIG_BT_HCI_VS_EXT) */
 
+void bt_ctlr_set_public_addr(const uint8_t *addr)
+{
+	const sdc_hci_vs_cmd_zephyr_write_bd_addr_t *bd_addr = (void *)addr;
+
+	(void)sdc_hci_vs_cmd_zephyr_write_bd_addr(bd_addr);
+}
+
 static int hci_driver_init(struct device *unused)
 {
 	ARG_UNUSED(unused);
@@ -507,7 +511,7 @@ static int hci_driver_init(struct device *unused)
 
 	bt_hci_driver_register(&drv);
 
-	err = ble_controller_init(blectlr_assertion_handler);
+	err = sdc_init(sdc_assertion_handler);
 	return err;
 }
 

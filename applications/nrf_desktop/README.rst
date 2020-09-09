@@ -241,39 +241,47 @@ Depending on what development kit you use, you need to select the respective con
       .. figure:: /images/nrf_desktop_gaming_mouse_top_no_captions.svg
          :alt: nRF Desktop gaming mouse (top view)
 
-      * nRF52840 Gaming Mouse (nrf52840gmouse_nrf52840)
+      .. include:: /includes/boardname_tables/sample_boardnames.txt
+         :start-after: set11_start
+         :end-before: set11_end
 
    .. tab:: Desktop mouse
 
       .. figure:: /images/nrf_desktop_desktop_mouse_side_no_captions.svg
          :alt: nRF Desktop desktop mouse (side view)
 
-      * nRF52832 Desktop Mouse (nrf52dmouse_nrf52832)
-      * nRF52810 Desktop Mouse (nrf52810dmouse_nrf52810)
+      .. include:: /includes/boardname_tables/sample_boardnames.txt
+         :start-after: set12_start
+         :end-before: set12_end
 
    .. tab:: Keyboard
 
       .. figure:: /images/nrf_desktop_keyboard_top_no_captions.svg
          :alt: nRF Desktop keyboard (top view)
 
-      * nRF52832 Desktop Keyboard (nrf52kbd_nrf52832)
+      .. include:: /includes/boardname_tables/sample_boardnames.txt
+         :start-after: set13_start
+         :end-before: set13_end
 
    .. tab:: HID dongle
 
       .. figure:: /images/nrf_desktop_dongle_no_captions.svg
          :alt: nRF Desktop dongle (top view)
 
-      * nRF52840 USB Dongle (nrf52840dongle_nrf52840)
-      * nRF52833 USB Dongle (nrf52833dongle_nrf52833)
-      * nRF52820 USB Dongle (nrf52820dongle_nrf52820)
+      .. include:: /includes/boardname_tables/sample_boardnames.txt
+         :start-after: set14_start
+         :end-before: set14_end
 
    .. tab:: DK
 
       .. figure:: /images/nrf_desktop_nrf52840_dk_no_captions.svg
          :alt: DK
 
-      * nRF52840 DK (nrf52840dk_nrf52840) - The application is configured to work as gaming mouse (with motion emulated by using DK buttons).
-      * nRF52833 DK (nrf52833dk_nrf52833) - The application is configured to work as HID dongle.
+      .. include:: /includes/boardname_tables/sample_boardnames.txt
+         :start-after: set8_start
+         :end-before: set8_end
+
+      In nRF52840 DK, the application is configured to work as gaming mouse (with motion emulated by using DK buttons) and in nRF52833 DK, the application is configured to work as HID dongle.
 
 ..
 
@@ -726,6 +734,9 @@ Building and running
 The nRF Desktop application is built the same way to any other |NCS| application or sample.
 
 .. include:: /includes/build_and_run.txt
+
+.. note::
+    Information about the known issues in nRF Desktop can be found in |NCS|'s :ref:`release_notes` and on the `Known issues`_ wiki page.
 
 .. _nrf_desktop_selecting_build_types:
 
@@ -1238,7 +1249,7 @@ For detailed information about every option, see the Kconfig help.
 
 The nRF Desktop devices use one of the following Link Layers:
 
-* :option:`CONFIG_BT_LL_NRFXLIB` that supports the Low Latency Packet Mode (LLPM).
+* :option:`CONFIG_BT_LL_SOFTDEVICE` that supports the Low Latency Packet Mode (LLPM).
 * :option:`CONFIG_BT_LL_SW_SPLIT` that does not support the LLPM and has a lower memory usage, so it can be used by memory-limited devices.
 
 .. _nrf_desktop_bluetooth_guide_modules:

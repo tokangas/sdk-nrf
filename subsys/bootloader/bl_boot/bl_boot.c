@@ -31,7 +31,7 @@ static void uninit_used_peripherals(void)
 }
 
 #ifdef CONFIG_SW_VECTOR_RELAY
-extern u32_t _vector_table_pointer;
+extern uint32_t _vector_table_pointer;
 #define VTOR _vector_table_pointer
 #else
 #define VTOR SCB->VTOR
@@ -64,11 +64,11 @@ void bl_boot(const struct fw_info *fw_info)
 	__disable_irq();
 	NVIC_Type *nvic = NVIC;
 	/* Disable NVIC interrupts */
-	for (u8_t i = 0; i < ARRAY_SIZE(nvic->ICER); i++) {
+	for (uint8_t i = 0; i < ARRAY_SIZE(nvic->ICER); i++) {
 		nvic->ICER[i] = 0xFFFFFFFF;
 	}
 	/* Clear pending NVIC interrupts */
-	for (u8_t i = 0; i < ARRAY_SIZE(nvic->ICPR); i++) {
+	for (uint8_t i = 0; i < ARRAY_SIZE(nvic->ICPR); i++) {
 		nvic->ICPR[i] = 0xFFFFFFFF;
 	}
 
@@ -95,11 +95,20 @@ void bl_boot(const struct fw_info *fw_info)
 	__ISB(); /* Flush and refill pipeline with updated permissions */
 
 	VTOR = fw_info->address;
-	u32_t *vector_table = (u32_t *)fw_info->address;
+	uint32_t *vector_table = (uint32_t *)fw_info->address;
 
 	if (!fw_info_ext_api_provide(fw_info, true)) {
 		return;
 	}
+
+#if defined(CONFIG_BUILTIN_STACK_GUARD) && \
+    defined(CONFIG_CPU_CORTEX_M_HAS_SPLIM)
+	/* Reset limit registers to avoid inflicting stack overflow on image
+	 * being booted.
+	 */
+	__set_PSPLIM(0);
+	__set_MSPLIM(0);
+#endif
 
 	/* Set MSP to the new address and clear any information from PSP */
 	__set_MSP(vector_table[0]);

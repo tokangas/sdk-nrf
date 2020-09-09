@@ -118,6 +118,12 @@ static int download_client_callback(const struct download_client_evt *event)
 				       event->fragment.len);
 		if (err != 0) {
 			LOG_ERR("dfu_target_write error %d", err);
+			int res = dfu_target_done(false);
+
+			if (res != 0) {
+				LOG_ERR("Unable to free DFU target resources");
+			}
+			first_fragment = true;
 			(void) download_client_disconnect(&dlc);
 			send_evt(FOTA_DOWNLOAD_EVT_ERROR);
 			return err;
@@ -211,14 +217,14 @@ static void download_with_offset(struct k_work *unused)
 }
 
 int fota_download_start(const char *host, const char *file, int sec_tag,
-			u16_t port, const char *apn)
+			const char *apn, size_t fragment_size)
 {
 	int err = -1;
 
 	struct download_client_cfg config = {
-		.port = port,
 		.sec_tag = sec_tag,
 		.apn = apn,
+		.frag_size_override = fragment_size,
 	};
 
 	if (host == NULL || file == NULL || callback == NULL) {

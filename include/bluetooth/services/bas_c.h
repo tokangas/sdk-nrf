@@ -10,7 +10,7 @@
  * @file
  * @defgroup bt_gatt_bas_c_api Battery Service Client API
  * @{
- * @brief API for the BLE GATT Battery Service (BAS) Client.
+ * @brief API for the Bluetooth LE GATT Battery Service (BAS) Client.
  */
 
 #include <kernel.h>
@@ -55,7 +55,7 @@ struct bt_gatt_bas_c;
  *                      (NULL received from the stack).
  */
 typedef void (*bt_gatt_bas_c_notify_cb)(struct bt_gatt_bas_c *bas_c,
-					u8_t battery_level);
+					uint8_t battery_level);
 
 /**
  * @brief Read complete callback.
@@ -67,7 +67,7 @@ typedef void (*bt_gatt_bas_c_notify_cb)(struct bt_gatt_bas_c *bas_c,
  * @param err           ATT error code or 0.
  */
 typedef void (*bt_gatt_bas_c_read_cb)(struct bt_gatt_bas_c *bas_c,
-				      u8_t battery_level,
+				      uint8_t battery_level,
 				      int err);
 
 /**
@@ -103,13 +103,13 @@ struct bt_gatt_bas_c {
 	/** Read value callback. */
 	bt_gatt_bas_c_read_cb read_cb;
 	/** Handle of the Battery Level Characteristic. */
-	u16_t val_handle;
+	uint16_t val_handle;
 	/** Handle of the CCCD of the Battery Level Characteristic. */
-	u16_t ccc_handle;
+	uint16_t ccc_handle;
 	/** Current battery value. */
-	u8_t battery_level;
+	uint8_t battery_level;
 	/** Properties of the service. */
-	u8_t properties;
+	uint8_t properties;
 	/** Notification supported. */
 	bool notify;
 };
@@ -127,16 +127,11 @@ void bt_gatt_bas_c_init(struct bt_gatt_bas_c *bas_c);
 /**
  * @brief Assign handles to the BAS Client instance.
  *
- * This function should be called when a link with a peer has been established,
- * to associate the link to this instance of the module. This makes it
- * possible to handle several links and associate each link to a particular
- * instance of this module. The GATT attribute handles are provided by the
- * GATT Discovery Manager.
- *
- * @note
- * This function starts the report discovery process.
- * Wait for one of the functions in @ref bt_gatt_hids_c_init_params
- * before using the BAS Client object.
+ * This function should be called when a connection with a peer has been
+ * established, to associate the connection to this instance of the module.
+ * This makes it possible to handle multiple connections and associate each
+ * connection to a particular instance of this module.
+ * The GATT attribute handles are provided by the GATT Discovery Manager.
  *
  * @param dm    Discovery object.
  * @param bas_c BAS Client object.
@@ -234,7 +229,7 @@ static inline bool bt_gatt_bas_c_notify_supported(struct bt_gatt_bas_c *bas_c)
  *           Otherwise, a (negative) error code is returned.
  */
 int bt_gatt_bas_c_periodic_read_start(struct bt_gatt_bas_c *bas_c,
-				      s32_t interval,
+				      int32_t interval,
 				      bt_gatt_bas_c_notify_cb func);
 
 /**
