@@ -382,65 +382,6 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 	set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
 }
 
-int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
-{
-	shell_global = shell;
-
-	int family = -1;
-	int type = -1;
-	int proto = -1;
-	int port = 0;
-	int bind_port = 0;
-
-	// TODO: Check that LTE link is connected because errors are not very descriptive if it's not.
-
-	if (argc <= 4) {
-		shell_error(shell, "At least 4 arguments required.");
-		return -EINVAL;
-	}
-
-	// Address family = argv[1]
-	if (!strcmp(argv[1], "inet")) {
-		family = AF_INET;
-	} else if (!strcmp(argv[1], "inet6")) {
-		family = AF_INET6;
-	} else if (!strcmp(argv[1], "packet")) {
-		family = AF_PACKET;
-	} else {
-		shell_error(shell, "Unsupported family=%d", argv[1]);
-		return -EINVAL;
-	}
-
-	// Socket type = argv[2]
-	if (!strcmp(argv[2], "stream")) {
-		type = SOCK_STREAM;
-		proto = IPPROTO_TCP;
-	} else if (!strcmp(argv[2], "dgram")) {
-		type = SOCK_DGRAM;
-		proto = IPPROTO_UDP;
-	} else if (!strcmp(argv[2], "raw")) {
-		type = SOCK_RAW;
-		proto = 0;
-	} else {
-		shell_error(shell, "Unsupported type=%d", argv[2]);
-		return -EINVAL;
-	}
-
-	// IP address = argv[3]
-
-	// Port = argv[4]
-	port = atoi(argv[4]);
-
-	// Bind port = argv[5]
-	if (argc > 5) {
-		bind_port = atoi(argv[5]);
-	}
-
-	socket_open_and_connect(family, type, proto, argv[3], port, bind_port);
-
-	return 0;
-}
-
 static void calculate_throughput(const struct shell *shell, u32_t data_len, s64_t time_ms)
 {
 	// 8 for bits in one byte, and 1000 for ms->s conversion.
@@ -508,87 +449,6 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 	} else {
 		shell_print(shell_global, "no send parameters given");
 	}
-
-}
-
-int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
-{
-	shell_global = shell;
-
-	// Socket ID = argv[1]
-	int socket_id = atoi(argv[1]);
-	socket_info_t *socket_info = &(sockets[socket_id]);
-	if (!socket_info->in_use) {
-		shell_print(shell, "Socket id=%d not available", socket_id);
-		return -EINVAL;
-	}
-
-	// Data to be sent = argv[2]
-	// TODO: what if it's not given
-	char* data = argv[2];
-
-	// Data sending interval = argv[3]
-	int interval = -1;
-	if (argc > 3) {
-		interval = atoi(argv[3]);
-	}
-
-	// Data length = argv[4]
-	int ul_data_len = 0;
-	if (argc > 4) {
-		ul_data_len = atoi(argv[4]);
-	}
-
-	socket_send_data(socket_info, data, ul_data_len, interval);
-	
-	/*
-	socket_info->log_receive_data = true;
-	if (ul_data_len > 0) {
-		// Send given amount of data to measure performance
-		u32_t bytes_sent = 0;
-		int data_left = ul_data_len;
-		socket_info->log_receive_data = false;
-		set_socket_mode(socket_info->fd, SOCKET_MODE_BLOCKING);
-
-		memset(send_buffer, 0, SEND_BUFFER_SIZE);
-		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
-
-		s64_t time_stamp = k_uptime_get();
-		while (data_left > 0) {
-			if (data_left < SEND_BUFFER_SIZE-1) {
-				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
-				memset(send_buffer, 'l', data_left);
-			}
-			bytes_sent += socket_send(socket_info, send_buffer, false);
-			data_left -= strlen(send_buffer);
-		}
-		s64_t ul_time_ms = k_uptime_delta(&time_stamp);
-		memset(send_buffer, 0, SEND_BUFFER_SIZE);
-		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
-		calculate_throughput(shell, bytes_sent, ul_time_ms);
-
-	} else if (interval == 0 ) {
-		if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
-			k_timer_stop(&socket_info->send_info.timer);
-			shell_print(shell, "socket data send periodic stop");
-		} else {
-			shell_error(shell, "socket data send stop: periodic data not started");
-			return -ENOEXEC;
-		}
-	} else if (interval > 0 ) {
-		// TODO: This only work with data less than SEND_BUFFER_SIZE
-		memcpy(send_buffer, data, strlen(data));
-		shell_print(shell, "socket data send periodic with interval=%d", interval);
-		k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
-		k_work_init(&socket_info->send_info.work, data_send_work_handler);
-		k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
-	} else {
-		shell_print(shell, "socket data send");
-		socket_send(socket_info, data, true);
-		shell_print(shell, "socket data sent");
-	}
-	*/
-	return 0;
 }
 
 static void socket_recv(socket_info_t* socket_info, bool receive_start) {
@@ -605,56 +465,10 @@ static void socket_recv(socket_info_t* socket_info, bool receive_start) {
 	}
 }
 
-int socket_recv_shell(const struct shell *shell, size_t argc, char **argv)
-{
-	shell_global = shell;
-
-	// Socket ID = argv[1]
-	int socket_id = atoi(argv[1]);
-	socket_info_t *socket_info = &(sockets[socket_id]);
-	if (!socket_info->in_use) {
-		shell_print(shell, "Socket id=%d not available", socket_id);
-		return -EINVAL;
-	}
-
-	// command = argv[2]
-	char* command = argv[2];
-	bool receive_start = false;
-
-	if (!strcmp(command, "start")) {
-		receive_start = true;
-	} else if (!strcmp(command, "status")) {
-		receive_start = false;
-	} else {
-		shell_print(shell, "Unknown command=%s", command);
-		return -EINVAL;
-	}
-
-	socket_recv(socket_info, receive_start);
-
-	return 0;
-}
-
 static void socket_close(socket_info_t* socket_info)
 {
 	shell_print(shell_global, "close socket socket_id=%d, fd=%d", get_socket_id_by_fd(socket_info->fd), socket_info->fd);
 	socket_info_clear(socket_info);
-}
-
-int socket_close_shell(const struct shell *shell, size_t argc, char **argv)
-{
-	shell_global = shell;
-
-	// Socket ID = argv[1]
-	int socket_id = atoi(argv[1]);
-	socket_info_t *socket_info = &(sockets[socket_id]);
-	if (!socket_info->in_use) {
-		shell_print(shell, "Socket id=%d not available", socket_id);
-		return -EINVAL;
-	}
-
-	socket_close(socket_info);
-	return 0;
 }
 
 static void socket_list() {
@@ -676,14 +490,6 @@ static void socket_list() {
 	if (!opened_sockets) {
 		shell_print(shell_global, "there are no open sockets");
 	}
-}
-
-int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
-{
-	shell_global = shell;
-
-	socket_list();
-	return 0;
 }
 
 int socket_shell(const struct shell *shell, size_t argc, char **argv)
