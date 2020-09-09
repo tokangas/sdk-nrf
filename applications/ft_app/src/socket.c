@@ -193,10 +193,11 @@ static void socket_receive_handler()
 							0)) > 0) {
 								
 						if (socket_info->log_receive_data) {
-							printk("\nreceived data for socket socket_id=%d, buffer_size=%d:\n%s\n",
+							shell_print(shell_global,
+								"Received data for socket socket_id=%d, buffer_size=%d:\n\t%s",
 								socket_id,
-							buffer_size,
-							receive_buffer);
+								buffer_size,
+								receive_buffer);
 						}
 						socket_info->recv_data_len += buffer_size;
 						memset(receive_buffer, '\0',
@@ -207,7 +208,7 @@ static void socket_receive_handler()
 			}
 		}
 	}
-	printk("socket_receive_handler exit\n");
+	shell_print(shell_global, "socket_receive_handler exit");
 }
 
 K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
@@ -219,7 +220,7 @@ static int socket_send(socket_info_t *socket_info, char* data, bool log_data)
 	int bytes;
 
 	if (log_data) {
-		printk("socket data send: %s\n", data);
+		shell_print(shell_global, "Socket data send:\n\t%s", data);
 	}
 
 	if (socket_info->type == SOCK_STREAM) {
@@ -237,7 +238,7 @@ static int socket_send(socket_info_t *socket_info, char* data, bool log_data)
 			socket_info->addrinfo->ai_addr, dest_addr_len);
 	}
 	if (bytes < 0) {
-		printk("socket send failed, err %d\n", errno);
+		shell_print(shell_global, "socket send failed, err %d", errno);
 		return -1;
 	}
 	return bytes;
@@ -251,7 +252,8 @@ static void data_send_work_handler(struct k_work *item)
 	socket_info_t* socket_info = &sockets[socket_id];
 
 	if (!sockets[socket_id].in_use) {
-		printk("Socket id=%d not in use. Fatal error and sending won't work.\n",
+		shell_print(shell_global,
+			"Socket id=%d not in use. Fatal error and sending won't work.",
 			socket_id);
 			// TODO: stop timer
 		return;
@@ -304,7 +306,7 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 		socket_id++;
 	}
 	if (socket_info == NULL) {
-		printk("Socket creation failed. MAX_SOCKETS=%d exceeded\n", MAX_SOCKETS);
+		shell_error(shell_global, "Socket creation failed. MAX_SOCKETS=%d exceeded", MAX_SOCKETS);
 		return;
 	}
 
@@ -319,7 +321,7 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 	// socket creation fails with errno=43 (PROTONOSUPPORT)
 	int fd = socket(family, type, proto);
 	if (fd < 0) {
-		printk("socket create failed, err %d\n", errno);
+		shell_error(shell_global, "socket create failed, err %d", errno);
 		return;
 	}
 	socket_info->in_use = true;
@@ -332,7 +334,7 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 	// Get address to connect to
 	err = getaddrinfo(ip_address, NULL, &hints, &socket_info->addrinfo);
 	if (err) {
-		printk("getaddrinfo() failed, err %d errno %d\n", err, errno);
+		shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
 		socket_info_clear(socket_info);
 		return;
 	}
@@ -341,10 +343,10 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 	} else if (family == AF_INET6) {
 		((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
 	} else {
-		printk("Unsupport family=%d\n", family);
+		shell_error(shell_global, "Unsupport family=%d", family);
 	}
 
-	printk("socket created socket_id=%d, fd=%d\n", socket_id, fd);
+	shell_print(shell_global, "socket created socket_id=%d, fd=%d", socket_id, fd);
 
 	// Bind socket
 	if (bind_port > 0) {
@@ -374,7 +376,7 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 
 		err = bind(fd, sa_local_ptr, sa_local_len);
 		if (err) {
-			printk("Unable to bind, errno %d\n", errno);
+			shell_error(shell_global, "Unable to bind, errno %d", errno);
 			socket_info_clear(socket_info);
 			return;
 		}
@@ -384,7 +386,7 @@ static void socket_open_and_connect(int family, int type, int proto_delete, char
 		// Connect TCP socket
 		err = connect(fd, socket_info->addrinfo->ai_addr, socket_info->addrinfo->ai_addrlen);
 		if (err) {
-			printk("Unable to connect, errno %d\n", errno);
+			shell_error(shell_global, "Unable to connect, errno %d", errno);
 			socket_info_clear(socket_info);
 			return;
 		}
@@ -555,7 +557,6 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_error(shell, "Address length %d exceeded. Maximum is 100.", ip_address_len);
 			}
 			memcpy(socket_cmd_args.ip_address, optarg, ip_address_len);
-			shell_print(shell, "ip_address=%s,%d\n", socket_cmd_args.ip_address, ip_address_len);
 			break;
 		case 'p': // Port
 			socket_cmd_args.port = atoi(optarg);
