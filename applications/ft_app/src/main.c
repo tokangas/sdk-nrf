@@ -68,7 +68,7 @@ static int fta_shell_init(struct device *unused)
 
 	//shell_print(shell_backend_uart_get_ptr(), "ei toimi jos ei autoconnect");
 #if defined(CONFIG_BSD_LIBRARY)
-	lte_lc_register_handler(lte_connection_ind_handler);
+	//lte_lc_register_handler(lte_connection_ind_handler);
 #endif
 	return 0;
 }
@@ -80,7 +80,8 @@ void main(void)
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
-		err = lte_lc_init_and_connect_async(lte_connection_ind_handler);
+		//err = lte_lc_init_and_connect_async(lte_connection_ind_handler);
+		err = lte_lc_init_and_connect();
 		if (err) {
 			printk("\nModem could not be configured, error: %d",
 			       err);
@@ -91,7 +92,7 @@ void main(void)
 		 * lte_async_connect_handler() to determine when the LTE link is up.
 		 */
 	}
-	lte_lc_register_handler(lte_connection_ind_handler);
+	//lte_lc_register_handler(lte_connection_ind_handler);
 #endif
 
 	modem_trace_enable();
