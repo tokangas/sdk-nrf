@@ -68,9 +68,9 @@ typedef struct {
 	int bind_port;
 	bool in_use;
 	bool log_receive_data;
-	s64_t recv_start_time_ms;
-	s64_t recv_end_time_ms;
-	u32_t recv_data_len;
+	int64_t recv_start_time_ms;
+	int64_t recv_end_time_ms;
+	uint32_t recv_data_len;
 	bool recv_start_throughput;
 	struct addrinfo *addrinfo;
 	struct data_transfer_info send_info;
@@ -406,7 +406,7 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 	return 0;
 }
 
-static void calculate_throughput(const struct shell *shell, u32_t data_len, s64_t time_ms)
+static void calculate_throughput(const struct shell *shell, uint32_t data_len, int64_t time_ms)
 {
 	// 8 for bits in one byte, and 1000 for ms->s conversion.
 	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
@@ -427,7 +427,7 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 	socket_info->log_receive_data = true;
 	if (data_length > 0) {
 		// Send given amount of data to measure performance
-		u32_t bytes_sent = 0;
+		uint32_t bytes_sent = 0;
 		int data_left = data_length;
 		socket_info->log_receive_data = false;
 		set_socket_mode(socket_info->fd, SOCKET_MODE_BLOCKING);
@@ -435,7 +435,7 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
 
-		s64_t time_stamp = k_uptime_get();
+		int64_t time_stamp = k_uptime_get();
 		while (data_left > 0) {
 			if (data_left < SEND_BUFFER_SIZE-1) {
 				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
@@ -444,7 +444,7 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 			bytes_sent += socket_send(socket_info, send_buffer, false);
 			data_left -= strlen(send_buffer);
 		}
-		s64_t ul_time_ms = k_uptime_delta(&time_stamp);
+		int64_t ul_time_ms = k_uptime_delta(&time_stamp);
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
 		calculate_throughput(shell_global, bytes_sent, ul_time_ms);

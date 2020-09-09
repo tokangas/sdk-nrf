@@ -66,11 +66,11 @@ static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 	buffer[3] = ipaddr >> 24;
 }
 
-static u16_t check_ics(const uint8_t *buffer, int len)
+static uint16_t check_ics(const uint8_t *buffer, int len)
 {
 	const uint32_t *ptr32 = (const uint32_t *)buffer;
 	uint32_t hcs = 0;
-	const u16_t *ptr16;
+	const uint16_t *ptr16;
 
 	for (int i = len / 4; i > 0; i--) {
 		uint32_t s = *ptr32++;
@@ -81,10 +81,10 @@ static u16_t check_ics(const uint8_t *buffer, int len)
 		}
 	}
 
-	ptr16 = (const u16_t *)ptr32;
+	ptr16 = (const uint16_t *)ptr32;
 
 	if (len & 2) {
-		u16_t s = *ptr16++;
+		uint16_t s = *ptr16++;
 
 		hcs += s;
 		if (hcs < s) {
@@ -111,9 +111,9 @@ static u16_t check_ics(const uint8_t *buffer, int len)
 
 static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 {
-	u16_t *ptr_hcs = (u16_t *)(buffer + hcs_pos);
+	uint16_t *ptr_hcs = (uint16_t *)(buffer + hcs_pos);
 	*ptr_hcs = 0; /* Clear checksum before calculation */
-	u16_t hcs;
+	uint16_t hcs;
 
 	hcs = check_ics(buffer, len);
 	*ptr_hcs = hcs;
@@ -122,13 +122,13 @@ static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 static uint32_t send_ping_wait_reply(const struct shell *shell)
 {
 	static uint8_t seqnr;
-	u16_t total_length;
+	uint16_t total_length;
 	uint8_t ip_buf[NET_IPV4_MTU];
 	uint8_t *data = NULL;
-	static s64_t start_t, delta_t;
+	static int64_t start_t, delta_t;
 	const uint8_t header_len = 20;
 	int dpllen, pllen, len;
-	const u16_t icmp_hdr_len = 8;
+	const uint16_t icmp_hdr_len = 8;
 	struct sockaddr_in *sa;
 	struct nrf_pollfd fds[1];
 	int fd;
