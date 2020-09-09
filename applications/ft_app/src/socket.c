@@ -114,33 +114,42 @@ const char usage_str[] =
 	"Usage: sock <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
-	"connect: Open socket and connect to given host. Mandatory options: -a, -p\n"
-	"close:   Close socket connection. Mandatory options: -i\n"
-	"send:    Send data. Mandatory options: -i\n"
-	"recv:    Initialize and query receive throughput metrics. Without -r option,\n"
-	"         returns metrics. Mandatory options: -i\n"
-	"list:    List open sockets. No options available.\n"
-	"help:    Show this usage. No options available.\n"
+	"  connect: Open socket and connect to given host. Mandatory options: -a, -p\n"
+	"  close:   Close socket connection. Mandatory options: -i\n"
+	"  send:    Send data. Mandatory options: -i\n"
+	"  recv:    Initialize and query receive throughput metrics. Without -r option,\n"
+	"           returns current metrics so that can be used as status request for receiving.\n"
+	"           Mandatory options: -i\n"
+	"  list:    List open sockets. No options available.\n"
+	"  help:    Show this usage. No options available.\n"
 	"\n"
-	"general options:\n"
-	"  -i, socket id. Use list command to see open sockets.\n"
+	"General options:\n"
+	"  -i, [int]  socket id. Use 'list' command to see open sockets.\n"
 	"\n"
-	"connect command options:\n"
-	"  -a, address as ip address or hostname\n"
-	"  -p, port\n"
-	"  -f, address family: 'inet' (ipv4) or 'inet6' (ipv6)\n"
-	"  -t, address type: 'stream' (tcp) or 'dgram' (udp)\n"
-	"  -b, local port to bind the connection\n"
+	"Options for 'connect' command:\n"
+	"  -a, [str]  Address as ip address or hostname\n"
+	"  -p, [int]  Port\n"
+	"  -f, [str]  Address family: 'inet' (ipv4) or 'inet6' (ipv6)\n"
+	"  -t, [str]  Address type: 'stream' (tcp) or 'dgram' (udp)\n"
+	"  -b, [int]  Local port to bind the socket to\n"
 	"\n"
-	"send command options:\n"
-	"  -d, data to be sent. Cannot be used with -l option.\n"
-	"  -l, length of undefined data to be sent. This can be used for testing with\n"
-	"      bigger data amounts. Cannot be used with -d option.\n"
-	"  -e, data sending interval. You must also specify -d or -l.\n"
+	"Options for 'send' command:\n"
+	"  -d, [str]  Data to be sent. Cannot be used with -l option.\n"
+	"  -l, [int]  Length of undefined data in bytes. This can be used for testing with\n"
+	"             bigger data amounts. Cannot be used with -d option.\n"
+	"  -e, [int]  Data sending interval in milliseconds. You must also specify -d or -l.\n"
 	"\n"
-	"recv command options:\n"
-	"  -r, initialize variables for receive throughput calculation\n"
-	"Examples:\n";
+	"Options for 'recv' command:\n"
+	"  -r, [bool] Initialize variables for receive throughput calculation\n"
+	"\n"
+	"Examples:\n"
+	"\n"
+	"connect\n"
+	"send\n"
+	"send -l\n"
+	"send -e\n"
+	"recv\n"
+	;
 
 static void print_usage()
 {
@@ -182,6 +191,7 @@ static void socket_receive_handler()
 							receive_buffer,
 							RECEIVE_BUFFER_SIZE,
 							0)) > 0) {
+								
 						if (socket_info->log_receive_data) {
 							printk("\nreceived data for socket socket_id=%d, buffer_size=%d:\n%s\n",
 								socket_id,
@@ -206,10 +216,12 @@ K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
 
 static int socket_send(socket_info_t *socket_info, char* data, bool log_data)
 {
-	if (log_data) {
-	printk("socket data send: %s\n", data);
-	}
 	int bytes;
+
+	if (log_data) {
+		printk("socket data send: %s\n", data);
+	}
+
 	if (socket_info->type == SOCK_STREAM) {
 		// TCP
 		bytes = send(socket_info->fd, data, strlen(data), 0);
@@ -500,9 +512,8 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	optind = 1;
 
 	if (argc < 2) {
-		shell_error(shell, "Unknown command");
 		print_usage();
-		return -EINVAL;
+		return 0;
 	}
 
 	// Command = argv[1]
@@ -523,7 +534,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (!strcmp(argv[1], "help")) {
 		socket_cmd_args.command = SOCKET_CMD_HELP;
 	} else {
-		shell_error(shell, "Unsupported command=%s", argv[1]);
+		shell_error(shell, "Unsupported command=%s\n", argv[1]);
 		print_usage();
 		return -EINVAL;
 	}

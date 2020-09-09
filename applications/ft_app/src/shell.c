@@ -120,8 +120,9 @@ static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 
 SHELL_CMD_REGISTER(sock, NULL,
-			"Commands for controlling the FT application",
-			socket_shell);
+	"Commands for socket operations such as connect and send.",
+	socket_shell);
+
 SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
 		       SHELL_OPT_ARG_CHECK_SKIP);
 
