@@ -10,7 +10,7 @@
 #endif
 #include <fcntl.h>
 
-#include "utils/getopt_port/getopt.h"
+#include "utils/freebsd-getopt/getopt.h"
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
@@ -26,14 +26,41 @@ enum socket_mode {
 	SOCKET_MODE_NONBLOCKING
 };
 
+typedef enum {
+	SOCKET_CMD_CONNECT = 0,
+	SOCKET_CMD_SEND,
+	SOCKET_CMD_RECV,
+	SOCKET_CMD_CLOSE,
+	SOCKET_CMD_LIST,
+	SOCKET_CMD_HELP
+} socket_command;
+
+#define SOCKET_ID_NONE -1
+#define SOCKET_SEND_DATA_INTERVAL_NONE -1
+
+typedef struct {
+	socket_command command;
+	int id;
+	int family;
+	int type;
+	char ip_address[100+1];
+	int port;
+	int bind_port;
+	bool data_to_be_sent;
+	int data_length;
+	int data_interval;
+	bool receive_start;
+} socket_cmd_args_t;
+
+static socket_cmd_args_t socket_cmd_args;
+
 struct data_transfer_info {
 	struct k_work work;
 	struct k_timer timer;
 	int socket_id;
 };
 
-typedef struct
-{
+typedef struct {
 	int fd;
 	int family;
 	int type;
@@ -52,9 +79,18 @@ typedef struct
 static socket_info_t sockets[MAX_SOCKETS] = {0};
 char send_buffer[SEND_BUFFER_SIZE];
 char receive_buffer[RECEIVE_BUFFER_SIZE];
+const struct shell* shell_global;
 
 
-void socket_info_clear(socket_info_t* socket_info) {
+static void socket_cmd_args_clear(socket_cmd_args_t* args) {
+	memset(args, 0, sizeof(socket_cmd_args_t));
+	socket_cmd_args.id = SOCKET_ID_NONE;
+	socket_cmd_args.family = AF_INET;
+	socket_cmd_args.type = SOCK_STREAM;
+	socket_cmd_args.data_interval = SOCKET_SEND_DATA_INTERVAL_NONE;
+}
+
+static void socket_info_clear(socket_info_t* socket_info) {
 	close(socket_info->fd);
 	freeaddrinfo(socket_info->addrinfo);
 
@@ -64,7 +100,7 @@ void socket_info_clear(socket_info_t* socket_info) {
 	socket_info->log_receive_data = true;
 }
 
-int get_socket_id_by_fd(int fd)
+static int get_socket_id_by_fd(int fd)
 {
 	for (int i = 0; i < MAX_SOCKETS; i++) {
 		if (sockets[i].fd == fd) {
@@ -72,6 +108,43 @@ int get_socket_id_by_fd(int fd)
 		}
 	}
 	return -1;
+}
+
+const char usage_str[] =
+	"Usage: sock <command> [options]\n"
+	"\n"
+	"<command> is one of the following:\n"
+	"connect: Open socket and connect to given host. Mandatory options: -a, -p\n"
+	"close:   Close socket connection. Mandatory options: -i\n"
+	"send:    Send data. Mandatory options: -i\n"
+	"recv:    Initialize and query receive throughput metrics. Without -r option,\n"
+	"         returns metrics. Mandatory options: -i\n"
+	"list:    List open sockets. No options available.\n"
+	"help:    Show this usage. No options available.\n"
+	"\n"
+	"general options:\n"
+	"  -i, socket id. Use list command to see open sockets.\n"
+	"\n"
+	"connect command options:\n"
+	"  -a, address as ip address or hostname\n"
+	"  -p, port\n"
+	"  -f, address family: 'inet' (ipv4) or 'inet6' (ipv6)\n"
+	"  -t, address type: 'stream' (tcp) or 'dgram' (udp)\n"
+	"  -b, local port to bind the connection\n"
+	"\n"
+	"send command options:\n"
+	"  -d, data to be sent. Cannot be used with -l option.\n"
+	"  -l, length of undefined data to be sent. This can be used for testing with\n"
+	"      bigger data amounts. Cannot be used with -d option.\n"
+	"  -e, data sending interval. You must also specify -d or -l.\n"
+	"\n"
+	"recv command options:\n"
+	"  -r, initialize variables for receive throughput calculation\n"
+	"Examples:\n";
+
+static void print_usage()
+{
+	shell_print(shell_global, "%s", usage_str);
 }
 
 static void socket_receive_handler()
@@ -154,7 +227,7 @@ static int socket_send(socket_info_t *socket_info, char* data, bool log_data)
 	if (bytes < 0) {
 		printk("socket send failed, err %d\n", errno);
 		return -1;
-}
+	}
 	return bytes;
 }
 
@@ -196,9 +269,10 @@ static void set_socket_mode(int fd, enum socket_mode mode)
     }
 }
 
-static void socket_open_and_connect(int family, int type, int proto, char* ip_address, int port, int bind_port)
+static void socket_open_and_connect(int family, int type, int proto_delete, char* ip_address, int port, int bind_port)
 {
 	// TODO: TLS support
+	// TODO: Check that LTE link is connected because errors are not very descriptive if it's not.
 
 	int err;
 	struct addrinfo hints = {
@@ -220,6 +294,13 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 	if (socket_info == NULL) {
 		printk("Socket creation failed. MAX_SOCKETS=%d exceeded\n", MAX_SOCKETS);
 		return;
+	}
+
+	int proto = 0;
+	if (type == SOCK_STREAM) {
+		proto = IPPROTO_TCP;
+	} else if (type == SOCK_DGRAM) {
+		proto = IPPROTO_UDP;
 	}
 
 	// If proto is set to zero to let lower stack select it,
@@ -303,7 +384,9 @@ static void socket_open_and_connect(int family, int type, int proto, char* ip_ad
 
 int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
 {
-	int domain = -1;
+	shell_global = shell;
+
+	int family = -1;
 	int type = -1;
 	int proto = -1;
 	int port = 0;
@@ -318,13 +401,13 @@ int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// Address family = argv[1]
 	if (!strcmp(argv[1], "inet")) {
-		domain = AF_INET;
+		family = AF_INET;
 	} else if (!strcmp(argv[1], "inet6")) {
-		domain = AF_INET6;
+		family = AF_INET6;
 	} else if (!strcmp(argv[1], "packet")) {
-		domain = AF_PACKET;
+		family = AF_PACKET;
 	} else {
-		shell_error(shell, "Unsupported domain=%d", argv[1]);
+		shell_error(shell, "Unsupported family=%d", argv[1]);
 		return -EINVAL;
 	}
 
@@ -353,7 +436,7 @@ int socket_connect_shell(const struct shell *shell, size_t argc, char **argv)
 		bind_port = atoi(argv[5]);
 	}
 
-	socket_open_and_connect(domain, type, proto, argv[3], port, bind_port);
+	socket_open_and_connect(family, type, proto, argv[3], port, bind_port);
 
 	return 0;
 }
@@ -364,7 +447,8 @@ static void calculate_throughput(const struct shell *shell, u32_t data_len, s64_
 	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
 	double throughput = 8 * 1000 * ((double)data_len / time_ms);
 
-	shell_print(shell, "Summary:\n"
+	shell_print(shell_global,
+			"Summary:\n"
 			"Data length: %7u bytes\n"
 			"Time:        %7.2f s\n"
 			"Throughput:  %7.0f bit/s\n",
@@ -373,8 +457,64 @@ static void calculate_throughput(const struct shell *shell, u32_t data_len, s64_
 			throughput);
 }
 
+static void socket_send_data(socket_info_t* socket_info, char* data, int data_length, int interval) {
+
+	socket_info->log_receive_data = true;
+	if (data_length > 0) {
+		// Send given amount of data to measure performance
+		u32_t bytes_sent = 0;
+		int data_left = data_length;
+		socket_info->log_receive_data = false;
+		set_socket_mode(socket_info->fd, SOCKET_MODE_BLOCKING);
+
+		memset(send_buffer, 0, SEND_BUFFER_SIZE);
+		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
+
+		s64_t time_stamp = k_uptime_get();
+		while (data_left > 0) {
+			if (data_left < SEND_BUFFER_SIZE-1) {
+				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
+				memset(send_buffer, 'l', data_left);
+			}
+			bytes_sent += socket_send(socket_info, send_buffer, false);
+			data_left -= strlen(send_buffer);
+		}
+		s64_t ul_time_ms = k_uptime_delta(&time_stamp);
+		memset(send_buffer, 0, SEND_BUFFER_SIZE);
+		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
+		calculate_throughput(shell_global, bytes_sent, ul_time_ms);
+
+	} else if (interval != SOCKET_SEND_DATA_INTERVAL_NONE) {
+
+		if (interval == 0 ) {
+			if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
+				k_timer_stop(&socket_info->send_info.timer);
+				shell_print(shell_global, "socket data send periodic stop");
+			} else {
+				shell_error(shell_global, "socket data send stop: periodic data not started");
+			}
+		} else if (interval > 0 ) {
+			// TODO: This only work with data less than SEND_BUFFER_SIZE
+			// TODO: if no data given, check if data length is given and use it
+			memcpy(send_buffer, data, strlen(data));
+			shell_print(shell_global, "socket data send periodic with interval=%d", interval);
+			k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
+			k_work_init(&socket_info->send_info.work, data_send_work_handler);
+			k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
+		}
+
+	} else if (data != NULL) {
+		socket_send(socket_info, data, true);
+	} else {
+		shell_print(shell_global, "no send parameters given");
+	}
+
+}
+
 int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 {
+	shell_global = shell;
+
 	// Socket ID = argv[1]
 	int socket_id = atoi(argv[1]);
 	socket_info_t *socket_info = &(sockets[socket_id]);
@@ -399,6 +539,9 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		ul_data_len = atoi(argv[4]);
 	}
 
+	socket_send_data(socket_info, data, ul_data_len, interval);
+	
+	/*
 	socket_info->log_receive_data = true;
 	if (ul_data_len > 0) {
 		// Send given amount of data to measure performance
@@ -444,11 +587,28 @@ int socket_send_shell(const struct shell *shell, size_t argc, char **argv)
 		socket_send(socket_info, data, true);
 		shell_print(shell, "socket data sent");
 	}
+	*/
 	return 0;
+}
+
+static void socket_recv(socket_info_t* socket_info, bool receive_start) {
+
+	if (receive_start) {
+		shell_print(shell_global, "receive data calculation start socket id=%d", get_socket_id_by_fd(socket_info->fd));
+		socket_info->recv_start_throughput = true;
+		socket_info->recv_data_len = 0;
+		socket_info->log_receive_data = false;
+		socket_info->recv_start_time_ms = 0;
+		socket_info->recv_end_time_ms = 0;
+	} else {
+		calculate_throughput(shell_global, socket_info->recv_data_len, socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
+	}
 }
 
 int socket_recv_shell(const struct shell *shell, size_t argc, char **argv)
 {
+	shell_global = shell;
+
 	// Socket ID = argv[1]
 	int socket_id = atoi(argv[1]);
 	socket_info_t *socket_info = &(sockets[socket_id]);
@@ -459,25 +619,32 @@ int socket_recv_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// command = argv[2]
 	char* command = argv[2];
+	bool receive_start = false;
 
 	if (!strcmp(command, "start")) {
-		shell_print(shell, "receive data calculation start socket id=%d", socket_id);
-		socket_info->recv_start_throughput = true;
-		socket_info->recv_data_len = 0;
-		socket_info->log_receive_data = false;
-		socket_info->recv_start_time_ms = 0;
-		socket_info->recv_end_time_ms = 0;
+		receive_start = true;
 	} else if (!strcmp(command, "status")) {
-		calculate_throughput(shell, socket_info->recv_data_len, socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
+		receive_start = false;
 	} else {
 		shell_print(shell, "Unknown command=%s", command);
+		return -EINVAL;
 	}
+
+	socket_recv(socket_info, receive_start);
 
 	return 0;
 }
 
+static void socket_close(socket_info_t* socket_info)
+{
+	shell_print(shell_global, "close socket socket_id=%d, fd=%d", get_socket_id_by_fd(socket_info->fd), socket_info->fd);
+	socket_info_clear(socket_info);
+}
+
 int socket_close_shell(const struct shell *shell, size_t argc, char **argv)
 {
+	shell_global = shell;
+
 	// Socket ID = argv[1]
 	int socket_id = atoi(argv[1]);
 	socket_info_t *socket_info = &(sockets[socket_id]);
@@ -486,19 +653,17 @@ int socket_close_shell(const struct shell *shell, size_t argc, char **argv)
 		return -EINVAL;
 	}
 
-	shell_print(shell, "close socket socket_id=%d, fd=%d", socket_id, socket_info->fd);
-	socket_info_clear(socket_info);
+	socket_close(socket_info);
 	return 0;
 }
 
-int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
-{
+static void socket_list() {
 	bool opened_sockets = false;
 	for (int i = 0; i < MAX_SOCKETS; i++) {
 		socket_info_t* socket_info = &(sockets[i]);
 		if (socket_info->in_use) {
 			opened_sockets = true;
-			shell_print(shell, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d, bind_port=%d", 
+			shell_print(shell_global, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d, bind_port=%d", 
 				i,
 				socket_info->fd,
 				socket_info->family,
@@ -509,7 +674,169 @@ int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	if (!opened_sockets) {
-		shell_print(shell, "there are no open sockets");
+		shell_print(shell_global, "there are no open sockets");
 	}
+}
+
+int socket_list_shell(const struct shell *shell, size_t argc, char **argv)
+{
+	shell_global = shell;
+
+	socket_list();
+	return 0;
+}
+
+int socket_shell(const struct shell *shell, size_t argc, char **argv)
+{
+	shell_global = shell;
+	socket_cmd_args_clear(&socket_cmd_args);
+	// Before parsing the command line, reset getopt index to the start of the arguments
+	optind = 1;
+
+	if (argc < 2) {
+		shell_error(shell, "Unknown command");
+		print_usage();
+		return -EINVAL;
+	}
+
+	// Command = argv[1]
+	bool require_socket_id = false;
+	if (!strcmp(argv[1], "connect")) {
+		socket_cmd_args.command = SOCKET_CMD_CONNECT;
+	} else if (!strcmp(argv[1], "send")) {
+		socket_cmd_args.command = SOCKET_CMD_SEND;
+		require_socket_id = true;
+	} else if (!strcmp(argv[1], "recv")) {
+		socket_cmd_args.command = SOCKET_CMD_RECV;
+		require_socket_id = true;
+	} else if (!strcmp(argv[1], "close")) {
+		socket_cmd_args.command = SOCKET_CMD_CLOSE;
+		require_socket_id = true;
+	} else if (!strcmp(argv[1], "list")) {
+		socket_cmd_args.command = SOCKET_CMD_LIST;
+	} else if (!strcmp(argv[1], "help")) {
+		socket_cmd_args.command = SOCKET_CMD_HELP;
+	} else {
+		shell_error(shell, "Unsupported command=%s", argv[1]);
+		print_usage();
+		return -EINVAL;
+	}
+	// Increase getopt command line parsing index not to handle command
+	optind++;
+
+	int flag;
+	// TODO: Handle arguments in similar manner, i.e., move everything here or move 'data' to socket_cmd_args
+	while ((flag = getopt(argc, argv, "i:a:p:f:t:b:d:l:e:r")) != -1) {
+		int ip_address_len = 0;
+		switch (flag) {
+		case 'i': // Socket ID
+			socket_cmd_args.id = atoi(optarg);
+			break;
+		case 'a': // IP address, or hostname
+			ip_address_len = strlen(optarg);
+			if (ip_address_len > 100) {
+				shell_error(shell, "Address length %d exceeded. Maximum is 100.", ip_address_len);
+			}
+			memcpy(socket_cmd_args.ip_address, optarg, ip_address_len);
+			shell_print(shell, "ip_address=%s,%d\n", socket_cmd_args.ip_address, ip_address_len);
+			break;
+		case 'p': // Port
+			socket_cmd_args.port = atoi(optarg);
+			if (socket_cmd_args.port < 1 || socket_cmd_args.port > 65535) {
+				return -EINVAL;
+			}
+			break;
+		case 'f': // Address family
+			if (!strcmp(optarg, "inet")) {
+				socket_cmd_args.family = AF_INET;
+			} else if (!strcmp(optarg, "inet6")) {
+				socket_cmd_args.family = AF_INET6;
+			} else if (!strcmp(optarg, "packet")) {
+				socket_cmd_args.family = AF_PACKET;
+			} else {
+				shell_error(shell, "Unsupported family=%d", optarg);
+				return -EINVAL;
+			}
+			break;
+		case 't': // Socket type
+			if (!strcmp(optarg, "stream")) {
+				socket_cmd_args.type = SOCK_STREAM;
+				//proto = IPPROTO_TCP;
+			} else if (!strcmp(optarg, "dgram")) {
+				socket_cmd_args.type = SOCK_DGRAM;
+				//proto = IPPROTO_UDP;
+			} else if (!strcmp(optarg, "raw")) {
+				socket_cmd_args.type = SOCK_RAW;
+				//proto = 0;
+			} else {
+				shell_error(shell, "Unsupported type=%d", optarg);
+				return -EINVAL;
+			}
+			break;
+		case 'b': // Bind port
+			socket_cmd_args.bind_port = atoi(optarg);
+			if (socket_cmd_args.bind_port < 1 || socket_cmd_args.bind_port > 65535) {
+				return -EINVAL;
+			}
+			break;
+		case 'd': // Data to be sent is available in send buffer
+			strcpy(send_buffer, optarg);
+			break;
+		case 'l': // Length of undefined data to be sent
+			socket_cmd_args.data_length = atoi(optarg);
+			break;
+		case 'e': // Interval in which data will be sent
+			socket_cmd_args.data_interval = atoi(optarg);
+			break;
+		case 'r': // Start monitoring received data
+			socket_cmd_args.receive_start = true;
+			break;
+		}
+	}
+
+	socket_info_t *socket_info = NULL;
+	if (require_socket_id) {
+		if (socket_cmd_args.id == SOCKET_ID_NONE) {
+			shell_error(shell, "Socket id not given. -i option is mandatory for command=%s",
+				argv[1]); // TODO: Change argv to command
+			return -EINVAL;
+		}
+		if (socket_cmd_args.id < 0 || socket_cmd_args.id > MAX_SOCKETS) {
+			shell_error(shell, "Socket id=%d must a postive number smaller than %d",
+				socket_cmd_args.id, MAX_SOCKETS);
+			return -EINVAL;
+		}
+		socket_info = &(sockets[socket_cmd_args.id]);
+		if (!socket_info->in_use) {
+			shell_error(shell, "Socket id=%d not available", socket_cmd_args.id);
+			return -EINVAL;
+		}
+	}
+
+	switch (socket_cmd_args.command) {
+		case SOCKET_CMD_CONNECT:
+			socket_open_and_connect(socket_cmd_args.family, socket_cmd_args.type, 0/*proto*/, socket_cmd_args.ip_address, socket_cmd_args.port, socket_cmd_args.bind_port);
+			break;
+		case SOCKET_CMD_SEND:
+			socket_send_data(socket_info, send_buffer, socket_cmd_args.data_length, socket_cmd_args.data_interval);
+			break;
+		case SOCKET_CMD_RECV:
+			socket_recv(socket_info, socket_cmd_args.receive_start);
+			break;
+		case SOCKET_CMD_CLOSE:
+			socket_close(socket_info);
+			break;
+		case SOCKET_CMD_LIST:
+			socket_list();
+			break;
+		case SOCKET_CMD_HELP:
+			print_usage();
+			break;
+		default:
+			shell_error(shell, "Internal error. Unknown socket command=%d", socket_cmd_args.command);
+			return -EINVAL;
+			break;
+	}
+
 	return 0;
 }

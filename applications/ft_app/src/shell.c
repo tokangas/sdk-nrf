@@ -135,8 +135,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	app_cmds,
 	SHELL_CMD(ping, NULL, PING_USAGE_STR, cmd_icmp_ping),
-	SHELL_CMD(sock, &sock_cmds,
-		  "Perform socket related network operations.", NULL),
+	SHELL_CMD(socket, &sock_cmds,
+		  "Perform socket related network operations. OLD", NULL),
+	SHELL_CMD(sock, NULL,
+		  "Perform socket related network operations.", socket_shell),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
@@ -149,7 +151,9 @@ SHELL_CMD_REGISTER(iperf3, NULL,
 "iperf3 usage",
 cmd_iperf3);
 #endif
-SHELL_CMD_REGISTER(sock, &sock_cmds,
+SHELL_CMD_REGISTER(sock, NULL,
+		   "Commands for controlling the FT application", socket_shell);
+SHELL_CMD_REGISTER(sock_old, &sock_cmds,
 		   "Commands for controlling the FT application", NULL);
 SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
 		       SHELL_OPT_ARG_CHECK_SKIP);

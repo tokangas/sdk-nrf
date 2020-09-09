@@ -15,7 +15,7 @@ project(FTA)
 target_include_directories(app PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/iperf
-  ${CMAKE_CURRENT_SOURCE_DIR}/utils/getopt_port)
+  ${CMAKE_CURRENT_SOURCE_DIR}/utils/freebsd-getopt)
 #TODO: flag iperf: add_subdirectory_ifdef(CONFIG_FTA_IPERF src/iperf)
 
 #zephyr_include_directories(${ZEPHYR_BASE}/include/posix)
@@ -35,8 +35,7 @@ target_sources(app PRIVATE src/lte_connection.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/socket.c)
 target_sources(app PRIVATE src/icmp_ping.c)
-target_sources_ifdef(CONFIG_FTA_IPERF3
-		     app PRIVATE src/utils/freebsd-getopt/getopt.c)
+target_sources(app PRIVATE src/utils/freebsd-getopt/getopt.c)
 add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
 
 # NORDIC SDK APP END
