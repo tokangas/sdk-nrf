@@ -441,14 +441,23 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 	return 0;
 }
 
-static void calculate_throughput(const struct shell *shell, uint32_t data_len, int64_t time_ms)
+static double calculate_throughput(uint32_t data_len, int64_t time_ms)
 {
 	// 8 for bits in one byte, and 1000 for ms->s conversion.
 	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
 	double throughput = 8 * 1000 * ((double)data_len / time_ms);
 
+	return throughput;
+}
+
+static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
+{
+	// 8 for bits in one byte, and 1000 for ms->s conversion.
+	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
+	double throughput = calculate_throughput(data_len, time_ms);
+
 	shell_print(shell_global,
-			"Summary:\n"
+			"\nSummary:\n"
 			"Data length: %7u bytes\n"
 			"Time:        %7.2f s\n"
 			"Throughput:  %7.0f bit/s\n",
@@ -479,6 +488,7 @@ static int socket_send_data(socket_info_t* socket_info, char* data, int data_len
 		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
 
 		int64_t time_stamp = k_uptime_get();
+		int print_interval = 10;
 		while (data_left > 0) {
 			if (data_left < SEND_BUFFER_SIZE-1) {
 				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
@@ -486,11 +496,22 @@ static int socket_send_data(socket_info_t* socket_info, char* data, int data_len
 			}
 			bytes_sent += socket_send(socket_info, send_buffer, false);
 			data_left -= strlen(send_buffer);
+
+			// Print throughput stats every 10 seconds
+			int64_t time_intermediate = k_uptime_get();
+			int64_t ul_time_intermediate_ms = time_intermediate - time_stamp;
+
+			if ((ul_time_intermediate_ms / (double)1000) > print_interval) {
+				double throughput = calculate_throughput(bytes_sent, ul_time_intermediate_ms);
+				shell_print(shell_global,"%7u bytes, %6.2fs, %6.0f bit/s",
+						bytes_sent, (float)ul_time_intermediate_ms / 1000, throughput);
+				print_interval += 10;
+			}
 		}
 		int64_t ul_time_ms = k_uptime_delta(&time_stamp);
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 		set_socket_mode(socket_info->fd, SOCKET_MODE_NONBLOCKING);
-		calculate_throughput(shell_global, bytes_sent, ul_time_ms);
+		print_throughput_summary(bytes_sent, ul_time_ms);
 
 	} else if (interval != SOCKET_SEND_DATA_INTERVAL_NONE) {
 
@@ -539,7 +560,9 @@ static void socket_recv(socket_info_t* socket_info, bool receive_start) {
 		socket_info->recv_start_time_ms = 0;
 		socket_info->recv_end_time_ms = 0;
 	} else {
-		calculate_throughput(shell_global, socket_info->recv_data_len, socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
+		print_throughput_summary(
+			socket_info->recv_data_len,
+			socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
 	}
 }
 
