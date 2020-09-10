@@ -37,6 +37,7 @@ typedef enum {
 } socket_command;
 
 #define SOCKET_ID_NONE -1
+#define SOCKET_FD_NONE -1
 #define SOCKET_SEND_DATA_INTERVAL_NONE -1
 
 typedef struct {
@@ -93,13 +94,15 @@ static void socket_cmd_args_clear(socket_cmd_args_t* args) {
 }
 
 static void socket_info_clear(socket_info_t* socket_info) {
+	if (socket_info->in_use) {
 	close(socket_info->fd);
 	freeaddrinfo(socket_info->addrinfo);
+	}
 
 	memset(socket_info, 0, sizeof(socket_info_t));
 
 	socket_info->id = SOCKET_ID_NONE;
-	socket_info->fd = -1;
+	socket_info->fd = SOCKET_FD_NONE;
 	socket_info->log_receive_data = true;
 }
 
