@@ -1,4 +1,5 @@
 #include <shell/shell.h>
+#include <assert.h>
 #include <strings.h>
 #if defined (CONFIG_POSIX_API)
 #include <unistd.h>
@@ -61,6 +62,7 @@ struct data_transfer_info {
 };
 
 typedef struct {
+	int id;
 	int fd;
 	int family;
 	int type;
@@ -96,6 +98,7 @@ static void socket_info_clear(socket_info_t* socket_info) {
 
 	memset(socket_info, 0, sizeof(socket_info_t));
 
+	socket_info->id = SOCKET_ID_NONE;
 	socket_info->fd = -1;
 	socket_info->log_receive_data = true;
 }
@@ -108,6 +111,22 @@ static int get_socket_id_by_fd(int fd)
 		}
 	}
 	return -1;
+}
+
+static socket_info_t* reserve_socket_id()
+{
+	socket_info_t* socket_info = NULL;
+	int socket_id = 0;
+	while (socket_id < MAX_SOCKETS) {
+		if (!sockets[socket_id].in_use) {
+			socket_info = &(sockets[socket_id]);
+			socket_info_clear(socket_info);
+			socket_info->id = socket_id;
+			break;
+		}
+		socket_id++;
+	}
+	return socket_info;
 }
 
 const char usage_str[] =
@@ -285,28 +304,30 @@ static void set_socket_mode(int fd, enum socket_mode mode)
 
 static int socket_open_and_connect(int family, int type, char* ip_address, int port, int bind_port)
 {
+	int err;
+
+	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, ip_address=%s",
+		family, type, port, bind_port, ip_address);
+
 	// TODO: TLS support
 	// TODO: Check that LTE link is connected because errors are not very descriptive if it's not.
 
-	int err;
-
-
-	socket_info_t* socket_info = NULL;
-	int socket_id = 0;
-	while (socket_id < MAX_SOCKETS) {
-		if (!sockets[socket_id].in_use) {
-			socket_info = &(sockets[socket_id]);
-			socket_info_clear(socket_info);
-			break;
-		}
-		socket_id++;
-	}
+	// Reserve socket ID and structure for a new connection
+	socket_info_t* socket_info = reserve_socket_id();
 	if (socket_info == NULL) {
 		shell_error(shell_global, "Socket creation failed. MAX_SOCKETS=%d exceeded", MAX_SOCKETS);
 		return -EINVAL;
 	}
 
-	// Verify type parameter and map it to protocol
+	// VALIDATE PARAMETERS
+
+	// Validate family parameter
+	if (family != AF_INET && family != AF_INET6) {
+		shell_error(shell_global, "Unsupported address family=%d", family);
+		return -EINVAL;
+	}
+
+	// Validate type parameter and map it to protocol
 	int proto = 0;
 	if (type == SOCK_STREAM) {
 		proto = IPPROTO_TCP;
@@ -317,7 +338,19 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 		return -EINVAL;
 	}
 
-	// Create socket
+	// Validate port
+	if (port < 1 || port > 65535) {
+		shell_error(shell_global, "Port (%d) must be bigger than 0 and smaller than 65536", port);
+		return -EINVAL;
+	}
+
+	// Validate bind port. Zero means that binding is not done.
+	if (bind_port > 65535) {
+		shell_error(shell_global, "Bind port (%d) must be smaller than 65536", port);
+		return -EINVAL;
+	}
+
+	// CREATE SOCKET
 	// If proto is set to zero to let lower stack select it,
 	// socket creation fails with errno=43 (PROTONOSUPPORT)
 	int fd = socket(family, type, proto);
@@ -325,6 +358,7 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 		shell_error(shell_global, "Socket create failed, err %d", errno);
 		return errno;
 	}
+	// Socket has been created so populate its structure with information
 	socket_info->in_use = true;
 	socket_info->fd = fd;
 	socket_info->family = family;
@@ -332,7 +366,7 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 	socket_info->port = port;
 	socket_info->bind_port = bind_port;
 
-	// Get address to connect to
+	// GET ADDRESS
 	struct addrinfo hints = {
 		.ai_family = family,
 		.ai_socktype = type,
@@ -344,20 +378,18 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 		return errno;
 	}
 
-	// Verify family parameter and set port
+	// Set port to address info
 	if (family == AF_INET) {
 		((struct sockaddr_in *)socket_info->addrinfo->ai_addr)->sin_port = htons(port);
 	} else if (family == AF_INET6) {
 		((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
 	} else {
-		socket_info_clear(socket_info);
-		return -EINVAL;
+		assert(0);
 	}
 
+	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
 
-	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_id, fd);
-
-	// Bind socket
+	// BIND SOCKET
 	if (bind_port > 0) {
 		struct sockaddr_in sa_local;
 		struct sockaddr_in6 sa_local6;
@@ -478,7 +510,7 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 static void socket_recv(socket_info_t* socket_info, bool receive_start) {
 
 	if (receive_start) {
-		shell_print(shell_global, "Receive data calculation start socket id=%d", get_socket_id_by_fd(socket_info->fd));
+		shell_print(shell_global, "Receive data calculation start socket id=%d", socket_info->id);
 		socket_info->recv_start_throughput = true;
 		socket_info->recv_data_len = 0;
 		socket_info->log_receive_data = false;
@@ -491,7 +523,7 @@ static void socket_recv(socket_info_t* socket_info, bool receive_start) {
 
 static void socket_close(socket_info_t* socket_info)
 {
-	shell_print(shell_global, "Close socket id=%d, fd=%d", get_socket_id_by_fd(socket_info->fd), socket_info->fd);
+	shell_print(shell_global, "Close socket id=%d, fd=%d", socket_info->id, socket_info->fd);
 	socket_info_clear(socket_info);
 }
 
@@ -571,9 +603,6 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case 'p': // Port
 			socket_cmd_args.port = atoi(optarg);
-			if (socket_cmd_args.port < 1 || socket_cmd_args.port > 65535) {
-				return -EINVAL;
-			}
 			break;
 		case 'f': // Address family
 			if (!strcmp(optarg, "inet")) {
@@ -590,13 +619,10 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 		case 't': // Socket type
 			if (!strcmp(optarg, "stream")) {
 				socket_cmd_args.type = SOCK_STREAM;
-				//proto = IPPROTO_TCP;
 			} else if (!strcmp(optarg, "dgram")) {
 				socket_cmd_args.type = SOCK_DGRAM;
-				//proto = IPPROTO_UDP;
 			} else if (!strcmp(optarg, "raw")) {
 				socket_cmd_args.type = SOCK_RAW;
-				//proto = 0;
 			} else {
 				shell_error(shell, "Unsupported type=%s", optarg);
 				return -EINVAL;
@@ -604,9 +630,6 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case 'b': // Bind port
 			socket_cmd_args.bind_port = atoi(optarg);
-			if (socket_cmd_args.bind_port < 1 || socket_cmd_args.bind_port > 65535) {
-				return -EINVAL;
-			}
 			break;
 		case 'd': // Data to be sent is available in send buffer
 			strcpy(send_buffer, optarg);
