@@ -95,8 +95,8 @@ static void socket_cmd_args_clear(socket_cmd_args_t* args) {
 
 static void socket_info_clear(socket_info_t* socket_info) {
 	if (socket_info->in_use) {
-	close(socket_info->fd);
-	freeaddrinfo(socket_info->addrinfo);
+		close(socket_info->fd);
+		freeaddrinfo(socket_info->addrinfo);
 	}
 
 	memset(socket_info, 0, sizeof(socket_info_t));
@@ -158,8 +158,8 @@ const char usage_str[] =
 	"Options for 'send' command:\n"
 	"  -d, [str]  Data to be sent. Cannot be used with -l option.\n"
 	"  -l, [int]  Length of undefined data in bytes. This can be used for testing with\n"
-	"             bigger data amounts. Cannot be used with -d option.\n"
-	"  -e, [int]  Data sending interval in milliseconds. You must also specify -d or -l.\n"
+	"             bigger data amounts. Cannot be used with -d or -e option.\n"
+	"  -e, [int]  Data sending interval in milliseconds. You must also specify -d.\n"
 	"\n"
 	"Options for 'recv' command:\n"
 	"  -r, [bool] Initialize variables for receive throughput calculation\n"
@@ -457,11 +457,19 @@ static void calculate_throughput(const struct shell *shell, uint32_t data_len, i
 			throughput);
 }
 
-static void socket_send_data(socket_info_t* socket_info, char* data, int data_length, int interval) {
+static int socket_send_data(socket_info_t* socket_info, char* data, int data_length, int interval) {
 
+	// Enable receive data logging as previous commands might have left it disabled
 	socket_info->log_receive_data = true;
 	if (data_length > 0) {
-		// Send given amount of data to measure performance
+		// Send given amount of data
+
+		// Interval is not supported with data length
+		if (interval != SOCKET_SEND_DATA_INTERVAL_NONE) {
+			shell_error(shell_global, "Data lenght and interval cannot be specified at the same time");
+			return -EINVAL;
+		}
+
 		uint32_t bytes_sent = 0;
 		int data_left = data_length;
 		socket_info->log_receive_data = false;
@@ -487,15 +495,23 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 	} else if (interval != SOCKET_SEND_DATA_INTERVAL_NONE) {
 
 		if (interval == 0 ) {
+			// Stop periodic data sending
 			if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 				k_timer_stop(&socket_info->send_info.timer);
 				shell_print(shell_global, "Socket data send periodic stop");
 			} else {
 				shell_error(shell_global, "Socket data send stop: periodic data not started");
+				return -EINVAL;
 			}
 		} else if (interval > 0 ) {
-			// TODO: This only work with data less than SEND_BUFFER_SIZE
-			// TODO: if no data given, check if data length is given and use it
+			// Send data with given interval
+
+			// Data to be sent must also be specified
+			if (strlen(data) < 1) {
+				shell_error(shell_global, "Data sending interval is specified without data to be send.");
+				return -EINVAL;
+			}
+
 			memcpy(send_buffer, data, strlen(data));
 			shell_print(shell_global, "Socket data send periodic with interval=%d", interval);
 			k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
@@ -503,11 +519,14 @@ static void socket_send_data(socket_info_t* socket_info, char* data, int data_le
 			k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
 		}
 
-	} else if (data != NULL) {
+	} else if (data != NULL && strlen(data) > 0) {
+		// Send data if it's given and is not zero length
 		socket_send(socket_info, data, true);
 	} else {
 		shell_print(shell_global, "No send parameters given");
+		return -EINVAL;
 	}
+	return 0;
 }
 
 static void socket_recv(socket_info_t* socket_info, bool receive_start) {
@@ -571,6 +590,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (!strcmp(argv[1], "send")) {
 		socket_cmd_args.command = SOCKET_CMD_SEND;
 		require_socket_id = true;
+		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 	} else if (!strcmp(argv[1], "recv")) {
 		socket_cmd_args.command = SOCKET_CMD_RECV;
 		require_socket_id = true;
@@ -673,7 +693,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			err = socket_open_and_connect(socket_cmd_args.family, socket_cmd_args.type, socket_cmd_args.ip_address, socket_cmd_args.port, socket_cmd_args.bind_port);
 			break;
 		case SOCKET_CMD_SEND:
-			socket_send_data(socket_info, send_buffer, socket_cmd_args.data_length, socket_cmd_args.data_interval);
+			err = socket_send_data(socket_info, send_buffer, socket_cmd_args.data_length, socket_cmd_args.data_interval);
 			break;
 		case SOCKET_CMD_RECV:
 			socket_recv(socket_info, socket_cmd_args.receive_start);
@@ -689,7 +709,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		default:
 			shell_error(shell, "Internal error. Unknown socket command=%d", socket_cmd_args.command);
-			return -EINVAL;
+			err = -EINVAL;
 			break;
 	}
 
