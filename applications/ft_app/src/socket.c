@@ -96,8 +96,8 @@ static void socket_cmd_args_clear(socket_cmd_args_t* args) {
 static void socket_info_clear(socket_info_t* socket_info) {
 	if (socket_info->in_use) {
 		close(socket_info->fd);
-		freeaddrinfo(socket_info->addrinfo);
 	}
+	freeaddrinfo(socket_info->addrinfo);
 
 	memset(socket_info, 0, sizeof(socket_info_t));
 
@@ -110,6 +110,7 @@ static int get_socket_id_by_fd(int fd)
 {
 	for (int i = 0; i < MAX_SOCKETS; i++) {
 		if (sockets[i].fd == fd) {
+			assert(i == sockets[i].id);
 			return i;
 		}
 	}
@@ -198,10 +199,17 @@ static void socket_receive_handler()
 
 		if (ret > 0) {
 			for (int i = 0; i < count; i++) {
+				int socket_id = get_socket_id_by_fd(fds[i].fd);
+				if (socket_id == SOCKET_ID_NONE) {
+					// Socket has been already deleted from internal structures.
+					// This occurs at least when we close socket after which
+					// there will be notification for it.
+					continue;
+				}
+				socket_info_t* socket_info = &(sockets[socket_id]);
+
 				if (fds[i].revents & POLLIN) {
 					int buffer_size;
-					int socket_id = get_socket_id_by_fd(fds[i].fd);
-					socket_info_t* socket_info = &(sockets[i]);
 
 					if (socket_info->recv_start_throughput) {
 						socket_info->recv_start_time_ms = k_uptime_get();
@@ -213,7 +221,7 @@ static void socket_receive_handler()
 							receive_buffer,
 							RECEIVE_BUFFER_SIZE,
 							0)) > 0) {
-								
+						
 						if (socket_info->log_receive_data) {
 							shell_print(shell_global,
 								"Received data for socket socket_id=%d, buffer_size=%d:\n\t%s",
@@ -226,6 +234,14 @@ static void socket_receive_handler()
 							RECEIVE_BUFFER_SIZE);
 					}
 					socket_info->recv_end_time_ms = k_uptime_get();
+				}
+				if (fds[i].revents & POLLHUP) {
+					shell_print(shell_global, "Socket id=%d (fd=%d) disconnected so closing.", socket_id, fds[i].fd);
+					socket_info_clear(socket_info);
+				}
+				if (fds[i].revents & POLLNVAL) {
+					shell_print(shell_global, "Socket id=%d invalid", socket_id);
+					socket_info_clear(socket_info);
 				}
 			}
 		}
