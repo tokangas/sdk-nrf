@@ -141,10 +141,11 @@ const char usage_str[] =
 	"  close:   Close socket connection. Mandatory options: -i\n"
 	"  send:    Send data. Mandatory options: -i\n"
 	"  recv:    Initialize and query receive throughput metrics. Without -r option,\n"
-	"           returns current metrics so that can be used as status request for receiving.\n"
+	"           returns current metrics so that can be used both as status request\n"
+	"           and final summary for receiving.\n"
 	"           Mandatory options: -i\n"
 	"  list:    List open sockets. No options available.\n"
-	"  help:    Show this usage. No options available.\n"
+	"  help:    Show this usage. No mandatory options.\n"
 	"\n"
 	"General options:\n"
 	"  -i, [int]  socket id. Use 'list' command to see open sockets.\n"
@@ -152,8 +153,8 @@ const char usage_str[] =
 	"Options for 'connect' command:\n"
 	"  -a, [str]  Address as ip address or hostname\n"
 	"  -p, [int]  Port\n"
-	"  -f, [str]  Address family: 'inet' (ipv4) or 'inet6' (ipv6)\n"
-	"  -t, [str]  Address type: 'stream' (tcp) or 'dgram' (udp)\n"
+	"  -f, [str]  Address family: 'inet' (ipv4, default) or 'inet6' (ipv6)\n"
+	"  -t, [str]  Address type: 'stream' (tcp, default) or 'dgram' (udp)\n"
 	"  -b, [int]  Local port to bind the socket to\n"
 	"\n"
 	"Options for 'send' command:\n"
@@ -165,13 +166,36 @@ const char usage_str[] =
 	"Options for 'recv' command:\n"
 	"  -r, [bool] Initialize variables for receive throughput calculation\n"
 	"\n"
+	"Options for 'help' command:\n"
+	"  -v, [bool] Show examples\n"
+	;
+
+const char usage_example_str[] =
 	"Examples:\n"
 	"\n"
-	"connect\n"
-	"send\n"
-	"send -l\n"
-	"send -e\n"
-	"recv\n"
+	"Open and connect to an ip address and port (IPv4 TCP socket):\n"
+	"  sock connect -a 111.222.111.222 -p 20000\n"
+	"Open and connect to hostname and port (IPv4 TCP socket):\n"
+	"  sock connect -a google.com -p 20000\n"
+	"Open and connect IPv6 TCP socket and bind to a port:\n"
+	"  sock connect -a 1a2b:1a2b:1a2b:1a2b::1 -p 20000 -f inet6 -t stream -b 40000\n"
+	"Open IPv6 UDP socket:\n"
+	"  sock connect -a 1a2b:1a2b:1a2b:1a2b::1 -p 20000 -f inet6 -t dgram\n"
+	"Send string through socket:\n"
+	"  sock send -i 0 -d testing\n"
+	"Send 100kB of data and show throughput statistics:\n"
+	"  sock send -i 0 -l 100000\n"
+	"Send data periodically with 10s interval:\n"
+	"  sock send -i 0 -e 10 -d test_periodic\n"
+	"Calculate receive throughput:\n"
+	"  sock recv -i 0 -r\n"
+	"  <do whatever is needed to make device receive data>\n"
+	"  sock recv -i 0\n"
+	"  sock recv -i 0\n"
+	"Close socket:\n"
+	"  sock close -i 0\n"
+	"List open sockets:\n"
+	"  sock list\n"
 	;
 
 static void print_usage()
@@ -609,6 +633,13 @@ static void socket_list() {
 	}
 }
 
+static void socket_help(bool verbose) {
+	print_usage();
+	if (verbose) {
+		shell_print(shell_global, "%s", usage_example_str);
+	}
+}
+
 int socket_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err = 0;
@@ -649,8 +680,9 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	optind++;
 
 	int flag;
+	bool verbose = false;
 	// TODO: Handle arguments in similar manner, i.e., move everything here or move 'data' to socket_cmd_args
-	while ((flag = getopt(argc, argv, "i:a:p:f:t:b:d:l:e:r")) != -1) {
+	while ((flag = getopt(argc, argv, "i:a:p:f:t:b:d:l:e:r:v")) != -1) {
 		int ip_address_len = 0;
 		switch (flag) {
 		case 'i': // Socket ID
@@ -705,6 +737,9 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'r': // Start monitoring received data
 			socket_cmd_args.receive_start = true;
 			break;
+		case 'v': // Start monitoring received data
+			verbose = true;
+			break;
 		}
 	}
 
@@ -744,7 +779,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			socket_list();
 			break;
 		case SOCKET_CMD_HELP:
-			print_usage();
+			socket_help(verbose);
 			break;
 		default:
 			shell_error(shell, "Internal error. Unknown socket command=%d", socket_cmd_args.command);
