@@ -70,6 +70,7 @@
 
 #if !defined(__IPERF_API_H)
 typedef uint64_t iperf_size_t;
+//typedef uint32_t iperf_size_t;
 #endif // __IPERF_API_H
 
 struct iperf_interval_results
@@ -383,7 +384,9 @@ struct iperf_test
 #define UDP_BUFFER_EXTRA 1024
 
 /* constants for command line arg sanity checks */
+//#ifndef MB //b_jh
 #define MB (1024 * 1024)
+//#endif
 #define MAX_TCP_BUFFER (512 * MB)
 #define MAX_BLOCKSIZE MB
 /* Minimum size UDP send is the size of two 32-bit ints followed by a 64-bit int */

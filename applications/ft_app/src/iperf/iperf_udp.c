@@ -311,7 +311,6 @@ iperf_udp_buffercheck(struct iperf_test *test, int s)
 	i_errno = IESETBUF;
 	return -1;
     }
-#endif
     if (test->debug) {
 	printf("SNDBUF is %u, expecting %u\n", sndbuf_actual, test->settings->socket_bufsize);
     }
@@ -330,12 +329,10 @@ iperf_udp_buffercheck(struct iperf_test *test, int s)
 
     /* Read back and verify the receiver socket buffer size */
     optlen = sizeof(rcvbuf_actual);
-#ifdef RM_JH //not supported
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {
 	i_errno = IESETBUF;
 	return -1;
     }
-#endif
     if (test->debug) {
 	printf("RCVBUF is %u, expecting %u\n", rcvbuf_actual, test->settings->socket_bufsize);
     }
@@ -343,6 +340,7 @@ iperf_udp_buffercheck(struct iperf_test *test, int s)
 	i_errno = IESETBUF2;
 	return -1;
     }
+#endif
     if (test->settings->blksize > rcvbuf_actual) {
 	char str[80];
 	snprintf(str, sizeof(str),

@@ -75,12 +75,15 @@ static int gethostname(char *name, size_t len)
 }
 
 /**************************************************************************/
-int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+//b_jh:
+int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-    memset(addr->data, 0, sizeof(addr->data));    // FIXME
-    addr->sa_family = AF_INET;                    // FIXME
+    memset(addr->data, 0, sizeof(addr->data));
+    addr->sa_family = AF_INET; //TODO
     return 0;
 }
+//e_jh
+
 int getrusage(int who, struct rusage *usage)
 {
     memset(usage, 0, sizeof(*usage));   // XXX

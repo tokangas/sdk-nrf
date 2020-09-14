@@ -277,8 +277,8 @@ extern    "C"
 	{
 	    inNum *= 8;
 	}
-	//b_jh u_char to u8_t
-	switch    (toupper((u8_t)inFormat))
+	//b_jh u_char to uint8_t
+	switch    (toupper((uint8_t)inFormat))
 	{
 	case 'B':
 	    conv = UNIT_CONV;

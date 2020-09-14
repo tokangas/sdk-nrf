@@ -13,15 +13,31 @@
 #include <sys/types.h>
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
+#include <logging/log_ctrl.h>
 
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
-
 #include "lte_connection.h"
 
 /* global variable defined in different files */
 struct modem_param_info modem_param;
 char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
+
+#if !defined (CONFIG_RESET_ON_FATAL_ERROR)
+void k_sys_fatal_error_handler(unsigned int reason,
+			       const z_arch_esf_t *esf)
+{
+//	ARG_UNUSED(esf);
+
+	LOG_PROCESS();
+	LOG_PANIC();
+	printk("OHO! Running main.c error handler, reason: %d", reason);
+//	z_fatal_error(reason, esf);
+//	k_fatal_halt(reason);
+//	error_handler(ERROR_SYSTEM_FAULT, reason);
+//	CODE_UNREACHABLE;
+}
+#endif
 
 static void modem_trace_enable(void)
 {

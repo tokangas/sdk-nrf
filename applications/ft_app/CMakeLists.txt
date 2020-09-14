@@ -21,7 +21,7 @@ target_include_directories(app PRIVATE
 #zephyr_include_directories(${ZEPHYR_BASE}/include/posix)
 #zephyr_include_directories_ifdef(CONFIG_POSIX_API
 #  ${ZEPHYR_BASE}/include/posix)
-zephyr_compile_definitions(_POSIX_C_SOURCE=200809L)
+#zephyr_compile_definitions(_POSIX_C_SOURCE=200809L)
 # target_compile_definitions(app INTERFACE REENTRANT_SYSCALLS_PROVIDED
 #   MISSING_SYSCALL_NAMES)
 # add_link_options(-specs=nosys.specs)

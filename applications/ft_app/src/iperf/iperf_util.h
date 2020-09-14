@@ -32,8 +32,8 @@
 #include <sys/select.h>
 #include <stddef.h>
 
-//b_jh
-int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+//b_jh: getsockname in system is not working
+int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
 int readentropy(void *out, size_t outsize);
 

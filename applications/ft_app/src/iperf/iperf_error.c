@@ -48,12 +48,14 @@ iperf_err(struct iperf_test *test, const char *format, ...)
     char *ct = NULL;
 
     /* Timestamp if requested */
+    #ifdef RM_JH
     if (test != NULL && test->timestamps) {
 	time(&now);
 	ltm = localtime(&now);
 	strftime(iperf_timestrerr, sizeof(iperf_timestrerr), test->timestamp_format, ltm);
 	ct = iperf_timestrerr;
     }
+    #endif
 
     va_start(argp, format);
     vsnprintf(str, sizeof(str), format, argp);
@@ -86,12 +88,14 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
     char *ct = NULL;
 
     /* Timestamp if requested */
+    #ifdef RM_JH
     if (test != NULL && test->timestamps) {
 	time(&now);
 	ltm = localtime(&now);
 	strftime(iperf_timestrerr, sizeof(iperf_timestrerr), "%c ", ltm);
 	ct = iperf_timestrerr;
     }
+    #endif
 
     va_start(argp, format);
     vsnprintf(str, sizeof(str), format, argp);

@@ -34,7 +34,7 @@
 #undef HAVE_NETINET_SCTP_H
 
 /* Define to 1 if you have the <poll.h> header file. */
-#undef HAVE_POLL_H
+#define HAVE_POLL_H 1
 
 /* Define to 1 if you have the `sched_setaffinity' function. */
 #undef HAVE_SCHED_SETAFFINITY
@@ -73,19 +73,19 @@
 #undef HAVE_SYS_ENDIAN_H
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
-#undef HAVE_SYS_SOCKET_H
+#define HAVE_SYS_SOCKET_H 1
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
-#undef HAVE_SYS_STAT_H
+#define HAVE_SYS_STAT_H 1
 
 /* Define to 1 if you have the <sys/types.h> header file. */
-#define HAVE_SYS_TYPES_H
+#define HAVE_SYS_TYPES_H 1
 
 /* Have TCP_CONGESTION sockopt. */
 #undef HAVE_TCP_CONGESTION
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#undef HAVE_UNISTD_H
+#define HAVE_UNISTD_H 1
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR

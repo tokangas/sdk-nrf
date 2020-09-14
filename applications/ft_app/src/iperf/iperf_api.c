@@ -30,6 +30,7 @@
 #define __USE_GNU
 
 #include "iperf_config.h"
+#include <inttypes.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,6 +108,9 @@ static void print_interval_results(struct iperf_test *test,
 static cJSON *JSON_read(int fd);
 
 #if 1 //b_jh
+static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinline));
+static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
+
 int getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
 	memset(addr->data, 0, sizeof(addr->data));
@@ -1528,6 +1532,8 @@ int iperf_open_logfile(struct iperf_test *test)
 int iperf_set_send_state(struct iperf_test *test, signed char state)
 {
 	test->state = state;
+	//b_jh: not working if non block is not set. TODO: use send()?
+	//if (send(test->ctrl_sck, (char *)&state, sizeof(state), 0) < 0) {
 	if (Nwrite(test->ctrl_sck, (char *)&state, sizeof(state), Ptcp) < 0) {
 		i_errno = IESENDMESSAGE;
 		return -1;
@@ -1552,6 +1558,7 @@ void iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP)
 		FD_SET(sp->socket, &sp->test->write_set);
 	} else {
 		sp->green_light = 0;
+		printf("b_jh: iperf_check_throttle: green light OFF\n");
 		FD_CLR(sp->socket, &sp->test->write_set);
 	}
 }
@@ -1663,8 +1670,10 @@ int iperf_send(struct iperf_test *test, fd_set *write_setP)
 	}
 	if (write_setP != NULL)
 		SLIST_FOREACH(sp, &test->streams, streams)
-	if (FD_ISSET(sp->socket, write_setP))
+	if (FD_ISSET(sp->socket, write_setP)) {
+		printf("b_jh: write clear\n");
 		FD_CLR(sp->socket, write_setP);
+	}
 
 	return 0;
 }
@@ -2227,10 +2236,17 @@ static int send_results(struct iperf_test *test)
 				printf("send_results\n%s\n", str);
 				cJSON_free(str);
 			}
+#ifdef RM_JH
 			if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
 				i_errno = IESENDRESULTS;
 				r = -1;
 			}
+#else
+        if (r == 0 && JSON_write_nonblock(test, j) < 0) {
+            i_errno = IESENDRESULTS;
+            r = -1;
+        }
+#endif			
 		}
 		cJSON_Delete(j);
 	}
@@ -2266,7 +2282,9 @@ static int get_results(struct iperf_test *test)
 	int retransmits;
 	struct iperf_stream *sp;
 
-	j = JSON_read(test->ctrl_sck);
+	//j = JSON_read(test->ctrl_sck);
+	//b_jh
+    j = JSON_read_nonblock(test);	
 	if (j == NULL) {
 		i_errno = IERECVRESULTS;
 		r = -1;
@@ -2470,6 +2488,98 @@ static int get_results(struct iperf_test *test)
 	}
 	return r;
 }
+/*************************************************************/
+
+static int
+JSON_write_nonblock(struct iperf_test *test, cJSON *json)
+{
+    uint32_t hsize, nsize;
+    char *str;
+    int r = -1;
+
+    struct iperf_stream *sp;
+
+    bool size_sent = false;
+
+    fd_set read_set;
+    fd_set write_set;
+
+    str = cJSON_PrintUnformatted(json);
+    if (str == NULL)
+    {
+        goto exit;
+    }
+    else
+    {
+        hsize = strlen(str);
+        nsize = htonl(hsize);
+    }
+
+    /* wait for max 5 sec */
+    const struct timeval tout = { .tv_sec = 5, .tv_usec = 0 };
+    int err;
+    bool wait_for_send = false;
+
+    do {
+        int ret = 0;
+        int sel_ret = 0;
+        err = 0;
+
+        FD_ZERO(&write_set);
+        FD_SET(test->ctrl_sck, &write_set);
+
+        FD_ZERO(&read_set);
+        SLIST_FOREACH(sp, &test->streams, streams) {
+            FD_SET(sp->socket, &read_set);
+        }
+
+        if ((sel_ret = select(test->max_fd + 1, &read_set, &write_set, NULL, &tout)) > 0)
+        {
+            /* ignore errors from other than control socket reads */
+            (void)iperf_recv(test, &read_set);
+
+            if (FD_ISSET(test->ctrl_sck, &write_set))
+            {
+                //set_errno(0);
+
+                if (!size_sent)
+                {
+                    if ((ret = write(test->ctrl_sck, &nsize, sizeof(nsize))) >= sizeof(nsize))
+                    {
+                        size_sent = true;
+                    }
+                }
+                else
+                {
+                    if ((ret = write(test->ctrl_sck, str, hsize)) >= hsize)
+                    {
+                        /* sent successfully */
+                        r = 0;
+                        break;
+                    }
+                }
+            }
+        }
+        /* timeout or error */
+        else if (sel_ret <= 0)
+        {
+            break;
+        }
+    } while (1);
+
+exit:
+    if (str)
+    {
+        free(str);
+    }
+
+    if (r < 0)
+    {
+        i_errno = IESENDRESULTS;
+    }
+
+    return r;
+}
 
 /*************************************************************/
 
@@ -2535,6 +2645,99 @@ static cJSON *JSON_read(int fd)
 	}
 	return json;
 }
+/*************************************************************/
+//b_jh: from sampo iperf
+/**
+ * Version of JSON_read that can read data streams and the control socket
+ * so that we don't go into deadlock situation because rx buffers are full.
+ */
+static cJSON
+*JSON_read_nonblock(struct iperf_test *test)
+{
+    struct iperf_stream *sp;
+
+    fd_set read_set;
+
+    uint32_t hsize, nsize;
+    char *str = NULL;
+    cJSON *json = NULL;
+    int rc;
+
+    /* wait for max 10 sec */
+    const struct timeval tout = { .tv_sec = 120, .tv_usec = 0 };
+    int err;
+
+    do {
+        int ret = 0;
+        err = 0;
+
+        FD_ZERO(&read_set);
+        FD_SET(test->ctrl_sck, &read_set);
+        SLIST_FOREACH(sp, &test->streams, streams) {
+            FD_SET(sp->socket, &read_set);
+        }
+
+        if ((ret = select(test->max_fd + 1, &read_set, NULL, NULL, &tout)) > 0)
+        {
+            if (FD_ISSET(test->ctrl_sck, &read_set))
+            {
+                //set_errno(0);
+
+                if (str == NULL)
+                {
+                    /*
+                     * Read a four-byte integer, which is the length of the JSON to follow.
+                     * Then read the JSON into a buffer and parse it.  Return a parsed JSON
+                     * structure, NULL if there was an error.
+                     */
+                    if (read(test->ctrl_sck, &nsize, sizeof(nsize)) > 0)
+                    {
+                        hsize = ntohl(nsize);
+                        str = (char *) calloc(sizeof(char), hsize+1);   /* +1 for trailing null */
+                    }
+                }
+                else
+                {
+                    if ((rc = read(test->ctrl_sck, str, hsize)) > 0)
+                    {
+                        /*
+                         * We should be reading in the number of bytes corresponding to the
+                         * length in that 4-byte integer.  If we don't the socket might have
+                         * prematurely closed.  Only do the JSON parsing if we got the
+                         * correct number of bytes.
+                         */
+                        if (rc == hsize) {
+                            json = cJSON_Parse(str);
+                        }
+                        else {
+                            printf("WARNING:  Size of data read does not correspond to offered length\n");
+                            break;
+                        }
+                    }
+                }
+            }
+
+next:
+            FD_CLR(test->ctrl_sck, &read_set);
+
+            /* ignore errors from other than control socket reads */
+            (void)iperf_recv(test, &read_set);
+        }
+        /* timeout or error */
+        else if (ret <= 0)
+        {
+            i_errno = IERECVRESULTS;
+            break;
+        }
+    } while (!json);
+
+    if (str)
+    {
+        free(str);
+    }
+
+    return json;
+}
 
 /*************************************************************/
 /**
@@ -2562,6 +2765,7 @@ void add_to_interval_list(struct iperf_stream_result *rp,
 
 void connect_msg(struct iperf_stream *sp)
 {
+#if 0 // SAMPO_NUTTX
 	char ipl[INET6_ADDRSTRLEN], ipr[INET6_ADDRSTRLEN];
 	int lport, rport;
 
@@ -2607,6 +2811,10 @@ void connect_msg(struct iperf_stream *sp)
 	else
 		iperf_printf(sp->test, report_connected, sp->socket, ipl, lport,
 			     ipr, rport);
+#else
+    iprintf(sp->test, report_connected, sp->socket, "localhost", sp->local_port,
+            sp->test->server_hostname ? sp->test->server_hostname : "remote", sp->remote_port);
+#endif
 }
 
 /**************************************************************************/
@@ -2621,7 +2829,7 @@ struct iperf_test *iperf_new_test()
 		return NULL;
 	}
 	//b_jh: 
-	printf("test struct size: %d\n", sizeof(struct iperf_test));
+	//printf("test struct size: %d\n", sizeof(struct iperf_test));
 	
 	/* initialize everything to zero */
 	memset(test, 0, sizeof(struct iperf_test));
@@ -2633,7 +2841,7 @@ struct iperf_test *iperf_new_test()
 		i_errno = IENOMEMORY;
 		return NULL;
 	}
-	printf("test settings struct size: %d\n", sizeof(struct iperf_settings));
+	//printf("test settings struct size: %d\n", sizeof(struct iperf_settings));
 
 	memset(test->settings, 0, sizeof(struct iperf_settings));
 
@@ -2644,13 +2852,13 @@ struct iperf_test *iperf_new_test()
 		i_errno = IENOMEMORY;
 		return NULL;
 	}
-	printf("test settingsbitrate_limit_intervals_traffic_bytes: %lu\n", (ulong)(sizeof(iperf_size_t) * MAX_INTERVAL));
+	//printf("test settingsbitrate_limit_intervals_traffic_bytes: %lu\n", (ulong)(sizeof(iperf_size_t) * MAX_INTERVAL));
 
 	memset(test->bitrate_limit_intervals_traffic_bytes, 0,
 	       sizeof(sizeof(iperf_size_t) * MAX_INTERVAL));
 
 	/* By default all output goes to stdout */
-	test->outfile = stdout;
+	test->outfile = stdout; //b_jh stdout;
 
 	return test;
 }
@@ -2718,7 +2926,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->settings->bitrate_limit_interval = 5;
 	testp->settings->bitrate_limit_stats_per_interval = 0;
 	testp->settings->fqrate = 0;
-	testp->settings->pacing_timer = 1000;
+	testp->settings->pacing_timer = 1000; //b_jh: microseconds? i.e. 1ms?
 	testp->settings->burst = 0;
 	testp->settings->mss = 0;
 	testp->settings->bytes = 0;
@@ -2726,7 +2934,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->settings->connect_timeout = -1;
 	memset(testp->cookie, 0, COOKIE_SIZE);
 
-	testp->multisend = 10; /* arbitrary */
+    testp->multisend = 1;	/* arbitrary, SAMPO_NUTTX XXX: was 10 */
 
 	/* Set up protocol list */
 	SLIST_INIT(&testp->streams);
@@ -3025,7 +3233,7 @@ void iperf_reset_test(struct iperf_test *test)
 #endif /* HAVE_SSL */
 
 	memset(test->cookie, 0, COOKIE_SIZE);
-	test->multisend = 10; /* arbitrary */
+    test->multisend = 1;	/* arbitrary, SAMPO_NUTTX XXX: was 10 */
 	test->udp_counters_64bit = 0;
 	if (test->title) {
 		free(test->title);
@@ -3220,9 +3428,9 @@ static void iperf_print_intermediate(struct iperf_test *test)
      * So we're going to try to ignore very short intervals (less than
      * 10% of the interval time) that have no data.
      */
-	int interval_ok = 0;
+	int interval_ok = 1;//b_jh: let's not ignore anything
 	SLIST_FOREACH(sp, &test->streams, streams)
-	{
+	{	
 		irp = TAILQ_LAST(&sp->result->interval_results, irlisthead);
 		if (irp) {
 			iperf_time_diff(&irp->interval_start_time,
@@ -4721,7 +4929,7 @@ void iperf_free_stream(struct iperf_stream *sp)
 	free(sp->buffer);
 	//e_jh
 	if (sp->diskfile_fd >= 0)
-		close(sp->diskfile_fd);
+		close(sp->diskfile_fd);		
 	for (irp = TAILQ_FIRST(&sp->result->interval_results); irp != NULL;
 	     irp = nirp) {
 		nirp = TAILQ_NEXT(irp, irlistentries);
@@ -4858,7 +5066,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 			printf("note: only repeating pattern supported\n");
 	    }
 		fill_with_repeating_pattern(sp->buffer,
-					    test->settings->blksize);
+				 	    test->settings->blksize);
 	}
 
 	if ((ret < 0) || (iperf_init_stream(sp, test) < 0)) {
@@ -4878,13 +5086,14 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 }
 
 /**************************************************************************/
+
 int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 {
 	socklen_t len;
 	int opt;
 
 	len = sizeof(struct sockaddr_storage);
-	if (getsockname(sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
+	if (mock_getsockname(sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;
@@ -4895,7 +5104,10 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 		i_errno = IEINITSTREAM;
 		return -1;
 	}
-
+#if 1 // SAMPO_NUTTX
+    sp->local_port = test->bind_port;       // XXX: Probably incorrect
+    sp->remote_port = test->server_port;
+#endif
 	/* Set IP TOS */
 	if ((opt = test->settings->tos)) {
 		if (getsockdomain(sp->socket) == AF_INET6) {
@@ -5037,6 +5249,8 @@ void iperf_catch_sigend(void (*handler)(int))
  * process) compute and report one more set of ending statistics
  * before cleaning up and exiting.
  */
+
+//b_jh: call this to end the iperf from shell?
 void iperf_got_sigend(struct iperf_test *test)
 {
 	/*
@@ -5281,6 +5495,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 	char *ct = NULL;
 
 	/* Timestamp if requested */
+#ifdef RM_JH
 	if (iperf_get_test_timestamps(test)) {
 		time(&now);
 		ltm = localtime(&now);
@@ -5288,7 +5503,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 			 iperf_get_test_timestamp_format(test), ltm);
 		ct = iperf_timestr;
 	}
-
+#endif
 	/*
      * There are roughly two use cases here.  If we're the client,
      * want to print stuff directly to the output stream.

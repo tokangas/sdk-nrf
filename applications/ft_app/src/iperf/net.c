@@ -359,6 +359,8 @@ Nwrite(int fd, const char *buf, size_t count, int prot)
     while (nleft > 0) {
 	r = write(fd, buf, nleft);
 
+    //r = send(fd, buf, nleft, 0);
+
 	if (r < 0) {
 	    switch (errno) {
 		case EINTR:
@@ -493,7 +495,7 @@ getsockdomain(int sock)
     struct sockaddr_storage sa;
     socklen_t len = sizeof(sa);
 
-    if (getsockname(sock, (struct sockaddr *)&sa, &len) < 0) {
+    if (mock_getsockname(sock, (struct sockaddr *)&sa, &len) < 0) {
         return -1;
     }
     return ((struct sockaddr *) &sa)->sa_family;

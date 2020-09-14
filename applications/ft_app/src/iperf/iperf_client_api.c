@@ -163,7 +163,10 @@ create_client_timers(struct iperf_test * test)
     test->timer = test->stats_timer = test->reporter_timer = NULL;
     if (test->duration != 0) {
 	test->done = 0;
-        test->timer = tmr_create(&now, test_timer_proc, cd, ( test->duration + test->omit ) * SEC_TO_US, 0);
+        //test->timer = tmr_create(&now, test_timer_proc, cd, ( test->duration + test->omit ) * SEC_TO_US, 0);
+        //b_jh: seems that our side ending before it should, maybe: https://github.com/esnet/iperf/issues/1032
+        //hack to add more time?
+        test->timer = tmr_create(&now, test_timer_proc, cd, ( test->duration + test->omit) * SEC_TO_US, 0);
         if (test->timer == NULL) {
             i_errno = IEINITTEST;
             return -1;
@@ -234,6 +237,7 @@ iperf_handle_message_client(struct iperf_test *test)
 {
     int rval;
     int32_t err;
+    struct iperf_stream *sp;
 
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
@@ -263,8 +267,27 @@ iperf_handle_message_client(struct iperf_test *test)
             }
             else if (iperf_create_streams(test, test->mode) < 0)
                 return -1;
+
+            if (test->protocol->id != Pudp) {
+                SLIST_FOREACH(sp, &test->streams, streams) {
+                setnonblocking(sp->socket, 1);
+                }
+            }
+
+            int i = 0;
+            SLIST_FOREACH(sp, &test->streams, streams) {
+                iprintf(test, "stream [%d]: socket: %d read: %d write: %d",
+                        i,
+                        sp->socket,
+                        (int)FD_ISSET(sp->socket, &test->read_set),
+                        (int)FD_ISSET(sp->socket, &test->write_set));
+                i++;
+            }
             break;
         case TEST_START:
+            /*b_jh: */
+            setnonblocking(test->ctrl_sck, 1);
+
             if (iperf_init_test(test) < 0)
                 return -1;
             if (create_client_timers(test) < 0)
@@ -515,12 +538,14 @@ iperf_run_client(struct iperf_test * test)
 	    if (startup) {
 	        startup = 0;
 
+#ifdef RM_JH
 		// Set non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
 			setnonblocking(sp->socket, 1);
 		    }
 		}
+#endif
 	    }
 
 
@@ -551,17 +576,25 @@ iperf_run_client(struct iperf_test * test)
 	         (test->settings->bytes != 0 && test->bytes_sent >= test->settings->bytes) ||
 	         (test->settings->blocks != 0 && test->blocks_sent >= test->settings->blocks))) {
 
+#ifdef RM_JH
 		// Unset non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
 			setnonblocking(sp->socket, 0);
 		    }
 		}
-
+#endif
 		/* Yes, done!  Send TEST_END. */
 		test->done = 1;
 		cpu_util(test->cpu_util);
 		test->stats_callback(test);
+
+            // iprintf(test, "ctrl socket: %d read: %d write: %d",
+            //         test->ctrl_sck,
+            //         (int)FD_ISSET(sp->socket, &test->read_set),
+            //         (int)FD_ISSET(sp->socket, &test->write_set));
+        
+
 		if (iperf_set_send_state(test, TEST_END) != 0)
                     goto cleanup_and_fail;
 	    }
@@ -572,8 +605,9 @@ iperf_run_client(struct iperf_test * test)
 	// and gets blocked, so it can't receive state changes
 	// from the client side.
 	else if (test->mode == RECEIVER && test->state == TEST_END) {
-	    if (iperf_recv(test, &read_set) < 0)
-		goto cleanup_and_fail;
+	    if (iperf_recv(test, &read_set) < 0) {
+    		goto cleanup_and_fail;
+        }
 	}
     }
 
