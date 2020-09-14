@@ -21,6 +21,7 @@
 #include <sockets_internal.h>
 #include <sys/fdtable.h>
 #include <zephyr.h>
+
 //b_jh
 //#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES) && defined (CONFIG_POSIX_API)
 #if defined (CONFIG_POSIX_API)
@@ -253,10 +254,12 @@ static int z_to_nrf_flags(int z_flags)
 	if (z_flags & MSG_PEEK) {
 		nrf_flags |= NRF_MSG_PEEK;
 	}
-
+//b_jh: MSG_TRUNC not in posix?
+#if !defined (CONFIG_POSIX_API)
 	if (z_flags & MSG_TRUNC) {
 		nrf_flags |= NRF_MSG_TRUNC;
 	}
+#endif
 	/* TODO: Handle missing flags, missing from zephyr,
 	 * may also be missing from bsd socket library.
 	 * Missing flags from "man recv" or "man recvfrom":
