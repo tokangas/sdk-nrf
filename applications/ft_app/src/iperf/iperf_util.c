@@ -97,6 +97,8 @@ int getrusage(int who, struct rusage *usage)
  * Errors are fatal.
  * Returns 0 on success.
  */
+#ifdef RM_JH
+
 int readentropy(void *out, size_t outsize)
 {
     static FILE *frandom;
@@ -121,7 +123,7 @@ int readentropy(void *out, size_t outsize)
     }
     return 0;
 }
-
+#endif
 
 /*
  * Fills buffer with repeating pattern (similar to pattern that used in iperf2)

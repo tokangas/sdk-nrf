@@ -276,7 +276,7 @@ iperf_handle_message_client(struct iperf_test *test)
 
             int i = 0;
             SLIST_FOREACH(sp, &test->streams, streams) {
-                iprintf(test, "stream [%d]: socket: %d read: %d write: %d",
+                iperf_printf(test, "stream [%d]: socket: %d read: %d write: %d\n",
                         i,
                         sp->socket,
                         (int)FD_ISSET(sp->socket, &test->read_set),
@@ -469,6 +469,8 @@ iperf_client_end(struct iperf_test *test)
     if (test->ctrl_sck)
         close(test->ctrl_sck);
 
+//    k_sleep(K_MSEC(2));
+
     return 0;
 }
 
@@ -502,7 +504,8 @@ iperf_run_client(struct iperf_test * test)
 	iperf_printf(test, "%s\n", version);
 	iperf_printf(test, "%s", "");
 	iperf_printf(test, "%s\n", get_system_info());
-	iflush(test);
+	if (test->logfile || test->forceflush) //b_jh: added
+    	iflush(test);
     }
 
     /* Start the client and connect to the server */
@@ -589,7 +592,7 @@ iperf_run_client(struct iperf_test * test)
 		cpu_util(test->cpu_util);
 		test->stats_callback(test);
 
-            // iprintf(test, "ctrl socket: %d read: %d write: %d",
+            // iperf_print(test, "ctrl socket: %d read: %d write: %d",
             //         test->ctrl_sck,
             //         (int)FD_ISSET(sp->socket, &test->read_set),
             //         (int)FD_ISSET(sp->socket, &test->write_set));
@@ -619,14 +622,16 @@ iperf_run_client(struct iperf_test * test)
 	iperf_printf(test, "%s", report_done);
     }
 
-    iflush(test);
+	if (test->logfile || test->forceflush) //b_jh: added
+          iflush(test);
 
     return 0;
 
   cleanup_and_fail:
     iperf_client_end(test);
     if (test->json_output)
-	iperf_json_finish(test);
-    iflush(test);
+	    iperf_json_finish(test);
+	if (test->logfile || test->forceflush) //b_jh: added
+          iflush(test);
     return -1;
 }

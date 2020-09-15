@@ -29,7 +29,6 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
-#include <inttypes.h>
 
 #include "timer.h"
 #include "iperf_time.h"

@@ -30,7 +30,6 @@
 #define __USE_GNU
 
 #include "iperf_config.h"
-#include <inttypes.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1233,7 +1232,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			}
 			TAILQ_INSERT_TAIL(&test->xbind_addrs, xbe, link);
 			break;
-		case 'Z':
+		case 'Z': //b_jh: TODO: not supported
 			if (!has_sendfile()) {
 				i_errno = IENOSENDFILE;
 				return -1;
@@ -1308,9 +1307,11 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->pidfile = strdup(optarg);
 			server_flag = 1;
 			break;
+#ifdef RM_JH			
 		case OPT_LOGFILE:
 			test->logfile = strdup(optarg);
 			break;
+#endif
 		case OPT_FORCEFLUSH:
 			test->forceflush = 1;
 			break;
@@ -1520,13 +1521,15 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
  */
 int iperf_open_logfile(struct iperf_test *test)
 {
+	test->outfile = NULL;
+#ifdef RM_JH	
 	test->outfile = fopen(test->logfile, "a+");
 	if (test->outfile == NULL) {
 		i_errno = IELOGFILE;
 		return -1;
 	}
-
-	return 0;
+#endif
+	return -1;
 }
 
 int iperf_set_send_state(struct iperf_test *test, signed char state)
@@ -1671,7 +1674,6 @@ int iperf_send(struct iperf_test *test, fd_set *write_setP)
 	if (write_setP != NULL)
 		SLIST_FOREACH(sp, &test->streams, streams)
 	if (FD_ISSET(sp->socket, write_setP)) {
-		printf("b_jh: write clear\n");
 		FD_CLR(sp->socket, write_setP);
 	}
 
@@ -2287,6 +2289,9 @@ static int get_results(struct iperf_test *test)
     j = JSON_read_nonblock(test);	
 	if (j == NULL) {
 		i_errno = IERECVRESULTS;
+		if (test->debug) {
+			printf("b_jh: get_results: IERECVRESULTS 1\n");
+		}
 		r = -1;
 	} else {
 		j_cpu_util_total = cJSON_GetObjectItem(j, "cpu_util_total");
@@ -2299,6 +2304,9 @@ static int get_results(struct iperf_test *test)
 		    j_sender_has_retransmits == NULL) {
 			i_errno = IERECVRESULTS;
 			r = -1;
+			if (test->debug) {
+				printf("get_results: IERECVRESULTS 2\n");
+			}			
 		} else {
 			if (test->debug) {
 				char *str = cJSON_Print(j);
@@ -2323,6 +2331,9 @@ static int get_results(struct iperf_test *test)
 
 			j_streams = cJSON_GetObjectItem(j, "streams");
 			if (j_streams == NULL) {
+				if (test->debug) {
+					printf("get_results: IERECVRESULTS 3\n");
+				}				
 				i_errno = IERECVRESULTS;
 				r = -1;
 			} else {
@@ -2332,6 +2343,9 @@ static int get_results(struct iperf_test *test)
 								      i);
 					if (j_stream == NULL) {
 						i_errno = IERECVRESULTS;
+						if (test->debug) {
+							printf("get_results: IERECVRESULTS 4\n");
+						}						
 						r = -1;
 					} else {
 						j_id = cJSON_GetObjectItem(
@@ -2363,6 +2377,9 @@ static int get_results(struct iperf_test *test)
 						    j_errors == NULL ||
 						    j_packets == NULL) {
 							i_errno = IERECVRESULTS;
+							if (test->debug) {
+								printf("get_results: IERECVRESULTS 5\n");
+							}							
 							r = -1;
 						} else {
 							sid = j_id->valueint;
@@ -2516,7 +2533,7 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
     }
 
     /* wait for max 5 sec */
-    const struct timeval tout = { .tv_sec = 5, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = 5, .tv_usec = 0 };
     int err;
     bool wait_for_send = false;
 
@@ -2664,7 +2681,7 @@ static cJSON
     int rc;
 
     /* wait for max 10 sec */
-    const struct timeval tout = { .tv_sec = 120, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = 120, .tv_usec = 0 };
     int err;
 
     do {
@@ -2727,6 +2744,9 @@ next:
         else if (ret <= 0)
         {
             i_errno = IERECVRESULTS;
+		if (test->debug) {
+			printf("JSON_read_nonblock: IERECVRESULTS %d\n", ret);
+		}			
             break;
         }
     } while (!json);
@@ -2812,7 +2832,7 @@ void connect_msg(struct iperf_stream *sp)
 		iperf_printf(sp->test, report_connected, sp->socket, ipl, lport,
 			     ipr, rport);
 #else
-    iprintf(sp->test, report_connected, sp->socket, "localhost", sp->local_port,
+    iperf_printf(sp->test, report_connected, sp->socket, "localhost", sp->local_port,
             sp->test->server_hostname ? sp->test->server_hostname : "remote", sp->remote_port);
 #endif
 }
@@ -3083,12 +3103,14 @@ void iperf_free_test(struct iperf_test *test)
 	}
 
 	if (test->logfile) {
+#ifdef RM_JH
 		free(test->logfile);
 		test->logfile = NULL;
 		if (test->outfile) {
 			fclose(test->outfile);
 			test->outfile = NULL;
 		}
+#endif
 	}
 
 	if (test->server_output_text) {
@@ -4925,7 +4947,8 @@ void iperf_free_stream(struct iperf_stream *sp)
 	/* XXX: need to free interval list too! */
 	//b_jh: TODO
 	//munmap(sp->buffer, sp->test->settings->blksize);
-	close(sp->buffer_fd);
+	//close(sp->buffer_fd); b_jh: caused a reset?
+
 	free(sp->buffer);
 	//e_jh
 	if (sp->diskfile_fd >= 0)
@@ -5070,7 +5093,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	}
 
 	if ((ret < 0) || (iperf_init_stream(sp, test) < 0)) {
-		close(sp->buffer_fd);
+		//close(sp->buffer_fd); b_jh
 #if 1 // b_jh
 		free(sp->buffer);
 #else //mmap not supported
@@ -5279,6 +5302,7 @@ void iperf_got_sigend(struct iperf_test *test)
 }
 
 /* Try to write a PID file if requested, return -1 on an error. */
+#ifdef RM_JH //No support
 int iperf_create_pidfile(struct iperf_test *test)
 {
 	if (test->pidfile) {
@@ -5341,7 +5365,7 @@ int iperf_delete_pidfile(struct iperf_test *test)
 	}
 	return 0;
 }
-
+#endif
 int iperf_json_start(struct iperf_test *test)
 {
 	test->json_top = cJSON_CreateObject();
@@ -5388,7 +5412,8 @@ int iperf_json_finish(struct iperf_test *test)
 	if (test->json_output_string == NULL)
 		return -1;
 	fprintf(test->outfile, "%s\n", test->json_output_string);
-	iflush(test);
+	if (test->logfile || test->forceflush) //b_jh: added
+		iflush(test);
 	cJSON_free(test->json_output_string);
 	test->json_output_string = NULL;
 	cJSON_Delete(test->json_top);
@@ -5491,11 +5516,11 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 	va_list argp;
 	int r = -1;
 	time_t now;
-	struct tm *ltm = NULL;
 	char *ct = NULL;
 
 	/* Timestamp if requested */
 #ifdef RM_JH
+	struct tm *ltm = NULL;
 	if (iperf_get_test_timestamps(test)) {
 		time(&now);
 		ltm = localtime(&now);
@@ -5551,5 +5576,5 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 
 int iflush(struct iperf_test *test)
 {
-	return fflush(test->outfile);
+	return 0; //fflush(test->outfile);
 }

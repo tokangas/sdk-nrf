@@ -325,8 +325,10 @@ int iperf_run_server(struct iperf_test *);
 int iperf_server_listen(struct iperf_test *);
 int iperf_accept(struct iperf_test *);
 int iperf_handle_message_server(struct iperf_test *);
+#ifdef RM_JH
 int iperf_create_pidfile(struct iperf_test *);
 int iperf_delete_pidfile(struct iperf_test *);
+#endif
 void iperf_check_total_rate(struct iperf_test *, iperf_size_t);
 
 /* JSON output routines. */

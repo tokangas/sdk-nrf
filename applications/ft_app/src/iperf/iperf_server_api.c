@@ -431,7 +431,8 @@ iperf_run_server(struct iperf_test *test)
 	iperf_printf(test, "%s\n", version);
 	iperf_printf(test, "%s", "");
 	iperf_printf(test, "%s\n", get_system_info());
-	iflush(test);
+	if (test->logfile) //b_jh: added
+    	iflush(test);
     }
 
     // Open socket and listen

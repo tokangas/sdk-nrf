@@ -35,8 +35,9 @@
 //b_jh: getsockname in system is not working
 int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
+#ifdef RM_JH
 int readentropy(void *out, size_t outsize);
-
+#endif
 void fill_with_repeating_pattern(void *out, size_t outsize);
 
 void make_cookie(char *);

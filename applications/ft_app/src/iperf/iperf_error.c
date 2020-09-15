@@ -116,8 +116,10 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
 	    fprintf(stderr, "iperf3: %s\n", str);
 	}
     va_end(argp);
+#ifdef RM_JH    
     if (test)
         iperf_delete_pidfile(test);
+#endif
     //exit(1);
 }
 
