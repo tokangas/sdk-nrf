@@ -1519,6 +1519,13 @@ static void provision_device_work_fn(struct k_work *item)
 		LOG_ERR("Error provisioning device, error: %d", ret);
 	}
 
+	if (ret == 0 || ret == 1) {
+		/* Device provisioned, make sure the modem scratch area is
+		 * empty when the first FOTA update is performed.
+		 */
+		erase_modem_fw_backup();
+	}
+
 	/* Schedule first update check (or if provisioning failed, it will be
 	 * retried when the time expires.
 	 */
