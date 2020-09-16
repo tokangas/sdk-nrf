@@ -136,18 +136,27 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
     }
 
     memset(&hints, 0, sizeof(hints));
+    
+    //b_jh
+    //here are mixed with protos & types
+    int type = proto;
+    int protocol = 0;
+    if (type == SOCK_STREAM) {
+	protocol = IPPROTO_TCP;
+     } else if (type == SOCK_DGRAM) {
+	protocol = IPPROTO_UDP;
+     }
+    //e_jh
+
     hints.ai_family = domain;
-    hints.ai_socktype = proto;
+    hints.ai_socktype = type; //b_jh
     if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0) {
         //b_jh: 
         printf("getaddrinfo failed with error code %d (see net/dns_resolve.h for codes)\n", gerror);
         return -1;
     }
-//    s = socket(server_res->ai_family, proto, 0);
-//static inline int socket(int family, int type, int proto)
-//TODO: above is mixed protos & types -> fix those
 
-    s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    s = socket(server_res->ai_family, type, protocol);
         if (s < 0) {
 	if (local)
 	    freeaddrinfo(local_res);
