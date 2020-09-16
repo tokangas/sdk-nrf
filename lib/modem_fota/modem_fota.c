@@ -603,13 +603,17 @@ static int get_pending_job(void)
 {
 	int ret;
 	int retry_count;
-
-	LOG_INF("Checking for FOTA update...");
+	uint32_t start_time;
+	int32_t wait_time;
 
 	fota_client_job_free(&current_job);
 
 	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 	while (true) {
+		LOG_INF("Checking for FOTA update...");
+
+		start_time = k_uptime_get_32();
+
 		ret = fota_client_get_pending_job(&current_job);
 		if (ret == 0 || retry_count <= 0) {
 			/* Check successful or no retries left */
@@ -619,6 +623,12 @@ static int get_pending_job(void)
 		LOG_WRN("Checking for FOTA update failed. %d retries left...",
 			retry_count);
 		retry_count--;
+
+		/* Make sure retries have at least 30s interval */
+		wait_time = 30 * 1000 - (k_uptime_get_32() - start_time);
+		if (wait_time > 0) {
+			k_sleep(K_MSEC(wait_time));
+		}
 	}
 
 	if (ret == 0) {
@@ -665,12 +675,16 @@ static int update_job_status(void)
 {
 	int ret;
 	int retry_count;
-
-	LOG_INF("Updating FOTA update job status to %s...",
-		get_job_status_string(current_job.status));
+	uint32_t start_time;
+	int32_t wait_time;
 
 	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 	while (true) {
+		LOG_INF("Updating FOTA update job status to %s...",
+			get_job_status_string(current_job.status));
+
+		start_time = k_uptime_get_32();
+
 		ret = fota_client_update_job(&current_job);
 		if (ret == 0 || retry_count <= 0) {
 			/* Check successful or no retries left */
@@ -680,6 +694,12 @@ static int update_job_status(void)
 		LOG_WRN("Updating job failed. %d retries left...",
 			retry_count);
 		retry_count--;
+
+		/* Make sure retries have at least 30s interval */
+		wait_time = 30 * 1000 - (k_uptime_get_32() - start_time);
+		if (wait_time > 0) {
+			k_sleep(K_MSEC(wait_time));
+		}
 	}
 
 	if (ret == 0) {
@@ -1187,11 +1207,15 @@ static void start_update_work_fn(struct k_work *item)
 		int retry_count;
 		int sec_tag = CONFIG_MODEM_FOTA_TLS_SECURITY_TAG;
 		int port = 0;
-
-		LOG_INF("Starting firmware download");
+		uint32_t start_time;
+		int32_t wait_time;
 
 		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 		while (true) {
+			LOG_INF("Starting firmware download...");
+
+			start_time = k_uptime_get_32();
+
 			download_progress = 0;
 			err = fota_download_start(current_job.host,
 						  current_job.path,
@@ -1206,6 +1230,12 @@ static void start_update_work_fn(struct k_work *item)
 			LOG_WRN("Starting FOTA download failed. %d retries "
 				"left...", retry_count);
 			retry_count--;
+
+			/* Make sure retries have at least 30s interval */
+			wait_time = 30 * 1000 - (k_uptime_get_32() - start_time);
+			if (wait_time > 0) {
+				k_sleep(K_MSEC(wait_time));
+			}
 		}
 
 		if (err) {
@@ -1465,13 +1495,17 @@ static void provision_device_work_fn(struct k_work *item)
 {
 	int ret;
 	int retry_count;
-
-	LOG_INF("Provisioning device for FOTA...");
+	uint32_t start_time;
+	int32_t wait_time;
 
 	/* TODO: Wait until device is connected to network (forever?) */
 
 	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 	while (true) {
+		LOG_INF("Provisioning device for FOTA...");
+
+		start_time = k_uptime_get_32();
+
 		ret = fota_client_provision_device();
 		if (ret >= 0 || retry_count <= 0) {
 			/* Provisioning successful or no retries left */
@@ -1480,6 +1514,12 @@ static void provision_device_work_fn(struct k_work *item)
 
 		LOG_WRN("Provisioning failed. %d retries left...", retry_count);
 		retry_count--;
+
+		/* Make sure retries have at least 30s interval */
+		wait_time = 30 * 1000 - (k_uptime_get_32() - start_time);
+		if (wait_time > 0) {
+			k_sleep(K_MSEC(wait_time));
+		}
 	}
 
 	if (ret == 0) {
