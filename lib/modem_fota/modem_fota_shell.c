@@ -41,6 +41,13 @@ static int fota_cmd_server(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static int fota_cmd_fw_server(const struct shell *shell, size_t argc, char **argv)
+{
+	set_fw_api_hostname(argv[1]);
+
+	return 0;
+}
+
 static int fota_cmd_disable(const struct shell *shell, size_t argc, char **argv)
 {
 	if (!is_fota_enabled()) {
@@ -86,6 +93,7 @@ static int fota_cmd_status(const struct shell *shell, size_t argc, char **argv)
 	}
 	shell_print(shell, "DM server hostname: %s", get_api_hostname());
 	shell_print(shell, "DM server port: %d", get_api_port());
+	shell_print(shell, "FW download server hostname: %s", get_fw_api_hostname());
 
 	return 0;
 }
@@ -97,6 +105,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(fota_cmds,
 	SHELL_CMD_ARG(server, NULL,
 		  "'fota server <hostname> <port>' sets the Device Management "
 		  "server hostname and port number.", fota_cmd_server, 3, 0),
+	SHELL_CMD_ARG(fw_server, NULL,
+		  "'fota fw_server <hostname>' sets the firmware download "
+		  "server hostname.", fota_cmd_fw_server, 2, 0),
 	SHELL_CMD(disable, NULL, "Disable FOTA.", fota_cmd_disable),
 	SHELL_CMD(enable, NULL, "Enable FOTA.", fota_cmd_enable),
 	SHELL_CMD(status, NULL, "Show FOTA status.", fota_cmd_status),

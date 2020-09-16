@@ -85,7 +85,7 @@ static int parse_pending_job_response(const char * const resp_buff,
 
 #define API_HOSTNAME "static.api.beta.nrfcloud.com"
 #define API_PORT 443
-#define API_HTTP_TIMEOUT_MS (15000)
+#define API_HTTP_TIMEOUT_MS (30000)
 
 #define HTTP_PROTOCOL "HTTP/1.1"
 
@@ -185,6 +185,8 @@ static enum http_status http_resp_status;
 static char *api_hostname;
 /* API port number (if != 0 overrides the default) */
 static u16_t api_port;
+/* FW API hostname (if != NULL overrides the default) */
+static char *fw_api_hostname;
 
 static int socket_apn_set(int fd, const char *apn)
 {
@@ -1200,6 +1202,7 @@ static void http_response_cb(struct http_response *rsp,
 int parse_pending_job_response(const char * const resp_buff,
 			       struct fota_client_mgmt_job * const job)
 {
+	char * hostname;
 	char * start;
 	char * end;
 	size_t len;
@@ -1209,13 +1212,17 @@ int parse_pending_job_response(const char * const resp_buff,
 	job->id = NULL;
 	job->path = NULL;
 
-	job->host = k_calloc(sizeof(FW_HOSTNAME),1);
+	hostname = FW_HOSTNAME;
+	if (fw_api_hostname != NULL) {
+		hostname = fw_api_hostname;
+	}
+
+	job->host = k_calloc(strlen(hostname) + 1,1);
 	if (!job->host) {
 		err = -ENOMEM;
 		goto error_clean_up;
 	}
-	strncpy(job->host,FW_HOSTNAME,
-		sizeof(FW_HOSTNAME));
+	strcpy(job->host,hostname);
 
 	start = strstr(resp_buff,JOB_ID_BEGIN_STR);
 	if (!start) {
@@ -1336,4 +1343,21 @@ u16_t get_api_port()
 void set_api_port(u16_t port)
 {
 	api_port = port;
+}
+
+char *get_fw_api_hostname()
+{
+	if (fw_api_hostname == NULL)
+		return FW_HOSTNAME;
+	else
+		return fw_api_hostname;
+}
+
+void set_fw_api_hostname(const char *hostname)
+{
+	k_free(fw_api_hostname);
+	fw_api_hostname = k_malloc(strlen(hostname) + 1);
+	if (fw_api_hostname != NULL) {
+		strcpy(fw_api_hostname, hostname);
+	}
 }

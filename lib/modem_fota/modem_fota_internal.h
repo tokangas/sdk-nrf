@@ -34,6 +34,10 @@ u16_t get_api_port(void);
 
 void set_api_port(u16_t port);
 
+char *get_fw_api_hostname(void);
+
+void set_fw_api_hostname(const char *hostname);
+
 #ifdef __cplusplus
 }
 #endif
