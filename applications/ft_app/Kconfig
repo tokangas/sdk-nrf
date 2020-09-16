@@ -12,6 +12,12 @@ config FTA_IPERF3
     help
         "Not yet supported"
 
+config FTA_SOCKET
+	bool  "Enable FTA socket tool support"
+    default n
+    help
+        "Not yet supported"
+
 menu "Zephyr Kernel"
 source "Kconfig.zephyr"
 endmenu

@@ -9,8 +9,9 @@
 #include <modem/at_cmd.h>
 
 #include "icmp_ping.h"
+#if defined (CONFIG_FTA_SOCKET)
 #include "socket.h"
-
+#endif
 #if defined (CONFIG_POSIX_API)
 #include <sys/select.h>
 #endif
@@ -119,10 +120,11 @@ static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 
+#if defined (CONFIG_FTA_SOCKET)
 SHELL_CMD_REGISTER(sock, NULL,
 	"Commands for socket operations such as connect and send.",
 	socket_shell);
-
+#endif
 SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
 		       SHELL_OPT_ARG_CHECK_SKIP);
 
