@@ -536,10 +536,10 @@ iperf_run_client(struct iperf_test * test)
 	}
 
 #if 1 // SAMPO_NUTTX
-        if (/* test->state == TEST_START ||
+        if (test->state == TEST_START ||
             test->state == PARAM_EXCHANGE ||
             test->state == CREATE_STREAMS ||
-          test->state == SERVER_TERMINATE ||
+          /*test->state == SERVER_TERMINATE ||
             test->state == CLIENT_TERMINATE || */
             test->state == EXCHANGE_RESULTS) {
             if (iperf_recv(test, &read_set) < 0)
