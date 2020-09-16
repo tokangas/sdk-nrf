@@ -131,6 +131,7 @@ exit:
     if (retval == 0)
     {
         printf("iperf Done.\r\n");
+        k_sleep(K_MSEC(3000)); //b_jh: workaround for better stability?
     }
     else
     {

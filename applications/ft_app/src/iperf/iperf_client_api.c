@@ -535,7 +535,7 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}
 
-#if 1 // SAMPO_NUTTX
+#if 1 // SAMPO_NUTTX, b_jh: added due to jamn where rx buffer was full between modem and app
         if (test->state == TEST_START ||
             test->state == PARAM_EXCHANGE ||
             test->state == CREATE_STREAMS ||
@@ -628,8 +628,10 @@ iperf_run_client(struct iperf_test * test)
 	if (iperf_json_finish(test) < 0)
 	    return -1;
     } else {
+#ifdef RM_JH
 	iperf_printf(test, "\n");
 	iperf_printf(test, "%s", report_done);
+#endif    
     }
 
 	if (test->logfile || test->forceflush) //b_jh: added

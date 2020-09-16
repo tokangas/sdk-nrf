@@ -3096,7 +3096,7 @@ void iperf_free_test(struct iperf_test *test)
 	if (test->reporter_timer != NULL)
 		tmr_cancel(test->reporter_timer);
 
-	tmr_destroy(); //b_jh
+	//tmr_destroy(); //b_jh
 
 	/* Free protocol list */
 	while (!SLIST_EMPTY(&test->protocols)) {
@@ -3154,8 +3154,8 @@ void iperf_free_test(struct iperf_test *test)
 
 	/* XXX: Why are we setting these values to NULL? */
 	// test->streams = NULL;
-	test->stats_callback = NULL;
-	test->reporter_callback = NULL;
+	//test->stats_callback = NULL;
+	//test->reporter_callback = NULL;
 	free(test);
 }
 
@@ -3186,7 +3186,7 @@ void iperf_reset_test(struct iperf_test *test)
 		tmr_cancel(test->reporter_timer);
 		test->reporter_timer = NULL;
 	}
-	tmr_destroy();//b_jh
+	//tmr_destroy();//b_jh
 
 	test->done = 0;
 
@@ -4952,7 +4952,7 @@ void iperf_free_stream(struct iperf_stream *sp)
 	/* XXX: need to free interval list too! */
 	//b_jh: TODO
 	//munmap(sp->buffer, sp->test->settings->blksize);
-	//close(sp->buffer_fd); b_jh: caused a reset?
+	//close(sp->buffer_fd); //b_jh: caused a reset
 
 	free(sp->buffer);
 	//e_jh
