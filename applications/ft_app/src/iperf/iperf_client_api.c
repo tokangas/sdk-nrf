@@ -468,7 +468,7 @@ iperf_client_end(struct iperf_test *test)
     /* Close control socket */
     if (test->ctrl_sck)
         close(test->ctrl_sck);
-
+        
 //    k_sleep(K_MSEC(2));
 
     return 0;
@@ -505,7 +505,7 @@ iperf_run_client(struct iperf_test * test)
 	iperf_printf(test, "%s", "");
 	iperf_printf(test, "%s\n", get_system_info());
 	if (test->logfile || test->forceflush) //b_jh: added
-    	iflush(test);
+          iflush(test);
     }
 
     /* Start the client and connect to the server */
@@ -535,6 +535,17 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}
 
+#if 1 // SAMPO_NUTTX
+        if (/* test->state == TEST_START ||
+            test->state == PARAM_EXCHANGE ||
+            test->state == CREATE_STREAMS ||
+          test->state == SERVER_TERMINATE ||
+            test->state == CLIENT_TERMINATE || */
+            test->state == EXCHANGE_RESULTS) {
+            if (iperf_recv(test, &read_set) < 0)
+                goto cleanup_and_fail;
+        } else
+#endif
 	if (test->state == TEST_RUNNING) {
 
 	    /* Is this our first time really running? */
@@ -550,7 +561,6 @@ iperf_run_client(struct iperf_test * test)
 		}
 #endif
 	    }
-
 
 	    if (test->mode == BIDIRECTIONAL)
 	    {

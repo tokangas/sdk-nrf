@@ -72,8 +72,8 @@ iperf_tcp_recv(struct iperf_stream *sp)
 	    printf("Late receive, state = %d, read %d\n", sp->test->state, r);
 
     //b_jh:
-	sp->result->bytes_received += r;
-	sp->result->bytes_received_this_interval += r;
+	//sp->result->bytes_received += r;
+	//sp->result->bytes_received_this_interval += r;
     }
 
     return r;
@@ -89,9 +89,11 @@ iperf_tcp_send(struct iperf_stream *sp)
 {
     int r;
 
+#ifdef RM_JH
     if (sp->test->zerocopy)
 	r = Nsendfile(sp->buffer_fd, sp->socket, sp->buffer, sp->settings->blksize);
     else
+#endif    
 	r = Nwrite(sp->socket, sp->buffer, sp->settings->blksize, Ptcp);
 
     if (r < 0)
@@ -390,9 +392,9 @@ iperf_tcp_connect(struct iperf_test *test)
     struct addrinfo hints, *local_res, *server_res;
     char portstr[6];
     int s, opt;
-    socklen_t optlen;
+    //socklen_t optlen;
     int saved_errno;
-    int rcvbuf_actual, sndbuf_actual;
+    int rcvbuf_actual = 0, sndbuf_actual = 0;
 
     if (test->bind_address) {
         memset(&hints, 0, sizeof(hints));

@@ -98,8 +98,10 @@ static int send_parameters(struct iperf_test *test);
 static int get_parameters(struct iperf_test *test);
 static int send_results(struct iperf_test *test);
 static int get_results(struct iperf_test *test);
+#ifdef RM_JH
 static int diskfile_send(struct iperf_stream *sp);
 static int diskfile_recv(struct iperf_stream *sp);
+#endif
 static int JSON_write(int fd, cJSON *json);
 static void print_interval_results(struct iperf_test *test,
 				   struct iperf_stream *sp,
@@ -1561,7 +1563,6 @@ void iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP)
 		FD_SET(sp->socket, &sp->test->write_set);
 	} else {
 		sp->green_light = 0;
-		printf("b_jh: iperf_check_throttle: green light OFF\n");
 		FD_CLR(sp->socket, &sp->test->write_set);
 	}
 }
@@ -2535,7 +2536,7 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
     /* wait for max 5 sec */
     struct timeval tout = { .tv_sec = 5, .tv_usec = 0 };
     int err;
-    bool wait_for_send = false;
+    //bool wait_for_send = false;
 
     do {
         int ret = 0;
@@ -2663,7 +2664,7 @@ static cJSON *JSON_read(int fd)
 	return json;
 }
 /*************************************************************/
-//b_jh: from sampo iperf
+//b_jh: from sampo iperf because we got also in deadlock situation (one socket filled the modem-app buffer?)
 /**
  * Version of JSON_read that can read data streams and the control socket
  * so that we don't go into deadlock situation because rx buffers are full.
@@ -3095,6 +3096,8 @@ void iperf_free_test(struct iperf_test *test)
 	if (test->reporter_timer != NULL)
 		tmr_cancel(test->reporter_timer);
 
+	tmr_destroy(); //b_jh
+
 	/* Free protocol list */
 	while (!SLIST_EMPTY(&test->protocols)) {
 		prot = SLIST_FIRST(&test->protocols);
@@ -3183,6 +3186,8 @@ void iperf_reset_test(struct iperf_test *test)
 		tmr_cancel(test->reporter_timer);
 		test->reporter_timer = NULL;
 	}
+	tmr_destroy();//b_jh
+
 	test->done = 0;
 
 	SLIST_INIT(&test->streams);
@@ -3450,7 +3455,7 @@ static void iperf_print_intermediate(struct iperf_test *test)
      * So we're going to try to ignore very short intervals (less than
      * 10% of the interval time) that have no data.
      */
-	int interval_ok = 1;//b_jh: let's not ignore anything
+	int interval_ok = 0;//b_jh: put as 1 with debuger and let's not ignore anything
 	SLIST_FOREACH(sp, &test->streams, streams)
 	{	
 		irp = TAILQ_LAST(&sp->result->interval_results, irlisthead);
@@ -5054,6 +5059,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	sp->snd = test->protocol->send;
 	sp->rcv = test->protocol->recv;
 
+#ifdef RM_JH
 	if (test->diskfile_name != (char *)0) {
 		sp->diskfile_fd =
 			open(test->diskfile_name,
@@ -5076,14 +5082,19 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 		sp->rcv = diskfile_recv;
 	} else
 		sp->diskfile_fd = -1;
+#endif
+	sp->diskfile_fd = -1;
 
 	/* Initialize stream */
 	//b_jh: only repeating pattern
+#ifdef RM_JH	
 	if (test->repeating_payload) {
 		fill_with_repeating_pattern(sp->buffer,
 					    test->settings->blksize);
     }						
-	else {
+	else 
+#endif	
+	{
 		//ret = readentropy(sp->buffer, test->settings->blksize);
 		if (test->debug) {
 			printf("note: only repeating pattern supported\n");
@@ -5189,7 +5200,7 @@ void iperf_add_stream(struct iperf_test *test, struct iperf_stream *sp)
 ** The advantage of doing it this way is that in the much more common
 ** case of no -F flag, there is zero extra overhead.
 */
-
+#ifdef RM_JH
 static int diskfile_send(struct iperf_stream *sp)
 {
 	int r;
@@ -5252,6 +5263,7 @@ static int diskfile_recv(struct iperf_stream *sp)
 	}
 	return r;
 }
+#endif
 
 void iperf_catch_sigend(void (*handler)(int))
 {
@@ -5515,7 +5527,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 {
 	va_list argp;
 	int r = -1;
-	time_t now;
+	//time_t now;
 	char *ct = NULL;
 
 	/* Timestamp if requested */
@@ -5550,7 +5562,9 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 		va_start(argp, format);
 		r = vfprintf(test->outfile, format, argp);
 		va_end(argp);
-	} else if (test->role == 's') {
+	} 
+#ifdef RM_JH
+	else if (test->role == 's') {
 		char linebuffer[1024];
 		int i = 0;
 		if (ct) {
@@ -5571,6 +5585,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 					  textlineentries);
 		}
 	}
+#endif
 	return r;
 }
 
