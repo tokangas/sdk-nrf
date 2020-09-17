@@ -1114,6 +1114,16 @@ static void start_update_work_fn(struct k_work *item)
 {
 	int err;
 
+	/* If in NB-IoT and RRC connection is active, skip this check */
+	if (lte_mode == MODEM_LTE_MODE_NBIOT &&
+	    !rrc_idle &&
+	    IS_ENABLED(CONFIG_MODEM_FOTA_UPDATE_CHECK_IN_NBIOT_POSTPONED_BY_DATA_ACTIVITY)) {
+		LOG_INF("NB-IoT and RRC connection active, skip update check");
+		clear_update_check_time();
+		schedule_next_update();
+		return;
+	}
+
 	/* If in PSM, delay update check until modem wakes up */
 	if (is_psm_enabled() &&
 	    IS_ENABLED(CONFIG_MODEM_FOTA_UPDATE_CHECK_BLOCKED_BY_PSM) &&

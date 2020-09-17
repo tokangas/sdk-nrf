@@ -113,6 +113,13 @@ config MODEM_FOTA_UPDATE_CHECK_BLOCKED_BY_PSM
 	  be performed during PSM, but a pending update check will be started once
 	  modem wakes up from PSM.
 
+config MODEM_FOTA_UPDATE_CHECK_IN_NBIOT_POSTPONED_BY_DATA_ACTIVITY
+	bool "FOTA check is postponed in NB-IoT if data transfer is ongoing"
+	help
+	  If enabled, FOTA check will be skipped if device is connected using NB-IoT
+	  and user data transfer is ongoing when the update check timer expires.
+	  Instead the update check timer is restarted with the configured interval.
+
 config MODEM_FOTA_DISABLE_IMSI_PREFIXES
 	string "Comma separated list of USIM IMSI prefixes for which FOTA is disabled"
 	default ""
