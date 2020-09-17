@@ -15,6 +15,8 @@
 #include <modem/at_notif.h>
 #include <modem/modem_fota.h>
 
+void ping_init(void);
+
 void bsd_recoverable_error_handler(uint32_t err)
 {
 	printk("bsdlib recoverable error: %u\n", err);
@@ -72,6 +74,8 @@ void main(void)
 		break;
 	}
 	printk("Initialized bsdlib\n");
+
+	ping_init();
 
 	/* Initialize AT command and notification libraries because
 	 * CONFIG_BSD_LIBRARY_SYS_INIT is disabled and these libraries aren't

@@ -18,6 +18,11 @@
 #define ICMP_ECHO_REP		0x00
 #define IP_PROTOCOL_POS		0x09
 
+#define PING_WORK_QUEUE_STACK_SIZE 8192
+#define PING_WORK_QUEUE_PRIORITY 5
+
+K_THREAD_STACK_DEFINE(ping_work_q_stack_area, PING_WORK_QUEUE_STACK_SIZE);
+
 /**@ ICMP Ping command arguments */
 static struct ping_argv_t {
 	struct addrinfo *src;
@@ -28,6 +33,7 @@ static struct ping_argv_t {
 	int interval;
 } ping_argv;
 
+static struct k_work_q my_work_q;
 static struct k_work my_work;
 
 static inline void setip(u8_t *buffer, u32_t ipaddr)
@@ -304,7 +310,17 @@ int ping(const char *local, const char *remote, int count)
 		ping_argv.count = count;
 	}
 
-	k_work_init(&my_work, ping_task);
-	k_work_submit(&my_work);
+	k_work_submit_to_queue(&my_work_q, &my_work);
+
 	return 0;
+}
+
+void ping_init(void)
+{
+	k_work_q_start(&my_work_q,
+		       ping_work_q_stack_area,
+		       K_THREAD_STACK_SIZEOF(ping_work_q_stack_area),
+		       PING_WORK_QUEUE_PRIORITY);
+
+	k_work_init(&my_work, ping_task);
 }
