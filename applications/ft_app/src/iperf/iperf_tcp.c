@@ -69,9 +69,9 @@ iperf_tcp_recv(struct iperf_stream *sp)
     }
     else {
 	if (sp->test->debug)
-	    printf("Late receive, state = %d, read %d\n", sp->test->state, r);
+	    printf("Early/Late receive, state = %d, read %d\n", sp->test->state, r);
 
-    //b_jh:
+    //b_jh: should we count these still?
 	//sp->result->bytes_received += r;
 	//sp->result->bytes_received_this_interval += r;
     }

@@ -535,7 +535,7 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}
 
-#if 1 // SAMPO_NUTTX, b_jh: added due to jamn where rx buffer was full between modem and app
+#if 1 // SAMPO_NUTTX, b_jh: added due to early test jamn where rx buffer was full between modem and app
         if (test->state == TEST_START ||
             test->state == PARAM_EXCHANGE ||
             test->state == CREATE_STREAMS ||
