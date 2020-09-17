@@ -101,6 +101,7 @@ K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_2S		0x00
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_1MIN	0x20
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_6MIN	0x40
+#define AT_XMONITOR_ACTIVE_TIME_DISABLED	0xe0
 
 static const char at_cereg_notif[] = "+CEREG";
 static const char at_cscon_notif[] = "+CSCON";
@@ -136,6 +137,7 @@ static s64_t network_time_timestamp;
 static enum modem_reg_status reg_status;
 static enum modem_lte_mode lte_mode;
 static bool rrc_idle = true;
+static bool psm_enabled = false;
 static bool lte_active = false;
 
 /* FOTA is enabled by default */
@@ -1065,51 +1067,6 @@ static void clear_update_check_time(void)
 	save_update_check_time();
 }
 
-static bool is_psm_enabled(void)
-{
-	int err;
-	int value;
-	bool psm_enabled = false;
-	char response[AT_CPSMS_RESPONSE_MAX_LEN];
-	struct at_param_list param_list = {0};
-
-	err = at_cmd_write(at_cpsms, response, sizeof(response),
-			   NULL);
-	if (err) {
-		LOG_ERR("Failed to read PSM mode, error: %d", err);
-		return false;
-	}
-
-	err = at_params_list_init(&param_list, AT_CPSMS_PARAMS_COUNT_MAX);
-	if (err) {
-		LOG_ERR("Could init AT params list, error: %d", err);
-		return false;
-	}
-
-	err = at_parser_max_params_from_str(response, NULL, &param_list,
-					    AT_CPSMS_PARAMS_COUNT_MAX);
-	if (err && err != -E2BIG) {
-		LOG_ERR("Could not parse CPSMS response, error: %d", err);
-		goto clean_exit;
-	}
-
-	/* PSM mode */
-	err = at_params_int_get(&param_list,
-				AT_CPSMS_MODE_INDEX,
-				&value);
-	if (err) {
-		LOG_ERR("Could not get PSM status, error: %d", err);
-		goto clean_exit;
-	}
-
-	psm_enabled = value == 1 ? true : false;
-
-clean_exit:
-	at_params_list_free(&param_list);
-
-	return psm_enabled;
-}
-
 static void start_update_work_fn(struct k_work *item)
 {
 	int err;
@@ -1125,7 +1082,7 @@ static void start_update_work_fn(struct k_work *item)
 	}
 
 	/* If in PSM, delay update check until modem wakes up */
-	if (is_psm_enabled() &&
+	if (psm_enabled &&
 	    IS_ENABLED(CONFIG_MODEM_FOTA_UPDATE_CHECK_BLOCKED_BY_PSM) &&
 	    !lte_active) {
 		LOG_INF("Waiting for modem to wake up from PSM...");
@@ -1377,15 +1334,24 @@ static void read_lte_active_time_work_fn(struct k_work *item)
 	act_time_unit = act_time & AT_XMONITOR_ACTIVE_TIME_UNIT_MASK;
 	act_time &= ~AT_XMONITOR_ACTIVE_TIME_UNIT_MASK;
 
-	/* Multiply active time by unit */
-	if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_2S) {
-		act_time *= 2;
-	} else if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_1MIN) {
-		act_time *= 60;
-	} else if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_6MIN) {
-		act_time *= (6 * 60);
+	if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_DISABLED) {
+		LOG_DBG("PSM disabled");
+		psm_enabled = false;
 	} else {
-		act_time = 0;
+		psm_enabled = true;
+
+		/* Calculate active time */
+		if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_6MIN) {
+			/* Multiples of 6 minutes */
+			act_time *= (6 * 60);
+		} else if (act_time_unit == AT_XMONITOR_ACTIVE_TIME_UNIT_1MIN) {
+			/* Multiples of 1 minute */
+			act_time *= 60;
+		} else {
+			/* Multiples of 2 seconds */
+			act_time *= 2;
+		}
+		LOG_DBG("PSM enabled, active time %d seconds", act_time);
 	}
 
 clean_exit:
@@ -1394,8 +1360,6 @@ clean_exit:
 	/* Timer is started also in case the time is zero, in that case the
 	 * handler is called immediately.
 	 */
-	if (act_time > 0)
-		LOG_DBG("Starting active time timer for %d seconds", act_time);
 	k_timer_start(&active_time_timer, K_SECONDS(act_time), K_NO_WAIT);
 }
 
