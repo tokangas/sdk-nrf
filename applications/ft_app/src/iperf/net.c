@@ -27,16 +27,15 @@
 #include "iperf_config.h"
 
 #include <stdio.h>
-#include <unistd.h>
+#include <posix/unistd.h>
 #include <errno.h>
-#include <poll.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
+#include <posix/arpa/inet.h>
+#include <posix/sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#include <posix/netinet/in.h>
+#include <posix/netinet/tcp.h>
 #include <assert.h>
-#include <netdb.h>
+#include <posix/netdb.h>
 #include <string.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -59,7 +58,7 @@
 #endif /* HAVE_SENDFILE */
 
 #ifdef HAVE_POLL_H
-#include <poll.h>
+#include <posix/poll.h>
 #endif /* HAVE_POLL_H */
 
 #include "iperf_util.h"
@@ -156,7 +155,7 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
         return -1;
     }
 
-    s = socket(server_res->ai_family, type, protocol);
+    s = socket(server_res->ai_family, type, protocol);//b_jh
         if (s < 0) {
 	if (local)
 	    freeaddrinfo(local_res);
@@ -367,9 +366,6 @@ Nwrite(int fd, const char *buf, size_t count, int prot)
 
     while (nleft > 0) {
 	r = write(fd, buf, nleft);
-
-    //r = send(fd, buf, nleft, 0);
-
 	if (r < 0) {
 	    switch (errno) {
 		case EINTR:
@@ -390,7 +386,6 @@ Nwrite(int fd, const char *buf, size_t count, int prot)
 	nleft -= r;
 	buf += r;
     }
-
     return count;
 }
 

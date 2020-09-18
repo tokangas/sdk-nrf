@@ -26,12 +26,13 @@
  */
 #include <stdio.h>
 #include <errno.h>
-#include <netdb.h>
+#include <posix/netdb.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include "iperf.h"
 #include "iperf_api.h"
+
 
 int gerror;
 
@@ -43,12 +44,12 @@ iperf_err(struct iperf_test *test, const char *format, ...)
 {
     va_list argp;
     char str[1000];
-    time_t now;
-    struct tm *ltm = NULL;
     char *ct = NULL;
 
     /* Timestamp if requested */
     #ifdef RM_JH
+    time_t now;
+    struct tm *ltm = NULL;
     if (test != NULL && test->timestamps) {
 	time(&now);
 	ltm = localtime(&now);

@@ -29,7 +29,7 @@
 
 #include "iperf_config.h"
 #include "cjson.h"
-#include <sys/select.h>
+#include <posix/sys/select.h>
 #include <stddef.h>
 
 //b_jh: getsockname in system is not working

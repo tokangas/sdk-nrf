@@ -31,12 +31,12 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <sys/socket.h>
+#include <posix/sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <sys/time.h>
-#include <sys/select.h>
+#include <posix/netinet/in.h>
+#include <posix/netdb.h>
+#include <posix/sys/time.h>
+#include <posix/sys/select.h>
 #include <limits.h>
 
 #ifdef HAVE_NETINET_SCTP_H

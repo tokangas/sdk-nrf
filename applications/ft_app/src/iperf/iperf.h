@@ -29,17 +29,20 @@
 
 #include "iperf_config.h"
 
-#include <sys/time.h>
+#include <posix/sys/time.h>
 #include <sys/types.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <sys/select.h>
-#include <sys/socket.h>
+#include <posix/sys/select.h>
+#include <posix/sys/socket.h>
+#if defined (CONFIG_POSIX_API)
+//caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
-#include <netinet/tcp.h>
+#endif
+#include <posix/netinet/tcp.h>
 
 #if defined(HAVE_CPUSET_SETAFFINITY)
 #include <sys/param.h>
@@ -70,7 +73,6 @@
 
 #if !defined(__IPERF_API_H)
 typedef uint64_t iperf_size_t;
-//typedef uint32_t iperf_size_t;
 #endif // __IPERF_API_H
 
 struct iperf_interval_results
@@ -384,9 +386,10 @@ struct iperf_test
 #define UDP_BUFFER_EXTRA 1024
 
 /* constants for command line arg sanity checks */
-//#ifndef MB //b_jh
+#ifdef MB //b_jh
+#undef MB
 #define MB (1024 * 1024)
-//#endif
+#endif
 #define MAX_TCP_BUFFER (512 * MB)
 #define MAX_BLOCKSIZE MB
 /* Minimum size UDP send is the size of two 32-bit ints followed by a 64-bit int */

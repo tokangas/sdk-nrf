@@ -36,11 +36,11 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <sys/socket.h>
+#include <posix/sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include <posix/netinet/in.h>
+#include <posix/arpa/inet.h>
+#include <posix/netdb.h>
 
 #include "iperf.h"
 #include "iperf_api.h"
