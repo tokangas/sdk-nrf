@@ -180,6 +180,8 @@ static int download_client_callback(const struct download_client_evt *event)
 			/* Fall through and return 0 below to tell
 			 * download_client to retry
 			 */
+			LOG_INF("Retrying in 30 seconds...");
+			k_sleep(K_SECONDS(30));
 		} else {
 			download_client_disconnect(&dlc);
 			LOG_ERR("Download client error");
