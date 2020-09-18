@@ -1,7 +1,7 @@
 /* src/iperf_config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the `clock_gettime' function. */
-#undef HAVE_CLOCK_GETTIME
+#define HAVE_CLOCK_GETTIME 1
 
 /* Define to 1 if you have the `cpuset_setaffinity' function. */
 #undef HAVE_CPUSET_SETAFFINITY
@@ -70,10 +70,15 @@
 #undef HAVE_STRUCT_SCTP_ASSOC_VALUE
 
 /* Define to 1 if you have the <sys/endian.h> header file. */
+//b_jh: whgatg about this?
 #undef HAVE_SYS_ENDIAN_H
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
+#if defined (CONFIG_POSIX_API)
 #define HAVE_SYS_SOCKET_H 1
+#else
+#undef HAVE_SYS_SOCKET_H
+#endif
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1

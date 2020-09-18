@@ -24,37 +24,44 @@
  * This code is distributed under a BSD style license, see the LICENSE file
  * for complete information.
  */
+#if defined (CONFIG_POSIX_API)
+//caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 #define __USE_GNU
+#endif
 
 #include "iperf_config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+//#include <getopt.h>
 #include "utils/getopt_port/getopt.h"
+#include <time.h>
 #include <errno.h>
-#include <signal.h>
-#include <unistd.h>
+#include <posix/signal.h>
+#include <posix/unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <sys/socket.h>
+
+#include <posix/sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include <posix/netinet/in.h>
+#include <posix/arpa/inet.h>
+#include <posix/netdb.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <netinet/tcp.h>
-#include <sys/time.h>
+#include <posix/netinet/tcp.h>
+#include <posix/sys/time.h>
+
+#if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
+#endif
 //#include <sys/mman.h>
 #include <sys/stat.h>
-#include <sched.h>
 //#include <setjmp.h>
 #include <stdarg.h>
 #include <math.h>
@@ -2551,7 +2558,11 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
             FD_SET(sp->socket, &read_set);
         }
 
+#if defined (CONFIG_POSIX_API)
         if ((sel_ret = select(test->max_fd + 1, &read_set, &write_set, NULL, &tout)) > 0)
+#else
+        if ((sel_ret = zsock_select(test->max_fd + 1, &read_set, &write_set, NULL, &tout)) > 0)
+#endif
         {
             /* ignore errors from other than control socket reads */
             (void)iperf_recv(test, &read_set);
@@ -2562,14 +2573,22 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
 
                 if (!size_sent)
                 {
+#if defined (CONFIG_POSIX_API)
                     if ((ret = write(test->ctrl_sck, &nsize, sizeof(nsize))) >= sizeof(nsize))
+#else
+                    if ((ret = send(test->ctrl_sck, &nsize, sizeof(nsize), 0)) >= sizeof(nsize))
+#endif
                     {
                         size_sent = true;
                     }
                 }
                 else
                 {
+#if defined (CONFIG_POSIX_API)
                     if ((ret = write(test->ctrl_sck, str, hsize)) >= hsize)
+#else
+                    if ((ret = send(test->ctrl_sck, str, hsize, 0)) >= hsize)
+#endif
                     {
                         /* sent successfully */
                         r = 0;
@@ -2694,8 +2713,11 @@ static cJSON
         SLIST_FOREACH(sp, &test->streams, streams) {
             FD_SET(sp->socket, &read_set);
         }
-
+#if defined (CONFIG_POSIX_API)
         if ((ret = select(test->max_fd + 1, &read_set, NULL, NULL, &tout)) > 0)
+#else
+        if ((ret = zsock_select(test->max_fd + 1, &read_set, NULL, NULL, &tout)) > 0)
+#endif
         {
             if (FD_ISSET(test->ctrl_sck, &read_set))
             {
@@ -2708,7 +2730,11 @@ static cJSON
                      * Then read the JSON into a buffer and parse it.  Return a parsed JSON
                      * structure, NULL if there was an error.
                      */
+#if defined (CONFIG_POSIX_API)
                     if (read(test->ctrl_sck, &nsize, sizeof(nsize)) > 0)
+#else
+                    if (recv(test->ctrl_sck, &nsize, sizeof(nsize), 0) > 0)
+#endif					
                     {
                         hsize = ntohl(nsize);
                         str = (char *) calloc(sizeof(char), hsize+1);   /* +1 for trailing null */
@@ -2716,7 +2742,11 @@ static cJSON
                 }
                 else
                 {
+#if defined (CONFIG_POSIX_API)
                     if ((rc = read(test->ctrl_sck, str, hsize)) > 0)
+#else
+                    if ((rc = recv(test->ctrl_sck, str, hsize, 0)) > 0)
+#endif
                     {
                         /*
                          * We should be reading in the number of bytes corresponding to the
@@ -4197,7 +4227,7 @@ static void iperf_print_results(struct iperf_test *test)
 						}
 					}
 
-					if (sp->diskfile_fd >= 0) {
+					if (sp->diskfile_fd >= 0) {//b_jh: fstat might cause _times from newlib? TODO: flag out
 						if (fstat(sp->diskfile_fd,
 							  &sb) == 0) {
 							/* In the odd case that it's a zero-sized file, say it was all transferred. */

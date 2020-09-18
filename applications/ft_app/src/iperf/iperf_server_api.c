@@ -30,23 +30,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <getopt.h>
 #include "utils/getopt_port/getopt.h"
-
 #include <errno.h>
-#include <unistd.h>
+#include <posix/unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <sys/socket.h>
+#include <posix/sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include <posix/netinet/in.h>
+#include <posix/arpa/inet.h>
+#include <posix/netdb.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <sys/time.h>
+#include <posix/sys/time.h>
+#if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
+#endif
 #include <sched.h>
 #include <setjmp.h>
 

@@ -27,8 +27,8 @@
 #ifndef        __IPERF_API_H
 #define        __IPERF_API_H
 
-#include <sys/socket.h>
-#include <sys/time.h>
+#include <posix/sys/socket.h>
+#include <posix/sys/time.h>
 //#include <setjmp.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
@@ -37,7 +37,7 @@
 #ifdef __cplusplus
 extern "C" { /* open extern "C" */
 #endif
-#include <inttypes.h>
+
 
 struct iperf_test;
 struct iperf_stream_result;
@@ -46,8 +46,7 @@ struct iperf_stream;
 struct iperf_time;
 
 #if !defined(__IPERF_H)
-typedef uint64_t iperf_size_t; //b_jh
-//typedef uint32_t iperf_size_t;
+typedef uint64_t iperf_size_t;
 #endif // __IPERF_H
 
 /* default settings */
@@ -438,7 +437,7 @@ enum {
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
     // b_jh
     IENOMEMORY = 302,       // no dynamic memory from heap
-    IEPDN = 303,            // Invalid PDN
+    IEPDN = 303,            // Invalid PDN: TODO
     // e_jh
 };
 

@@ -25,19 +25,17 @@
  * file for complete information.
  */
 #include <errno.h>
-#ifdef RM_JH
-#include <setjmp.h>
-#endif
+//#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
+#include <posix/unistd.h>
+#include <posix/signal.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/select.h>
+#include <posix/netinet/in.h>
+#include <posix/sys/select.h>
 //#include <sys/uio.h>
-#include <arpa/inet.h>
+#include <posix/arpa/inet.h>
 
 #include "iperf.h"
 #include "iperf_api.h"
@@ -163,10 +161,7 @@ create_client_timers(struct iperf_test * test)
     test->timer = test->stats_timer = test->reporter_timer = NULL;
     if (test->duration != 0) {
 	test->done = 0;
-        //test->timer = tmr_create(&now, test_timer_proc, cd, ( test->duration + test->omit ) * SEC_TO_US, 0);
-        //b_jh: seems that our side ending before it should, maybe: https://github.com/esnet/iperf/issues/1032
-        //hack to add more time?
-        test->timer = tmr_create(&now, test_timer_proc, cd, ( test->duration + test->omit) * SEC_TO_US, 0);
+        test->timer = tmr_create(&now, test_timer_proc, cd, ( test->duration + test->omit ) * SEC_TO_US, 0);
         if (test->timer == NULL) {
             i_errno = IEINITTEST;
             return -1;
@@ -468,8 +463,6 @@ iperf_client_end(struct iperf_test *test)
     /* Close control socket */
     if (test->ctrl_sck)
         close(test->ctrl_sck);
-        
-//    k_sleep(K_MSEC(2));
 
     return 0;
 }
@@ -504,8 +497,7 @@ iperf_run_client(struct iperf_test * test)
 	iperf_printf(test, "%s\n", version);
 	iperf_printf(test, "%s", "");
 	iperf_printf(test, "%s\n", get_system_info());
-	if (test->logfile || test->forceflush) //b_jh: added
-          iflush(test);
+	iflush(test);
     }
 
     /* Start the client and connect to the server */
@@ -535,7 +527,7 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}
 
-#if 1 // SAMPO_NUTTX, b_jh: added due to jamn where rx buffer was full between modem and app
+#if 1 // SAMPO_NUTTX, b_jh: added due to early test jamn where rx buffer was full between modem and app
         if (test->state == TEST_START ||
             test->state == PARAM_EXCHANGE ||
             test->state == CREATE_STREAMS ||

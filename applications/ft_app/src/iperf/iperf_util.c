@@ -34,14 +34,32 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
-//#include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
-#include <sys/select.h>
+#include <posix/sys/select.h>
 #include <sys/types.h>
-#include <sys/time.h>
+#include <posix/sys/time.h>
+#if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
+#else
+// /* From <sys/resource.h> that caused collisions without POSIX API by inclusing sys/time.h */
+
+//#include <sys/time.h>
+
+#define	RUSAGE_SELF	0		/* calling process */
+#define	RUSAGE_CHILDREN	-1		/* terminated child processes */
+
+struct rusage {
+  	struct timeval ru_utime;	/* user time used */
+	struct timeval ru_stime;	/* system time used */
+};
+
+int	getrusage (int, struct rusage*);
+
+//end resource.h
+#endif //CONFIG_POSIX_API
 //#include <sys/utsname.h>
+
 #include <time.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -68,12 +86,13 @@
 
 //end resource.h
 /**************************************************************************/
+#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
 static int gethostname(char *name, size_t len)
 {
      strncpy(name, "nrf9160", len);
      return 0;
 }
-
+#endif
 /**************************************************************************/
 //b_jh:
 int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
@@ -184,7 +203,7 @@ make_cookie(char *cookie)
 //        srandom((int) time(0) ^ getpid());
 
     /* Generate a string based on hostname, time, randomness, and filler. */
-    (void) gethostname(hostname, sizeof(hostname));
+    (void) gethostname(hostname, sizeof(hostname));    
     (void) gettimeofday(&tv, 0);
     (void) snprintf(temp, sizeof(temp), "%s.%ld.%06ld.%08lx%08lx.%s", hostname, (unsigned long int) tv.tv_sec, (unsigned long int) tv.tv_usec, (unsigned long int) rand(), (unsigned long int) rand(), "1234567890123456789012345678901234567890");
 

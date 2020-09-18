@@ -28,7 +28,6 @@
 #define __IPERF_TIME_H
 
 #include <stdint.h>
-#include <inttypes.h>
 
 struct iperf_time {
     uint32_t secs;

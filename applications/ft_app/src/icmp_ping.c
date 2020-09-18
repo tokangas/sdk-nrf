@@ -8,16 +8,21 @@
 #include <shell/shell.h>
 
 #include <modem/modem_info.h>
+
 #if defined (CONFIG_POSIX_API)
 #include <netdb.h>
 #include <sys/socket.h>
 #else
+#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#include <posix/netdb.h>
+#include <posix/sys/socket.h>
+#else
 #include <net/socket.h>
+#endif
 #endif
 #include <nrf_socket.h>
 
 #include "icmp_ping.h"
-
 #define ICMP 0x01
 #define ICMP_ECHO_REQ 0x08
 #define ICMP_ECHO_REP 0x00

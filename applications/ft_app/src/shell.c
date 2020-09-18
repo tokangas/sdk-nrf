@@ -14,7 +14,12 @@
 #endif
 #if defined (CONFIG_POSIX_API)
 #include <sys/select.h>
+#else
+#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#include <posix/sys/select.h>
 #endif
+#endif
+
 #if defined (CONFIG_FTA_IPERF3)
 #include "iperf/iperf_api.h"
 #endif

@@ -33,7 +33,49 @@
 
 #ifdef HAVE_CLOCK_GETTIME
 
-#include <time.h>
+#include <posix/time.h>
+
+#if !defined (CONFIG_POSIX_API)
+int z_impl_clock_gettime(clockid_t clock_id, struct timespec *ts)
+{
+	uint64_t elapsed_msecs;
+	struct timespec base;
+
+	switch (clock_id) {
+	case CLOCK_MONOTONIC:
+	case CLOCK_REALTIME: //TODO??
+		base.tv_sec = 0;
+		base.tv_nsec = 0;
+		break;
+
+
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+
+	elapsed_msecs = k_uptime_get();
+	ts->tv_sec = (int32_t) (elapsed_msecs / MSEC_PER_SEC);
+	ts->tv_nsec = (int32_t) ((elapsed_msecs % MSEC_PER_SEC) *
+					USEC_PER_MSEC * NSEC_PER_USEC);
+
+	ts->tv_sec += base.tv_sec;
+	ts->tv_nsec += base.tv_nsec;
+	if (ts->tv_nsec >= NSEC_PER_SEC) {
+		ts->tv_sec++;
+		ts->tv_nsec -= NSEC_PER_SEC;
+	}
+
+	return 0;
+}
+#ifdef RM_JH
+static inline int clock_gettime(clockid_t clock_id, struct timespec * ts)
+{
+	return mock_impl_clock_gettime(clock_id, ts);
+}
+#endif
+
+#endif
 
 int
 iperf_time_now(struct iperf_time *time1)
