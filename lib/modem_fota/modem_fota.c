@@ -89,9 +89,6 @@ K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 #define AT_CGMR_VERSION_INDEX		0
 #define AT_XSYSTEMMODE_PARAMS_COUNT	5
 #define AT_XSYSTEMMODE_RESPONSE_MAX_LEN	30
-#define AT_CPSMS_MODE_INDEX		1
-#define AT_CPSMS_PARAMS_COUNT_MAX	(AT_CPSMS_MODE_INDEX + 1)
-#define AT_CPSMS_RESPONSE_MAX_LEN	48
 #define AT_XMONITOR_ACTIVE_TIME_INDEX	14
 #define AT_XMONITOR_ACTIVE_TIME_LEN	8
 #define AT_XMONITOR_PARAMS_COUNT_MAX	(AT_XMONITOR_ACTIVE_TIME_INDEX + 1)
@@ -115,7 +112,6 @@ static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
-static const char at_cpsms[] = "AT+CPSMS?";
 static const char at_xmonitor[] = "AT\%XMONITOR";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
@@ -583,22 +579,35 @@ void dfu_target_callback_handler(enum dfu_target_evt_id evt_id)
 
 static void erase_modem_fw_backup(void)
 {
+	int fd;
 	int err;
+	nrf_dfu_fw_offset_t offset;
+	nrf_socklen_t len = sizeof(offset);
 
 	LOG_INF("Erasing modem FW backup...");
 
-	/* dfu_target_init() erases the modem backup if the area is dirty */
-	err = dfu_target_init(DFU_TARGET_IMAGE_TYPE_MODEM_DELTA, 0,
-			      dfu_target_callback_handler);
-	if (err != 0) {
-		LOG_ERR("Failed to initialize DFU target, error: %d", err);
+	fd = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_STREAM, NRF_PROTO_DFU);
+	if (fd < 0) {
+		LOG_ERR("Failed to open modem DFU socket");
 		return;
 	}
-	err = dfu_target_reset();
-	if (err != 0) {
-		LOG_ERR("Failed to reset DFU target, error: %d", err);
+
+	err = nrf_setsockopt(fd, NRF_SOL_DFU, NRF_SO_DFU_BACKUP_DELETE, NULL, 0);
+	if (err < 0) {
+		LOG_ERR("Failed to erase modem FW backup, errno: %d", errno);
 		return;
 	}
+	while (true) {
+		err = nrf_getsockopt(fd, NRF_SOL_DFU, NRF_SO_DFU_OFFSET, &offset, &len);
+		if (err < 0) {
+			k_sleep(K_SECONDS(1));
+		} else {
+			LOG_INF("Modem FW backup erase completed");
+			break;
+		}
+	}
+
+	nrf_close(fd);
 }
 
 static int get_pending_job(void)
