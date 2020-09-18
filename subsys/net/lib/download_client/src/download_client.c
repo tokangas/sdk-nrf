@@ -395,10 +395,7 @@ static int reconnect(struct download_client *dl)
 	int err;
 
 	LOG_INF("Reconnecting..");
-	err = download_client_disconnect(dl);
-	if (err) {
-		return err;
-	}
+	download_client_disconnect(dl);
 
 	err = download_client_connect(dl, dl->host, &dl->config);
 	if (err) {
