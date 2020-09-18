@@ -682,7 +682,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	int flag;
 	bool verbose = false;
 	// TODO: Handle arguments in similar manner, i.e., move everything here or move 'data' to socket_cmd_args
-	while ((flag = getopt(argc, argv, "i:a:p:f:t:b:d:l:e:r:v")) != -1) {
+	while ((flag = getopt(argc, argv, "i:a:p:f:t:b:d:l:e:rv")) != -1) {
 		int ip_address_len = 0;
 		switch (flag) {
 		case 'i': // Socket ID
