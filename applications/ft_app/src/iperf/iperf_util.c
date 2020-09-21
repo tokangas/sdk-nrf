@@ -273,6 +273,9 @@ timeval_diff(struct timeval * tv0, struct timeval * tv1)
     return time1;
 }
 
+#ifdef RM_JH //not supported 
+/* CPU usage not supported. Additionally, Calling of fstat() / clock() would require system callbacks to be impelemted in libc-hook.c for _times()
+ */
 void
 cpu_util(double pcpu[3])
 {
@@ -309,7 +312,7 @@ cpu_util(double pcpu[3])
     pcpu[1] = (userdiff / timediff) * 100;
     pcpu[2] = (systemdiff / timediff) * 100;
 }
-
+#endif
 const char *
 get_system_info(void)
 {

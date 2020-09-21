@@ -4227,7 +4227,8 @@ static void iperf_print_results(struct iperf_test *test)
 						}
 					}
 
-					if (sp->diskfile_fd >= 0) {//b_jh: fstat might cause _times from newlib? TODO: flag out
+					if (sp->diskfile_fd >= 0) {//b_jh: n o supported and also: fstat might cause _times from newlib, flagged out
+#ifdef RM_JH					
 						if (fstat(sp->diskfile_fd,
 							  &sb) == 0) {
 							/* In the odd case that it's a zero-sized file, say it was all transferred. */
@@ -4291,6 +4292,7 @@ static void iperf_print_results(struct iperf_test *test)
 									test->diskfile_name);
 							}
 						}
+#endif						
 					}
 
 					unit_snprintf(ubuf, UNIT_LEN,
@@ -5325,7 +5327,9 @@ void iperf_got_sigend(struct iperf_test *test)
 	if (test->role == 'c' ||
 	    (test->role == 's' && test->state == TEST_RUNNING)) {
 		test->done = 1;
+#ifdef RM_JH
 		cpu_util(test->cpu_util);
+#endif
 		test->stats_callback(test);
 		test->state = DISPLAY_RESULTS; /* change local state only */
 		if (test->on_test_finish)
@@ -5551,7 +5555,9 @@ int iperf_clearaffinity(struct iperf_test *test)
 #endif /* neither HAVE_SCHED_SETAFFINITY nor HAVE_CPUSET_SETAFFINITY nor HAVE_SETPROCESSAFFINITYMASK */
 }
 
+#ifdef RM_JH
 char iperf_timestr[100];
+#endif
 
 int iperf_printf(struct iperf_test *test, const char *format, ...)
 {

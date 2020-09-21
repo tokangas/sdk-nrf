@@ -314,7 +314,9 @@ iperf_handle_message_client(struct iperf_test *test)
 	     * ending summary statistics.
 	     */
 	    signed char oldstate = test->state;
+#ifdef RM_JH        
 	    cpu_util(test->cpu_util);
+#endif
 	    test->state = DISPLAY_RESULTS;
 	    test->reporter_callback(test);
 	    test->state = oldstate;
@@ -396,7 +398,12 @@ iperf_connect(struct iperf_test *test)
 #endif        
 
     if (test->verbose) {
+#ifdef RM_JH        
 	printf("Control connection MSS %d\n", test->ctrl_sck_mss);
+#else
+    //no support to set nor read the mss
+	printf("Control connection MSS: modem default\n");
+#endif
     }
 
     /*
@@ -505,7 +512,9 @@ iperf_run_client(struct iperf_test * test)
         goto cleanup_and_fail;
 
     /* Begin calculating CPU utilization */
+#ifdef RM_JH
     cpu_util(NULL);
+#endif
 
     startup = 1;
     while (test->state != IPERF_DONE) {
@@ -591,7 +600,9 @@ iperf_run_client(struct iperf_test * test)
 #endif
 		/* Yes, done!  Send TEST_END. */
 		test->done = 1;
+#ifdef RM_JH        
 		cpu_util(test->cpu_util);
+#endif
 		test->stats_callback(test);
 
             // iperf_print(test, "ctrl socket: %d read: %d write: %d",

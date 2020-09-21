@@ -36,7 +36,9 @@
 
 int gerror;
 
+#ifdef RM_JH
 char iperf_timestrerr[100];
+#endif
 
 /* Do a printf to stderr. */
 void

@@ -50,8 +50,9 @@ int timeval_equals(struct timeval *tv0, struct timeval *tv1);
 
 double timeval_diff(struct timeval *tv0, struct timeval *tv1);
 
+#ifdef RM_JH
 void cpu_util(double pcpu[3]);
-
+#endif
 const char* get_system_info(void);
 
 const char* get_optional_features(void);
