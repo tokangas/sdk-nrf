@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 //#include <getopt.h>
-#include "utils/getopt_port/getopt.h"
+#include "utils/freebsd-getopt/getopt.h"
 #include <time.h>
 #include <errno.h>
 #include <posix/signal.h>

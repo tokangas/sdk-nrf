@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "utils/getopt_port/getopt.h"
+#include "utils/freebsd-getopt/getopt.h"
 #include <errno.h>
 #include <posix/unistd.h>
 #include <assert.h>
