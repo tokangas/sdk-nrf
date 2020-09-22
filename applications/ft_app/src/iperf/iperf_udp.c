@@ -199,7 +199,7 @@ iperf_udp_recv(struct iperf_stream *sp)
     }
     else {
 	if (sp->test->debug)
-	    printf("Late receive, state = %d\n", sp->test->state);
+	    printf("UDP Early/Late receive, state = %d, count: %d\n", sp->test->state, r);
     }
 
     return r;
@@ -285,6 +285,7 @@ int
 iperf_udp_buffercheck(struct iperf_test *test, int s)
 {
     int rc = 0;
+#ifdef RM_JH //not supported
     int sndbuf_actual = 0, rcvbuf_actual = 0;
 
     /*
@@ -294,7 +295,6 @@ iperf_udp_buffercheck(struct iperf_test *test, int s)
     int opt;
     socklen_t optlen;
     
-#ifdef RM_JH //not supported
     if ((opt = test->settings->socket_bufsize)) {
         if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
             i_errno = IESETBUF;
@@ -340,7 +340,6 @@ iperf_udp_buffercheck(struct iperf_test *test, int s)
 	i_errno = IESETBUF2;
 	return -1;
     }
-#endif
     if (test->settings->blksize > rcvbuf_actual) {
 	char str[80];
 	snprintf(str, sizeof(str),
@@ -355,6 +354,7 @@ iperf_udp_buffercheck(struct iperf_test *test, int s)
 	cJSON_AddNumberToObject(test->json_start, "sndbuf_actual", sndbuf_actual);
 	cJSON_AddNumberToObject(test->json_start, "rcvbuf_actual", rcvbuf_actual);
     }
+#endif
 
     return rc;
 }
@@ -560,7 +560,9 @@ iperf_udp_connect(struct iperf_test *test)
     /* 30 sec timeout for a case when there is a network problem. */
     tv.tv_sec = 30;
     tv.tv_usec = 0;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
+		warning("Unable to set socket SO_RCVTIMEO");
+	}
 #endif
 
     /*

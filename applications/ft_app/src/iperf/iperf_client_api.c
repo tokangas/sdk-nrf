@@ -281,7 +281,11 @@ iperf_handle_message_client(struct iperf_test *test)
             break;
         case TEST_START:
             /*b_jh: */
+            if (test->debug) {
+                printf("TEST_START: ctrl sckt %d\n", test->ctrl_sck);
+            }
             setnonblocking(test->ctrl_sck, 1);
+            /* e_jh */
 
             if (iperf_init_test(test) < 0)
                 return -1;
@@ -455,6 +459,7 @@ int
 iperf_client_end(struct iperf_test *test)
 {
     struct iperf_stream *sp;
+    int retval = 0;
 
     /* Close all stream sockets */
     SLIST_FOREACH(sp, &test->streams, streams) {
@@ -464,14 +469,16 @@ iperf_client_end(struct iperf_test *test)
     /* show final summary */
     test->reporter_callback(test);
 
-    if (iperf_set_send_state(test, IPERF_DONE) != 0)
-        return -1;
+    if (iperf_set_send_state(test, IPERF_DONE) != 0) {
+        printf("iperf_client_end: iperf_set_send_state failed\n");
+        retval = -1;
+    }
 
     /* Close control socket */
     if (test->ctrl_sck)
         close(test->ctrl_sck);
 
-    return 0;
+    return retval;
 }
 
 
