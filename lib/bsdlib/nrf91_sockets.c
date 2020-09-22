@@ -23,11 +23,10 @@
 #include <zephyr.h>
 
 //b_jh
-//#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES) && defined (CONFIG_POSIX_API)
-#if defined (CONFIG_POSIX_API)
-#include <poll.h>
-#include <sys/time.h>
-#include <sys/socket.h>
+#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#include <posix/poll.h>
+#include <posix/sys/time.h>
+#include <posix/sys/socket.h>
 #endif
 
 #if defined(CONFIG_NET_SOCKETS_OFFLOAD)
@@ -255,7 +254,7 @@ static int z_to_nrf_flags(int z_flags)
 		nrf_flags |= NRF_MSG_PEEK;
 	}
 //b_jh: MSG_TRUNC not in posix?
-#if !defined (CONFIG_POSIX_API)
+#if (!defined (CONFIG_POSIX_API) && defined (CONFIG_NET_SOCKETS_POSIX_NAMES))
 	if (z_flags & MSG_TRUNC) {
 		nrf_flags |= NRF_MSG_TRUNC;
 	}
