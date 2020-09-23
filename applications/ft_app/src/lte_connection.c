@@ -19,7 +19,8 @@
 
 #include "lte_connection.h"
 
-const struct shell *uart_shell;
+static const struct shell *uart_shell;
+
 
 #if defined(CONFIG_MODEM_INFO)
 /* System work queue for getting the modem info that ain't in lte connection ind.
@@ -28,12 +29,18 @@ const struct shell *uart_shell;
 
 static struct k_work modem_info_work;
 
-static void get_modem_info(struct k_work *unused)
+/* Work queue for signal info: */
+static struct k_work modem_info_signal_work;
+static int32_t modem_rsrp;
+
+static void modem_info_get(struct k_work *unused)
 {
 	int ret;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
 	
 	ARG_UNUSED(unused);
+
+    k_sleep(K_MSEC(1000)); /* Seems that 1st info read fails without this. Thus, let modem have some time */
 
 	ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str, sizeof(info_str));
 	if (ret >= 0) {
@@ -41,25 +48,50 @@ static void get_modem_info(struct k_work *unused)
 	} else {
 		shell_error(uart_shell, "\nUnable to obtain modem operator parameters (%d)", ret);
 		}
-	ret = modem_info_string_get(MODEM_INFO_APN, info_str, sizeof(info_str));
-	if (ret >= 0) {
-		shell_print(uart_shell, "APN: %s", info_str);
-	} else {
-		shell_error(uart_shell, "\nUnable to obtain modem apn parameters (%d)", ret);
-	}
 	ret = modem_info_string_get(MODEM_INFO_IP_ADDRESS, info_str, sizeof(info_str));
 	if (ret >= 0) {
 		shell_print(uart_shell, "IP address: %s", info_str);
 	} else {
 		shell_error(uart_shell, "\nUnable to obtain modem ip parameters (%d)", ret);
 	}
+	ret = modem_info_string_get(MODEM_INFO_FW_VERSION, info_str, sizeof(info_str));
+	if (ret >= 0) {
+		shell_print(uart_shell, "Modem FW version: %s", info_str);
+	} else {
+		shell_error(uart_shell, "\nUnable to obtain modem ip parameters (%d)", ret);
+	}
+}
+
+static void modem_info_signal_handler(char rsrp_value)
+{
+
+	modem_rsrp = (int8_t)rsrp_value - MODEM_INFO_RSRP_OFFSET_VAL;
+	//shell_print(uart_shell, "rsrp:%d", modem_rsrp);
+	k_work_submit(&modem_info_signal_work);
+}
+
+#define FTA_RSRP_UPDATE_INTERVAL_IN_SECS 5
+static void modem_info_signal_update(struct k_work *work)
+{
+	static uint32_t timestamp_prev = 0;
+
+	if ((timestamp_prev != 0) &&
+	    (k_uptime_get_32() - timestamp_prev <
+	     FTA_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
+		return;
+	}
+
+	shell_print(uart_shell, "RSRP: %d", modem_rsrp);
+	timestamp_prev = k_uptime_get_32();
 }
 #endif
 
 void lte_connection_init(void)
 {
 #if defined(CONFIG_MODEM_INFO)
-	k_work_init(&modem_info_work, get_modem_info);
+	k_work_init(&modem_info_work, modem_info_get);
+	k_work_init(&modem_info_signal_work, modem_info_signal_update);
+	modem_info_rsrp_register(modem_info_signal_handler);
 #endif
 }
 
