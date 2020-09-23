@@ -5599,7 +5599,6 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 		r = vfprintf(test->outfile, format, argp);
 		va_end(argp);
 	} 
-#ifdef RM_JH
 	else if (test->role == 's') {
 		char linebuffer[1024];
 		int i = 0;
@@ -5621,7 +5620,6 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 					  textlineentries);
 		}
 	}
-#endif
 	return r;
 }
 

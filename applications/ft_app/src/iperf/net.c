@@ -141,9 +141,9 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
     int type = proto;
     int protocol = 0;
     if (type == SOCK_STREAM) {
-	protocol = IPPROTO_TCP;
+	    protocol = IPPROTO_TCP;
      } else if (type == SOCK_DGRAM) {
-	protocol = IPPROTO_UDP;
+	    protocol = IPPROTO_UDP;
      }
     //e_jh
 
@@ -151,7 +151,7 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
     hints.ai_socktype = type; //b_jh
     if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0) {
         //b_jh: 
-        printf("getaddrinfo failed with error code %d (see net/dns_resolve.h for codes)\n", gerror);
+        printf("getaddrinfo failed with error code %d %s\n", gerror, gai_strerror(gerror));
         return -1;
     }
 
@@ -259,14 +259,28 @@ netannounce(int domain, int proto, const char *local, int port)
     else {
 	hints.ai_family = domain;
     }
-    hints.ai_socktype = proto;
+    //b_jh
+    //here are mixed with protos & types
+    int type = proto;
+    int protocol = 0;
+    if (type == SOCK_STREAM) {
+	    protocol = IPPROTO_TCP;
+     } else if (type == SOCK_DGRAM) {
+	    protocol = IPPROTO_UDP;
+     }
+            
+    hints.ai_socktype = type;
+    hints.ai_protocol = protocol;
     hints.ai_flags = AI_PASSIVE;
-    if ((gerror = getaddrinfo(local, portstr, &hints, &res)) != 0)
-        return -1; 
+    if ((gerror = getaddrinfo(local, portstr, &hints, &res)) != 0) {
+        printf("getaddrinfo failed with error code %d %s\n", gerror, gai_strerror(gerror));
+        return -1;
+    }
 
-    s = socket(res->ai_family, proto, 0);
+    s = socket(res->ai_family, type, protocol); //e_jh
     if (s < 0) {
-	freeaddrinfo(res);
+        printk("listen socket creation failed\n");
+	    freeaddrinfo(res);
         return -1;
     }
 
@@ -277,6 +291,7 @@ netannounce(int domain, int proto, const char *local, int port)
 	close(s);
 	freeaddrinfo(res);
 	errno = saved_errno;
+    printk("listen setsockopt SO_REUSEADDR %s\n",  gai_strerror(saved_errno));
 	return -1;
     }
     /*
@@ -315,7 +330,7 @@ netannounce(int domain, int proto, const char *local, int port)
     freeaddrinfo(res);
     
     if (proto == SOCK_STREAM) {
-        if (listen(s, INT_MAX) < 0) {
+        if (listen(s, 2) < 0) { //b_jh: TODO: get rid of magic
 	    saved_errno = errno;
 	    close(s);
 	    errno = saved_errno;

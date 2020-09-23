@@ -178,7 +178,9 @@ iperf_handle_message_server(struct iperf_test *test)
             break;
         case TEST_END:
 	    test->done = 1;
+#ifdef RM_JH        
             cpu_util(test->cpu_util);
+#endif
             test->stats_callback(test);
             SLIST_FOREACH(sp, &test->streams, streams) {
                 FD_CLR(sp->socket, &test->read_set);
@@ -203,7 +205,9 @@ iperf_handle_message_server(struct iperf_test *test)
 	    // Temporarily be in DISPLAY_RESULTS phase so we can get
 	    // ending summary statistics.
 	    signed char oldstate = test->state;
+#ifdef RM_JH        
 	    cpu_util(test->cpu_util);
+#endif        
 	    test->state = DISPLAY_RESULTS;
 	    test->reporter_callback(test);
 	    test->state = oldstate;
@@ -441,8 +445,9 @@ iperf_run_server(struct iperf_test *test)
     }
 
     // Begin calculating CPU utilization
+#ifdef RM_JH    
     cpu_util(NULL);
-
+#endif
     test->state = IPERF_START;
     send_streams_accepted = 0;
     rec_streams_accepted = 0;

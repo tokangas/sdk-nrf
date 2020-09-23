@@ -166,8 +166,8 @@ run(struct iperf_test *test)
 #endif
 
     switch (test->role) {
-#ifdef RM_JH //No support
         case 's':
+#ifdef RM_JH //No support
 	    if (test->daemon) {
 		int rc;
 		rc = daemon(0, 0);
@@ -182,6 +182,7 @@ run(struct iperf_test *test)
 		    iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
             return -1;
 	    }
+#endif
             for (;;) {
 		int rc;
 		rc = iperf_run_server(test);
@@ -201,9 +202,10 @@ run(struct iperf_test *test)
 		    break;
 		}
             }
+#ifdef RM_JH //No support
 	    iperf_delete_pidfile(test);
-            break;
 #endif
+            break;
 	case 'c':
 	    if (iperf_run_client(test) < 0) {
 		    iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
