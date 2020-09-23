@@ -19,9 +19,53 @@
 
 #include "lte_connection.h"
 
+const struct shell *uart_shell;
+
+#if defined(CONFIG_MODEM_INFO)
+/* System work queue for getting the modem info that ain't in lte connection ind.
+   TODO: things like these mighjt be good to be in lte connection ind, 
+   i.e. merge certain stuff from modem info to there */
+
+static struct k_work modem_info_work;
+
+static void get_modem_info(struct k_work *unused)
+{
+	int ret;
+	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
+	
+	ARG_UNUSED(unused);
+
+	ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str, sizeof(info_str));
+	if (ret >= 0) {
+		shell_print(uart_shell, "Operator: %s", info_str);
+	} else {
+		shell_error(uart_shell, "\nUnable to obtain modem operator parameters (%d)", ret);
+		}
+	ret = modem_info_string_get(MODEM_INFO_APN, info_str, sizeof(info_str));
+	if (ret >= 0) {
+		shell_print(uart_shell, "APN: %s", info_str);
+	} else {
+		shell_error(uart_shell, "\nUnable to obtain modem apn parameters (%d)", ret);
+	}
+	ret = modem_info_string_get(MODEM_INFO_IP_ADDRESS, info_str, sizeof(info_str));
+	if (ret >= 0) {
+		shell_print(uart_shell, "IP address: %s", info_str);
+	} else {
+		shell_error(uart_shell, "\nUnable to obtain modem ip parameters (%d)", ret);
+	}
+}
+#endif
+
+void lte_connection_init(void)
+{
+#if defined(CONFIG_MODEM_INFO)
+	k_work_init(&modem_info_work, get_modem_info);
+#endif
+}
+
 void lte_connection_ind_handler(const struct lte_lc_evt *const evt)
 {
-	const struct shell *uart_shell = shell_backend_uart_get_ptr();
+	uart_shell = shell_backend_uart_get_ptr();
 	switch (evt->type) {
 	case LTE_LC_EVT_NW_REG_STATUS:
 		switch (evt->nw_reg_status) {
@@ -55,41 +99,7 @@ void lte_connection_ind_handler(const struct lte_lc_evt *const evt)
 					"Connected - home network" :
 					"Connected - roaming");
 #if defined(CONFIG_MODEM_INFO)
-#ifdef RM_JH 
-/* cannot call modem_info stuff in handler because they will cause AT commands sending:
-causing:
-Network registration status: Connected - roamingASSERTION FAIL [k_current_get() != socket_tid] @ WEST_TOPDIR/nrf/lib/at_cmd/at_cmd.c:366
-        at_cmd deadlock: socket thread blocking self
-
-TODO: implement this differently, e.g. by using system thread timer?
-*/
-			int ret;
-			char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
-			ret = modem_info_string_get(MODEM_INFO_OPERATOR,
-						    info_str, sizeof(info_str));
-			if (ret >= 0) {
-				shell_print(uart_shell, "Operator: %s", info_str);
-			} else {
-				shell_error(uart_shell, "\nUnable to obtain modem operator parameters (%d)",
-				       ret);
-			}
-			ret = modem_info_string_get(MODEM_INFO_APN, info_str,
-						    sizeof(info_str));
-			if (ret >= 0) {
-				shell_print(uart_shell, "APN: %s", info_str);
-			} else {
-				shell_error(uart_shell, "\nUnable to obtain modem apn parameters (%d)",
-				       ret);
-			}
-			ret = modem_info_string_get(MODEM_INFO_IP_ADDRESS,
-						    info_str, sizeof(info_str));
-			if (ret >= 0) {
-				shell_print(uart_shell, "IP address: %s", info_str);
-			} else {
-				shell_error(uart_shell, "\nUnable to obtain modem ip parameters (%d)",
-				       ret);
-			}
-#endif
+			k_work_submit(&modem_info_work);
 #endif
 		default:
 			break;

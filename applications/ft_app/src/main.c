@@ -91,7 +91,9 @@ static int fta_shell_init(struct device *unused)
 void main(void)
 {
 	int err;
+
 #if defined(CONFIG_BSD_LIBRARY)
+    lte_connection_init();
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
