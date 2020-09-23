@@ -47,13 +47,22 @@ static void modem_info_get(struct k_work *unused)
 		shell_print(uart_shell, "Operator: %s", info_str);
 	} else {
 		shell_error(uart_shell, "\nUnable to obtain modem operator parameters (%d)", ret);
-		}
+	}
+	
 	ret = modem_info_string_get(MODEM_INFO_IP_ADDRESS, info_str, sizeof(info_str));
 	if (ret >= 0) {
 		shell_print(uart_shell, "IP address: %s", info_str);
 	} else {
 		shell_error(uart_shell, "\nUnable to obtain modem ip parameters (%d)", ret);
 	}
+
+	ret = modem_info_string_get(MODEM_INFO_APN, info_str, sizeof(info_str));
+	if (ret >= 0) {
+		shell_print(uart_shell, "APN: %s", info_str);
+	} else {
+		shell_error(uart_shell, "\nUnable to obtain modem ip parameters (%d)", ret);
+	}
+
 	ret = modem_info_string_get(MODEM_INFO_FW_VERSION, info_str, sizeof(info_str));
 	if (ret >= 0) {
 		shell_print(uart_shell, "Modem FW version: %s", info_str);
