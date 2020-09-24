@@ -21,11 +21,10 @@
 
 static const struct shell *uart_shell;
 
-
 #if defined(CONFIG_MODEM_INFO)
 /* System work queue for getting the modem info that ain't in lte connection ind.
-   TODO: things like these mighjt be good to be in lte connection ind, 
-   i.e. merge certain stuff from modem info to there */
+   TODO: things like these might be good to be in lte connection ind, 
+   i.e. merge certain stuff from modem info to there? */
 
 static struct k_work modem_info_work;
 
@@ -48,7 +47,7 @@ static void modem_info_get(struct k_work *unused)
 	} else {
 		shell_error(uart_shell, "\nUnable to obtain modem operator parameters (%d)", ret);
 	}
-	
+
 	ret = modem_info_string_get(MODEM_INFO_IP_ADDRESS, info_str, sizeof(info_str));
 	if (ret >= 0) {
 		shell_print(uart_shell, "IP address: %s", info_str);

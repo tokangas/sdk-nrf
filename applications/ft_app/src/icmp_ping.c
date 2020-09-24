@@ -305,13 +305,15 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 int icmp_ping_start(const struct shell *shell, const char *target_name,
 		    int length, int timeout, int count, int interval)
 {
-	int st;
+	int st = -1;
 	struct addrinfo *res;
 	int addr_len;
 
 	shell_print(shell, "initiating ping to: %s", target_name);
 
+#if defined(CONFIG_MODEM_INFO)
 	st = modem_info_params_get(&modem_param);
+#endif
 	if (st < 0) {
 		shell_print(shell, "Unable to obtain modem parameters (%d)",
 			    st);
