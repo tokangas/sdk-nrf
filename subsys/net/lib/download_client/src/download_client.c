@@ -116,7 +116,7 @@ static int socket_apn_set(int fd, const char *apn)
 		return -EINVAL;
 	}
 
-	LOG_INF("Setting up APN: %s", log_strdup(apn));
+	LOG_INF("Setting up APN");
 
 	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, apn, len);
 	if (err) {
