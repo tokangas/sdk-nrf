@@ -797,7 +797,7 @@ void iperf_on_connect(struct iperf_test *test)
 		}
 	} else {
 		len = sizeof(sa);
-		getpeername(test->ctrl_sck, (struct sockaddr *)&sa, &len);
+		getpeername(test->ctrl_sck, (struct sockaddr *)&sa, &len); //TODO: instead, store when accepted?
 		if (getsockdomain(test->ctrl_sck) == AF_INET) {
 			sa_inP = (struct sockaddr_in *)&sa;
 			inet_ntop(AF_INET, &sa_inP->sin_addr, ipr, sizeof(ipr));
@@ -1547,6 +1547,8 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 	//b_jh: not working if non block is not set. TODO: use send()?
 	//if (send(test->ctrl_sck, (char *)&state, sizeof(state), 0) < 0) {
 	if (Nwrite(test->ctrl_sck, (char *)&state, sizeof(state), Ptcp) < 0) {
+		if (test->debug)
+			printf("iperf_set_send_state failed of sending char: %c", state);
 		i_errno = IESENDMESSAGE;
 		return -1;
 	}
@@ -1867,8 +1869,12 @@ int iperf_exchange_parameters(struct iperf_test *test)
 		test->prot_listener = s;
 
 		// Send the control message to create streams and start the test
-		if (iperf_set_send_state(test, CREATE_STREAMS) != 0)
-			return -1;
+		if (iperf_set_send_state(test, CREATE_STREAMS) != 0) {
+		    if (test->debug)
+				printf("Sending ctrl CREATE_STREAMS failed\n");
+		    
+            return -1;
+        }
 	}
 
 	return 0;
@@ -2246,12 +2252,26 @@ static int send_results(struct iperf_test *test)
 				printf("send_results\n%s\n", str);
 				cJSON_free(str);
 			}
+			//b_jh:
+			if (test->role == 's') {
+				if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
+					i_errno = IESENDRESULTS;
+					r = -1;
+				}
+			}	
+			else {
+				if (r == 0 && JSON_write_nonblock(test, j) < 0) {
+					i_errno = IESENDRESULTS;
+					r = -1;
+				}
+			}
+			//e_jh
+
 #ifdef RM_JH
 			if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
 				i_errno = IESENDRESULTS;
 				r = -1;
 			}
-#else
         if (r == 0 && JSON_write_nonblock(test, j) < 0) {
             i_errno = IESENDRESULTS;
             r = -1;
@@ -2292,9 +2312,13 @@ static int get_results(struct iperf_test *test)
 	int retransmits;
 	struct iperf_stream *sp;
 
-	//j = JSON_read(test->ctrl_sck);
-	//b_jh
-    j = JSON_read_nonblock(test);	
+	//b_jh:
+	if (test->role == 's')
+		j = JSON_read(test->ctrl_sck);
+	else
+    	j = JSON_read_nonblock(test);	
+	//e_jh
+
 	if (j == NULL) {
 		i_errno = IERECVRESULTS;
 		if (test->debug) {
@@ -3878,7 +3902,9 @@ static void iperf_print_results(struct iperf_test *test)
 		char ubuf[UNIT_LEN];
 		char nbuf[UNIT_LEN];
 		struct stat sb;
+#ifdef RM_JH
 		char sbuf[UNIT_LEN];
+#endif
 		struct iperf_stream *sp = NULL;
 		iperf_size_t bytes_sent, total_sent = 0;
 		iperf_size_t bytes_received, total_received = 0;
@@ -4228,7 +4254,7 @@ static void iperf_print_results(struct iperf_test *test)
 					}
 
 					if (sp->diskfile_fd >= 0) {//b_jh: n o supported and also: fstat might cause _times from newlib, flagged out
-#ifdef RM_JH					
+#ifdef RM_JH
 						if (fstat(sp->diskfile_fd,
 							  &sb) == 0) {
 							/* In the odd case that it's a zero-sized file, say it was all transferred. */
@@ -4292,7 +4318,7 @@ static void iperf_print_results(struct iperf_test *test)
 									test->diskfile_name);
 							}
 						}
-#endif						
+#endif
 					}
 
 					unit_snprintf(ubuf, UNIT_LEN,
@@ -5600,7 +5626,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 		va_end(argp);
 	} 
 	else if (test->role == 's') {
-		char linebuffer[1024];
+		char linebuffer[1024];//b_jh: TODO?
 		int i = 0;
 		if (ct) {
 			i = sprintf(linebuffer, "%s", ct);

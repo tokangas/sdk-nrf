@@ -110,12 +110,22 @@ iperf_accept(struct iperf_test *test)
     int s;
     signed char rbuf = ACCESS_DENIED;
     socklen_t len;
-    struct sockaddr_storage addr;
+    //struct sockaddr_storage addr;
+    struct sockaddr_in client_addr;  //b_jh: modified due to nrf91_socket_offload_accept()
 
-    len = sizeof(addr);
-    if ((s = accept(test->listener, (struct sockaddr *) &addr, &len)) < 0) {
+    len = sizeof(client_addr);
+    if ((s = accept(test->listener, (struct sockaddr *) &client_addr, &len)) < 0) {
         i_errno = IEACCEPT;
         return -1;
+    }
+    //b_jh
+    if (test->debug) {
+        char ipr[INET6_ADDRSTRLEN];
+        int port;
+
+        inet_ntop(client_addr.sin_family, &client_addr.sin_addr, ipr, sizeof(ipr));
+        port = ntohs(client_addr.sin_port);
+        printf("accepted new socket nbr %d from the lient address %s and port %d\n", s, ipr, port);
     }
 
     if (test->ctrl_sck == -1) {
@@ -414,7 +424,7 @@ iperf_run_server(struct iperf_test *test)
     struct iperf_stream *sp;
     struct iperf_time now;
     struct timeval* timeout;
-    int flag;
+    int flag = -1; //b_jh
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)

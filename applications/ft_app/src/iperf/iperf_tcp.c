@@ -120,7 +120,8 @@ iperf_tcp_accept(struct iperf_test * test)
     signed char rbuf = ACCESS_DENIED;
     char    cookie[COOKIE_SIZE];
     socklen_t len;
-    struct sockaddr_storage addr;
+    //struct sockaddr_storage addr;
+    struct sockaddr_in addr; //b_jh: modified due to nrf91_socket_offload_accept()
 
     len = sizeof(addr);
     if ((s = accept(test->listener, (struct sockaddr *) &addr, &len)) < 0) {
@@ -153,9 +154,9 @@ int
 iperf_tcp_listen(struct iperf_test *test)
 {
     int s, opt;
-    socklen_t optlen;
+    //socklen_t optlen;
     int saved_errno;
-    int rcvbuf_actual, sndbuf_actual;
+    //int rcvbuf_actual, sndbuf_actual;
 
     s = test->listener;
 
@@ -328,18 +329,15 @@ iperf_tcp_listen(struct iperf_test *test)
     }
     
     /* Read back and verify the sender socket buffer size */
-    optlen = sizeof(sndbuf_actual);
 #ifdef RM_JH //not supported
+    optlen = sizeof(sndbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_actual, &optlen) < 0) {
-#endif
 	saved_errno = errno;
 	close(s);
 	errno = saved_errno;
 	i_errno = IESETBUF;
 	return -1;
-#ifdef RM_JH //not supported
     }
-#endif
     if (test->debug) {
 	printf("SNDBUF is %u, expecting %u\n", sndbuf_actual, test->settings->socket_bufsize);
     }
@@ -347,20 +345,18 @@ iperf_tcp_listen(struct iperf_test *test)
 	i_errno = IESETBUF2;
 	return -1;
     }
+#endif
 
     /* Read back and verify the receiver socket buffer size */
-    optlen = sizeof(rcvbuf_actual);
 #ifdef RM_JH //not supported
+    optlen = sizeof(rcvbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {
-#endif
 	saved_errno = errno;
 	close(s);
 	errno = saved_errno;
 	i_errno = IESETBUF;
 	return -1;
-#ifdef RM_JH //not supported
     }
-#endif
     if (test->debug) {
 	printf("RCVBUF is %u, expecting %u\n", rcvbuf_actual, test->settings->socket_bufsize);
     }
@@ -374,6 +370,7 @@ iperf_tcp_listen(struct iperf_test *test)
 	cJSON_AddNumberToObject(test->json_start, "sndbuf_actual", sndbuf_actual);
 	cJSON_AddNumberToObject(test->json_start, "rcvbuf_actual", rcvbuf_actual);
     }
+#endif
 
     return s;
 }
