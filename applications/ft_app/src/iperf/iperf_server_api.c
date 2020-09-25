@@ -90,7 +90,7 @@ iperf_server_listen(struct iperf_test *test)
 
     if (!test->json_output) {
 	iperf_printf(test, "-----------------------------------------------------------\n");
-	iperf_printf(test, "Server listening on %d\n", test->server_port);
+	iperf_printf(test, "Server listening on local %s port %d\n", (test->bind_address ? test->bind_address : "local"), test->server_port); //b_jh: added bind address printing
 	iperf_printf(test, "-----------------------------------------------------------\n");
 	if (test->forceflush)
 	    iflush(test);
@@ -103,30 +103,25 @@ iperf_server_listen(struct iperf_test *test)
 
     return 0;
 }
-
 int
 iperf_accept(struct iperf_test *test)
 {
     int s;
     signed char rbuf = ACCESS_DENIED;
     socklen_t len;
-    //struct sockaddr_storage addr;
-    struct sockaddr_in client_addr;  //b_jh: modified due to nrf91_socket_offload_accept()
+    //struct sockaddr_storage addr; //b_jh: this caused problems with nrf91_socket_offload_accept
+    struct sockaddr_in client_addr;  //b_jh: modified due to nrf91_socket_offload_accept() -> ipv6 won't work
+    struct sockaddr *sa;
 
     len = sizeof(client_addr);
-    if ((s = accept(test->listener, (struct sockaddr *) &client_addr, &len)) < 0) {
+    if ((s = accept(test->listener, (struct sockaddr *)&client_addr, &len)) < 0) {
         i_errno = IEACCEPT;
         return -1;
     }
-    //b_jh
-    if (test->debug) {
-        char ipr[INET6_ADDRSTRLEN];
-        int port;
-
-        inet_ntop(client_addr.sin_family, &client_addr.sin_addr, ipr, sizeof(ipr));
-        port = ntohs(client_addr.sin_port);
-        printf("accepted new socket nbr %d from the lient address %s and port %d\n", s, ipr, port);
-    }
+    //b_jh: store client address
+    sa = (struct sockaddr *)&client_addr;
+    test->client_address = *sa;
+    //e_jh
 
     if (test->ctrl_sck == -1) {
         /* Server free, accept new client */

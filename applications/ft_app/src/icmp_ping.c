@@ -59,7 +59,7 @@ static char *sckt_addr_ntop(const struct sockaddr *addr)
 	}
 
 	//LOG_ERR("Unknown IP address family:%d", addr->sa_family);
-	strcpy(buf, "junk");
+	strcpy(buf, "Unknown AF");
 	return buf;
 }
 

@@ -119,10 +119,27 @@ static cJSON *JSON_read(int fd);
 static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinline));
 static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
 
-int getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+#ifdef RM_JH
+static int ip_address_family_from_string(const char *src) {
+    char buf[INET6_ADDRSTRLEN];
+    if (inet_pton(AF_INET, src, buf)) {
+		printf("ip_address_family_from_string AF_INET");
+        return AF_INET;
+    } else if (inet_pton(AF_INET6, src, buf)) {
+        return AF_INET6;
+    }
+    return -1;
+}
+#endif
+
+int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-	memset(addr->data, 0, sizeof(addr->data));
-	addr->sa_family = AF_INET;
+	struct sockaddr_in in4_addr;
+	struct sockaddr_in6 in6_addr;
+
+	*addr = test->client_address;
+	addrlen = sizeof(test->client_address);
+
 	return 0;
 }
 #endif
@@ -797,7 +814,7 @@ void iperf_on_connect(struct iperf_test *test)
 		}
 	} else {
 		len = sizeof(sa);
-		getpeername(test->ctrl_sck, (struct sockaddr *)&sa, &len); //TODO: instead, store when accepted?
+		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); //TODO: instead, store when accepted?
 		if (getsockdomain(test->ctrl_sck) == AF_INET) {
 			sa_inP = (struct sockaddr_in *)&sa;
 			inet_ntop(AF_INET, &sa_inP->sin_addr, ipr, sizeof(ipr));
@@ -2322,7 +2339,7 @@ static int get_results(struct iperf_test *test)
 	if (j == NULL) {
 		i_errno = IERECVRESULTS;
 		if (test->debug) {
-			printf("b_jh: get_results: IERECVRESULTS 1\n");
+			printf("get_results: IERECVRESULTS 1\n");
 		}
 		r = -1;
 	} else {
@@ -2564,8 +2581,8 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
         nsize = htonl(hsize);
     }
 
-    /* wait for max 5 sec */
-    struct timeval tout = { .tv_sec = 5, .tv_usec = 0 };
+    /* wait for max 10 sec */
+    struct timeval tout = { .tv_sec = 10, .tv_usec = 0 };
     int err;
     //bool wait_for_send = false;
 
@@ -2725,7 +2742,7 @@ static cJSON
     int rc;
 
     /* wait for max 10 sec */
-    struct timeval tout = { .tv_sec = 120, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = 10, .tv_usec = 0 };
     int err;
 
     do {
@@ -2798,11 +2815,16 @@ next:
         /* timeout or error */
         else if (ret <= 0)
         {
-            i_errno = IERECVRESULTS;
-		if (test->debug) {
-			printf("JSON_read_nonblock: IERECVRESULTS %d\n", ret);
-		}			
-            break;
+			if (ret == 0) {
+				//b_jh: seems that select is timeoutting before the set time limit? thus, let it timeout and don't care
+				if (test->debug)
+					printf("JSON_read_nonblock: IERECVRESULTS timeout\n");
+			} else {
+		        i_errno = IERECVRESULTS;
+				if (test->debug)
+					printf("JSON_read_nonblock: IERECVRESULTS %d\n", ret);
+				break;
+			}
         }
     } while (!json);
 
@@ -2903,8 +2925,6 @@ struct iperf_test *iperf_new_test()
 		i_errno = IENOMEMORY;
 		return NULL;
 	}
-	//b_jh: 
-	//printf("test struct size: %d\n", sizeof(struct iperf_test));
 	
 	/* initialize everything to zero */
 	memset(test, 0, sizeof(struct iperf_test));
@@ -2916,7 +2936,6 @@ struct iperf_test *iperf_new_test()
 		i_errno = IENOMEMORY;
 		return NULL;
 	}
-	//printf("test settings struct size: %d\n", sizeof(struct iperf_settings));
 
 	memset(test->settings, 0, sizeof(struct iperf_settings));
 
@@ -2927,7 +2946,6 @@ struct iperf_test *iperf_new_test()
 		i_errno = IENOMEMORY;
 		return NULL;
 	}
-	//printf("test settingsbitrate_limit_intervals_traffic_bytes: %lu\n", (ulong)(sizeof(iperf_size_t) * MAX_INTERVAL));
 
 	memset(test->bitrate_limit_intervals_traffic_bytes, 0,
 	       sizeof(sizeof(iperf_size_t) * MAX_INTERVAL));
@@ -5191,7 +5209,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 		return -1;
 	}
 	len = sizeof(struct sockaddr_storage);
-	if (getpeername(sp->socket, (struct sockaddr *)&sp->remote_addr, &len) <
+	if (mock_getpeername(test, sp->socket, (struct sockaddr *)&sp->remote_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;

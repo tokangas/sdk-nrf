@@ -291,7 +291,8 @@ netannounce(int domain, int proto, const char *local, int port)
 	close(s);
 	freeaddrinfo(res);
 	errno = saved_errno;
-    /* b_jh: SO_REUSEADDR is not supported by modem in 1.2.1/1.2.2. */
+    
+    /* b_jh: note: SO_REUSEADDR is not supported by modem in 1.2.1/1.2.2. */
     printk("listen setsockopt SO_REUSEADDR %s\n",  gai_strerror(saved_errno));
 	return -1;
     }
