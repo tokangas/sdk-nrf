@@ -53,11 +53,12 @@ typedef uint64_t iperf_size_t;
 #define Ptcp SOCK_STREAM
 #define Pudp SOCK_DGRAM
 #define Psctp 12
-#define DEFAULT_UDP_BLKSIZE 1460 /* default is dynamically set, else this */
 
 // b_jh
+//#define DEFAULT_UDP_BLKSIZE 1460 /* default is dynamically set, else this */
+#define DEFAULT_UDP_BLKSIZE 1024 /* default is dynamically set, else this */
 //#define DEFAULT_TCP_BLKSIZE (128 * 1024)  /* default read/write block size */
-#define DEFAULT_TCP_BLKSIZE (2 * 1024)  /* default read/write block size */
+#define DEFAULT_TCP_BLKSIZE (4 * 708)  /* default read/write block size */
 // e_jh
 
 #define DEFAULT_SCTP_BLKSIZE (64 * 1024)
@@ -288,8 +289,9 @@ int iperf_recv(struct iperf_test *, fd_set *);
 //void iperf_catch_sigend(void (*handler)(int));
 //void iperf_got_sigend(struct iperf_test *test) __attribute__ ((noreturn));
 //e_jh
+void fta_iperf3_usage();
 
-void usage(void);
+//void usage(void);
 //void usage_long(FILE * f); b_jh: long options not supported
 void warning(const char *);
 int iperf_exchange_results(struct iperf_test *);

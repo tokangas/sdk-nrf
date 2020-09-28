@@ -316,7 +316,7 @@ cpu_util(double pcpu[3])
 const char *
 get_system_info(void)
 {
-    static const char *buf = "utsname not supported to priont sys info";
+    static const char *buf = "utsname() not supported to priot sys info";
 
 #ifdef RM_JH //not supported
     static char buf[1024];
@@ -333,13 +333,11 @@ get_system_info(void)
 const char *
 get_optional_features(void)
 {
-    static char *features = "None";
-
+    static char features[64]; //b_jh: no support, decrease stack usage
     unsigned int numfeatures = 0;
-#ifdef RM_JH    
 
     snprintf(features, sizeof(features), "Optional features available: ");
-
+#ifdef RM_JH
 #if defined(HAVE_CPU_AFFINITY)
     if (numfeatures > 0) {
 	strncat(features, ", ", 

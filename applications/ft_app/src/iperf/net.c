@@ -332,7 +332,7 @@ netannounce(int domain, int proto, const char *local, int port)
     freeaddrinfo(res);
     
     if (proto == SOCK_STREAM) {
-        if (listen(s, 2) < 0) { //b_jh: TODO: get rid of magic
+        if (listen(s, INT_MAX) < 0) {
 	    saved_errno = errno;
 	    close(s);
 	    errno = saved_errno;

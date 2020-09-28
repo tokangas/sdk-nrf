@@ -145,9 +145,9 @@ int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr,
 #endif
 /*************************** Print usage functions ****************************/
 
-void usage()
+void fta_iperf3_usage()
 {
-	fputs(usage_shortstr, stderr);
+	fprintf(stderr, fta_iperf3_usage_support_str);
 }
 
 #if RM_JH
@@ -986,7 +986,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	//    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
 	while ((flag = getopt(
 			argc, argv,
-			"p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:")) !=
+			"p:f:i:RD1VJvsc:ub:t:n:k:l:B:N46O:T:dh")) !=
 	       -1) {
 		switch (flag) {
 		case 'p':
@@ -1258,7 +1258,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			}
 			TAILQ_INSERT_TAIL(&test->xbind_addrs, xbe, link);
 			break;
-		case 'Z': //b_jh: TODO: not supported
+		case 'Z':
 			if (!has_sendfile()) {
 				i_errno = IENOSENDFILE;
 				return -1;
@@ -1333,11 +1333,9 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->pidfile = strdup(optarg);
 			server_flag = 1;
 			break;
-#ifdef RM_JH			
 		case OPT_LOGFILE:
 			test->logfile = strdup(optarg);
 			break;
-#endif
 		case OPT_FORCEFLUSH:
 			test->forceflush = 1;
 			break;
@@ -1391,11 +1389,11 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			break;
 		case 'h':
 			//usage_long(stdout);
-			usage();
+			fta_iperf3_usage();
 			return 0;
 		default:
 			//usage_long(stderr);
-			usage();
+			//fta_iperf3_usage();
 			return -1;
 			//exit(1);
 		}

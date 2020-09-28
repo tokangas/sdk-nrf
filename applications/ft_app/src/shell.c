@@ -22,6 +22,7 @@
 
 #if defined (CONFIG_FTA_IPERF3)
 #include "iperf/iperf_api.h"
+#include "iperf/iperf_locale.h"
 #endif
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
@@ -133,6 +134,6 @@ SHELL_CMD_REGISTER(sock, NULL,
 SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
 		       SHELL_OPT_ARG_CHECK_SKIP);
 
-#if defined (CONFIG_FTA_IPERF3)	
-SHELL_CMD_REGISTER(iperf3, NULL, "iperf3 usage", cmd_iperf3);
+#if defined (CONFIG_FTA_IPERF3)
+SHELL_CMD_REGISTER(iperf3, NULL, fta_iperf3_usage_support_str, cmd_iperf3);
 #endif

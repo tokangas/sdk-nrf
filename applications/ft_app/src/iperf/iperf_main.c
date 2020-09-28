@@ -114,7 +114,7 @@ iperf_main(int argc, char **argv)
     if (iperf_parse_arguments(test, argc, argv) < 0) {
         iperf_err(test, "parameter error - %s", iperf_strerror(i_errno));
         fprintf(stderr, "\n");
-        usage();
+        fta_iperf3_usage();
         retval = -1;
         goto exit;
     }
@@ -131,7 +131,6 @@ exit:
     if (retval == 0)
     {
         printf("iperf Done.\r\n");
-        //k_sleep(K_MSEC(3000)); //b_jh: workaround for better stability?
     }
     else
     {
@@ -213,7 +212,7 @@ run(struct iperf_test *test)
         }
             break;
         default:
-            usage();
+            fta_iperf3_usage();
             break;
     }
 #ifdef RM_JH

@@ -91,10 +91,71 @@ extern    "C"
  * usage
  * ------------------------------------------------------------------- */
 
-const char usage_shortstr[] = "Usage: iperf3 [-c host] [options]\n"
-                           "See iperf3 documentation for more information.\n"
-                           "Note: long options and server side not supported.\n";
-#if 0 //b_jh: Long options not supported
+const char fta_iperf3_usage_support_str[] = 
+                           "Usage: iperf3 [-s|-c host] [options]\n"
+                           "       iperf3 [-h|--help] [-v|--version]\n\n"
+                           "Server or Client:\n"
+                           "  -p   #           server port to listen on/connect to\n"
+                           "  -f   [kmgtKMGT]  format to report: Kbits, Mbits, Gbits, Tbits\n"
+                           "  -i   #           seconds between periodic throughput reports\n"
+                           "  -B   <host>      bind to the interface associated with the address <host>\n"
+                           "  -V               more detailed output\n"
+                           "  -J               output in JSON format\n"
+                           "  -d               emit debugging output\n"
+                           "  -v               show version information and quit\n"
+                           "  -h               show this message and quit\n"
+                           "\nServer specific:\n"
+                           "  -s               run in server mode\n"
+
+                           "  -1               handle one client connection then exit\n"
+
+                           "\nClient specific:\n"
+                           "  -c   <host>      run in client mode, connecting to <host>\n"
+                           "  -u               use UDP rather than TCP\n"
+//TODO                           "  --connect-timeout #       timeout for control connection setup (ms)\n"
+                           "  -b   #[KMG][/#]  target bitrate in bits/sec (0 for unlimited)\n"
+//			   "  --pacing-timer #[KMG]     set the timing for pacing, in microseconds (default 1000)\n"
+                           "  -t   #           time in seconds to transmit for (default %d secs)\n"
+                           "  -n   #[KMG]      number of bytes to transmit (instead of -t)\n"
+                           "  -k               number of blocks (packets) to transmit (instead of -t or -n)\n"
+                           "  -l   #[KMG]      length of buffer to read or write\n"
+//TODO:                           "  --cport         <port>    bind to a specific client port (TCP and UDP, default: ephemeral port)\n"
+//                           "  -P   #           number of parallel client streams to run\n"
+                           "  -R               run in reverse mode (server sends, client receives)\n"
+//TODO:                           "  --bidir                   run in bidirectional mode.\n"
+//                           "                            Client and server send and receive data.\n"
+//                           "  -w, --window    #[KMG]    set window size / socket buffer size\n"
+#if defined(HAVE_TCP_CONGESTION)
+                           "  -C, --congestion <algo>   set TCP congestion control algorithm (Linux and FreeBSD only)\n"
+#endif /* HAVE_TCP_CONGESTION */
+//                           "  -M, --set-mss   #         set TCP/SCTP maximum segment size (MTU - 40 bytes)\n"
+//TODO: test                 "  -N, --no-delay            set TCP/SCTP no delay, disabling Nagle's Algorithm\n"
+                           "  -4               only use IPv4\n"
+                           "  -6               only use IPv6\n"
+                           "  -S               set the IP type of service, 0-255.\n"
+                           "                   The usual prefixes for octal and hex can be used,\n"
+                           "                   i.e. 52, 064 and 0x34 all specify the same value.\n"
+                           "  -O               omit the first n seconds\n"
+                           "  -T               prefix every output line with this string\n"
+//                           "  --extra-data str          data string to include in client and server JSON\n"
+//                           "  --get-server-output       get results from server\n"
+//                           "  --udp-counters-64bit      use 64-bit counters in UDP test packets\n"
+//                           "  --repeating-payload       use repeating pattern in payload, instead of\n"
+//                           "                            randomized payload (like in iperf2)\n"
+  
+			   "\n"
+                           "[KMG] indicates options that support a K/M/G suffix for kilo-, mega-, or giga-\n"
+			   "\n"
+#ifdef PACKAGE_URL
+                           "iperf3 homepage at: " PACKAGE_URL "\n"
+#endif /* PACKAGE_URL */
+#ifdef PACKAGE_BUGREPORT
+                           "Report bugs to:     " PACKAGE_BUGREPORT "\n"
+#endif /* PACKAGE_BUGREPORT */
+			   ;
+
+
+#if RM_JH //b_jh: Long options not supported
 const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-h|--help] [-v|--version]\n\n"
                            "Server or Client:\n"
