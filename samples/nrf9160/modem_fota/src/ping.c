@@ -36,7 +36,7 @@ static struct ping_argv_t {
 static struct k_work_q my_work_q;
 static struct k_work my_work;
 
-static inline void setip(u8_t *buffer, u32_t ipaddr)
+static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 {
 	buffer[0] = ipaddr & 0xFF;
 	buffer[1] = (ipaddr >> 8) & 0xFF;
@@ -44,14 +44,14 @@ static inline void setip(u8_t *buffer, u32_t ipaddr)
 	buffer[3] = ipaddr >> 24;
 }
 
-static u16_t check_ics(const u8_t *buffer, int len)
+static uint16_t check_ics(const uint8_t *buffer, int len)
 {
-	const u32_t *ptr32 = (const u32_t *)buffer;
-	u32_t hcs = 0;
-	const u16_t *ptr16;
+	const uint32_t *ptr32 = (const uint32_t *)buffer;
+	uint32_t hcs = 0;
+	const uint16_t *ptr16;
 
 	for (int i = len / 4; i > 0; i--) {
-		u32_t s = *ptr32++;
+		uint32_t s = *ptr32++;
 
 		hcs += s;
 		if (hcs < s) {
@@ -59,10 +59,10 @@ static u16_t check_ics(const u8_t *buffer, int len)
 		}
 	}
 
-	ptr16 = (const u16_t *)ptr32;
+	ptr16 = (const uint16_t *)ptr32;
 
 	if (len & 2) {
-		u16_t s = *ptr16++;
+		uint16_t s = *ptr16++;
 
 		hcs += s;
 		if (hcs < s) {
@@ -71,8 +71,8 @@ static u16_t check_ics(const u8_t *buffer, int len)
 	}
 
 	if (len & 1) {
-		const u8_t *ptr8 = (const u8_t *)ptr16;
-		u8_t s = *ptr8;
+		const uint8_t *ptr8 = (const uint8_t *)ptr16;
+		uint8_t s = *ptr8;
 
 		hcs += s;
 		if (hcs < s) {
@@ -87,26 +87,26 @@ static u16_t check_ics(const u8_t *buffer, int len)
 	return ~hcs;    /* One's complement */
 }
 
-static void calc_ics(u8_t *buffer, int len, int hcs_pos)
+static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 {
-	u16_t *ptr_hcs = (u16_t *)(buffer + hcs_pos);
+	uint16_t *ptr_hcs = (uint16_t *)(buffer + hcs_pos);
 	*ptr_hcs = 0;   /* Clear checksum before calculation */
-	u16_t hcs;
+	uint16_t hcs;
 
 	hcs = check_ics(buffer, len);
 	*ptr_hcs = hcs;
 }
 
-static u32_t send_ping_wait_reply(void)
+static uint32_t send_ping_wait_reply(void)
 {
-	static u8_t seqnr;
-	u16_t total_length;
-	u8_t ip_buf[NET_IPV4_MTU];
-	u8_t *data = NULL;
-	static s64_t start_t, delta_t;
-	const u8_t header_len = 20;
+	static uint8_t seqnr;
+	uint16_t total_length;
+	uint8_t ip_buf[NET_IPV4_MTU];
+	uint8_t *data = NULL;
+	static int64_t start_t, delta_t;
+	const uint8_t header_len = 20;
 	int pllen, len;
-	const u16_t icmp_hdr_len = 8;
+	const uint16_t icmp_hdr_len = 8;
 	struct sockaddr_in *sa;
 	struct nrf_pollfd fds[1];
 	int fd;
@@ -164,7 +164,7 @@ static u32_t send_ping_wait_reply(void)
 	fd = nrf_socket(NRF_AF_PACKET, NRF_SOCK_RAW, 0);
 	if (fd < 0) {
 		printk("socket() failed: (%d)\n", -errno);
-		return (u32_t)delta_t;
+		return (uint32_t)delta_t;
 	}
 
 	ret = nrf_send(fd, ip_buf, total_length, 0);
@@ -226,24 +226,24 @@ static u32_t send_ping_wait_reply(void)
 	}
 
 	/* Result */
-	printk("PING: %dms\n", (u32_t)delta_t);
+	printk("PING: %dms\n", (uint32_t)delta_t);
 
 close_end:
 	(void)nrf_close(fd);
-	return (u32_t)delta_t;
+	return (uint32_t)delta_t;
 }
 
 void ping_task(struct k_work *item)
 {
 	struct addrinfo *si = ping_argv.src;
 	struct addrinfo *di = ping_argv.dest;
-	u32_t sum = 0;
-	u32_t count = 0;
+	uint32_t sum = 0;
+	uint32_t count = 0;
 
 	ARG_UNUSED(item);
 
 	for (int i = 0; i < ping_argv.count; i++) {
-		u32_t ping_t = send_ping_wait_reply();
+		uint32_t ping_t = send_ping_wait_reply();
 
 		if (ping_t > 0)  {
 			count++;
@@ -253,7 +253,7 @@ void ping_task(struct k_work *item)
 	}
 
 	if (count > 0) {
-		u32_t avg = (sum + count/2) / count;
+		uint32_t avg = (sum + count/2) / count;
 		printk("PING: average %dms\n", avg);
 	}
 
