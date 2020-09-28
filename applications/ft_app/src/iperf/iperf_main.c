@@ -114,7 +114,7 @@ iperf_main(int argc, char **argv)
     retval = iperf_parse_arguments(test, argc, argv);
     if (retval < 0) {
         if (retval == -2) {
-            retval = 0; //-2 is special for 'h' (help)
+            retval = 0; //-2 is special for 'h' (help), not considered as an error
         }
         else
         {
