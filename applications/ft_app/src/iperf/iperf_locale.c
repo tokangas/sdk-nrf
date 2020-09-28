@@ -122,7 +122,7 @@ const char fta_iperf3_usage_support_str[] =
 //TODO:                           "  --cport         <port>    bind to a specific client port (TCP and UDP, default: ephemeral port)\n"
 //                           "  -P   #           number of parallel client streams to run\n"
                            "  -R               run in reverse mode (server sends, client receives)\n"
-//TODO:                           "  --bidir                   run in bidirectional mode.\n"
+                           "  -2               run in bidirectional mode.\n"
 //                           "                            Client and server send and receive data.\n"
 //                           "  -w, --window    #[KMG]    set window size / socket buffer size\n"
 #if defined(HAVE_TCP_CONGESTION)

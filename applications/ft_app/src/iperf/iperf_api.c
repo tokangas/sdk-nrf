@@ -986,7 +986,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	//    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
 	while ((flag = getopt(
 			argc, argv,
-			"p:f:i:RD1VJvsc:ub:t:n:k:l:B:N46O:T:dh")) !=
+			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:dh")) !=
 	       -1) {
 		switch (flag) {
 		case 'p':
@@ -1159,7 +1159,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			iperf_set_test_reverse(test, 1);
 			client_flag = 1;
 			break;
-		case OPT_BIDIRECTIONAL:
+		case '2': //b_jh OPT_BIDIRECTIONAL:
 			if (test->reverse) {
 				i_errno = IEREVERSEBIDIR;
 				return -1;
