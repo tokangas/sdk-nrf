@@ -10,7 +10,7 @@
 
 static int fota_cmd_timer(const struct shell *shell, size_t argc, char **argv)
 {
-	u32_t seconds;
+	uint32_t seconds;
 
 	seconds = strtoul(argv[1], NULL, 10);
 
@@ -26,7 +26,7 @@ static int fota_cmd_timer(const struct shell *shell, size_t argc, char **argv)
 
 static int fota_cmd_server(const struct shell *shell, size_t argc, char **argv)
 {
-	u32_t port;
+	uint32_t port;
 
 	port = strtoul(argv[2], NULL, 10);
 
@@ -74,8 +74,8 @@ static int fota_cmd_enable(const struct shell *shell, size_t argc, char **argv)
 
 static int fota_cmd_status(const struct shell *shell, size_t argc, char **argv)
 {
-	u32_t time_to_check;
-	u32_t time_to_check_without_days;
+	uint32_t time_to_check;
+	uint32_t time_to_check_without_days;
 
 	shell_print(shell, "FOTA %s",
 		    is_fota_enabled() ? "enabled" : "disabled");
