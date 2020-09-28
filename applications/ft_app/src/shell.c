@@ -22,7 +22,6 @@
 
 #if defined (CONFIG_FTA_IPERF3)
 #include "iperf/iperf_api.h"
-#include "iperf/iperf_locale.h"
 #endif
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
@@ -41,10 +40,14 @@ static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+#define PING_USAGE_STR                                                         \
+	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
+
 static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 {
 	if (argc < 4 || argc > 6) {
-		shell_error(shell, "wrong amount of arguments");
+		shell_error(shell, "wrong amount of arguments\n");
+		shell_print(shell, "%s\n", PING_USAGE_STR);
 		return -1;
 	}
 	
@@ -113,8 +116,6 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 	}
 	return 0;
 }
-#define PING_USAGE_STR                                                         \
-	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
 
 #if defined (CONFIG_FTA_IPERF3)	
 static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
@@ -131,9 +132,8 @@ SHELL_CMD_REGISTER(sock, NULL,
 	"Commands for socket operations such as connect and send.",
 	socket_shell);
 #endif
-SHELL_CMD_ARG_REGISTER(ping, NULL, PING_USAGE_STR, cmd_icmp_ping, 3,
-		       SHELL_OPT_ARG_CHECK_SKIP);
+SHELL_CMD_REGISTER(ping, NULL, NULL, cmd_icmp_ping);
 
 #if defined (CONFIG_FTA_IPERF3)
-SHELL_CMD_REGISTER(iperf3, NULL, fta_iperf3_usage_support_str, cmd_iperf3);
+SHELL_CMD_REGISTER(iperf3, NULL, NULL, cmd_iperf3);
 #endif
