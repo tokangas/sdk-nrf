@@ -12,6 +12,7 @@
 #include <power/reboot.h>
 #include <sys/timeutil.h>
 #include <settings/settings.h>
+#include <random/rand32.h>
 #include <modem/at_cmd.h>
 #include <modem/at_cmd_parser.h>
 #include <modem/at_params.h>
@@ -51,7 +52,7 @@ static void active_time_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
 
 /* Work queue */
-#define WORK_QUEUE_STACK_SIZE 2024
+#define WORK_QUEUE_STACK_SIZE 3072 /* TODO: Do we need more than 2048 bytes? */
 #define WORK_QUEUE_PRIORITY 5
 
 K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
@@ -61,6 +62,8 @@ static struct k_work provision_work;
 static struct k_work update_work;
 static struct k_work update_job_status_work;
 static struct k_work read_lte_active_time_work;
+static struct k_work unregister_xtime_work;
+static struct k_work schedule_next_update_work;
 
 struct update_info {
 	struct k_work finish_update_work;
@@ -126,8 +129,8 @@ static const char aws_jobs_unknown[] = "UNKNOWN JOB STATUS";
 static modem_fota_callback_t event_callback;
 
 /* Network time (milliseconds since epoch) and timestamp when it was got */
-static s64_t network_time;
-static s64_t network_time_timestamp;
+static int64_t network_time;
+static int64_t network_time_timestamp;
 
 /* Current modem status */
 static enum modem_reg_status reg_status;
@@ -146,7 +149,7 @@ static struct fota_client_mgmt_job current_job;
 /* Flag indicating if the device has been provisioned for FOTA */
 static bool provisioning_done;
 /* Next scheduled update check time (seconds since epoch) */
-static s64_t update_check_time_s;
+static int64_t update_check_time_s;
 /* Update job ID, used to update the job after reboot */
 static char *update_job_id;
 
@@ -157,7 +160,7 @@ static int pdn_fd = -1;
 
 /* Information for restoring the system mode */
 static bool restore_system_mode_needed = false;
-static u32_t prev_system_mode_bitmask = 0;
+static uint32_t prev_system_mode_bitmask = 0;
 
 static bool reboot_pending = false;
 static int download_progress;
@@ -268,7 +271,7 @@ static void parse_network_time(const char *time_str)
 		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
 		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
-	network_time = (s64_t)timeutil_timegm64(&date_time) * 1000;
+	network_time = (int64_t)timeutil_timegm64(&date_time) * 1000;
 	network_time_timestamp = k_uptime_get();
 }
 
@@ -329,7 +332,7 @@ clean_exit:
 static int parse_cereg_notification(const char *notif)
 {
 	int err;
-	u32_t value;
+	uint32_t value;
 	char tac_str[AT_CEREG_TAC_LEN + 1];
 	size_t tac_str_len;
 	bool tac_valid;
@@ -416,7 +419,7 @@ clean_exit:
 static int parse_cscon_notification(const char *notif)
 {
 	int err;
-	u32_t value;
+	uint32_t value;
 	struct at_param_list param_list = {0};
 
 	err = at_params_list_init(&param_list, AT_CSCON_PARAMS_COUNT_MAX);
@@ -477,7 +480,7 @@ static int parse_time_from_xtime_notification(const char *notif)
 	}
 }
 
-static void unregister_xtime_notification(void)
+static void unregister_xtime_work_fn(struct k_work *item)
 {
 	int err;
 
@@ -488,7 +491,7 @@ static void unregister_xtime_notification(void)
 	}
 }
 
-static s64_t get_current_time_in_s(void)
+static int64_t get_current_time_in_s(void)
 {
 	return (k_uptime_get() - network_time_timestamp + network_time) / 1000;
 }
@@ -740,7 +743,7 @@ static void finish_update(enum modem_fota_evt_id event_id)
  * network connection status immediately.
  */
 static bool send_at_command_and_wait_until_detached(const char *at_cmd,
-						    u32_t timeout_s)
+						    uint32_t timeout_s)
 {
 	if (reg_status == MODEM_REG_STATUS_HOME ||
 	    reg_status == MODEM_REG_STATUS_ROAMING) {
@@ -864,6 +867,15 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		 * specific enough, but using the download progres we can
 		 * make assumptions.
 		 */
+		/* TODO 2: The logic below doesn't work. The modem may reject
+		 * the update at any point when it detects that the update is
+		 * invalid. Also although the update is fully downloaded before
+		 * modem rejects it, there's no final FOTA_DOWNLOAD_EVT_PROGRESS
+		 * event with 100% progress. Thus if modem rejects the update
+		 * at any other point than right at the beginning, the job will
+		 * not be updated and the same update will be tried to be
+		 * installed again and again.
+		 */
 		if (download_progress == 0 || download_progress == 100) {
 			/* The download wasn't started or it was fully
 			 * received.  Assume this is a rejection failure.
@@ -901,7 +913,7 @@ static bool is_update_check_allowed(void)
  * timeout is given in seconds, zero means "no wait", i.e. function returns the
  * network connection status immediately.
  */
-static bool wait_until_attached(u32_t timeout_s)
+static bool wait_until_attached(uint32_t timeout_s)
 {
 	if (reg_status != MODEM_REG_STATUS_HOME &&
 	    reg_status != MODEM_REG_STATUS_ROAMING) {
@@ -925,7 +937,7 @@ static bool wait_until_attached(u32_t timeout_s)
  */
 static bool wait_for_data_inactivity(void)
 {
-	u32_t timeout_s;
+	uint32_t timeout_s;
 
 	if (!rrc_idle) {
 		timeout_s = CONFIG_MODEM_FOTA_DATA_INACTIVITY_TIMEOUT * 60;
@@ -1182,7 +1194,6 @@ static void start_update_work_fn(struct k_work *item)
 			current_job.path != NULL) {
 		int retry_count;
 		int sec_tag = CONFIG_MODEM_FOTA_TLS_SECURITY_TAG;
-		int port = 0;
 		uint32_t start_time;
 		int32_t wait_time;
 
@@ -1195,7 +1206,7 @@ static void start_update_work_fn(struct k_work *item)
 			download_progress = 0;
 			err = fota_download_start(current_job.host,
 						  current_job.path,
-						  sec_tag, port, fota_apn);
+						  sec_tag, fota_apn, 0); /* TODO: Make configurable */
 			if (err == 0 || retry_count <= 0) {
 				/* Download started successfully or no retries
 				 * left
@@ -1384,8 +1395,8 @@ static bool is_time_for_update_check(void)
 
 static void start_update_check_timer(void)
 {
-	s32_t duration_s;
-	u32_t duration_s_without_days;
+	int32_t duration_s;
+	uint32_t duration_s_without_days;
 
 	if (!is_update_scheduled()) {
 		LOG_ERR("Update not scheduled, can't start the timer");
@@ -1423,8 +1434,8 @@ static void active_time_timer_handler(struct k_timer *dummy)
 
 static void calculate_next_update_check_time(void)
 {
-	u32_t seconds_to_update_check;
-	u32_t max_rand;
+	uint32_t seconds_to_update_check;
+	uint32_t max_rand;
 
 	LOG_DBG("Scheduling next update check");
 
@@ -1472,6 +1483,11 @@ static void schedule_next_update(void)
 		calculate_next_update_check_time();
 		start_update_check_timer();
 	}
+}
+
+static void schedule_next_update_work_fn(struct k_work *item)
+{
+	schedule_next_update();
 }
 
 static void provision_device_work_fn(struct k_work *item)
@@ -1650,7 +1666,7 @@ void disable_fota(void)
 	clear_update_check_time();
 }
 
-u32_t get_time_to_next_update_check(void)
+uint32_t get_time_to_next_update_check(void)
 {
 	if (is_update_scheduled() && is_network_time_valid())
 		if (update_check_time_s > get_current_time_in_s()) {
@@ -1662,7 +1678,7 @@ u32_t get_time_to_next_update_check(void)
 		return 0;
 }
 
-void set_time_to_next_update_check(u32_t seconds)
+void set_time_to_next_update_check(uint32_t seconds)
 {
 	update_check_time_s = get_current_time_in_s() + seconds;
 	save_update_check_time();
@@ -1689,8 +1705,8 @@ static void at_notification_handler(void *context, const char *notif)
 			== 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
 			/* Got network time, schedule next update */
-			unregister_xtime_notification();
-			schedule_next_update();
+			k_work_submit(&unregister_xtime_work);
+			k_work_submit(&schedule_next_update_work);
 		}
 	}
 }
@@ -1732,6 +1748,8 @@ int modem_fota_init(modem_fota_callback_t callback)
 	k_work_init(&current_update_info.finish_update_work, finish_update_work_fn);
 	k_work_init(&update_job_status_work, update_job_status_work_fn);
 	k_work_init(&read_lte_active_time_work, read_lte_active_time_work_fn);
+	k_work_init(&unregister_xtime_work, unregister_xtime_work_fn);
+	k_work_init(&schedule_next_update_work, schedule_next_update_work_fn);
 
 	init_and_load_settings();
 

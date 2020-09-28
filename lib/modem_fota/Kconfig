@@ -86,7 +86,6 @@ config MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS
 
 config MODEM_FOTA_TLS_SECURITY_TAG
 	int "Security tag for TLS"
-	depends on DOWNLOAD_CLIENT_TLS
 	default 16842753
 	help
 	  Security tag to be used for the server TLS connections.

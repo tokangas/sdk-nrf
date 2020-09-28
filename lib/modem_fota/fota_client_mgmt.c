@@ -184,7 +184,7 @@ static enum http_status http_resp_status;
 /* API hostname (if != NULL overrides the default) */
 static char *api_hostname;
 /* API port number (if != 0 overrides the default) */
-static u16_t api_port;
+static uint16_t api_port;
 /* FW API hostname (if != NULL overrides the default) */
 static char *fw_api_hostname;
 
@@ -1332,7 +1332,7 @@ void set_api_hostname(const char *hostname)
 	}
 }
 
-u16_t get_api_port()
+uint16_t get_api_port()
 {
 	if (api_port == 0)
 		return API_PORT;
@@ -1340,7 +1340,7 @@ u16_t get_api_port()
 		return api_port;
 }
 
-void set_api_port(u16_t port)
+void set_api_port(uint16_t port)
 {
 	api_port = port;
 }
