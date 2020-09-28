@@ -111,11 +111,18 @@ iperf_main(int argc, char **argv)
     }
     iperf_defaults(test);	/* sets defaults */
 
-    if (iperf_parse_arguments(test, argc, argv) < 0) {
-        iperf_err(test, "parameter error - %s", iperf_strerror(i_errno));
-        fprintf(stderr, "\n");
-        fta_iperf3_usage();
-        retval = -1;
+    retval = iperf_parse_arguments(test, argc, argv);
+    if (retval < 0) {
+        if (retval == -2) {
+            retval = 0; //-2 is special for 'h' (help)
+        }
+        else
+        {
+            iperf_err(test, "parameter error - %s", iperf_strerror(i_errno));
+            fprintf(stderr, "\n");
+            fta_iperf3_usage();
+            retval = -1;
+        }
         goto exit;
     }
 

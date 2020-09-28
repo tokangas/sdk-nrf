@@ -147,7 +147,8 @@ int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr,
 
 void fta_iperf3_usage()
 {
-	fprintf(stderr, fta_iperf3_usage_support_str);
+	fprintf(stderr, fta_iperf3_usage_support_str, UDP_RATE / (1024 * 1024), DURATION,
+		DEFAULT_TCP_BLKSIZE, DEFAULT_UDP_BLKSIZE);
 }
 
 #if RM_JH
@@ -1390,7 +1391,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		case 'h':
 			//usage_long(stdout);
 			fta_iperf3_usage();
-			return 0;
+			return -2;
 		default:
 			//usage_long(stderr);
 			//fta_iperf3_usage();
