@@ -51,7 +51,7 @@ static int cmd_icmp_ping(const struct shell *shell, size_t argc, char **argv)
 		return -1;
 	}
 	
-#ifdef RM_JH
+#ifdef NOT_IN_FTA
 	shell_print(shell, "argc = %d", argc);
 	for (size_t cnt = 0; cnt < argc; cnt++) {
 		shell_print(shell, "  argv[%d] = %s", cnt, argv[cnt]);

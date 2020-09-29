@@ -89,7 +89,7 @@ int	getrusage (int, struct rusage*);
 #if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
 static int gethostname(char *name, size_t len)
 {
-     strncpy(name, "nrf9160", len);
+     strncpy(name, CONFIG_FTA_IPERF3_HOST_NAME, len);
      return 0;
 }
 #endif
@@ -116,7 +116,7 @@ int getrusage(int who, struct rusage *usage)
  * Errors are fatal.
  * Returns 0 on success.
  */
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 
 int readentropy(void *out, size_t outsize)
 {
@@ -175,7 +175,7 @@ void fill_with_repeating_pattern(void *out, size_t outsize)
  * Assumes cookie has size (COOKIE_SIZE + 1) char's.
  */
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 void
 make_cookie(const char *cookie)
 {
@@ -195,7 +195,8 @@ make_cookie(char *cookie)
 {
     //b_jh
 //    static int randomized = 0;
-    char hostname[20];
+    int len = strlen(CONFIG_FTA_IPERF3_HOST_NAME);
+    char hostname[len];
     struct timeval tv;
     char temp[100];
 
@@ -273,7 +274,7 @@ timeval_diff(struct timeval * tv0, struct timeval * tv1)
     return time1;
 }
 
-#ifdef RM_JH //not supported 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported 
 /* CPU usage not supported. Additionally, Calling of fstat() / clock() would require system callbacks to be impelemted in libc-hook.c for _times()
  */
 void
@@ -318,7 +319,7 @@ get_system_info(void)
 {
     static const char *buf = "utsname() not supported to priot sys info";
 
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     static char buf[1024];
     struct utsname  uts;
     memset(buf, 0, 1024);
@@ -333,11 +334,11 @@ get_system_info(void)
 const char *
 get_optional_features(void)
 {
-    static char features[64]; //b_jh: no support, decrease stack usage
+    static char features[64]; //FTA_IPERF3_INTEGRATION_CHANGE: no support, decrease stack usage
     unsigned int numfeatures = 0;
 
     snprintf(features, sizeof(features), "Optional features available: ");
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #if defined(HAVE_CPU_AFFINITY)
     if (numfeatures > 0) {
 	strncat(features, ", ", 
@@ -516,7 +517,7 @@ iperf_dump_fdset(FILE *fp, const char *str, int nfds, fd_set *fds)
  * Cobbled together from various daemon(3) implementations,
  * not intended to be general-purpose. */
 #ifndef HAVE_DAEMON
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 int daemon(int nochdir, int noclose)
 {
     pid_t pid = 0;

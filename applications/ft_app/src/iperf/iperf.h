@@ -29,6 +29,7 @@
 
 #include "iperf_config.h"
 
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/sys/time.h>
 #include <sys/types.h>
 #ifdef HAVE_STDINT_H
@@ -36,12 +37,16 @@
 #endif
 #include <posix/sys/select.h>
 #include <posix/sys/socket.h>
+
+//FTA_IPERF3_INTEGRATION_CHANGE: 
 #if defined (CONFIG_POSIX_API)
 //caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
 #endif
+//end of FTA_IPERF3_INTEGRATION_CHANGE
+
 #include <posix/netinet/tcp.h>
 
 #if defined(HAVE_CPUSET_SETAFFINITY)
@@ -260,7 +265,7 @@ struct iperf_test
     char     *server_hostname;                  /* -c option */
     char     *tmp_template;
     char     *bind_address;                     /* first -B option */
-    struct sockaddr client_address;  /* b_jh: added to store client address when acting like a server */
+    struct sockaddr client_address;  /* FTA_IPERF3_INTEGRATION_CHANGE: added to store client address when acting like a server */
     TAILQ_HEAD(xbind_addrhead, xbind_entry) xbind_addrs; /* all -X opts */
     int       bind_port;                        /* --cport option */
     int       server_port;
@@ -387,7 +392,7 @@ struct iperf_test
 #define UDP_BUFFER_EXTRA 1024
 
 /* constants for command line arg sanity checks */
-#ifdef MB //b_jh
+#ifdef MB //FTA_IPERF3_INTEGRATION_CHANGE
 #undef MB
 #define MB (1024 * 1024)
 #endif

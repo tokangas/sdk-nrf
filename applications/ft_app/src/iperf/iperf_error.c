@@ -26,6 +26,7 @@
  */
 #include <stdio.h>
 #include <errno.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/netdb.h>
 #include <string.h>
 #include <stdlib.h>
@@ -36,7 +37,7 @@
 
 int gerror;
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 char iperf_timestrerr[100];
 #endif
 
@@ -49,7 +50,7 @@ iperf_err(struct iperf_test *test, const char *format, ...)
     char *ct = NULL;
 
     /* Timestamp if requested */
-    #ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     time_t now;
     struct tm *ltm = NULL;
     if (test != NULL && test->timestamps) {
@@ -58,7 +59,7 @@ iperf_err(struct iperf_test *test, const char *format, ...)
 	strftime(iperf_timestrerr, sizeof(iperf_timestrerr), test->timestamp_format, ltm);
 	ct = iperf_timestrerr;
     }
-    #endif
+#endif
 
     va_start(argp, format);
     vsnprintf(str, sizeof(str), format, argp);
@@ -91,14 +92,14 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
     char *ct = NULL;
 
     /* Timestamp if requested */
-    #ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     if (test != NULL && test->timestamps) {
 	time(&now);
 	ltm = localtime(&now);
 	strftime(iperf_timestrerr, sizeof(iperf_timestrerr), "%c ", ltm);
 	ct = iperf_timestrerr;
     }
-    #endif
+#endif
 
     va_start(argp, format);
     vsnprintf(str, sizeof(str), format, argp);
@@ -119,11 +120,11 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
 	    fprintf(stderr, "iperf3: %s\n", str);
 	}
     va_end(argp);
-#ifdef RM_JH    
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
     if (test)
         iperf_delete_pidfile(test);
 #endif
-    //exit(1);
+    //exit(1); //FTA_IPERF3_INTEGRATION_CHANGE: exit not supported
 }
 
 int i_errno;
@@ -223,10 +224,12 @@ iperf_strerror(int int_errno)
             snprintf(errstr, len, "unable to create a new test");
             perr = 1;
             break;
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)			
         case IENOMEMORY:
             snprintf(errstr, len, "unable to create a new test - no memory");
             perr = 1;
             break;
+#endif
         case IEINITTEST:
             snprintf(errstr, len, "test initialization failed");
             perr = 1;

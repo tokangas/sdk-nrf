@@ -24,8 +24,9 @@
  * This code is distributed under a BSD style license, see the LICENSE file
  * for complete information.
  */
+ //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #if defined (CONFIG_POSIX_API)
-//caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
+////FTA_IPERF3_INTEGRATION_CHANGE: caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -37,7 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <getopt.h>
+//#include <getopt.h> FTA_IPERF3_INTEGRATION_CHANGE: not supported by the OS
 #include "utils/freebsd-getopt/getopt.h"
 #include <time.h>
 #include <errno.h>
@@ -60,9 +61,9 @@
 #if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
 #endif
-//#include <sys/mman.h>
+//#include <sys/mman.h> FTA_IPERF3_INTEGRATION_CHANGE: not available
 #include <sys/stat.h>
-//#include <setjmp.h>
+//#include <setjmp.h> FTA_IPERF3_INTEGRATION_CHANGE: not available
 #include <stdarg.h>
 #include <math.h>
 
@@ -105,7 +106,7 @@ static int send_parameters(struct iperf_test *test);
 static int get_parameters(struct iperf_test *test);
 static int send_results(struct iperf_test *test);
 static int get_results(struct iperf_test *test);
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 static int diskfile_send(struct iperf_stream *sp);
 static int diskfile_recv(struct iperf_stream *sp);
 #endif
@@ -115,11 +116,12 @@ static void print_interval_results(struct iperf_test *test,
 				   cJSON *json_interval_streams);
 static cJSON *JSON_read(int fd);
 
-#if 1 //b_jh
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinline));
 static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 static int ip_address_family_from_string(const char *src) {
     char buf[INET6_ADDRSTRLEN];
     if (inet_pton(AF_INET, src, buf)) {
@@ -134,15 +136,11 @@ static int ip_address_family_from_string(const char *src) {
 
 int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-	struct sockaddr_in in4_addr;
-	struct sockaddr_in6 in6_addr;
-
 	*addr = test->client_address;
 	addrlen = sizeof(test->client_address);
 
 	return 0;
 }
-#endif
 /*************************** Print usage functions ****************************/
 
 void fta_iperf3_usage()
@@ -150,9 +148,10 @@ void fta_iperf3_usage()
 	fprintf(stderr, fta_iperf3_usage_support_str, UDP_RATE / (1024 * 1024), DURATION,
 		DEFAULT_TCP_BLKSIZE, DEFAULT_UDP_BLKSIZE);
 }
+#endif //(CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 
-#if RM_JH
-// XXX: Long options not supported
+#if NOT_IN_FTA_IPERF3_INTEGRATION
+//Long options not supported
 void usage_long(FILE *f)
 {
 	fprintf(f, usage_longstr, UDP_RATE / (1024 * 1024), DURATION,
@@ -769,13 +768,14 @@ static void mapped_v4_to_regular_v4(char *str)
 		memmove(str, str + prefix_len, str_len - prefix_len + 1);
 	}
 }
-//b_jh: default to 70's
+
+//FTA_IPERF3_INTEGRATION_TODO: default to 70's
 time_t time(time_t *t)
 {
-    //at+cclk? TODO to get real time? or use date_time.h sertvices?
+    //at+cclk? TODO to get real time? or use date_time.h services?
     return 0;
 }
-//endif
+
 void iperf_on_connect(struct iperf_test *test)
 {
 	time_t now_secs;
@@ -815,7 +815,7 @@ void iperf_on_connect(struct iperf_test *test)
 		}
 	} else {
 		len = sizeof(sa);
-		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); //TODO: instead, store when accepted?
+		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); //FTA_IPERF3_INTEGRATION_TODO: instead this, store when accepted?
 		if (getsockdomain(test->ctrl_sck) == AF_INET) {
 			sa_inP = (struct sockaddr_in *)&sa;
 			inet_ntop(AF_INET, &sa_inP->sin_addr, ipr, sizeof(ipr));
@@ -858,7 +858,7 @@ void iperf_on_connect(struct iperf_test *test)
 		if (test->protocol->id == SOCK_STREAM) {
 			if (test->settings->mss)
 				iperf_printf(test, "      TCP MSS: %d\n",
-					     test->settings->mss); //b_jh: TODO?
+					     test->settings->mss);
 			else {
 				iperf_printf(test,
 					     "      TCP MSS: %d (default)\n",
@@ -880,7 +880,7 @@ void iperf_on_test_finish(struct iperf_test *test)
 
 int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 {
-#if RM_JH //Long options not supported
+#if NOT_IN_FTA_IPERF3_INTEGRATION //Long options not supported
 	static struct option longopts[] = {
 		{ "port", required_argument, NULL, 'p' },
 		{ "format", required_argument, NULL, 'f' },
@@ -962,7 +962,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "help", no_argument, NULL, 'h' },
 		{ NULL, 0, NULL, 0 }
 	};
-#endif //RM_JH
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 	int flag;
 	int portno;
 	int blksize;
@@ -975,7 +975,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	struct xbind_entry *xbe;
 	double farg;
 
-	optind = 1; //b_jh
+	optind = 1; //FTA_IPERF3_INTEGRATION_CHANGE: skip the iperf3 command
 
 	blksize = 0;
 	server_flag = client_flag = rate_flag = duration_flag = 0;
@@ -984,6 +984,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	     *server_rsa_private_key = NULL;
 #endif /* HAVE_SSL */
 
+	//FTA_IPERF3_INTEGRATION_CHANGE: long options not supported
 	//    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
 	while ((flag = getopt(
 			argc, argv,
@@ -1048,8 +1049,8 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			printf("%s (cJSON %s)\n%s\n%s\n", version,
 			       cJSON_Version(), get_system_info(),
 			       get_optional_features());
-			//exit(0);
-			return 0;
+			//exit(0); 
+			return 0; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported
 		case 's':
 			if (test->role == 'c') {
 				i_errno = IESERVCLIENT;
@@ -1160,7 +1161,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			iperf_set_test_reverse(test, 1);
 			client_flag = 1;
 			break;
-		case '2': //b_jh OPT_BIDIRECTIONAL:
+		case '2': //FTA_IPERF3_INTEGRATION_CHANGE: was: OPT_BIDIRECTIONAL
 			if (test->reverse) {
 				i_errno = IEREVERSEBIDIR;
 				return -1;
@@ -1391,11 +1392,11 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		case 'h':
 			//usage_long(stdout);
 			fta_iperf3_usage();
-			return -2;
+			return -2; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported and help is special case
 		default:
 			//usage_long(stderr);
 			//fta_iperf3_usage();
-			return -1;
+			return -1; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported
 			//exit(1);
 		}
 	}
@@ -1548,7 +1549,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 int iperf_open_logfile(struct iperf_test *test)
 {
 	test->outfile = NULL;
-#ifdef RM_JH	
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION	
 	test->outfile = fopen(test->logfile, "a+");
 	if (test->outfile == NULL) {
 		i_errno = IELOGFILE;
@@ -1561,8 +1562,6 @@ int iperf_open_logfile(struct iperf_test *test)
 int iperf_set_send_state(struct iperf_test *test, signed char state)
 {
 	test->state = state;
-	//b_jh: not working if non block is not set. TODO: use send()?
-	//if (send(test->ctrl_sck, (char *)&state, sizeof(state), 0) < 0) {
 	if (Nwrite(test->ctrl_sck, (char *)&state, sizeof(state), Ptcp) < 0) {
 		if (test->debug)
 			printf("iperf_set_send_state failed of sending char: %c", state);
@@ -2269,7 +2268,8 @@ static int send_results(struct iperf_test *test)
 				printf("send_results\n%s\n", str);
 				cJSON_free(str);
 			}
-			//b_jh:
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)			
+			//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
 			if (test->role == 's') {
 				if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
 					i_errno = IESENDRESULTS;
@@ -2282,18 +2282,14 @@ static int send_results(struct iperf_test *test)
 					r = -1;
 				}
 			}
-			//e_jh
-
-#ifdef RM_JH
-			if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
-				i_errno = IESENDRESULTS;
-				r = -1;
-			}
-        if (r == 0 && JSON_write_nonblock(test, j) < 0) {
-            i_errno = IESENDRESULTS;
-            r = -1;
-        }
-#endif			
+			//end of FTA_IPERF3_INTEGRATION_CHANGE
+#else
+            if (r == 0 && JSON_write(test->ctrl_sck, j) < 0)
+            {
+                i_errno = IESENDRESULTS;
+                r = -1;
+            }
+#endif
 		}
 		cJSON_Delete(j);
 	}
@@ -2329,13 +2325,15 @@ static int get_results(struct iperf_test *test)
 	int retransmits;
 	struct iperf_stream *sp;
 
-	//b_jh:
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)			
+	//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
 	if (test->role == 's')
 		j = JSON_read(test->ctrl_sck);
 	else
-    	j = JSON_read_nonblock(test);	
-	//e_jh
-
+    	j = JSON_read_nonblock(test);
+#else
+	j = JSON_read(test->ctrl_sck);
+#endif
 	if (j == NULL) {
 		i_errno = IERECVRESULTS;
 		if (test->debug) {
@@ -2556,6 +2554,7 @@ static int get_results(struct iperf_test *test)
 }
 /*************************************************************/
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 static int
 JSON_write_nonblock(struct iperf_test *test, cJSON *json)
 {
@@ -2658,7 +2657,7 @@ exit:
 
     return r;
 }
-
+#endif //CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES
 /*************************************************************/
 
 static int JSON_write(int fd, cJSON *json)
@@ -2723,8 +2722,9 @@ static cJSON *JSON_read(int fd)
 	}
 	return json;
 }
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 /*************************************************************/
-//b_jh: from sampo iperf because we got also in deadlock situation (one socket filled the modem-app buffer?)
+//for a deadlock situation (one socket filled the modem-app buffer)
 /**
  * Version of JSON_read that can read data streams and the control socket
  * so that we don't go into deadlock situation because rx buffers are full.
@@ -2835,7 +2835,7 @@ next:
 
     return json;
 }
-
+#endif
 /*************************************************************/
 /**
  * add_to_interval_list -- adds new interval to the interval_list
@@ -2862,7 +2862,7 @@ void add_to_interval_list(struct iperf_stream_result *rp,
 
 void connect_msg(struct iperf_stream *sp)
 {
-#if 0 // SAMPO_NUTTX
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //let's do it simpler
 	char ipl[INET6_ADDRSTRLEN], ipr[INET6_ADDRSTRLEN];
 	int lport, rport;
 
@@ -2911,7 +2911,7 @@ void connect_msg(struct iperf_stream *sp)
 #else
     iperf_printf(sp->test, report_connected, sp->socket, "localhost", sp->local_port,
             sp->test->server_hostname ? sp->test->server_hostname : "remote", sp->remote_port);
-#endif
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 }
 
 /**************************************************************************/
@@ -2951,7 +2951,7 @@ struct iperf_test *iperf_new_test()
 	       sizeof(sizeof(iperf_size_t) * MAX_INTERVAL));
 
 	/* By default all output goes to stdout */
-	test->outfile = stdout; //b_jh stdout;
+	test->outfile = stdout;
 
 	return test;
 }
@@ -3009,7 +3009,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->stats_interval = testp->reporter_interval = 1;
 	testp->num_streams = 1;
 
-	//testp->settings->domain = AF_UNSPEC; b_jh: not supported by bsdlib
+	//testp->settings->domain = AF_UNSPEC; //FTA_IPERF3_INTEGRATION_CHANGE: not supported
 	testp->settings->domain = AF_INET;
 	testp->settings->unit_format = 'a';
 	testp->settings->socket_bufsize = 0; /* use autotuning */
@@ -3019,7 +3019,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->settings->bitrate_limit_interval = 5;
 	testp->settings->bitrate_limit_stats_per_interval = 0;
 	testp->settings->fqrate = 0;
-	testp->settings->pacing_timer = 1000; //b_jh: microseconds? i.e. 1ms?
+	testp->settings->pacing_timer = 1000;
 	testp->settings->burst = 0;
 	testp->settings->mss = 0;
 	testp->settings->bytes = 0;
@@ -3027,7 +3027,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->settings->connect_timeout = -1;
 	memset(testp->cookie, 0, COOKIE_SIZE);
 
-    testp->multisend = 1;	/* arbitrary, SAMPO_NUTTX XXX: was 10 */
+    testp->multisend = 1;	/* arbitrary, FTA_IPERF3_INTEGRATION_CHANGE: was 10 */
 
 	/* Set up protocol list */
 	SLIST_INIT(&testp->streams);
@@ -3168,8 +3168,6 @@ void iperf_free_test(struct iperf_test *test)
 	if (test->reporter_timer != NULL)
 		tmr_cancel(test->reporter_timer);
 
-	//tmr_destroy(); //b_jh
-
 	/* Free protocol list */
 	while (!SLIST_EMPTY(&test->protocols)) {
 		prot = SLIST_FIRST(&test->protocols);
@@ -3178,7 +3176,7 @@ void iperf_free_test(struct iperf_test *test)
 	}
 
 	if (test->logfile) {
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 		free(test->logfile);
 		test->logfile = NULL;
 		if (test->outfile) {
@@ -3224,11 +3222,11 @@ void iperf_free_test(struct iperf_test *test)
 	if (test->bitrate_limit_intervals_traffic_bytes != NULL)
 		free(test->bitrate_limit_intervals_traffic_bytes);
 
-	/* XXX: Why are we setting these values to NULL? */
-	// test->streams = NULL;
-	//test->stats_callback = NULL;
-	//test->reporter_callback = NULL;
-	free(test);
+    /* XXX: Why are we setting these values to NULL? */
+    // test->streams = NULL;
+    test->stats_callback = NULL;
+    test->reporter_callback = NULL;
+    free(test);
 }
 
 void iperf_reset_test(struct iperf_test *test)
@@ -3258,7 +3256,6 @@ void iperf_reset_test(struct iperf_test *test)
 		tmr_cancel(test->reporter_timer);
 		test->reporter_timer = NULL;
 	}
-	//tmr_destroy();//b_jh
 
 	test->done = 0;
 
@@ -3332,7 +3329,7 @@ void iperf_reset_test(struct iperf_test *test)
 #endif /* HAVE_SSL */
 
 	memset(test->cookie, 0, COOKIE_SIZE);
-    test->multisend = 1;	/* arbitrary, SAMPO_NUTTX XXX: was 10 */
+    test->multisend = 1;	/* arbitrary, FTA_IPERF3_INTEGRATION_CHANGE: was 10 */
 	test->udp_counters_64bit = 0;
 	if (test->title) {
 		free(test->title);
@@ -3527,7 +3524,7 @@ static void iperf_print_intermediate(struct iperf_test *test)
      * So we're going to try to ignore very short intervals (less than
      * 10% of the interval time) that have no data.
      */
-	int interval_ok = 0;//b_jh: put as 1 with debuger and let's not ignore anything
+	int interval_ok = 0; //FTA_IPERF3_INTEGRATION_CHANGE: put as 1 with debugger and let's not ignore anything
 	SLIST_FOREACH(sp, &test->streams, streams)
 	{	
 		irp = TAILQ_LAST(&sp->result->interval_results, irlisthead);
@@ -3920,7 +3917,7 @@ static void iperf_print_results(struct iperf_test *test)
 		char ubuf[UNIT_LEN];
 		char nbuf[UNIT_LEN];
 		struct stat sb;
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 		char sbuf[UNIT_LEN];
 #endif
 		struct iperf_stream *sp = NULL;
@@ -4271,8 +4268,8 @@ static void iperf_print_results(struct iperf_test *test)
 						}
 					}
 
-					if (sp->diskfile_fd >= 0) {//b_jh: n o supported and also: fstat might cause _times from newlib, flagged out
-#ifdef RM_JH
+					if (sp->diskfile_fd >= 0) {//FTA_IPERF3_INTEGRATION_CHANGE: not supported and also: fstat might cause _times from newlib -> flagged out
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 						if (fstat(sp->diskfile_fd,
 							  &sb) == 0) {
 							/* In the odd case that it's a zero-sized file, say it was all transferred. */
@@ -4336,7 +4333,7 @@ static void iperf_print_results(struct iperf_test *test)
 									test->diskfile_name);
 							}
 						}
-#endif
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 					}
 
 					unit_snprintf(ubuf, UNIT_LEN,
@@ -5026,12 +5023,10 @@ void iperf_free_stream(struct iperf_stream *sp)
 	struct iperf_interval_results *irp, *nirp;
 
 	/* XXX: need to free interval list too! */
-	//b_jh: TODO
-	//munmap(sp->buffer, sp->test->settings->blksize);
-	//close(sp->buffer_fd); //b_jh: caused a reset
+	//munmap(sp->buffer, sp->test->settings->blksize); //FTA_IPERF3_INTEGRATION_CHANGE: not supported
+	//close(sp->buffer_fd); //FTA_IPERF3_INTEGRATION_CHANGE
 
-	free(sp->buffer);
-	//e_jh
+	free(sp->buffer); //FTA_IPERF3_INTEGRATION_CHANGE
 	if (sp->diskfile_fd >= 0)
 		close(sp->diskfile_fd);		
 	for (irp = TAILQ_FIRST(&sp->result->interval_results); irp != NULL;
@@ -5052,7 +5047,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	struct iperf_stream *sp;
 	int ret = 0;
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 	char template[1024];
 	if (test->tmp_template) {
 		snprintf(template, sizeof(template) / sizeof(char), "%s",
@@ -5072,7 +5067,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 		snprintf(template, sizeof(template) / sizeof(char),
 			 "%s/iperf3.XXXXXX", tempdir);
 	}
-#endif
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 
 	sp = (struct iperf_stream *)malloc(sizeof(struct iperf_stream));
 	if (!sp) {
@@ -5096,7 +5091,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	memset(sp->result, 0, sizeof(struct iperf_stream_result));
 	TAILQ_INIT(&sp->result->interval_results);
 
-#if 1 // b_jh
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 	sp->buffer = (char *)malloc(test->settings->blksize);
 #else //mmap not supported
 	/* Create and randomize the buffer */
@@ -5128,14 +5123,14 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 		free(sp);
 		return NULL;
 	}
-#endif
+#endif //CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES
 	/* Set socket */
 	sp->socket = s;
 
 	sp->snd = test->protocol->send;
 	sp->rcv = test->protocol->recv;
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 	if (test->diskfile_name != (char *)0) {
 		sp->diskfile_fd =
 			open(test->diskfile_name,
@@ -5143,7 +5138,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 			     S_IRUSR | S_IWUSR);
 		if (sp->diskfile_fd == -1) {
 			i_errno = IEFILE;
-#if 1 // b_jh
+#if 1 //TA_IPERF3_INTEGRATION_CHANGE: 
 			free(sp->buffer);
 #else //mmap not supported
 			munmap(sp->buffer, sp->test->settings->blksize);
@@ -5162,16 +5157,9 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	sp->diskfile_fd = -1;
 
 	/* Initialize stream */
-	//b_jh: only repeating pattern
-#ifdef RM_JH	
-	if (test->repeating_payload) {
-		fill_with_repeating_pattern(sp->buffer,
-					    test->settings->blksize);
-    }						
-	else 
-#endif	
+	//FTA_IPERF3_INTEGRATION_CHANGE: only repeating pattern
+	#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 	{
-		//ret = readentropy(sp->buffer, test->settings->blksize);
 		if (test->debug) {
 			printf("note: only repeating pattern supported\n");
 	    }
@@ -5180,16 +5168,26 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	}
 
 	if ((ret < 0) || (iperf_init_stream(sp, test) < 0)) {
-		//close(sp->buffer_fd); b_jh
-#if 1 // b_jh
 		free(sp->buffer);
-#else //mmap not supported
-		munmap(sp->buffer, sp->test->settings->blksize);
-#endif
 		free(sp->result);
 		free(sp);
 		return NULL;
 	}
+#else
+    if (test->repeating_payload)
+        fill_with_repeating_pattern(sp->buffer, test->settings->blksize);
+    else
+        ret = readentropy(sp->buffer, test->settings->blksize);
+
+    if ((ret < 0) || (iperf_init_stream(sp, test) < 0))
+    {
+        close(sp->buffer_fd);
+        munmap(sp->buffer, sp->test->settings->blksize);
+        free(sp->result);
+        free(sp);
+        return NULL;
+    }
+#endif
 	iperf_add_stream(test, sp);
 
 	return sp;
@@ -5203,18 +5201,22 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 	int opt;
 
 	len = sizeof(struct sockaddr_storage);
+
+	//FTA_IPERF3_INTEGRATION_CHANGE: not available, mock used instead
 	if (mock_getsockname(sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;
 	}
 	len = sizeof(struct sockaddr_storage);
+
+	//FTA_IPERF3_INTEGRATION_CHANGE: not available, mock used instead
 	if (mock_getpeername(test, sp->socket, (struct sockaddr *)&sp->remote_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;
 	}
-#if 1 // SAMPO_NUTTX
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
     sp->local_port = test->bind_port;       // XXX: Probably incorrect
     sp->remote_port = test->server_port;
 #endif
@@ -5232,18 +5234,18 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 			return -1;
 #endif
 		} else {
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
 			if (setsockopt(sp->socket, IPPROTO_IP, IP_TOS, &opt,
 				       sizeof(opt)) < 0) {
 #endif
 				i_errno = IESETTOS;
 				return -1;
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
 			}
 #endif
 		}
 	}
-	//b_jh: TODO: set PDN?
+	//FTA_IPERF3_INTEGRATION_TODO: set PDN support? ...currently counting on underlying connection
 	return 0;
 }
 
@@ -5276,7 +5278,7 @@ void iperf_add_stream(struct iperf_test *test, struct iperf_stream *sp)
 ** The advantage of doing it this way is that in the much more common
 ** case of no -F flag, there is zero extra overhead.
 */
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 static int diskfile_send(struct iperf_stream *sp)
 {
 	int r;
@@ -5327,7 +5329,7 @@ static int diskfile_send(struct iperf_stream *sp)
 	return r;
 }
 
-extern int fsync(int fd); //b_jh
+extern int fsync(int fd); //FTA_IPERF3_INTEGRATION_CHANGE
 static int diskfile_recv(struct iperf_stream *sp)
 {
 	int r;
@@ -5335,11 +5337,11 @@ static int diskfile_recv(struct iperf_stream *sp)
 	r = sp->rcv2(sp);
 	if (r > 0) {
 		(void)write(sp->diskfile_fd, sp->buffer, r);
-		(void)fsync(sp->diskfile_fd); //b_jh
+		(void)fsync(sp->diskfile_fd); //FTA_IPERF3_INTEGRATION_CHANGE
 	}
 	return r;
 }
-#endif
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 
 void iperf_catch_sigend(void (*handler)(int))
 {
@@ -5361,7 +5363,7 @@ void iperf_catch_sigend(void (*handler)(int))
  * before cleaning up and exiting.
  */
 
-//b_jh: call this to end the iperf from shell?
+//FTA_IPERF3_INTEGRATION_TODO: call this to end the iperf from shell?
 void iperf_got_sigend(struct iperf_test *test)
 {
 	/*
@@ -5371,7 +5373,7 @@ void iperf_got_sigend(struct iperf_test *test)
 	if (test->role == 'c' ||
 	    (test->role == 's' && test->state == TEST_RUNNING)) {
 		test->done = 1;
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 		cpu_util(test->cpu_util);
 #endif
 		test->stats_callback(test);
@@ -5392,7 +5394,7 @@ void iperf_got_sigend(struct iperf_test *test)
 }
 
 /* Try to write a PID file if requested, return -1 on an error. */
-#ifdef RM_JH //No support
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support
 int iperf_create_pidfile(struct iperf_test *test)
 {
 	if (test->pidfile) {
@@ -5455,7 +5457,7 @@ int iperf_delete_pidfile(struct iperf_test *test)
 	}
 	return 0;
 }
-#endif
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 int iperf_json_start(struct iperf_test *test)
 {
 	test->json_top = cJSON_CreateObject();
@@ -5599,7 +5601,7 @@ int iperf_clearaffinity(struct iperf_test *test)
 #endif /* neither HAVE_SCHED_SETAFFINITY nor HAVE_CPUSET_SETAFFINITY nor HAVE_SETPROCESSAFFINITYMASK */
 }
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 char iperf_timestr[100];
 #endif
 
@@ -5611,7 +5613,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 	char *ct = NULL;
 
 	/* Timestamp if requested */
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 	struct tm *ltm = NULL;
 	if (iperf_get_test_timestamps(test)) {
 		time(&now);
@@ -5644,7 +5646,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 		va_end(argp);
 	} 
 	else if (test->role == 's') {
-		char linebuffer[1024];//b_jh: TODO?
+		char linebuffer[1024];
 		int i = 0;
 		if (ct) {
 			i = sprintf(linebuffer, "%s", ct);
@@ -5669,5 +5671,5 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 
 int iflush(struct iperf_test *test)
 {
-	return 0; //fflush(test->outfile);
+	return 0; //fflush(test->outfile); //FTA_IPERF3_INTEGRATION_CHANGE
 }

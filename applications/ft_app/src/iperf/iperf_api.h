@@ -26,10 +26,11 @@
  */
 #ifndef        __IPERF_API_H
 #define        __IPERF_API_H
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 
 #include <posix/sys/socket.h>
 #include <posix/sys/time.h>
-//#include <setjmp.h>
+//#include <setjmp.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -54,12 +55,13 @@ typedef uint64_t iperf_size_t;
 #define Pudp SOCK_DGRAM
 #define Psctp 12
 
-// b_jh
-//#define DEFAULT_UDP_BLKSIZE 1460 /* default is dynamically set, else this */
-#define DEFAULT_UDP_BLKSIZE 1024 /* default is dynamically set, else this */
-//#define DEFAULT_TCP_BLKSIZE (128 * 1024)  /* default read/write block size */
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#define DEFAULT_UDP_BLKSIZE 1200 /* default is dynamically set, else this */
 #define DEFAULT_TCP_BLKSIZE (4 * 708)  /* default read/write block size */
-// e_jh
+#else
+#define DEFAULT_UDP_BLKSIZE 1460 /* default is dynamically set, else this */
+#define DEFAULT_TCP_BLKSIZE (128 * 1024)  /* default read/write block size */
+#endif
 
 #define DEFAULT_SCTP_BLKSIZE (64 * 1024)
 
@@ -265,9 +267,7 @@ int       iperf_init_stream(struct iperf_stream *, struct iperf_test *);
  */
 void      iperf_free_stream(struct iperf_stream * sp);
 
-// b_jh
-int iperf_main(int argc, char *argv[]);
-// e_jh
+int iperf_main(int argc, char *argv[]); //FTA_IPERF3_INTEGRATION_CHANGE
 
 int has_tcpinfo(void);
 int has_tcpinfo_retransmits(void);
@@ -285,14 +285,18 @@ void iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP);
 int iperf_send(struct iperf_test *, fd_set *) /* __attribute__((hot)) */;
 int iperf_recv(struct iperf_test *, fd_set *);
 
-// b_jh
-//void iperf_catch_sigend(void (*handler)(int));
-//void iperf_got_sigend(struct iperf_test *test) __attribute__ ((noreturn));
-//e_jh
-void fta_iperf3_usage();
 
-//void usage(void);
-//void usage_long(FILE * f); b_jh: long options not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+void iperf_catch_sigend(void (*handler)(int));
+void iperf_got_sigend(struct iperf_test *test) __attribute__ ((noreturn));
+#endif
+
+void fta_iperf3_usage(); //FTA_IPERF3_INTEGRATION_CHANGE
+
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+void usage(void);
+void usage_long(FILE * f); b_jh: long options not supported
+#endif
 void warning(const char *);
 int iperf_exchange_results(struct iperf_test *);
 int iperf_init_test(struct iperf_test *);
@@ -310,9 +314,9 @@ void iperf_on_test_start(struct iperf_test *);
 void iperf_on_connect(struct iperf_test *);
 void iperf_on_test_finish(struct iperf_test *);
 
-// b_jh
-//extern jmp_buf env;
-// e_jh
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+extern jmp_buf env;
+#endif
 
 /* Client routines. */
 int iperf_run_client(struct iperf_test *);
@@ -326,7 +330,7 @@ int iperf_run_server(struct iperf_test *);
 int iperf_server_listen(struct iperf_test *);
 int iperf_accept(struct iperf_test *);
 int iperf_handle_message_server(struct iperf_test *);
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 int iperf_create_pidfile(struct iperf_test *);
 int iperf_delete_pidfile(struct iperf_test *);
 #endif
@@ -346,7 +350,7 @@ int iflush(struct iperf_test *test);
 
 /* Error routines. */
 void iperf_err(struct iperf_test *test, const char *format, ...) __attribute__ ((format(printf,2,3)));
-void iperf_errexit(struct iperf_test *test, const char *format, ...) __attribute__ ((format(printf,2,3))); //b_jh: noreturn
+void iperf_errexit(struct iperf_test *test, const char *format, ...) __attribute__ ((format(printf,2,3))); //FTA_IPERF3_INTEGRATION_CHANGE: noreturn removed as no support for exit()
 char *iperf_strerror(int);
 extern int i_errno;
 enum {
@@ -437,10 +441,10 @@ enum {
     /* Timer errors */
     IENEWTIMER = 300,       // Unable to create new timer (check perror)
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
-    // b_jh
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
     IENOMEMORY = 302,       // no dynamic memory from heap
-    IEPDN = 303,            // Invalid PDN: TODO
-    // e_jh
+    IEPDN = 303,            // Invalid PDN: FTA_IPERF3_INTEGRATION_TODO
+#endif
 };
 
 

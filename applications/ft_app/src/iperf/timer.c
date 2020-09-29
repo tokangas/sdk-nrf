@@ -148,6 +148,8 @@ tmr_create(
 
     return t;
 }
+
+
 struct timeval*
 tmr_timeout( struct iperf_time* nowP )
 {
@@ -169,7 +171,7 @@ tmr_timeout( struct iperf_time* nowP )
     timeout.tv_usec = usecs % 1000000LL;
     return &timeout;
 }
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 struct timeval*
 tmr_timeout( struct iperf_time* nowP )
 {
@@ -180,7 +182,7 @@ tmr_timeout( struct iperf_time* nowP )
 
     getnow(nowP, &now);
     /* Since the list is sorted, we only need to look at the first timer. */
-#if 1 /* b_jh */
+#if 1 /* FTA_IPERF3_INTEGRATION_CHANGE */
 #define MAX_TIMEOUT_IN_MICROSECS (1000000LL * 5LL)  // XXX 5 seconds
 #define MIN_TIMEOUT_IN_MICROSECS (1000000LL * 1LL)  // XXX 1 seconds, cannot be less than 1 secs
     if (timers == NULL) {

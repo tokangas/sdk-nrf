@@ -30,8 +30,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: not available by OS
 #include "utils/freebsd-getopt/getopt.h"
 #include <errno.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/unistd.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -90,7 +92,8 @@ iperf_server_listen(struct iperf_test *test)
 
     if (!test->json_output) {
 	iperf_printf(test, "-----------------------------------------------------------\n");
-	iperf_printf(test, "Server listening on local %s port %d\n", (test->bind_address ? test->bind_address : "local"), test->server_port); //b_jh: added bind address printing
+	//FTA_IPERF3_INTEGRATION_CHANGE: added bind address printing:
+	iperf_printf(test, "Server listening on local %s port %d\n", (test->bind_address ? test->bind_address : "local"), test->server_port);
 	iperf_printf(test, "-----------------------------------------------------------\n");
 	if (test->forceflush)
 	    iflush(test);
@@ -109,8 +112,8 @@ iperf_accept(struct iperf_test *test)
     int s;
     signed char rbuf = ACCESS_DENIED;
     socklen_t len;
-    //struct sockaddr_storage addr; //b_jh: this caused problems with nrf91_socket_offload_accept
-    struct sockaddr_in client_addr;  //b_jh: modified due to nrf91_socket_offload_accept() -> ipv6 won't work
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)	
+    struct sockaddr_in client_addr;  //modified due to nrf91_socket_offload_accept() -> in this way ipv6 won't work -> FTA_IPERF3_INTEGRATION_TODO
     struct sockaddr *sa;
 
     len = sizeof(client_addr);
@@ -118,11 +121,18 @@ iperf_accept(struct iperf_test *test)
         i_errno = IEACCEPT;
         return -1;
     }
-    //b_jh: store client address
+    //store client address
     sa = (struct sockaddr *)&client_addr;
     test->client_address = *sa;
-    //e_jh
+#else
+    struct sockaddr_storage addr;
 
+    len = sizeof(addr);
+    if ((s = accept(test->listener, (struct sockaddr *) &addr, &len)) < 0) {
+        i_errno = IEACCEPT;
+        return -1;
+    }
+#endif
     if (test->ctrl_sck == -1) {
         /* Server free, accept new client */
         test->ctrl_sck = s;
@@ -183,7 +193,7 @@ iperf_handle_message_server(struct iperf_test *test)
             break;
         case TEST_END:
 	    test->done = 1;
-#ifdef RM_JH        
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
             cpu_util(test->cpu_util);
 #endif
             test->stats_callback(test);
@@ -210,7 +220,7 @@ iperf_handle_message_server(struct iperf_test *test)
 	    // Temporarily be in DISPLAY_RESULTS phase so we can get
 	    // ending summary statistics.
 	    signed char oldstate = test->state;
-#ifdef RM_JH        
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 	    cpu_util(test->cpu_util);
 #endif        
 	    test->state = DISPLAY_RESULTS;
@@ -419,7 +429,7 @@ iperf_run_server(struct iperf_test *test)
     struct iperf_stream *sp;
     struct iperf_time now;
     struct timeval* timeout;
-    int flag = -1; //b_jh
+    int flag = -1; //FTA_IPERF3_INTEGRATION_CHANGE
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -440,8 +450,7 @@ iperf_run_server(struct iperf_test *test)
 	iperf_printf(test, "%s\n", version);
 	iperf_printf(test, "%s", "");
 	iperf_printf(test, "%s\n", get_system_info());
-	if (test->logfile) //b_jh: added
-    	iflush(test);
+	iflush(test);
     }
 
     // Open socket and listen
@@ -450,7 +459,7 @@ iperf_run_server(struct iperf_test *test)
     }
 
     // Begin calculating CPU utilization
-#ifdef RM_JH    
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
     cpu_util(NULL);
 #endif
     test->state = IPERF_START;

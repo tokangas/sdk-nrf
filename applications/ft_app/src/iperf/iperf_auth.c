@@ -36,7 +36,7 @@
 #include <stdio.h>
 
 #if defined(HAVE_SSL)
-#include <termios.h>
+#include <termios.h> //FTA_IPERF3_INTEGRATION_CHANGE: moved under SSL flag
 
 #include <openssl/rsa.h>
 #include <openssl/bio.h>
@@ -379,6 +379,6 @@ ssize_t iperf_getpass (char **lineptr, size_t *n, FILE *stream) {
 
     return nread;
 }
-#endif //HAVE_SSL
+#endif //HAVE_SSL FTA_IPERF3_INTEGRATION_CHANGE: iperf_getpass() also flagged under SSL
 
 

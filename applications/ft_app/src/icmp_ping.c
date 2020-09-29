@@ -286,7 +286,7 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 		k_sleep(K_MSEC(ping_argv.interval));
 	}
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA
 	if (count > 1) {
 		uint32_t avg = (sum + count / 2) / count;
 		int avg_s = avg / 1000;

@@ -27,10 +27,13 @@
 #ifndef        IPERF_LOCALE_H
 #define        IPERF_LOCALE_H
 
-//extern const char usage_shortstr[];
-//extern const char usage_longstr[]; b_jh: long options not supported
-extern const char fta_iperf3_usage_support_str[]; //b_jh: added
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+extern const char fta_iperf3_usage_support_str[]; //added
+#else
+extern const char usage_shortstr[];
+extern const char usage_longstr[];
+#endif
 extern const char version[];
 
 extern const char seperator_line[];

@@ -24,8 +24,9 @@
  * This code is distributed under a BSD style license, see the LICENSE
  * file for complete information.
  */
+ //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <errno.h>
-//#include <setjmp.h>
+//#include <setjmp.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +35,7 @@
 #include <sys/types.h>
 #include <posix/netinet/in.h>
 #include <posix/sys/select.h>
-//#include <sys/uio.h>
+//#include <sys/uio.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
 #include <posix/arpa/inet.h>
 
 #include "iperf.h"
@@ -232,7 +233,7 @@ iperf_handle_message_client(struct iperf_test *test)
 {
     int rval;
     int32_t err;
-    struct iperf_stream *sp;
+    struct iperf_stream *sp; //FTA_IPERF3_INTEGRATION_CHANGE
 
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
@@ -262,7 +263,7 @@ iperf_handle_message_client(struct iperf_test *test)
             }
             else if (iperf_create_streams(test, test->mode) < 0)
                 return -1;
-
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES) //TODO: own flag for these nonblocking changes?
             if (test->protocol->id != Pudp) {
                 SLIST_FOREACH(sp, &test->streams, streams) {
                 setnonblocking(sp->socket, 1);
@@ -278,15 +279,15 @@ iperf_handle_message_client(struct iperf_test *test)
                         (int)FD_ISSET(sp->socket, &test->write_set));
                 i++;
             }
+#endif
             break;
         case TEST_START:
-            /*b_jh: */
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES) //TODO: own flag for these nonblocking changes?
             if (test->debug) {
                 printf("TEST_START: ctrl sckt %d\n", test->ctrl_sck);
             }
             setnonblocking(test->ctrl_sck, 1);
-            /* e_jh */
-
+#endif
             if (iperf_init_test(test) < 0)
                 return -1;
             if (create_client_timers(test) < 0)
@@ -318,7 +319,7 @@ iperf_handle_message_client(struct iperf_test *test)
 	     * ending summary statistics.
 	     */
 	    signed char oldstate = test->state;
-#ifdef RM_JH        
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 	    cpu_util(test->cpu_util);
 #endif
 	    test->state = DISPLAY_RESULTS;
@@ -380,11 +381,11 @@ iperf_connect(struct iperf_test *test)
     socklen_t len;
 
     len = sizeof(opt);
-#ifdef RM_JH //not supported    
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported    
     if (getsockopt(test->ctrl_sck, IPPROTO_TCP, TCP_MAXSEG, &opt, &len) < 0) {
 #endif        
         test->ctrl_sck_mss = 0;
-#ifdef RM_JH //not supported    
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported    
     }
     else {
         if (opt > 0 && opt <= MAX_UDP_BLOCKSIZE) {
@@ -402,7 +403,7 @@ iperf_connect(struct iperf_test *test)
 #endif        
 
     if (test->verbose) {
-#ifdef RM_JH        
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 	printf("Control connection MSS %d\n", test->ctrl_sck_mss);
 #else
     //no support to set nor read the mss
@@ -459,7 +460,7 @@ int
 iperf_client_end(struct iperf_test *test)
 {
     struct iperf_stream *sp;
-    int retval = 0;
+    int retval = 0; //FTA_IPERF3_INTEGRATION_CHANGE: closing control socket when DONE failed
 
     /* Close all stream sockets */
     SLIST_FOREACH(sp, &test->streams, streams) {
@@ -470,8 +471,12 @@ iperf_client_end(struct iperf_test *test)
     test->reporter_callback(test);
 
     if (iperf_set_send_state(test, IPERF_DONE) != 0) {
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
         printf("iperf_client_end: iperf_set_send_state failed\n");
         retval = -1;
+#else
+        return -1;
+#endif
     }
 
     /* Close control socket */
@@ -490,7 +495,9 @@ iperf_run_client(struct iperf_test * test)
     fd_set read_set, write_set;
     struct iperf_time now;
     struct timeval* timeout = NULL;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     struct iperf_stream *sp;
+#endif
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -519,7 +526,7 @@ iperf_run_client(struct iperf_test * test)
         goto cleanup_and_fail;
 
     /* Begin calculating CPU utilization */
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     cpu_util(NULL);
 #endif
 
@@ -543,15 +550,21 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}
 
-#if 1 //b_jh: added due to early test jamn where rx buffer was full between modem and app
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)//added due to early test jamn where rx buffer was full between modem and app
         if (test->state == TEST_START ||
             test->state == PARAM_EXCHANGE ||
             test->state == CREATE_STREAMS /* ||
           test->state == SERVER_TERMINATE ||
-            test->state == CLIENT_TERMINATE || */
-            /* test->state == EXCHANGE_RESULTS */) {
+            test->state == CLIENT_TERMINATE || */) {
             if (iperf_recv(test, &read_set) < 0)
                 goto cleanup_and_fail;
+        } else if (test->state == EXCHANGE_RESULTS) {
+            int retval = iperf_recv(test, &read_set);
+            if (retval < 0) {
+                /* let's ignore errors from stream/testing sockets */
+                if (test->debug)
+                	printf("iperf_recv for stream socket in EXCHANGE_RESULTS failed %d but ignored", retval);
+            }
         } else
 #endif
 	if (test->state == TEST_RUNNING) {
@@ -560,7 +573,7 @@ iperf_run_client(struct iperf_test * test)
 	    if (startup) {
 	        startup = 0;
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //TODO: own flag for these
 		// Set non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
@@ -597,7 +610,7 @@ iperf_run_client(struct iperf_test * test)
 	         (test->settings->bytes != 0 && test->bytes_sent >= test->settings->bytes) ||
 	         (test->settings->blocks != 0 && test->blocks_sent >= test->settings->blocks))) {
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //TODO: own flag for these
 		// Unset non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
@@ -607,16 +620,16 @@ iperf_run_client(struct iperf_test * test)
 #endif
 		/* Yes, done!  Send TEST_END. */
 		test->done = 1;
-#ifdef RM_JH        
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
 #endif
 		test->stats_callback(test);
 
-            // iperf_print(test, "ctrl socket: %d read: %d write: %d",
-            //         test->ctrl_sck,
-            //         (int)FD_ISSET(sp->socket, &test->read_set),
-            //         (int)FD_ISSET(sp->socket, &test->write_set));
-        
+		//FTA_IPERF3_INTEGRATION_CHANGE: added
+        // iperf_printf(test, "ctrl socket: %d read: %d write: %d",
+        //             test->ctrl_sck,
+        //             (int)FD_ISSET(sp->socket, &test->read_set),
+        //             (int)FD_ISSET(sp->socket, &test->write_set));
 
 		if (iperf_set_send_state(test, TEST_END) != 0)
                     goto cleanup_and_fail;
@@ -638,22 +651,20 @@ iperf_run_client(struct iperf_test * test)
 	if (iperf_json_finish(test) < 0)
 	    return -1;
     } else {
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 	iperf_printf(test, "\n");
 	iperf_printf(test, "%s", report_done);
 #endif    
     }
 
-	if (test->logfile || test->forceflush) //b_jh: added
-          iflush(test);
+    iflush(test);
 
     return 0;
 
   cleanup_and_fail:
     iperf_client_end(test);
     if (test->json_output)
-	    iperf_json_finish(test);
-	if (test->logfile || test->forceflush) //b_jh: added
-          iflush(test);
+	iperf_json_finish(test);
+    iflush(test);
     return -1;
 }

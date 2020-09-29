@@ -57,6 +57,7 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/sys/socket.h>
 #include <sys/types.h>
 #include <posix/sys/time.h>
@@ -277,7 +278,7 @@ extern    "C"
 	{
 	    inNum *= 8;
 	}
-	//b_jh u_char to uint8_t
+	//FTA_IPERF3_INTEGRATION_CHANGE: u_char to uint8_t
 	switch    (toupper((uint8_t)inFormat))
 	{
 	case 'B':

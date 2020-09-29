@@ -91,6 +91,7 @@ extern    "C"
  * usage
  * ------------------------------------------------------------------- */
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 const char fta_iperf3_usage_support_str[] = 
                            "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-h|--help] [-v|--version]\n\n"
@@ -157,9 +158,9 @@ const char fta_iperf3_usage_support_str[] =
                            "Report bugs to:     " PACKAGE_BUGREPORT "\n"
 #endif /* PACKAGE_BUGREPORT */
 			   ;
+#endif //CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES
 
-
-#if RM_JH //b_jh: Long options not supported
+#if NOT_IN_FTA_IPERF3_INTEGRATION //Long options not supported
 const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-h|--help] [-v|--version]\n\n"
                            "Server or Client:\n"
@@ -278,7 +279,7 @@ const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
   "-x, --reportexclude [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports\n"
   "-y, --reportstyle C      report as a Comma-Separated Values\n"
 #endif
-#endif //e_jh
+#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 
 const char version[] = PACKAGE_STRING;
 
@@ -476,12 +477,12 @@ const char server_reporting[] =
 const char reportCSV_peer[] =
 "%s,%u,%s,%u";
 
-/* b_jh:
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+const char report_cpu[] = "CPU Utilization: not supported\n";
+#else
 const char report_cpu[] =
 "CPU Utilization: %s/%s %.1f%% (%.1f%%u/%.1f%%s), %s/%s %.1f%% (%.1f%%u/%.1f%%s)\n"; 
-*/
-const char report_cpu[] = "CPU Utilization: not supported\n"; 
-
+#endif
 const char report_local[] = "local";
 const char report_remote[] = "remote";
 const char report_sender[] = "sender";

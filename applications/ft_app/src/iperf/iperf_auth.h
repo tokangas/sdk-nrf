@@ -27,8 +27,9 @@
 
 #include <time.h>
 #include <sys/types.h>
-//#include <openssl/bio.h>
-
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION	
+#include <openssl/bio.h>
+#endif
 int test_load_pubkey_from_file(const char *public_keyfile);
 int test_load_private_key_from_file(const char *private_keyfile);
 EVP_PKEY *load_pubkey_from_file(const char *file);

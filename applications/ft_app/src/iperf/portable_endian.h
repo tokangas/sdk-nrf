@@ -142,7 +142,7 @@
 // the truth because we use the homebrew htonll, et al. implementations
 // that were originally the sole implementation of this functionality
 // in iperf 3.0.
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #	warning platform not supported
 #	include <endian.h>
 #if BYTE_ORDER == BIG_ENDIAN

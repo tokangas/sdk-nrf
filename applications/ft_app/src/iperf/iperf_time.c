@@ -35,6 +35,7 @@
 
 #include <posix/time.h>
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 #if !defined (CONFIG_POSIX_API)
 int z_impl_clock_gettime(clockid_t clock_id, struct timespec *ts)
 {
@@ -43,7 +44,7 @@ int z_impl_clock_gettime(clockid_t clock_id, struct timespec *ts)
 
 	switch (clock_id) {
 	case CLOCK_MONOTONIC:
-	case CLOCK_REALTIME: //TODO??
+	case CLOCK_REALTIME:
 		base.tv_sec = 0;
 		base.tv_nsec = 0;
 		break;
@@ -68,7 +69,7 @@ int z_impl_clock_gettime(clockid_t clock_id, struct timespec *ts)
 
 	return 0;
 }
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 static inline int clock_gettime(clockid_t clock_id, struct timespec * ts)
 {
 	return mock_impl_clock_gettime(clock_id, ts);
@@ -76,7 +77,7 @@ static inline int clock_gettime(clockid_t clock_id, struct timespec * ts)
 #endif
 
 #endif
-
+#endif
 int
 iperf_time_now(struct iperf_time *time1)
 {

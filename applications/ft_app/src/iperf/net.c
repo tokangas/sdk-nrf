@@ -259,8 +259,9 @@ netannounce(int domain, int proto, const char *local, int port)
     else {
 	hints.ai_family = domain;
     }
-    //b_jh
-    //here are mixed with protos & types
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    //here was mixed with protos & types
     int type = proto;
     int protocol = 0;
     if (type == SOCK_STREAM) {
@@ -277,7 +278,15 @@ netannounce(int domain, int proto, const char *local, int port)
         return -1;
     }
 
-    s = socket(res->ai_family, type, protocol); //e_jh
+    s = socket(res->ai_family, type, protocol);
+#else
+    hints.ai_socktype = proto;
+    hints.ai_flags = AI_PASSIVE;
+    if ((gerror = getaddrinfo(local, portstr, &hints, &res)) != 0)
+        return -1; 
+
+    s = socket(res->ai_family, proto, 0);
+#endif
     if (s < 0) {
         printk("listen socket creation failed\n");
 	    freeaddrinfo(res);
@@ -292,7 +301,7 @@ netannounce(int domain, int proto, const char *local, int port)
 	freeaddrinfo(res);
 	errno = saved_errno;
     
-    /* b_jh: note: SO_REUSEADDR is not supported by modem in 1.2.1/1.2.2. */
+    /* FTA_IPERF3_INTEGRATION_CHANGE: note: SO_REUSEADDR is not supported by modem in 1.2.1/1.2.2. */
     printk("listen setsockopt SO_REUSEADDR %s\n",  gai_strerror(saved_errno));
 	return -1;
     }
@@ -516,7 +525,7 @@ getsockdomain(int sock)
     struct sockaddr_storage sa;
     socklen_t len = sizeof(sa);
 
-    if (mock_getsockname(sock, (struct sockaddr *)&sa, &len) < 0) {
+    if (mock_getsockname(sock, (struct sockaddr *)&sa, &len) < 0) { //FTA_IPERF3_INTEGRATION_CHANGE
         return -1;
     }
     return ((struct sockaddr *) &sa)->sa_family;

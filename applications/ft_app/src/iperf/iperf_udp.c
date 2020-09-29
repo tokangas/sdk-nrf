@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/unistd.h>
 #include <assert.h>
 #include <posix/arpa/inet.h>
@@ -108,7 +109,7 @@ iperf_udp_recv(struct iperf_stream *sp)
 	    sec = ntohl(sec);
 	    usec = ntohl(usec);
 	    //pcount = be64toh(pcount);
-		pcount = ntohll(pcount);
+		pcount = ntohll(pcount); //FTA_IPERF3_INTEGRATION_CHANGE
 	    sent_time.secs = sec;
 	    sent_time.usecs = usec;
 	}
@@ -199,7 +200,7 @@ iperf_udp_recv(struct iperf_stream *sp)
     }
     else {
 	if (sp->test->debug)
-	    printf("UDP Early/Late receive, state = %d, count: %d\n", sp->test->state, r);
+	    printf("UDP Early/Late receive, state = %d, count: %d\n", sp->test->state, r); //FTA_IPERF3_INTEGRATION_CHANGE
     }
 
     return r;
@@ -229,7 +230,7 @@ iperf_udp_send(struct iperf_stream *sp)
 	sec = htonl(before.secs);
 	usec = htonl(before.usecs);
 	//pcount = htobe64(sp->packet_count);
-	pcount = htonll(sp->packet_count);
+	pcount = htonll(sp->packet_count); //FTA_IPERF3_INTEGRATION_CHANGE
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
 	memcpy(sp->buffer+4, &usec, sizeof(usec));
@@ -285,7 +286,7 @@ int
 iperf_udp_buffercheck(struct iperf_test *test, int s)
 {
     int rc = 0;
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     int sndbuf_actual = 0, rcvbuf_actual = 0;
 
     /*
@@ -454,7 +455,7 @@ iperf_udp_accept(struct iperf_test *test)
 
     /* Let the client know we're ready "accept" another UDP "stream" */
     buf = 987654321;		/* any content will work here */
-#if defined (CONFIG_POSIX_API)
+#if defined (CONFIG_POSIX_API) //FTA_IPERF3_INTEGRATION_CHANGE
     if (write(s, &buf, sizeof(buf)) < 0) {
 #else
     if (send(s, &buf, sizeof(buf), 0) < 0) {
@@ -561,7 +562,7 @@ iperf_udp_connect(struct iperf_test *test)
     tv.tv_sec = 30;
     tv.tv_usec = 0;
     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
-		warning("Unable to set socket SO_RCVTIMEO");
+		warning("Unable to set socket SO_RCVTIMEO"); //FTA_IPERF3_INTEGRATION_CHANGE
 	}
 #endif
 

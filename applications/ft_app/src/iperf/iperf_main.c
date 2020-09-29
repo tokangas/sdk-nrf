@@ -146,7 +146,7 @@ exit:
     return retval;
 }
 
-#ifdef RM_JH //No support for signals or setjmp?
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support for signals or setjmp?
 static jmp_buf sigend_jmp_buf;
 
 static void __attribute__ ((noreturn))
@@ -161,7 +161,7 @@ static int
 run(struct iperf_test *test)
 {
 
-#ifdef RM_JH //No support for signals or setjmp? TODO
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support for signals or setjmp? TODO
     /* Termination signals. */
     iperf_catch_sigend(sigend_handler);
     if (setjmp(sigend_jmp_buf))
@@ -173,7 +173,7 @@ run(struct iperf_test *test)
 
     switch (test->role) {
         case 's':
-#ifdef RM_JH //No support
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support
 	    if (test->daemon) {
 		int rc;
 		rc = daemon(0, 0);
@@ -208,7 +208,7 @@ run(struct iperf_test *test)
 		    break;
 		}
             }
-#ifdef RM_JH //No support
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support
 	    iperf_delete_pidfile(test);
 #endif
             break;
@@ -222,7 +222,7 @@ run(struct iperf_test *test)
             fta_iperf3_usage();
             break;
     }
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     iperf_catch_sigend(SIG_DFL);
     signal(SIGPIPE, SIG_DFL);
 #endif

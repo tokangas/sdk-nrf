@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/unistd.h>
 #include <posix/arpa/inet.h>
 #include <posix/sys/socket.h>
@@ -71,7 +72,7 @@ iperf_tcp_recv(struct iperf_stream *sp)
 	if (sp->test->debug)
 	    printf("Early/Late receive, state = %d, read %d\n", sp->test->state, r);
 
-    //b_jh: should we count these still?
+    //FTA_IPERF3_INTEGRATION_TODO: should we count these still?
 	//sp->result->bytes_received += r;
 	//sp->result->bytes_received_this_interval += r;
     }
@@ -89,7 +90,7 @@ iperf_tcp_send(struct iperf_stream *sp)
 {
     int r;
 
-#ifdef RM_JH
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     if (sp->test->zerocopy)
 	r = Nsendfile(sp->buffer_fd, sp->socket, sp->buffer, sp->settings->blksize);
     else
@@ -120,9 +121,11 @@ iperf_tcp_accept(struct iperf_test * test)
     signed char rbuf = ACCESS_DENIED;
     char    cookie[COOKIE_SIZE];
     socklen_t len;
-    //struct sockaddr_storage addr;
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
     struct sockaddr_in addr; //b_jh: modified due to nrf91_socket_offload_accept()
-
+#else
+    struct sockaddr_storage addr;
+#endif
     len = sizeof(addr);
     if ((s = accept(test->listener, (struct sockaddr *) &addr, &len)) < 0) {
         i_errno = IESTREAMCONNECT;
@@ -154,9 +157,13 @@ int
 iperf_tcp_listen(struct iperf_test *test)
 {
     int s, opt;
-    //socklen_t optlen;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+    socklen_t optlen;
+#endif	
     int saved_errno;
-    //int rcvbuf_actual, sndbuf_actual;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+    int rcvbuf_actual, sndbuf_actual;
+#endif
 
     s = test->listener;
 
@@ -216,7 +223,7 @@ iperf_tcp_listen(struct iperf_test *test)
         }
         // XXX: Setting MSS is very buggy!
         if ((opt = test->settings->mss)) {
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
             if (setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, &opt, sizeof(opt)) < 0) {
 #endif
 		saved_errno = errno;
@@ -225,12 +232,12 @@ iperf_tcp_listen(struct iperf_test *test)
 		errno = saved_errno;
                 i_errno = IESETMSS;
                 return -1;
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
             }
 #endif
         }
         if ((opt = test->settings->socket_bufsize)) {
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
             if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
 #endif
 		saved_errno = errno;
@@ -239,10 +246,10 @@ iperf_tcp_listen(struct iperf_test *test)
 		errno = saved_errno;
                 i_errno = IESETBUF;
                 return -1;
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
             }
 #endif
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
             if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &opt, sizeof(opt)) < 0) {
 		saved_errno = errno;
 		close(s);
@@ -329,7 +336,7 @@ iperf_tcp_listen(struct iperf_test *test)
     }
     
     /* Read back and verify the sender socket buffer size */
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     optlen = sizeof(sndbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_actual, &optlen) < 0) {
 	saved_errno = errno;
@@ -348,7 +355,7 @@ iperf_tcp_listen(struct iperf_test *test)
 #endif
 
     /* Read back and verify the receiver socket buffer size */
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     optlen = sizeof(rcvbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {
 	saved_errno = errno;
@@ -389,7 +396,9 @@ iperf_tcp_connect(struct iperf_test *test)
     struct addrinfo hints, *local_res, *server_res;
     char portstr[6];
     int s, opt;
-    //socklen_t optlen;
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)	
+    socklen_t optlen;
+#endif
     int saved_errno;
     int rcvbuf_actual = 0, sndbuf_actual = 0;
 
@@ -413,10 +422,11 @@ iperf_tcp_connect(struct iperf_test *test)
         i_errno = IESTREAMCONNECT;
         return -1;
     }
-//b_jh
-//    if ((s = socket(server_res->ai_family, SOCK_STREAM, 0)) < 0) {
-
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES) //wildcard not supported
     if ((s = socket(server_res->ai_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+#else
+    if ((s = socket(server_res->ai_family, SOCK_STREAM, 0)) < 0) {
+#endif
 	if (test->bind_address)
 	    freeaddrinfo(local_res);
 	freeaddrinfo(server_res);
@@ -498,7 +508,7 @@ iperf_tcp_connect(struct iperf_test *test)
         }
     }
     if ((opt = test->settings->mss)) {
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
         if (setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, &opt, sizeof(opt)) < 0) {
 #endif
 	    saved_errno = errno;
@@ -507,12 +517,12 @@ iperf_tcp_connect(struct iperf_test *test)
 	    errno = saved_errno;
             i_errno = IESETMSS;
             return -1;
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
         }
 #endif
     }
     if ((opt = test->settings->socket_bufsize)) {
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
         if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
 	    saved_errno = errno;
 	    close(s);
@@ -538,7 +548,7 @@ iperf_tcp_connect(struct iperf_test *test)
     }
 
     /* Read back and verify the sender socket buffer size */
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     optlen = sizeof(sndbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_actual, &optlen) < 0) {
 	saved_errno = errno;
@@ -557,7 +567,7 @@ iperf_tcp_connect(struct iperf_test *test)
     }
 #endif
 
-#ifdef RM_JH //not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     /* Read back and verify the receiver socket buffer size */
     optlen = sizeof(rcvbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {
