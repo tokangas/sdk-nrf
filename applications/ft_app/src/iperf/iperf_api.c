@@ -2732,6 +2732,11 @@ static cJSON *JSON_read(int fd)
 static cJSON
 *JSON_read_nonblock(struct iperf_test *test)
 {
+    //b_jh: seems that select is not returning as expected in case when other end initiated the close. It is not returning read set.
+	struct iperf_time start_time;
+	struct iperf_time now;
+	struct iperf_time temp_time;
+
     struct iperf_stream *sp;
 
     fd_set read_set;
@@ -2745,6 +2750,8 @@ static cJSON
     struct timeval tout = { .tv_sec = 10, .tv_usec = 0 };
     int err;
 
+	iperf_time_now(&start_time); //store starting time
+
     do {
         int ret = 0;
         err = 0;
@@ -2754,6 +2761,16 @@ static cJSON
         SLIST_FOREACH(sp, &test->streams, streams) {
             FD_SET(sp->socket, &read_set);
         }
+
+		iperf_time_now(&now);
+		iperf_time_diff(&start_time, &now, &temp_time);
+		if (iperf_time_in_secs(&temp_time) > tout.tv_sec) {
+			i_errno = IERECVRESULTS;
+			if (test->debug)
+				printf("JSON_read_nonblock: breaking the loop due to timeout\n");
+			break;
+		}
+
 #if defined (CONFIG_POSIX_API)
         if ((ret = select(test->max_fd + 1, &read_set, NULL, NULL, &tout)) > 0)
 #else
