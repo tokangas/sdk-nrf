@@ -4,20 +4,33 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
+source "Kconfig.zephyr"
+
+menu "Nordic FTA config"
+
 config FTA_IPERF3
 	bool  "Enable FTA iperf3 support"
-    default n
-	# Heap requirements
-	depends on (HEAP_MEM_POOL_SIZE >= 16384)     
-    help
-        "Not yet supported"
+    default y
 
 config FTA_SOCKET
 	bool  "Enable FTA socket tool support"
-    default n
-    help
-        "Not yet supported"
+    default y
 
-menu "Zephyr Kernel"
-source "Kconfig.zephyr"
-endmenu
+if FTA_IPERF3
+menu "FTA iperf3 selections"
+
+config FTA_IPERF3_FUNCTIONAL_CHANGES
+	bool
+    default y
+
+config FTA_IPERF3_HOST_NAME
+	string "configure host name for iperf3 to be sent as a part of cookie"
+	default "nrf9160"
+
+endmenu #FTA iperf3
+endif #FTA_IPERF3
+endmenu #FTA
+
+#menu "Zephyr Kernel"
+#source "Kconfig.zephyr"
+#endmenu
