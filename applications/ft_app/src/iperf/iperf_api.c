@@ -116,10 +116,11 @@ static void print_interval_results(struct iperf_test *test,
 				   cJSON *json_interval_streams);
 static cJSON *JSON_read(int fd);
 
-
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
 static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinline));
 static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
+#endif
 
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 static int ip_address_family_from_string(const char *src) {
@@ -2268,7 +2269,7 @@ static int send_results(struct iperf_test *test)
 				printf("send_results\n%s\n", str);
 				cJSON_free(str);
 			}
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)			
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)			
 			//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
 			if (test->role == 's') {
 				if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
@@ -2325,7 +2326,7 @@ static int get_results(struct iperf_test *test)
 	int retransmits;
 	struct iperf_stream *sp;
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)			
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)			
 	//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
 	if (test->role == 's')
 		j = JSON_read(test->ctrl_sck);
@@ -2554,7 +2555,7 @@ static int get_results(struct iperf_test *test)
 }
 /*************************************************************/
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
 static int
 JSON_write_nonblock(struct iperf_test *test, cJSON *json)
 {
@@ -2722,7 +2723,7 @@ static cJSON *JSON_read(int fd)
 	}
 	return json;
 }
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
 /*************************************************************/
 //for a deadlock situation (one socket filled the modem-app buffer)
 /**

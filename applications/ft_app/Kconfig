@@ -19,13 +19,18 @@ config FTA_SOCKET
 if FTA_IPERF3
 menu "FTA iperf3 selections"
 
-config FTA_IPERF3_FUNCTIONAL_CHANGES
-	bool
-    default y
-
 config FTA_IPERF3_HOST_NAME
 	string "configure host name for iperf3 to be sent as a part of cookie"
 	default "nrf9160"
+
+#invisible configs: shall not be changed
+config FTA_IPERF3_NONBLOCKING_CLIENT
+	bool
+    default y
+
+config FTA_IPERF3_FUNCTIONAL_CHANGES
+	bool
+    default y
 
 endmenu #FTA iperf3
 endif #FTA_IPERF3

@@ -88,7 +88,9 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
     va_list argp;
     char str[1000];
     time_t now;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     struct tm *ltm = NULL;
+#endif
     char *ct = NULL;
 
     /* Timestamp if requested */
