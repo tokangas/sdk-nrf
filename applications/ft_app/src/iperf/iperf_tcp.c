@@ -396,7 +396,7 @@ iperf_tcp_connect(struct iperf_test *test)
     struct addrinfo hints, *local_res, *server_res;
     char portstr[6];
     int s, opt;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)	
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     socklen_t optlen;
 #endif
     int saved_errno;

@@ -138,7 +138,7 @@ static int ip_address_family_from_string(const char *src) {
 int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
 	*addr = test->client_address;
-	addrlen = sizeof(test->client_address);
+	*addrlen = sizeof(test->client_address);
 
 	return 0;
 }
@@ -776,6 +776,11 @@ time_t time(time_t *t)
     //at+cclk? TODO to get real time? or use date_time.h services?
     return 0;
 }
+
+////FTA_IPERF3_INTEGRATION_CHANGE:
+/* forward declaration: */
+struct tm *gmtime(const time_t *timep);
+size_t strftime (char *__restrict _s, size_t _maxsize, const char *__restrict _fmt, const struct tm *__restrict _t);
 
 void iperf_on_connect(struct iperf_test *test)
 {
@@ -2723,6 +2728,7 @@ static cJSON *JSON_read(int fd)
 	}
 	return json;
 }
+
 #if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
 /*************************************************************/
 //for a deadlock situation (one socket filled the modem-app buffer)
@@ -2824,7 +2830,7 @@ static cJSON
                 }
             }
 
-next:
+//next:
             FD_CLR(test->ctrl_sck, &read_set);
 
             /* ignore errors from other than control socket reads */
@@ -3934,8 +3940,8 @@ static void iperf_print_results(struct iperf_test *test)
 		    receiver_total_packets = 0; /* running total */
 		char ubuf[UNIT_LEN];
 		char nbuf[UNIT_LEN];
-		struct stat sb;
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+		struct stat sb;
 		char sbuf[UNIT_LEN];
 #endif
 		struct iperf_stream *sp = NULL;
@@ -5271,7 +5277,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 void iperf_add_stream(struct iperf_test *test, struct iperf_stream *sp)
 {
 	int i;
-	struct iperf_stream *n, *prev;
+	struct iperf_stream *n = NULL, *prev = NULL;
 
 	if (SLIST_EMPTY(&test->streams)) {
 		SLIST_INSERT_HEAD(&test->streams, sp, streams);

@@ -23,7 +23,7 @@ config FTA_IPERF3_HOST_NAME
 	string "configure host name for iperf3 to be sent as a part of cookie"
 	default "nrf9160"
 
-#invisible configs: shall not be changed
+#invisible configs:
 config FTA_IPERF3_NONBLOCKING_CLIENT
 	bool
     default y

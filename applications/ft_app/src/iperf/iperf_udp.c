@@ -230,7 +230,7 @@ iperf_udp_send(struct iperf_stream *sp)
 	sec = htonl(before.secs);
 	usec = htonl(before.usecs);
 	//pcount = htobe64(sp->packet_count);
-	pcount = htonll(sp->packet_count); //FTA_IPERF3_INTEGRATION_CHANGE
+	pcount = htonl(sp->packet_count); //FTA_IPERF3_INTEGRATION_CHANGE
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
 	memcpy(sp->buffer+4, &usec, sizeof(usec));
