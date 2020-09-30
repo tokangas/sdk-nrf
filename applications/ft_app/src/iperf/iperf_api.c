@@ -994,7 +994,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	//    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
 	while ((flag = getopt(
 			argc, argv,
-			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:dh")) !=
+			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:E:dh")) !=
 	       -1) {
 		switch (flag) {
 		case 'p':
@@ -1391,7 +1391,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->settings->pacing_timer = unit_atoi(optarg);
 			client_flag = 1;
 			break;
-		case OPT_CONNECT_TIMEOUT:
+		case 'E': //FTA_IPERF3_INTEGRATION_CHANGE: was: OPT_CONNECT_TIMEOUT
 			test->settings->connect_timeout = unit_atoi(optarg);
 			client_flag = 1;
 			break;
@@ -1570,7 +1570,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 	test->state = state;
 	if (Nwrite(test->ctrl_sck, (char *)&state, sizeof(state), Ptcp) < 0) {
 		if (test->debug)
-			printf("iperf_set_send_state failed of sending char: %c", state);
+			printf("iperf_set_send_state failed of sending char: %c\n", state);
 		i_errno = IESENDMESSAGE;
 		return -1;
 	}
@@ -2739,7 +2739,8 @@ static cJSON *JSON_read(int fd)
 static cJSON
 *JSON_read_nonblock(struct iperf_test *test)
 {
-    //b_jh: seems that select is not returning as expected in case when other end initiated the close. It is not returning read set.
+    /*b_jh: seems that select is not returning as expected in case when other end initiated the close.
+	        It is not returning read set as would be expected and then next recv() would tell that direction is closed. */
 	struct iperf_time start_time;
 	struct iperf_time now;
 	struct iperf_time temp_time;
@@ -2774,7 +2775,7 @@ static cJSON
 		if (iperf_time_in_secs(&temp_time) > tout.tv_sec) {
 			i_errno = IERECVRESULTS;
 			if (test->debug)
-				printf("JSON_read_nonblock: breaking the loop due to timeout\n");
+				printf("JSON_read_nonblock: breaking the select recv loop due to timeout\n");
 			break;
 		}
 

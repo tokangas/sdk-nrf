@@ -27,6 +27,7 @@
 #include "iperf_config.h"
 
 #include <stdio.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/unistd.h>
 #include <errno.h>
 #include <posix/arpa/inet.h>
@@ -100,9 +101,11 @@ timeout_connect(int s, const struct sockaddr *name, socklen_t namelen,
 			if ((ret = getsockopt(s, SOL_SOCKET, SO_ERROR,
 			    &optval, &optlen)) == 0) {
 				errno = optval;
+                printf("timeout_connect() getsockopt error %d\n", ret);
 				ret = optval == 0 ? 0 : -1;
 			}
 		} else if (ret == 0) {
+            printf("timeout_connect() ETIMEDOUT\n");
 			errno = ETIMEDOUT;
 			ret = -1;
 		} else
@@ -136,8 +139,8 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
 
     memset(&hints, 0, sizeof(hints));
     
-    //b_jh
-    //here are mixed with protos & types
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    //here was mixed with protos & types
     int type = proto;
     int protocol = 0;
     if (type == SOCK_STREAM) {
@@ -145,17 +148,23 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
      } else if (type == SOCK_DGRAM) {
 	    protocol = IPPROTO_UDP;
      }
-    //e_jh
 
     hints.ai_family = domain;
-    hints.ai_socktype = type; //b_jh
+    hints.ai_socktype = type;
     if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0) {
-        //b_jh: 
         printf("getaddrinfo failed with error code %d %s\n", gerror, gai_strerror(gerror));
         return -1;
     }
 
-    s = socket(server_res->ai_family, type, protocol);//b_jh
+    s = socket(server_res->ai_family, type, protocol);
+#else
+    hints.ai_family = domain;
+    hints.ai_socktype = proto;
+    if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0)
+        return -1;
+
+    s = socket(server_res->ai_family, proto, 0);
+#endif
         if (s < 0) {
 	if (local)
 	    freeaddrinfo(local_res);
@@ -436,7 +445,7 @@ int
 Nsendfile(int fromfd, int tofd, const char *buf, size_t count)
 {
 #if defined(HAVE_SENDFILE)
-    off_t offset;
+    off_t offset; //FTA_IPERF3_INTEGRATION_CHANGE
 #if defined(__FreeBSD__) || (defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_6))
     off_t sent;
 #endif

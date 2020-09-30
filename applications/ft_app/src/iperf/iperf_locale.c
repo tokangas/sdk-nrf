@@ -113,7 +113,7 @@ const char fta_iperf3_usage_support_str[] =
                            "\nClient specific:\n"
                            "  -c   <host>      run in client mode, connecting to <host>\n"
                            "  -u               use UDP rather than TCP\n"
-//TODO                           "  --connect-timeout #       timeout for control connection setup (ms)\n"
+                           "  -E   #           timeout for control connection setup (ms)\n"
                            "  -b   #[KMG][/#]  target bitrate in bits/sec (0 for unlimited)\n"
                            "                   (default %d Mbit/sec for UDP, unlimited for TCP)\n"
                            "                   (optional slash and packet count for burst mode)\n"                           

@@ -36,13 +36,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/sys/select.h>
 #include <sys/types.h>
 #include <posix/sys/time.h>
 #if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
 #else
-// /* From <sys/resource.h> that caused collisions without POSIX API by inclusing sys/time.h */
+//FTA_IPERF3_INTEGRATION_CHANGE for compiling without POSIX_API
+/* From <sys/resource.h> that caused collisions without POSIX_API by inclusing sys/time.h */
 
 //#include <sys/time.h>
 
@@ -58,7 +60,8 @@ int	getrusage (int, struct rusage*);
 
 //end resource.h
 #endif //CONFIG_POSIX_API
-//#include <sys/utsname.h>
+
+//#include <sys/utsname.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
 
 #include <time.h>
 #include <errno.h>
@@ -68,48 +71,34 @@ int	getrusage (int, struct rusage*);
 #include "iperf.h"
 #include "iperf_api.h"
 
-//b_jh: added, ref: https://docs.zephyrproject.org/1.13.0/kernel/timing/clocks.html
+
+//FTA_IPERF3_INTEGRATION_CHANGE: added, ref: https://docs.zephyrproject.org/1.13.0/kernel/timing/clocks.html
 #ifndef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC CONFIG_SYS_CLOCK_TICKS_PER_SEC
 #endif
 
-// /* From <sys/resource.h> that comes only within NEWLIB */
-
-// #define	RUSAGE_SELF	0		/* calling process */
-// #define	RUSAGE_CHILDREN	-1		/* terminated child processes */
-
-// struct rusage {
-//   	struct timeval ru_utime;	/* user time used */
-// 	struct timeval ru_stime;	/* system time used */
-// };
-// int	getrusage (int, struct rusage*);
-
-//end resource.h
 /**************************************************************************/
-#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
-static int gethostname(char *name, size_t len)
+//FTA_IPERF3_INTEGRATION_CHANGE: added 
+static int mock_gethostname(char *name, size_t len)
 {
      strncpy(name, CONFIG_FTA_IPERF3_HOST_NAME, len);
      return 0;
 }
-#endif
 /**************************************************************************/
-//b_jh:
+//FTA_IPERF3_INTEGRATION_CHANGE: added
 int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     memset(addr->data, 0, sizeof(addr->data));
     addr->sa_family = AF_INET; //TODO
     return 0;
 }
-//e_jh
 
+//FTA_IPERF3_INTEGRATION_CHANGE: added 
 int getrusage(int who, struct rusage *usage)
 {
     memset(usage, 0, sizeof(*usage));   // XXX
     return 0;
 }
-
-//e_jh
 
 /*
  * Read entropy from /dev/urandom
@@ -175,9 +164,25 @@ void fill_with_repeating_pattern(void *out, size_t outsize)
  * Assumes cookie has size (COOKIE_SIZE + 1) char's.
  */
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
-void
-make_cookie(const char *cookie)
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+void make_cookie(char *cookie)
+{
+    int len = strlen(CONFIG_FTA_IPERF3_HOST_NAME);
+    char hostname[len];
+    struct timeval tv;
+    char temp[100];
+
+    /* Generate a string based on hostname, time, randomness, and filler. */
+    (void) mock_gethostname(hostname, sizeof(hostname));    
+    (void) gettimeofday(&tv, 0);
+    (void) snprintf(temp, sizeof(temp), "%s.%ld.%06ld.%08lx%08lx.%s", hostname, (unsigned long int) tv.tv_sec, (unsigned long int) tv.tv_usec, (unsigned long int) rand(), (unsigned long int) rand(), "1234567890123456789012345678901234567890");
+
+    /* Now truncate it to 36 bytes and terminate. */
+    memcpy(cookie, temp, 36);
+    cookie[36] = '\0';
+}
+#else
+void make_cookie(const char *cookie)
 {
     unsigned char *out = (unsigned char*)cookie;
     size_t pos;
@@ -189,30 +194,8 @@ make_cookie(const char *cookie)
     }
     out[pos] = '\0';
 }
-#endif
-void
-make_cookie(char *cookie)
-{
-    //b_jh
-//    static int randomized = 0;
-    int len = strlen(CONFIG_FTA_IPERF3_HOST_NAME);
-    char hostname[len];
-    struct timeval tv;
-    char temp[100];
+#endif //CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES
 
-//    if ( ! randomized )
-//        srandom((int) time(0) ^ getpid());
-
-    /* Generate a string based on hostname, time, randomness, and filler. */
-    (void) gethostname(hostname, sizeof(hostname));    
-    (void) gettimeofday(&tv, 0);
-    (void) snprintf(temp, sizeof(temp), "%s.%ld.%06ld.%08lx%08lx.%s", hostname, (unsigned long int) tv.tv_sec, (unsigned long int) tv.tv_usec, (unsigned long int) rand(), (unsigned long int) rand(), "1234567890123456789012345678901234567890");
-
-    /* Now truncate it to 36 bytes and terminate. */
-    memcpy(cookie, temp, 36);
-    cookie[36] = '\0';
-    //end_jh
-}
 /* is_closed
  *
  * Test if the file descriptor fd is closed.
@@ -317,7 +300,7 @@ cpu_util(double pcpu[3])
 const char *
 get_system_info(void)
 {
-    static const char *buf = "utsname() not supported to priot sys info";
+    static const char *buf = "utsname() not supported to print sys info";
 
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     static char buf[1024];
@@ -334,7 +317,7 @@ get_system_info(void)
 const char *
 get_optional_features(void)
 {
-    static char features[64]; //FTA_IPERF3_INTEGRATION_CHANGE: no support, decrease stack usage
+    static char features[64]; //was 1024, FTA_IPERF3_INTEGRATION_CHANGE: no support, decrease stack usage
     unsigned int numfeatures = 0;
 
     snprintf(features, sizeof(features), "Optional features available: ");

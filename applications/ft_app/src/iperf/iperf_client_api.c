@@ -472,7 +472,7 @@ iperf_client_end(struct iperf_test *test)
 
     if (iperf_set_send_state(test, IPERF_DONE) != 0) {
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-        printf("iperf_client_end: iperf_set_send_state failed\n");
+        printf("iperf_client_end: iperf_set_send_state IPERF_DONE failed\n");
         retval = -1;
 #else
         return -1;
@@ -522,8 +522,9 @@ iperf_run_client(struct iperf_test * test)
     }
 
     /* Start the client and connect to the server */
-    if (iperf_connect(test) < 0)
+    if (iperf_connect(test) < 0) {
         goto cleanup_and_fail;
+    }
 
     /* Begin calculating CPU utilization */
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
