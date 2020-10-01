@@ -15,6 +15,7 @@ project(FTA)
 target_include_directories(app PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/iperf
+  ${CMAKE_CURRENT_SOURCE_DIR}/utils
   ${CMAKE_CURRENT_SOURCE_DIR}/utils/freebsd-getopt)
 #TODO: flag iperf: add_subdirectory_ifdef(CONFIG_FTA_IPERF src/iperf)
 
@@ -34,6 +35,7 @@ target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/lte_connection.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/icmp_ping.c)
+target_sources(app PRIVATE src/utils/fta_net_utils.c)
 target_sources(app PRIVATE src/utils/freebsd-getopt/getopt.c)
 add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
 target_sources_ifdef(

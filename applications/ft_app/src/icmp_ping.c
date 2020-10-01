@@ -50,6 +50,7 @@ static struct ping_argv_t {
 extern struct modem_param_info modem_param;
 extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 
+//TODO: to tools
 static char *sckt_addr_ntop(const struct sockaddr *addr)
 {
 	static char buf[NET_IPV6_ADDR_LEN];

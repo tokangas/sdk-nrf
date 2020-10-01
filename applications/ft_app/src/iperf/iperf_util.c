@@ -89,7 +89,7 @@ static int mock_gethostname(char *name, size_t len)
 int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     memset(addr->data, 0, sizeof(addr->data));
-    addr->sa_family = AF_INET; //TODO
+    addr->sa_family = AF_INET; //TODO: ipv6 support
     return 0;
 }
 

@@ -19,7 +19,7 @@
 #include <modem/lte_lc.h>
 #include "lte_connection.h"
 
-/* global variable defined in different files */
+/* global variables */
 struct modem_param_info modem_param;
 char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 
