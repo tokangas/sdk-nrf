@@ -33,6 +33,7 @@ target_include_directories(app PRIVATE
 # NORDIC SDK APP START
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/lte_connection.c)
+target_sources(app PRIVATE src/lte_connection_tools.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/icmp_ping.c)
 target_sources(app PRIVATE src/utils/fta_net_utils.c)
