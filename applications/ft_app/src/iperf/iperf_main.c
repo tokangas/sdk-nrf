@@ -157,6 +157,13 @@ sigend_handler(int sig)
 #endif
 
 /**************************************************************************/
+#ifdef TODO_JH
+static bool do_exit;
+static void signal_handler(int sig)
+{
+	do_exit = true;
+}
+#endif
 static int
 run(struct iperf_test *test)
 {
@@ -171,6 +178,10 @@ run(struct iperf_test *test)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+#ifdef TODO_JH
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+#endif
     switch (test->role) {
         case 's':
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support

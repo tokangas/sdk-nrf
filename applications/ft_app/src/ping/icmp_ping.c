@@ -141,7 +141,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
     uint8_t rep = 0;
     uint8_t header_len = 0;
     struct addrinfo *si = ping_argv.src;
-    const int alloc_size = 1280;        // MTU
+    const int alloc_size = 1280; // MTU
   	struct nrf_pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
@@ -444,6 +444,19 @@ int icmp_ping_start(const struct shell *shell, const char *target_name,
 		shell_error(shell, "\nLTE not connected");
 		return -1;
 	}
+	/* TODO hints:
+		struct addrinfo hints = {
+		.ai_family = AF_INET,
+		.ai_socktype = SOCK_STREAM,
+		.ai_next =  apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL,
+	};
+*/
 	st = getaddrinfo(modem_param.network.ip_address.value_string, NULL,
 			 NULL, &res);
 	if (st != 0) {
@@ -452,6 +465,20 @@ int icmp_ping_start(const struct shell *shell, const char *target_name,
 	}
 	ping_argv.src = res;
 
+/* TODO: set APN
+	len = strlen(apn);
+	if (len >= sizeof(ifr.ifr_name)) {
+		LOG_ERR("Access point name is too long");
+		return -EINVAL;
+	}
+
+	memcpy(ifr.ifr_name, apn, len);
+	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (err) {
+		LOG_ERR("Failed to bind socket, error: %d", errno);
+		return -EINVAL;
+	}
+*/
 	/* Get destination */
 	res = NULL;
 	st = getaddrinfo(target_name, NULL, NULL, &res);

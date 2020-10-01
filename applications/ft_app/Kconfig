@@ -16,6 +16,10 @@ config FTA_SOCKET
 	bool  "Enable FTA socket tool support"
     default y
 
+config FTA_PING	
+	bool  "Enable FTA ICMP ping support"
+    default y
+
 if FTA_IPERF3
 menu "FTA iperf3 selections"
 

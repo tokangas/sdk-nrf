@@ -39,7 +39,7 @@ int lte_conn_pdp_context_read(pdp_context_info_t *populated_info)
 		printf("at_cmd_write returned err: %d", ret);
 		return ret;
 	}
-	//shell_print(uart_shell, "%s", at_response_str);
+	//printf("%s", at_response_str);
 
 	//TODO: support for multiple contexts, i.e. multiline response, to be something like:
 	//while ((ip_str_end = strstr(ip_str_end, AT_CMD_RSP_DELIM)) != NULL) {
@@ -171,13 +171,16 @@ void lte_conn_modem_info_get_for_shell(const struct shell *shell)
 	}
 
 #if defined(CONFIG_AT_CMD)
+    memset(&pdp_context_info, 0, sizeof(pdp_context_info_t));
 	ret = lte_conn_pdp_context_read(&pdp_context_info);
 	if (ret >= 0) {
+        char *errv4 = NULL;
+        char *errv6 = NULL;
 		char ipv4_addr[NET_IPV4_ADDR_LEN];		
 		char ipv6_addr[NET_IPV6_ADDR_LEN];
 
-		inet_ntop(AF_INET,  &(pdp_context_info.sin4.sin_addr), ipv4_addr, sizeof(ipv4_addr));
-		inet_ntop(AF_INET6, &(pdp_context_info.sin6.sin6_addr), ipv6_addr, sizeof(ipv6_addr));
+		errv4 = inet_ntop(AF_INET,  &(pdp_context_info.sin4.sin_addr), ipv4_addr, sizeof(ipv4_addr));
+		errv6 = inet_ntop(AF_INET6, &(pdp_context_info.sin6.sin6_addr), ipv6_addr, sizeof(ipv6_addr));
 		
 		/* Parsed PDP context info: */	
 		shell_print(shell, 
@@ -192,8 +195,8 @@ void lte_conn_modem_info_get_for_shell(const struct shell *shell)
 						pdp_context_info.pdp_type_str, 
 						pdp_context_info.apn_str, 
 //						pdp_context_info.ip_addr_str,
-						(ipv4_addr != NULL) ? ipv4_addr : "N/A",
-						(ipv6_addr != NULL) ? ipv6_addr : "N/A");
+						ipv4_addr,
+						ipv6_addr);
 	} else {
 		shell_error(shell, "\nUnable to obtain pdp context info (%d)", ret);
 	}
