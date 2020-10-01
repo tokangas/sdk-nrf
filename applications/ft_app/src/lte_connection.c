@@ -48,6 +48,8 @@ static void lte_conn_modem_info_work(struct k_work *unused)
 {
 	ARG_UNUSED(unused);
 
+    k_sleep(K_MSEC(1500)); /* Seems that 1st info read fails without this. Thus, let modem have some time */
+
 	lte_conn_modem_info_get_for_shell(uart_shell);
 }
 //**************************************************************************
@@ -87,6 +89,69 @@ void lte_conn_init(void)
 #endif
 }
 //**************************************************************************
+const char ltelc_usage_str[] =
+	"Usage: ltelc <command> [options]\n"
+	"\n"
+	"<command> is one of the following:\n"
+	"  status:  Show status of the current connection\n"
+	"\n"
+	"General options:\n"
+	"  -i, [int]  socket id. Use 'list' command to see open sockets.\n"
+	"\n"
+	"Options for 'status' command:\n"
+	"  -a, [str]  Address as ip address or hostname\n"
+	"\n"
+	"Options for 'help' command:\n"
+	"  -v, [bool] Show examples\n"
+	;
+
+static void lte_conn_shell_print_usage(const struct shell *shell)
+{
+	shell_print(shell, "%s", ltelc_usage_str);
+
+}
+typedef enum {
+	LTELC_CMD_STATUS = 0,
+	LTELC_CMD_HELP
+} ltelc_shell_command;
+
+typedef struct {
+	ltelc_shell_command command;
+} ltelc_shell_cmd_args_t;
+
+static ltelc_shell_cmd_args_t ltelc_cmd_args;
+
+int lte_conn_shell(const struct shell *shell, size_t argc, char **argv)
+{
+	int err = 0;
+	
+	if (argc < 2) {
+		lte_conn_shell_print_usage(shell);
+		return 0;
+	}
+	
+	// Command = argv[1]
+	if (!strcmp(argv[1], "status")) {
+		ltelc_cmd_args.command = LTELC_CMD_STATUS;
+	} else {
+		shell_error(uart_shell, "Unsupported command=%s\n", argv[1]);
+		lte_conn_shell_print_usage(shell);
+		return -EINVAL;
+	}
+
+	switch (ltelc_cmd_args.command) {
+		case LTELC_CMD_STATUS:
+			lte_conn_modem_info_get_for_shell(shell);
+			break;
+		default:
+			shell_error(shell, "Internal error. Unknown ltelc command=%d", ltelc_cmd_args.command);
+			err = -EINVAL;
+			break;
+	}
+	return err;
+}
+//**************************************************************************
+
 void lte_conn_ind_handler(const struct lte_lc_evt *const evt)
 {
 	uart_shell = shell_backend_uart_get_ptr();

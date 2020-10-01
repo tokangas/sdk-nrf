@@ -156,8 +156,6 @@ void lte_conn_modem_info_get_for_shell(const struct shell *shell)
 
 	pdp_context_info_t pdp_context_info;
 	
-    k_sleep(K_MSEC(1500)); /* Seems that 1st info read fails without this. Thus, let modem have some time */
-
 	ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str, sizeof(info_str));
 	if (ret >= 0) {
 		shell_print(shell, "Operator: %s", info_str);

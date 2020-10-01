@@ -7,6 +7,7 @@
 
 #include <shell/shell.h>
 #include <modem/at_cmd.h>
+#include <modem/lte_lc.h>
 
 #include "icmp_ping.h"
 #if defined (CONFIG_FTA_SOCKET)
@@ -23,6 +24,7 @@
 #if defined (CONFIG_FTA_IPERF3)
 #include "iperf/iperf_api.h"
 #endif
+#include "lte_connection.h"
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
@@ -133,6 +135,9 @@ SHELL_CMD_REGISTER(sock, NULL,
 	socket_shell);
 #endif
 SHELL_CMD_REGISTER(ping, NULL, NULL, cmd_icmp_ping);
+SHELL_CMD_REGISTER(ltelc, NULL,
+	"Commands for LTE link controlling and status information.",
+	lte_conn_shell);
 
 #if defined (CONFIG_FTA_IPERF3)
 SHELL_CMD_REGISTER(iperf3, NULL, NULL, cmd_iperf3);
