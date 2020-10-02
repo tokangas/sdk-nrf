@@ -1,6 +1,15 @@
+/*
+ * Copyright (c) 2020 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ */
+
 #include <stdlib.h>
+#include <zephyr.h>
 
 #include <shell/shell.h>
+
+#include "utils/freebsd-getopt/getopt.h"
 
 #include "icmp_ping.h"
 #include "icmp_ping_shell.h"
@@ -8,78 +17,112 @@
 #define PING_USAGE_STR                                                         \
 	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
 
+static const char icmp_ping_shell_cmd_usage_str[] =
+	"Usage: ping [optional options] -d destination\n"
+	"\n"
+	"mandatory options:\n"
+	"  -d destination, [str]   name or ip address\n"
+	"optional options:\n"
+	"  -t timeout,     [int]   ping timeout in msecs\n"
+	"  -c count,       [int]   the number of times to send the ping request\n"
+	"  -i interval,    [int]   an interval between successive packet transmissions.\n"
+	"  -l length,      [int]   payload length to be sent\n"
+	"  -I interface,   [str]   use this option to bind pinging to specific APN.\n"
+	"  -h,             [bool]  shows this information.\n"
+	;
+
+static void icmp_ping_shell_usage_print(const struct shell *shell)
+{
+	shell_print(shell, "%s", icmp_ping_shell_cmd_usage_str);
+}
+static void icmp_ping_shell_cmd_defaults_set(icmp_ping_shell_cmd_argv_t *ping_args)
+{
+    memset(ping_args, 0, sizeof(icmp_ping_shell_cmd_argv_t));
+    //ping_args->dest = NULL;
+    ping_args->count = ICMP_PARAM_COUNT_DEFAULT;
+    ping_args->interval = ICMP_PARAM_INTERVAL_DEFAULT;
+    ping_args->timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
+    ping_args->len = ICMP_PARAM_LENGTH_DEFAULT;
+}
+/*****************************************************************************/
 int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 {
-	if (argc < 4 || argc > 6) {
-		shell_error(shell, "wrong amount of arguments\n");
-		shell_print(shell, "%s\n", PING_USAGE_STR);
-		return -1;
+    icmp_ping_shell_cmd_argv_t ping_args;
+    int flag, dest_len;
+
+    icmp_ping_shell_cmd_defaults_set(&ping_args);
+
+	if (argc < 3) {
+		goto show_usage;
 	}
-	
-#ifdef NOT_IN_FTA
-	shell_print(shell, "argc = %d", argc);
-	for (size_t cnt = 0; cnt < argc; cnt++) {
-		shell_print(shell, "  argv[%d] = %s", cnt, argv[cnt]);
-	}
-#endif
 
-	//USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]
-	if (argc > 1) {
-		char *target_name = argv[1];
-		int length = 0;
-		int timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
-		int count = ICMP_PARAM_COUNT_DEFAULT;
-		int interval = ICMP_PARAM_INTERVAL_DEFAULT;
+	//start from the 1st argument
+	optind = 1;
 
-		//TODO: use getopt()
-
-		if (strlen(target_name) > ICMP_MAX_URL) {
-			shell_error(shell, "too long target_name");
-			return -1;
-		}
-
-		length = atoi(argv[2]);
-		if (length == 0) {
-			shell_warn(
-				shell,
-				"length not an integer (> 0), defaulting to zero length payload");
-		}
-		if (length > ICMP_MAX_LEN) {
-			shell_error(shell, "Payload size exceeds the limit %d",
-				    ICMP_MAX_LEN);
-			return -1;
-		}
-
-		timeout = atoi(argv[3]);
-		if (timeout == 0) {
-			shell_warn(
-				shell,
-				"timeout not an integer (> 0), defaulting to %d msecs",
-				ICMP_PARAM_TIMEOUT_DEFAULT);
-		}
-		if (argc > 4) {
-			/* Optional arguments: */
-			count = atoi(argv[4]);
-			if (count == 0) {
+	while ((flag = getopt(argc, argv, "d:t:c:i:I:l:h")) != -1) {
+		switch (flag) {
+		case 'd': //destination
+            dest_len = strlen(optarg);
+            if (dest_len > ICMP_MAX_URL) {
+			    shell_error(shell, "too long destination name");
+                goto show_usage;
+            }
+			strcpy(ping_args.target_name, optarg);
+			break;
+		case 't': //timeout
+			ping_args.timeout = atoi(optarg);
+            if (ping_args.timeout == 0) {
+                shell_warn(
+                    shell,
+                    "timeout not an integer (> 0), defaulting to %d msecs",
+                    ICMP_PARAM_TIMEOUT_DEFAULT);
+                ping_args.timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
+            }            
+            break;
+		case 'c': //count
+			ping_args.count = atoi(optarg);
+			if (ping_args.count == 0) {
 				shell_warn(
 					shell,
 					"count not an integer (> 0), defaulting to %d",
 					ICMP_PARAM_COUNT_DEFAULT);
-				count = ICMP_PARAM_COUNT_DEFAULT;
+                ping_args.timeout = ICMP_PARAM_COUNT_DEFAULT;
+              }            
+            break;
+		case 'i': //interval
+			ping_args.interval = atoi(optarg);
+			if (ping_args.interval == 0) {
+				shell_warn(
+					shell,
+					"interval not an integer (> 0), defaulting to %d",
+					ICMP_PARAM_INTERVAL_DEFAULT);
+				ping_args.interval = ICMP_PARAM_INTERVAL_DEFAULT;
 			}
-			if (argc == 6) {
-				interval = atoi(argv[5]);
-				if (interval == 0) {
-					shell_warn(
-						shell,
-						"interval not an integer (> 0), defaulting to %d",
-						ICMP_PARAM_INTERVAL_DEFAULT);
-					interval = ICMP_PARAM_INTERVAL_DEFAULT;
-				}
-			}
-		}
-		icmp_ping_start(shell, target_name, length, timeout, count,
-				interval);
-	}
-	return 0;
+            break;
+		case 'l': //payload length
+			ping_args.len = atoi(optarg);
+            if (ping_args.len > ICMP_MAX_LEN) {
+                shell_error(shell, "Payload size exceeds the limit %d", ICMP_MAX_LEN);
+                goto show_usage;
+            }
+            break;
+		case 'h': //help
+        default:
+            goto show_usage;
+            break;
+        }
+    }
+
+    /* Check that all mandatory args were given: */
+    if (ping_args.target_name == NULL) {
+            shell_error(shell, "-d destination, MUST be given. See usage:");
+            goto show_usage;
+    } else {
+        /* All good, start the ping: */
+		return icmp_ping_start(shell, &ping_args);
+    }
+
+show_usage:
+	icmp_ping_shell_usage_print(shell);
+	return -1;
 }

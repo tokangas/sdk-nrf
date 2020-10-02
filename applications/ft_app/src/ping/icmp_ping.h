@@ -2,7 +2,7 @@
 #define ICMP_PING_H
 
 /*
- * Copyright (c) 2018 Nordic Semiconductor ASA
+ * Copyright (c) 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
@@ -17,13 +17,24 @@
 
 #define ICMP_MAX_URL		128
 #define ICMP_MAX_LEN		512
+#define ICMP_PARAM_LENGTH_DEFAULT 0
 #define ICMP_PARAM_COUNT_DEFAULT 4
 #define ICMP_PARAM_TIMEOUT_DEFAULT 3000
 #define ICMP_PARAM_INTERVAL_DEFAULT 1000
 
+/**@ ICMP Ping command arguments */
+typedef struct {
+	char target_name[ICMP_MAX_URL];
+	struct addrinfo *src;
+	struct addrinfo *dest;
+	int len;
+	int timeout;
+	int count;
+	int interval;
+} icmp_ping_shell_cmd_argv_t;
 
 /**
- * @brief ICMP AT command parser.
+ * @brief ICMP initiator.
  *
  * @param shell Requesting shell.
  * @param target_name Target domain name.
@@ -31,6 +42,6 @@
  * @retval 0 If the operation was successful.
  *           Otherwise, a (negative) error code is returned.
  */
-int icmp_ping_start(const struct shell *shell, const char *target_name, int length, int timeout, int count, int interval);
+int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_args);
 
 #endif /* ICMP_PING_H */

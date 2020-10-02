@@ -5,7 +5,6 @@
  */
 #include <stdio.h>
 #include <zephyr.h>
-#include <shell/shell.h>
 
 #include <modem/modem_info.h>
 
@@ -22,6 +21,7 @@
 #endif
 #include <nrf_socket.h>
 
+#include "utils/fta_net_utils.h"
 #include "icmp_ping.h"
 
 #define ICMP    1               // Protocol
@@ -35,41 +35,13 @@
 #define ICMP6_ECHO_REP      129
 
 /**@ ICMP Ping command arguments */
-static struct ping_argv_t {
-	char target_name[ICMP_MAX_URL];
-	struct addrinfo *src;
-	struct addrinfo *dest;
-	const struct shell *shell;
-	int len;
-	int waitms;
-	int count;
-	int interval;
-} ping_argv;
+static icmp_ping_shell_cmd_argv_t ping_argv;
 
 /* global variable defined in different files */
 extern struct modem_param_info modem_param;
 extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 
-//TODO: to tools
-static char *sckt_addr_ntop(const struct sockaddr *addr)
-{
-	static char buf[NET_IPV6_ADDR_LEN];
-
-	if (addr->sa_family == AF_INET6) {
-		return net_addr_ntop(AF_INET6, &net_sin6(addr)->sin6_addr, buf,
-				     sizeof(buf));
-	}
-
-	if (addr->sa_family == AF_INET) {
-		return net_addr_ntop(AF_INET, &net_sin(addr)->sin_addr, buf,
-				     sizeof(buf));
-	}
-
-	//LOG_ERR("Unknown IP address family:%d", addr->sa_family);
-	strcpy(buf, "Unknown AF");
-	return buf;
-}
-
+/*****************************************************************************/
 static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 {
 	buffer[0] = ipaddr & 0xFF;
@@ -77,7 +49,7 @@ static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 	buffer[2] = (ipaddr >> 16) & 0xFF;
 	buffer[3] = ipaddr >> 24;
 }
-
+/*****************************************************************************/
 static uint16_t check_ics(const uint8_t *buffer, int len)
 {
 	const uint32_t *ptr32 = (const uint32_t *)buffer;
@@ -120,7 +92,7 @@ static uint16_t check_ics(const uint8_t *buffer, int len)
 
 	return ~hcs; /* One's complement */
 }
-
+/*****************************************************************************/
 static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 {
 	uint16_t *ptr_hcs = (uint16_t *)(buffer + hcs_pos);
@@ -130,7 +102,7 @@ static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 	hcs = check_ics(buffer, len);
 	*ptr_hcs = hcs;
 }
-
+/*****************************************************************************/
 static uint32_t send_ping_wait_reply(const struct shell *shell)
 {
 	static int64_t start_t, delta_t;
@@ -292,7 +264,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 
 	fds[0].fd = fd;
 	fds[0].events = NRF_POLLIN;
-	ret = nrf_poll(fds, 1, ping_argv.waitms);
+	ret = nrf_poll(fds, 1, ping_argv.timeout);
 	if (ret <= 0) {
 		shell_error(shell, "nrf_poll() failed: (%d) (%d)", -errno, ret);
 		goto close_end;
@@ -387,7 +359,7 @@ close_end:
 	free(buf);
 	return (uint32_t)delta_t;
 }
-
+/*****************************************************************************/
 static void icmp_ping_tasks_execute(const struct shell *shell)
 {
 	struct addrinfo *si = ping_argv.src;
@@ -420,22 +392,23 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 	sprintf(rsp_buf, "Pinging DONE\r\n");
 	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
 }
-
-int icmp_ping_start(const struct shell *shell, const char *target_name,
-		    int length, int timeout, int count, int interval)
+/*****************************************************************************/
+int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_args)
 {
 	int st = -1;
 	struct addrinfo *res;
 	int addr_len;
+	
+	/* Copy args in local storage here: */
+	memcpy(&ping_argv, ping_args, sizeof(icmp_ping_shell_cmd_argv_t));
 
-	shell_print(shell, "initiating ping to: %s", target_name);
+	shell_print(shell, "initiating ping to: %s", ping_argv.target_name);
 
 #if defined(CONFIG_MODEM_INFO)
 	st = modem_info_params_get(&modem_param);
 #endif
 	if (st < 0) {
-		shell_print(shell, "Unable to obtain modem parameters (%d)",
-			    st);
+		shell_print(shell, "Unable to obtain modem parameters (%d)",st);
 		return -1;
 	}
 	/* Check network connection status by checking local IP address */
@@ -457,8 +430,7 @@ int icmp_ping_start(const struct shell *shell, const char *target_name,
 			} : NULL,
 	};
 */
-	st = getaddrinfo(modem_param.network.ip_address.value_string, NULL,
-			 NULL, &res);
+	st = getaddrinfo(modem_param.network.ip_address.value_string, NULL, NULL, &res);
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(src) error: %d", st);
 		return -st;
@@ -481,7 +453,7 @@ int icmp_ping_start(const struct shell *shell, const char *target_name,
 */
 	/* Get destination */
 	res = NULL;
-	st = getaddrinfo(target_name, NULL, NULL, &res);
+	st = getaddrinfo(ping_argv.target_name, NULL, NULL, &res);
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(dest) error: %d", st);
 		shell_error(shell, "Cannot resolve remote host\r\n");
@@ -498,19 +470,12 @@ int icmp_ping_start(const struct shell *shell, const char *target_name,
 	} else {
 		struct sockaddr *sa;
 		sa = ping_argv.src->ai_addr;
-		shell_print(shell, "Source IP addr: %s", sckt_addr_ntop(sa));
+		shell_print(shell, "Source IP addr: %s", fta_net_utils_sckt_addr_ntop(sa));
 		sa = ping_argv.dest->ai_addr;
 		shell_print(shell, "Destination IP addr: %s",
-			    sckt_addr_ntop(sa));
+			    fta_net_utils_sckt_addr_ntop(sa));
 	}
 
-	ping_argv.len = length;
-	ping_argv.waitms = timeout;
-	ping_argv.count = count;
-	ping_argv.interval = interval;
-
-	/* Store certain parameters to context: */
-	strcpy(ping_argv.target_name, target_name);
 
 	icmp_ping_tasks_execute(shell);
 	return 0;
