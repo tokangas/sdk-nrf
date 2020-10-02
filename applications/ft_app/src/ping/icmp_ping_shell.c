@@ -11,6 +11,8 @@
 
 #include "utils/freebsd-getopt/getopt.h"
 
+#include "lte_connection_tools.h"
+
 #include "icmp_ping.h"
 #include "icmp_ping_shell.h"
 
@@ -59,7 +61,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 	//start from the 1st argument
 	optind = 1;
 
-	while ((flag = getopt(argc, argv, "d:t:c:i:I:l:h")) != -1) {
+	while ((flag = getopt(argc, argv, "d:t:c:i:I:l:h6")) != -1) {
 		switch (flag) {
 		case 'd': //destination
             dest_len = strlen(optarg);
@@ -106,6 +108,9 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
                 goto show_usage;
             }
             break;
+		case '6': //force ipv6
+            ping_args.force_ipv6 = true;
+            break;
 		case 'h': //help
         default:
             goto show_usage;
@@ -118,7 +123,20 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             shell_error(shell, "-d destination, MUST be given. See usage:");
             goto show_usage;
     } else {
-        /* All good, start the ping: */
+        /* All good for args, get the current connection info and start the ping: */
+        pdp_context_info_t pdp_info;
+        int ret = 0;
+
+        ret = lte_conn_pdp_context_read(&pdp_info);
+        if (ret) {
+            shell_error(shell, "cannot read current connection info: %d", ret);
+            return -1;
+        }
+        else {
+            ping_args.current_pdp_type = pdp_info.pdp_type;
+            ping_args.current_sin4 = pdp_info.sin4;
+            ping_args.current_sin6 = pdp_info.sin6;
+        }
 		return icmp_ping_start(shell, &ping_args);
     }
 

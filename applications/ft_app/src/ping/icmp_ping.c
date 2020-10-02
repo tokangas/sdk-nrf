@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 #include <stdio.h>
+#include <string.h>
+
 #include <zephyr.h>
 
 #include <modem/modem_info.h>
@@ -21,7 +23,11 @@
 #endif
 #include <nrf_socket.h>
 
+#include <posix/arpa/inet.h>
+
 #include "utils/fta_net_utils.h"
+#include "lte_connection_tools.h"
+
 #include "icmp_ping.h"
 
 #define ICMP    1               // Protocol
@@ -325,8 +331,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 			goto close_end;
 		}
 		/* Raw socket payload length */
-        pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr		
-
+        pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr
 	}
 	
 	/* Data payload length: */
@@ -397,40 +402,32 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 {
 	int st = -1;
 	struct addrinfo *res;
-	int addr_len;
-	
+	char src_ipv_addr[NET_IPV6_ADDR_LEN];
+
 	/* Copy args in local storage here: */
 	memcpy(&ping_argv, ping_args, sizeof(icmp_ping_shell_cmd_argv_t));
 
 	shell_print(shell, "initiating ping to: %s", ping_argv.target_name);
 
-#if defined(CONFIG_MODEM_INFO)
-	st = modem_info_params_get(&modem_param);
-#endif
-	if (st < 0) {
-		shell_print(shell, "Unable to obtain modem parameters (%d)",st);
-		return -1;
+    /* TODO: check conn status from lte_conn? */
+
+    /* Sets getaddrinfo hints by using current host address(es): */
+	struct addrinfo hints = {0};
+	
+	hints.ai_family = AF_INET;
+	inet_ntop(AF_INET,  &(ping_args->current_sin4.sin_addr), src_ipv_addr, sizeof(src_ipv_addr));
+    if (ping_args->current_pdp_type == PDP_TYPE_IP4V6) {
+		if (ping_args->force_ipv6) {
+			hints.ai_family = AF_INET6;
+			inet_ntop(AF_INET6,  &(ping_args->current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
+		}
 	}
-	/* Check network connection status by checking local IP address */
-	addr_len = strlen(modem_param.network.ip_address.value_string);
-	if (addr_len == 0) {
-		shell_error(shell, "\nLTE not connected");
-		return -1;
-	}
-	/* TODO hints:
-		struct addrinfo hints = {
-		.ai_family = AF_INET,
-		.ai_socktype = SOCK_STREAM,
-		.ai_next =  apn ?
-			&(struct addrinfo) {
-				.ai_family    = AF_LTE,
-				.ai_socktype  = SOCK_MGMT,
-				.ai_protocol  = NPROTO_PDN,
-				.ai_canonname = (char *)apn
-			} : NULL,
-	};
-*/
-	st = getaddrinfo(modem_param.network.ip_address.value_string, NULL, NULL, &res);
+    if (ping_args->current_pdp_type == PDP_TYPE_IPV6) {
+		hints.ai_family = AF_INET6;
+		inet_ntop(AF_INET6,  &(ping_args->current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
+	}	
+	shell_print(shell, "source: %s", src_ipv_addr);
+	st = getaddrinfo(src_ipv_addr, NULL, &hints, &res);
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(src) error: %d", st);
 		return -st;
@@ -453,7 +450,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 */
 	/* Get destination */
 	res = NULL;
-	st = getaddrinfo(ping_argv.target_name, NULL, NULL, &res);
+	st = getaddrinfo(ping_argv.target_name, NULL, &hints, &res);
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(dest) error: %d", st);
 		shell_error(shell, "Cannot resolve remote host\r\n");

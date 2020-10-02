@@ -29,7 +29,7 @@
 
 int lte_conn_pdp_context_read(pdp_context_info_t *populated_info)
 {
-	int ret;
+	int ret = 0;
 	struct at_param_list param_list = {0};
 	size_t param_str_len;
 	char at_response_str[MODEM_INFO_MAX_RESPONSE_SIZE];
@@ -72,7 +72,21 @@ int lte_conn_pdp_context_read(pdp_context_info_t *populated_info)
 		printf("Could not parse pdp type, err: %d", ret);
 		goto clean_exit;
 	}
-	populated_info->pdp_type_str[param_str_len] = '\0';
+    else {
+	    populated_info->pdp_type_str[param_str_len] = '\0';
+        populated_info->pdp_type = PDP_TYPE_UNKNOWN;
+        if (strcmp(populated_info->pdp_type_str, "IPV4V6") == 0) {
+            populated_info->pdp_type = PDP_TYPE_IP4V6;
+        }
+        else if (strcmp(populated_info->pdp_type_str, "IPV6") == 0) {
+            populated_info->pdp_type = PDP_TYPE_IPV6;
+        }
+        else if (strcmp(populated_info->pdp_type_str, "IPV4") == 0) {
+            populated_info->pdp_type = PDP_TYPE_IPV4;
+        }
+        printf("pdp type: %c", populated_info->pdp_type);
+    }
+
 
 	param_str_len = sizeof(populated_info->apn_str);
 	ret = at_params_string_get(&param_list,
@@ -174,13 +188,11 @@ void lte_conn_modem_info_get_for_shell(const struct shell *shell)
     memset(&pdp_context_info, 0, sizeof(pdp_context_info_t));
 	ret = lte_conn_pdp_context_read(&pdp_context_info);
 	if (ret >= 0) {
-        char *errv4 = NULL;
-        char *errv6 = NULL;
 		char ipv4_addr[NET_IPV4_ADDR_LEN];		
 		char ipv6_addr[NET_IPV6_ADDR_LEN];
 
-		errv4 = inet_ntop(AF_INET,  &(pdp_context_info.sin4.sin_addr), ipv4_addr, sizeof(ipv4_addr));
-		errv6 = inet_ntop(AF_INET6, &(pdp_context_info.sin6.sin6_addr), ipv6_addr, sizeof(ipv6_addr));
+		inet_ntop(AF_INET,  &(pdp_context_info.sin4.sin_addr), ipv4_addr, sizeof(ipv4_addr));
+		inet_ntop(AF_INET6, &(pdp_context_info.sin6.sin6_addr), ipv6_addr, sizeof(ipv6_addr));
 		
 		/* Parsed PDP context info: */	
 		shell_print(shell, 
