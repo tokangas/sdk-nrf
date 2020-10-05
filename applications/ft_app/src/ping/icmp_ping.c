@@ -123,7 +123,6 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
   	struct nrf_pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
-	int hcs;
 	int plseqnr;
 	int ret;
 	const uint16_t icmp_hdr_len = 8;
@@ -180,7 +179,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	{
         // Generate IPv6 ICMP EchoReq
 
-        // Ping header
+        // ipv6 header
         header_len = 40;
         uint16_t payload_length = ping_argv.len + icmp_hdr_len;
 
@@ -200,7 +199,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
         sa = (struct sockaddr_in6 *)ping_argv.dest->ai_addr;
         memcpy(buf + 24, sa->sin6_addr.s6_addr, 16);    // Destination address
 
-        // ICMP6 header
+        // ICMPv6 header
         data = buf + header_len;
         data[0] = ICMP6_ECHO_REQ;               // Type (echo req)
         //data[1] = 0;                          // Code
@@ -215,15 +214,17 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
             data[i + icmp_hdr_len] = (i + seqnr) % 10 + '0';
         }
         
-		// ICMP6 CRC
-        uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header source + dest
+		// ICMPv6 CRC: https://tools.ietf.org/html/rfc4443#section-2.3
+		// for IPv6 pseudo header see: https://tools.ietf.org/html/rfc2460#section-8.1
+        uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header: source + dest
+        hcs += check_ics(buf + 4, 2);           // Pseudo header: payload length
 
-        hcs += check_ics(buf + 4, 2);           // Pseudo header packet length
         uint8_t tbuf[2];
-        tbuf[1] = 0; tbuf[1] = buf[6];
-        hcs += check_ics(tbuf, 2);              // Pseudo header Next header
-        hcs += check_ics(data, 2);              // Type & Code
-        hcs += check_ics(data + 4, 4 + ping_argv.len);  // Header data + Data
+        tbuf[0] = 0; tbuf[1] = buf[6];
+		
+        hcs += check_ics(tbuf, 2);              // Pseudo header: Next header
+        hcs += check_ics(data, 2);                       //ICMP: Type & Code
+		hcs += check_ics(data + 4,  4 + ping_argv.len);  //ICMP: Header data + Data
 
         while(hcs > 0xFFFF)
             hcs = (hcs & 0xFFFF) + (hcs >> 16);
@@ -302,7 +303,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
     if (rep == ICMP_ECHO_REP)
     {
 		/* Check ICMP HCS */
-		hcs = check_ics(data, len - header_len);
+		int hcs = check_ics(data, len - header_len);
 		if (hcs != 0) {
 			shell_error(shell, "IPv4 HCS error, hcs: %d, len: %d\r\n", hcs, len);
 			delta_t = 0;
