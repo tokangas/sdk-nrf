@@ -11,7 +11,8 @@
 #include <net/net_ip.h>
 
 #include "utils/fta_net_utils.h"
-#include "lte_connection_tools.h"
+
+#include "ltelc_api.h"
 
 #if defined(CONFIG_AT_CMD)
 
@@ -27,7 +28,7 @@
 #define AT_CMD_PDP_CONTEXT_READ_APN_INDEX 3
 #define AT_CMD_PDP_CONTEXT_READ_PDP_ADDR_INDEX 4
 
-int lte_conn_pdp_context_read(pdp_context_info_t *populated_info)
+int ltelc_api_default_pdp_context_read(pdp_context_info_t *populated_info)
 {
 	int ret = 0;
 	struct at_param_list param_list = {0};
@@ -161,9 +162,9 @@ clean_exit:
 }
 
 #endif /* CONFIG_AT_CMD */
-
+/* *****************************************************************************/
 #if defined(CONFIG_MODEM_INFO)
-void lte_conn_modem_info_get_for_shell(const struct shell *shell)
+void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 {
 	int ret;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
@@ -186,7 +187,7 @@ void lte_conn_modem_info_get_for_shell(const struct shell *shell)
 
 #if defined(CONFIG_AT_CMD)
     memset(&pdp_context_info, 0, sizeof(pdp_context_info_t));
-	ret = lte_conn_pdp_context_read(&pdp_context_info);
+	ret = ltelc_api_default_pdp_context_read(&pdp_context_info);
 	if (ret >= 0) {
 		char ipv4_addr[NET_IPV4_ADDR_LEN];		
 		char ipv6_addr[NET_IPV6_ADDR_LEN];

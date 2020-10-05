@@ -1,5 +1,5 @@
-#ifndef LTE_CONNECTION_TOOLS_H
-#define LTE_CONNECTION_TOOLS_H
+#ifndef LTELC_API_H
+#define LTELC_API_H
 
 #include <sys/types.h>
 #include <net/net_ip.h>
@@ -25,10 +25,10 @@ typedef struct {
 } pdp_context_info_t;
 
 #if defined(CONFIG_MODEM_INFO)
-void lte_conn_modem_info_get_for_shell(const struct shell *shell);
+void ltelc_api_modem_info_get_for_shell(const struct shell *shell);
 #endif
 #if defined(CONFIG_AT_CMD)
-int lte_conn_pdp_context_read(pdp_context_info_t *populated_info);
+int ltelc_api_default_pdp_context_read(pdp_context_info_t *populated_info);
 #endif
 
-#endif /* LTE_CONNECTION_TOOLS_H */
+#endif /* LTELC_API_H */

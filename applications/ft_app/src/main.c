@@ -17,7 +17,7 @@
 
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
-#include "lte_connection.h"
+#include "ltelc.h"
 
 /* global variables */
 struct modem_param_info modem_param;
@@ -83,7 +83,7 @@ static int fta_shell_init(struct device *unused)
 	printk("\nThe FT app sample started\n\n");
 
 #if defined(CONFIG_BSD_LIBRARY)
-	lte_lc_register_handler(lte_conn_ind_handler); //for autoconnect
+	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
 #endif
 	return 0;
 }
@@ -93,11 +93,11 @@ void main(void)
 	int err;
 
 #if defined(CONFIG_BSD_LIBRARY)
-    lte_conn_init();
+    ltelc_init();
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
-		err = lte_lc_init_and_connect_async(lte_conn_ind_handler);
+		err = lte_lc_init_and_connect_async(ltelc_ind_handler);
 		if (err) {
 			printk("\nModem could not be configured, error: %d",
 			       err);
@@ -108,7 +108,7 @@ void main(void)
 		 * lte_async_connect_handler() to determine when the LTE link is up.
 		 */
 	}
-	lte_lc_register_handler(lte_conn_ind_handler);
+	lte_lc_register_handler(ltelc_ind_handler);
 #endif
 
 	modem_trace_enable();

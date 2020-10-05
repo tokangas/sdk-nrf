@@ -16,8 +16,12 @@ config FTA_SOCKET
 	bool  "Enable FTA socket tool support"
     default y
 
-config FTA_PING	
+config FTA_PING
 	bool  "Enable FTA ICMP ping support"
+    default y
+
+config FTA_LTELC
+	bool  "Enable FTA LTE link control support"
     default y
 
 if FTA_IPERF3

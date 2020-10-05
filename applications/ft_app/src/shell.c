@@ -21,11 +21,12 @@
 #include <posix/sys/select.h>
 #endif
 #endif
-
 #if defined (CONFIG_FTA_IPERF3)
 #include "iperf/iperf_api.h"
 #endif
-#include "lte_connection.h"
+#if defined (CONFIG_FTA_LTELC)
+#include "ltelc_shell.h"
+#endif
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
@@ -59,12 +60,16 @@ SHELL_CMD_REGISTER(sock, NULL,
 	"Commands for socket operations such as connect and send.",
 	socket_shell);
 #endif
+
 #if defined (CONFIG_FTA_PING)
 SHELL_CMD_REGISTER(ping, NULL, NULL, icmp_ping_shell);
 #endif
+
+#if defined (CONFIG_FTA_LTELC)
 SHELL_CMD_REGISTER(ltelc, NULL,
 	"Commands for LTE link controlling and status information.",
-	lte_conn_shell);
+	ltelc_shell);
+#endif
 
 #if defined (CONFIG_FTA_IPERF3)
 SHELL_CMD_REGISTER(iperf3, NULL, NULL, cmd_iperf3);

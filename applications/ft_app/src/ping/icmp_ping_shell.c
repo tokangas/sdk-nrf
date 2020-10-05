@@ -11,7 +11,7 @@
 
 #include "utils/freebsd-getopt/getopt.h"
 
-#include "lte_connection_tools.h"
+#include "ltelc_api.h"
 
 #include "icmp_ping.h"
 #include "icmp_ping_shell.h"
@@ -127,7 +127,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
         pdp_context_info_t pdp_info;
         int ret = 0;
 
-        ret = lte_conn_pdp_context_read(&pdp_info);
+        ret = ltelc_api_default_pdp_context_read(&pdp_info);
         if (ret) {
             shell_error(shell, "cannot read current connection info: %d", ret);
             return -1;

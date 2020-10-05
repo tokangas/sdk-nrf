@@ -26,7 +26,7 @@
 #include <posix/arpa/inet.h>
 
 #include "utils/fta_net_utils.h"
-#include "lte_connection_tools.h"
+#include "ltelc_api.h"
 
 #include "icmp_ping.h"
 
@@ -221,7 +221,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 
         uint8_t tbuf[2];
         tbuf[0] = 0; tbuf[1] = buf[6];
-		
+
         hcs += check_ics(tbuf, 2);              // Pseudo header: Next header
         hcs += check_ics(data, 2);                       //ICMP: Type & Code
 		hcs += check_ics(data + 4,  4 + ping_argv.len);  //ICMP: Header data + Data
