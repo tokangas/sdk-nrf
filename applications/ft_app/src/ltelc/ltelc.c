@@ -9,6 +9,8 @@
 #include <string.h>
 
 #include <sys/types.h>
+#include <sys/dlist.h>
+
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
 
@@ -17,6 +19,11 @@
 
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
+
+#include <nrf_socket.h>
+
+//#include <posix/unistd.h>
+//#include <posix/sys/socket.h>
 
 #include "ltelc_api.h"
 #include "ltelc.h"
@@ -28,6 +35,16 @@
 #endif
 
 static const struct shell *uart_shell;
+
+sys_dlist_t pdn_socket_list;
+
+typedef struct {
+	sys_dnode_t dnode;
+	int id;
+	int fd;
+	bool in_use;
+    char apn[LTELC_APN_STR_MAX_LENGTH + 1];
+} ltelc_pdn_socket_info_t;
 
 #if defined(CONFIG_MODEM_INFO)
 /* System work queue for getting the modem info that ain't in lte connection ind.
@@ -85,6 +102,7 @@ void ltelc_init(void)
 	k_work_init(&modem_info_signal_work, ltelc_rsrp_signal_update);
 	modem_info_rsrp_register(ltelc_rsrp_signal_handler);
 #endif
+	sys_dlist_init(&pdn_socket_list);
 }
 
 
@@ -138,4 +156,123 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		break;
 	}
 }
+
 //**************************************************************************
+
+static void ltelc_pdn_socket_info_clear(ltelc_pdn_socket_info_t* pdn_socket_info)
+{
+	nrf_close(pdn_socket_info->fd);
+    
+	if (sys_dnode_is_linked(&pdn_socket_info->dnode))
+		sys_dlist_remove(&pdn_socket_info->dnode);
+
+	free(pdn_socket_info);
+}
+
+static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_create(char* apn_str, int fd)
+{
+	ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
+	ltelc_pdn_socket_info_t* iterator = NULL;
+
+	/* TODO: check if already in list, then return existing one? */
+	
+	new_pdn_socket_info = calloc(1, sizeof(ltelc_pdn_socket_info_t));
+	new_pdn_socket_info->fd = fd;
+	strcpy(new_pdn_socket_info->apn, apn_str);
+	
+	SYS_DLIST_FOR_EACH_CONTAINER(&pdn_socket_list, iterator, dnode) {
+		if (new_pdn_socket_info->fd < iterator->fd) {
+		   sys_dlist_insert(&iterator->dnode, &new_pdn_socket_info->dnode);
+		   return new_pdn_socket_info;
+		}
+	}
+
+	sys_dlist_append(&pdn_socket_list, &new_pdn_socket_info->dnode);
+	return new_pdn_socket_info;
+}
+
+static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn)
+{
+	ltelc_pdn_socket_info_t* iterator = NULL;
+	ltelc_pdn_socket_info_t* found_pdn_socket_info = NULL;
+
+	SYS_DLIST_FOR_EACH_CONTAINER(&pdn_socket_list, iterator, dnode) {
+		if (strcmp(apn, iterator->apn) == 0) {
+			found_pdn_socket_info = iterator;
+			break;
+		}
+	}
+
+	// SYS_DLIST_FOR_EACH_NODE(&pdn_socket_list, node) {
+	// 	fd_in_list = CONTAINER_OF(node, struct ltelc_pdn_socket_info_t, node)->fd;
+	// 	if (fd == fd_in_list) {
+	// 		found = true;
+	// 		break;
+	// 		}
+	// }
+	return found_pdn_socket_info;
+}
+
+int ltelc_pdn_init_and_connect(const char *apn_name)
+{
+#if 0	
+	//couldn't get these working
+	int pdn_fd = socket(AF_LTE, SOCK_MGMT, NPROTO_PDN);
+
+	if (pdn_fd >= 0) {
+		/* Connect to the APN. */
+		int err = connect(pdn_fd,
+				  (struct sockaddr *)apn_name,
+				  strlen(apn_name));
+
+		if (err != 0) {
+			close(pdn_fd);
+			return -1;
+		}
+	}
+#endif
+
+    if (apn_name != NULL) {
+		ltelc_pdn_socket_info_t* pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_name);
+		if (pdn_socket_info == NULL) {
+			ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
+			int pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
+
+			if (pdn_fd >= 0) {
+				/* Connect to the APN. */
+				int err = nrf_connect(pdn_fd, apn_name, strlen(apn_name));
+				if (err) {
+					//TODO: log error
+					(void)nrf_close(pdn_fd);
+					return -EINVAL;
+				}
+			}
+			/* Add to PDN socket list: */
+			new_pdn_socket_info = ltelc_pdn_socket_info_create(apn_name, pdn_fd);
+			if (new_pdn_socket_info == NULL) {
+				printk("ltelc_pdn_init_and_connect: could not add new PDN socket to list!!!");
+			}
+			return pdn_fd;
+		}
+		else {
+			/* PDN socket already created to requested AAPN, let's return that: */
+			return pdn_socket_info->fd;
+		}
+	}
+	return -EINVAL;
+}
+
+int ltelc_pdn_disconnect(const char* apn)
+{
+	int ret_val;
+	ltelc_pdn_socket_info_t* pdn_socket_info  = ltelc_pdn_socket_info_get_by_apn(apn);
+
+	if (pdn_socket_info != NULL) {
+		return nrf_close(pdn_socket_info->fd);
+	} else
+	{
+		/* Not existing connection by using ltelc */
+		printk("Not existing connection by using ltelc to apn %s", apn);
+		return -EINVAL;
+	}
+}
