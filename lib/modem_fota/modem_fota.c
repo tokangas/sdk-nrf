@@ -64,6 +64,7 @@ static struct k_work update_job_status_work;
 static struct k_work read_lte_active_time_work;
 static struct k_work unregister_xtime_work;
 static struct k_work schedule_next_update_work;
+static struct k_delayed_work retry_download_work;
 
 struct update_info {
 	struct k_work finish_update_work;
@@ -144,6 +145,7 @@ static bool fota_enabled = true;
 
 /* Current FOTA update job */
 static struct fota_client_mgmt_job current_job;
+static int download_retry_count;
 
 /* Settings which are saved to NV memory */
 /* Flag indicating if the device has been provisioned for FOTA */
@@ -163,7 +165,6 @@ static bool restore_system_mode_needed = false;
 static uint32_t prev_system_mode_bitmask = 0;
 
 static bool reboot_pending = false;
-static int download_progress;
 
 static int settings_set(const char *name, size_t len,
 		settings_read_cb read_cb, void *cb_arg)
@@ -841,10 +842,6 @@ static void finish_update_work_fn(struct k_work *item)
 static void fota_download_callback(const struct fota_download_evt *evt)
 {
 	switch (evt->id) {
-	case FOTA_DOWNLOAD_EVT_PROGRESS:
-		download_progress = evt->progress;
-		break;
-
 	case FOTA_DOWNLOAD_EVT_FINISHED:
 		LOG_INF("Update downloaded, reboot needed to apply update");
 		finish_update(MODEM_FOTA_EVT_UPDATE_DOWNLOADED);
@@ -859,32 +856,23 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 		break;
 
 	case FOTA_DOWNLOAD_EVT_ERROR:
-		LOG_ERR("Downloading the update failed");
-		/* Download failed or modem rejected the update (no way to
-		 * separate these two at the moment), update job status.
-		 */
-		/* TODO: As mentioned above, the FOTA download errors are not
-		 * specific enough, but using the download progres we can
-		 * make assumptions.
-		 */
-		/* TODO 2: The logic below doesn't work. The modem may reject
-		 * the update at any point when it detects that the update is
-		 * invalid. Also although the update is fully downloaded before
-		 * modem rejects it, there's no final FOTA_DOWNLOAD_EVT_PROGRESS
-		 * event with 100% progress. Thus if modem rejects the update
-		 * at any other point than right at the beginning, the job will
-		 * not be updated and the same update will be tried to be
-		 * installed again and again.
-		 */
-		if (download_progress == 0 || download_progress == 100) {
-			/* The download wasn't started or it was fully
-			 * received.  Assume this is a rejection failure.
-			 */
+		if (evt->cause == FOTA_DOWNLOAD_ERROR_CAUSE_INVALID_UPDATE) {
+			LOG_ERR("Modem rejected the firmware");
 			current_job.status = AWS_JOBS_REJECTED;
 		} else {
-			/* Received some data; assume network problem.
-			 * Retry on next update interval.
-			 */
+			/* Download failed, check if we should retry */
+			if (download_retry_count > 0) {
+				LOG_WRN("Downloading the firmware failed. %d "
+					"retries left...", download_retry_count);
+				download_retry_count--;
+				k_delayed_work_submit_to_queue(
+						&work_q,
+						&retry_download_work,
+						K_SECONDS(30));
+				return;
+			}
+
+			LOG_ERR("Downloading the firmware failed");
 			current_job.status = AWS_JOBS_FAILED;
 		}
 
@@ -1088,6 +1076,42 @@ static void clear_update_check_time(void)
 	save_update_check_time();
 }
 
+static int start_firmware_download_with_retry()
+{
+	int err;
+	uint32_t start_time;
+	int32_t wait_time;
+
+	while (true) {
+		LOG_INF("Starting firmware download...");
+
+		start_time = k_uptime_get_32();
+
+		err = fota_download_start(current_job.host,
+					  current_job.path,
+					  CONFIG_MODEM_FOTA_TLS_SECURITY_TAG,
+					  fota_apn, 0); /* TODO: Make configurable */
+		if (err == 0 || download_retry_count <= 0) {
+			/* Download started successfully or no retries
+			 * left
+			 */
+			break;
+		}
+
+		LOG_WRN("Starting firmware download failed. %d retries "
+			"left...", download_retry_count);
+		download_retry_count--;
+
+		/* Make sure retries have at least 30s interval */
+		wait_time = 30 * 1000 - (k_uptime_get_32() - start_time);
+		if (wait_time > 0) {
+			k_sleep(K_MSEC(wait_time));
+		}
+	}
+
+	return err;
+}
+
 static void start_update_work_fn(struct k_work *item)
 {
 	int err;
@@ -1192,45 +1216,29 @@ static void start_update_work_fn(struct k_work *item)
 	if (get_pending_job() == 0 &&
 			current_job.host != NULL &&
 			current_job.path != NULL) {
-		int retry_count;
-		int sec_tag = CONFIG_MODEM_FOTA_TLS_SECURITY_TAG;
-		uint32_t start_time;
-		int32_t wait_time;
+		/* Initialize retry count before first download attempt */
+		download_retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 
-		retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
-		while (true) {
-			LOG_INF("Starting firmware download...");
-
-			start_time = k_uptime_get_32();
-
-			download_progress = 0;
-			err = fota_download_start(current_job.host,
-						  current_job.path,
-						  sec_tag, fota_apn, 0); /* TODO: Make configurable */
-			if (err == 0 || retry_count <= 0) {
-				/* Download started successfully or no retries
-				 * left
-				 */
-				break;
-			}
-
-			LOG_WRN("Starting FOTA download failed. %d retries "
-				"left...", retry_count);
-			retry_count--;
-
-			/* Make sure retries have at least 30s interval */
-			wait_time = 30 * 1000 - (k_uptime_get_32() - start_time);
-			if (wait_time > 0) {
-				k_sleep(K_MSEC(wait_time));
-			}
-		}
+		err = start_firmware_download_with_retry();
 
 		if (err) {
-			LOG_ERR("Couldn't start FOTA download, error: %d", err);
+			LOG_ERR("Downloading the firmware failed");
 			finish_update(MODEM_FOTA_EVT_ERROR);
 		}
 	} else {
 		finish_update(MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE);
+	}
+}
+
+static void retry_download_work_fn(struct k_work *item)
+{
+	int err;
+
+	err = start_firmware_download_with_retry();
+
+	if (err) {
+		LOG_ERR("Downloading the firmware failed");
+		finish_update(MODEM_FOTA_EVT_ERROR);
 	}
 }
 
@@ -1750,6 +1758,7 @@ int modem_fota_init(modem_fota_callback_t callback)
 	k_work_init(&read_lte_active_time_work, read_lte_active_time_work_fn);
 	k_work_init(&unregister_xtime_work, unregister_xtime_work_fn);
 	k_work_init(&schedule_next_update_work, schedule_next_update_work_fn);
+	k_delayed_work_init(&retry_download_work, retry_download_work_fn);
 
 	init_and_load_settings();
 
