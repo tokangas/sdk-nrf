@@ -52,7 +52,7 @@ static void active_time_timer_handler(struct k_timer *dummy);
 static void at_notification_handler(void *context, const char *notif);
 
 /* Work queue */
-#define WORK_QUEUE_STACK_SIZE 3072 /* TODO: Do we need more than 2048 bytes? */
+#define WORK_QUEUE_STACK_SIZE 2048
 #define WORK_QUEUE_PRIORITY 5
 
 K_THREAD_STACK_DEFINE(work_q_stack_area, WORK_QUEUE_STACK_SIZE);
