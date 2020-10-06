@@ -31,7 +31,7 @@
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
-	char response[256];
+	char response[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
 
 	err = at_cmd_write(argv[1], response, sizeof(response), NULL);
 	if (err) {

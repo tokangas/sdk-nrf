@@ -10,13 +10,21 @@
 
 typedef enum {
 	LTELC_CMD_STATUS = 0,
+    LTELC_CMD_RSRP,
 	LTELC_CMD_CONNECT,
     LTELC_CMD_DISCONNECT,
 	LTELC_CMD_HELP
 } ltelc_shell_command;
 
+typedef enum {
+	LTELC_RSRP_NONE = 0,
+    LTELC_RSRP_SUBSCRIBE,
+    LTELC_RSRP_UNSUBSCRIBE
+} ltelc_shell_rsrp_options;
+
 typedef struct {
 	ltelc_shell_command command;
+	ltelc_shell_rsrp_options rsrp_option;
 } ltelc_shell_cmd_args_t;
 
 static ltelc_shell_cmd_args_t ltelc_cmd_args;
@@ -28,11 +36,15 @@ const char ltelc_usage_str[] =
 	"<command> is one of the following:\n"
 	"  help:             Show this message\n"
 	"  status:           Show status of the current connection\n"
+	"  signal -u | -s:   Subscribe/unsubscribe for RSRP signal info\n"
 	"  connect <apn>:    Connect to given apn\n"
 	"  disconnect <apn>: Disconnect from given apn\n"
 	"\n"
 	"General options:\n"
 	"  -a, [str]  Access Point Name.\n"
+	"Options for signal:\n"
+	"  -s, [bool]  Subscribe for RSRP info.\n"
+	"  -u, [bool]  Unsubscribe for RSRP info.\n"
 	"\n"
 	;
 
@@ -52,6 +64,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err = 0;
 	bool require_apn = false;
+	bool require_rsrp_subscribe = false;
     char *apn = NULL;
 
     ltelc_shell_cmd_defaults_set(&ltelc_cmd_args);
@@ -64,6 +77,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	// sub-command = argv[1]
 	if (strcmp(argv[1], "status") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_STATUS;
+    }
+	else if (strcmp(argv[1], "rsrp") == 0) {
+        require_rsrp_subscribe = true;
+		ltelc_cmd_args.command = LTELC_CMD_RSRP;
     }
 	else if (strcmp(argv[1], "connect") == 0) {
         require_apn = true;
@@ -85,10 +102,17 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	optind = 2;
 
 	int flag;
-	while ((flag = getopt(argc, argv, "a:")) != -1) {
+	while ((flag = getopt(argc, argv, "a:su")) != -1) {
 		int apn_len = 0;
 		switch (flag) {
             //TODO: setting family for connect and print connections after connect and disconnect
+            //TODO: cmd signal -u / -s (rsrp indication subscribe/unsubscribe)
+		case 's': // subscribe for RSRP
+			ltelc_cmd_args.rsrp_option = LTELC_RSRP_SUBSCRIBE;
+			break;
+		case 'u': // unsubscribe for RSRP
+			ltelc_cmd_args.rsrp_option = LTELC_RSRP_UNSUBSCRIBE;
+			break;
 		case 'a': // APN
 			apn_len = strlen(optarg);
 			if (apn_len > LTELC_APN_STR_MAX_LENGTH) {
@@ -106,6 +130,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
     if (require_apn && apn == NULL) {
         shell_error(shell, "-a apn MUST be given. See usage:");
         goto show_usage;
+    } else if (require_rsrp_subscribe && ltelc_cmd_args.rsrp_option == LTELC_RSRP_NONE) {
+        shell_error(shell, "either -s or -u MUST be given. See usage:");
+        goto show_usage;
     }
 
     int pdn_fd;
@@ -114,10 +141,13 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_CMD_STATUS:
 			ltelc_api_modem_info_get_for_shell(shell);
 			break;
+		case LTELC_CMD_RSRP:
+            (ltelc_cmd_args.rsrp_option == LTELC_RSRP_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false); 
+			break;
 		case LTELC_CMD_CONNECT:
 			pdn_fd = ltelc_pdn_init_and_connect(apn);
             if (pdn_fd < 0) {
-                shell_error(shell, "cannot connect pdn socket = %d", pdn_fd);
+                shell_error(shell, "cannot connect pdn socket: %d", pdn_fd);
             }
             else {
                 shell_print(shell, "pdn socket = %d created and connected", pdn_fd);

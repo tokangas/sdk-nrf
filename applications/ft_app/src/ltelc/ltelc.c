@@ -34,15 +34,14 @@
 #include <modem/at_params.h>
 #endif
 
-static const struct shell *uart_shell;
+static bool ltelc_subscribe_for_rsrp = false;
 
-sys_dlist_t pdn_socket_list;
+static const struct shell *uart_shell;
+static sys_dlist_t pdn_socket_list;
 
 typedef struct {
 	sys_dnode_t dnode;
-	int id;
 	int fd;
-	bool in_use;
     char apn[LTELC_APN_STR_MAX_LENGTH + 1];
 } ltelc_pdn_socket_info_t;
 
@@ -89,8 +88,9 @@ static void ltelc_rsrp_signal_update(struct k_work *work)
 	     FTA_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
 		return;
 	}
-
-	shell_print(uart_shell, "RSRP: %d", modem_rsrp);
+	
+	if (ltelc_subscribe_for_rsrp)
+		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
 	timestamp_prev = k_uptime_get_32();
 }
 #endif
@@ -159,17 +159,18 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 
 //**************************************************************************
 
-static void ltelc_pdn_socket_info_clear(ltelc_pdn_socket_info_t* pdn_socket_info)
+static int ltelc_pdn_socket_info_clear(ltelc_pdn_socket_info_t* pdn_socket_info)
 {
-	nrf_close(pdn_socket_info->fd);
+	int ret_val = nrf_close(pdn_socket_info->fd);
     
 	if (sys_dnode_is_linked(&pdn_socket_info->dnode))
 		sys_dlist_remove(&pdn_socket_info->dnode);
 
 	free(pdn_socket_info);
+	return ret_val;
 }
 
-static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_create(char* apn_str, int fd)
+static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_create(const char* apn_str, int fd)
 {
 	ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
 	ltelc_pdn_socket_info_t* iterator = NULL;
@@ -211,6 +212,9 @@ static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn
 	// 		}
 	// }
 	return found_pdn_socket_info;
+}
+void ltelc_rsrp_subscribe(bool subscribe) {
+	ltelc_subscribe_for_rsrp = subscribe;
 }
 
 int ltelc_pdn_init_and_connect(const char *apn_name)
@@ -264,11 +268,10 @@ int ltelc_pdn_init_and_connect(const char *apn_name)
 
 int ltelc_pdn_disconnect(const char* apn)
 {
-	int ret_val;
 	ltelc_pdn_socket_info_t* pdn_socket_info  = ltelc_pdn_socket_info_get_by_apn(apn);
 
 	if (pdn_socket_info != NULL) {
-		return nrf_close(pdn_socket_info->fd);
+		return ltelc_pdn_socket_info_clear(pdn_socket_info);
 	} else
 	{
 		/* Not existing connection by using ltelc */
