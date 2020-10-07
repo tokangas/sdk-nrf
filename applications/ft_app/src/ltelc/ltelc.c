@@ -36,7 +36,7 @@
 
 static bool ltelc_subscribe_for_rsrp = false;
 
-static const struct shell *uart_shell;
+static const struct shell *uart_shell = NULL;
 static sys_dlist_t pdn_socket_list;
 
 typedef struct {
@@ -89,7 +89,7 @@ static void ltelc_rsrp_signal_update(struct k_work *work)
 		return;
 	}
 
-	if (ltelc_subscribe_for_rsrp)
+	if (ltelc_subscribe_for_rsrp && uart_shell != NULL)
 		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
 	timestamp_prev = k_uptime_get_32();
 }
@@ -215,6 +215,10 @@ static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn
 }
 void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
+	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
+		/* print current value right away: */
+		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
+	}		
 }
 
 int ltelc_pdn_init_and_connect(const char *apn_name)

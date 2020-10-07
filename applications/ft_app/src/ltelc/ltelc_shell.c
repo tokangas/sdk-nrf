@@ -36,7 +36,7 @@ const char ltelc_usage_str[] =
 	"<command> is one of the following:\n"
 	"  help:             Show this message\n"
 	"  status:           Show status of the current connection\n"
-	"  signal -u | -s:   Subscribe/unsubscribe for RSRP signal info\n"
+	"  rsrp -s | -u:     Subscribe/unsubscribe for RSRP signal info\n"
 	"  connect <apn>:    Connect to given apn\n"
 	"  disconnect <apn>: Disconnect from given apn\n"
 	"\n"
