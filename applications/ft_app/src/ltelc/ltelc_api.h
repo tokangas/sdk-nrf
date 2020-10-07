@@ -11,7 +11,7 @@
 #define PDP_TYPE_IP4V6       0x03
 
 #define AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN (6 + 1)
-#define AT_CMD_PDP_CONTEXT_READ_APN_STR_MAX_LEN (255)
+#define AT_CMD_PDP_CONTEXT_READ_APN_STR_MAX_LEN (255)  //TODO: "global" defines for FTA
 #define AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN (255)
 
 typedef struct {

@@ -43,8 +43,9 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 	char *tmp_ptr = at_response_str;
 	int pdp_cnt = 0;
 	int iterator = 0;
-
 	pdp_context_info_t *populated_info;
+
+	memset(pdp_info, 0, sizeof(pdp_context_info_array_t));
 
 	ret = at_cmd_write(AT_CMD_PDP_CONTEXT_READ, at_response_str,
 			   sizeof(at_response_str), NULL);
@@ -52,7 +53,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		printf("at_cmd_write returned err: %d", ret);
 		return ret;
 	}
-	printf("%s", at_response_str);
+	//printf("%s", at_response_str);
 
 	/* Check how many rows/context do we have: */
 	while ((tmp_ptr = strstr(tmp_ptr, AT_CMD_PDP_CONTEXT_READ_RSP_DELIM)) !=
@@ -60,7 +61,8 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		++tmp_ptr;
 		++pdp_cnt;
 	}
-	printf("Device contains %d IP addresses\n", pdp_cnt);
+	
+	//printf("Device contains %d IP addresses\n", pdp_cnt);
 
 	/* Allocate array of PDP info accordingly: */
 	pdp_info->array = calloc(pdp_cnt, sizeof(pdp_context_info_t));
@@ -215,6 +217,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 
 clean_exit:
 	at_params_list_free(&param_list);
+	/* user need do free pdp_info->array also in case of error */ 
 
 	return ret;
 }
@@ -248,8 +251,6 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 	}
 
 #if defined(CONFIG_AT_CMD)
-	memset(&pdp_context_info_tbl, 0, sizeof(pdp_context_info_tbl));
-
 	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
 	if (ret >= 0) {
 		char ipv4_addr[NET_IPV4_ADDR_LEN];

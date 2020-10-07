@@ -3,11 +3,36 @@
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
-
+#include <zephyr.h>
 #include <stdio.h>
 #include <posix/arpa/inet.h>
+#include <posix/sys/socket.h>
 
 #include "fta_net_utils.h"
+
+int fta_net_utils_socket_apn_set(int fd, const char *apn)
+{
+	int err;
+	size_t len;
+	struct ifreq ifr = {0};
+
+	__ASSERT_NO_MSG(apn);
+
+	len = strlen(apn);
+	if (len >= sizeof(ifr.ifr_name)) {
+		printf("Access point name is too long");
+		return -EINVAL;
+	}
+
+	memcpy(ifr.ifr_name, apn, len);
+	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (err) {
+		printf("Failed to bind socket, error: %d", errno);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 char *fta_net_utils_sckt_addr_ntop(const struct sockaddr *addr)
 {

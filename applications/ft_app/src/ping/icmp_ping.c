@@ -246,22 +246,15 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	    free(buf);
 		return (uint32_t)delta_t;
 	}
-#ifdef TODO	
-        if (argv->pdn >= 0)
-        {
-            // FIXME: Currently modem (ltenetif.c) does not allow to set
-            //        raw socket pdn to the value it already has.
-            //        Also getsockopt for raw ip is not (yet) supported.
-            int ret = setsockopt(fd, SOL_SOCKET, SO_BINDNET, &argv->pdn, sizeof(int));
-            if (ret < 0)
-            {
-                sprintf((char*)buf, "+NPING ERROR SETSOCKOPT %d %d\r\n", ret, errno);
-                ts_queue_at_create_and_send((char*)buf, strlen((char*)buf));
-                (void)close(fd);
-                break;
-            }
-        }
-#endif
+	if (ping_argv.cid != ICMP_PARAM_NOT_SET) {
+		/* Binding a data socket to an APN: */
+		ret = fta_net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
+		if (ret != 0) {
+			shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
+			shell_error(shell, "probably due to https://projecttools.nordicsemi.no/jira/browse/NCSDK-6645");
+			goto close_end;
+		}			
+	}
 
 	ret = nrf_send(fd, buf, total_length, 0);
 	if (ret <= 0) {
@@ -404,28 +397,39 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 	int st = -1;
 	struct addrinfo *res;
 	char src_ipv_addr[NET_IPV6_ADDR_LEN];
+	char *apn = NULL;
 
 	/* Copy args in local storage here: */
 	memcpy(&ping_argv, ping_args, sizeof(icmp_ping_shell_cmd_argv_t));
 
 	shell_print(shell, "initiating ping to: %s", ping_argv.target_name);
 
-    /* TODO: check conn status from lte_conn? */
+	if (ping_argv.cid != ICMP_PARAM_NOT_SET) {
+		apn = ping_argv.current_apn_str;
+	}
 
     /* Sets getaddrinfo hints by using current host address(es): */
-	struct addrinfo hints = {0};
+	struct addrinfo hints = {
+		.ai_family = AF_INET,
+		.ai_next =  apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL,
+	};
 	
-	hints.ai_family = AF_INET;
-	inet_ntop(AF_INET,  &(ping_args->current_sin4.sin_addr), src_ipv_addr, sizeof(src_ipv_addr));
-    if (ping_args->current_pdp_type == PDP_TYPE_IP4V6) {
-		if (ping_args->force_ipv6) {
+	inet_ntop(AF_INET,  &(ping_argv.current_sin4.sin_addr), src_ipv_addr, sizeof(src_ipv_addr));
+    if (ping_argv.current_pdp_type == PDP_TYPE_IP4V6) {
+		if (ping_argv.force_ipv6) {
 			hints.ai_family = AF_INET6;
-			inet_ntop(AF_INET6,  &(ping_args->current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
+			inet_ntop(AF_INET6,  &(ping_argv.current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
 		}
 	}
-    if (ping_args->current_pdp_type == PDP_TYPE_IPV6) {
+    if (ping_argv.current_pdp_type == PDP_TYPE_IPV6) {
 		hints.ai_family = AF_INET6;
-		inet_ntop(AF_INET6,  &(ping_args->current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
+		inet_ntop(AF_INET6,  &(ping_argv.current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
 	}	
 	shell_print(shell, "source: %s", src_ipv_addr);
 	st = getaddrinfo(src_ipv_addr, NULL, &hints, &res);
@@ -435,20 +439,6 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 	}
 	ping_argv.src = res;
 
-/* TODO: set APN
-	len = strlen(apn);
-	if (len >= sizeof(ifr.ifr_name)) {
-		LOG_ERR("Access point name is too long");
-		return -EINVAL;
-	}
-
-	memcpy(ifr.ifr_name, apn, len);
-	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
-	if (err) {
-		LOG_ERR("Failed to bind socket, error: %d", errno);
-		return -EINVAL;
-	}
-*/
 	/* Get destination */
 	res = NULL;
 	st = getaddrinfo(ping_argv.target_name, NULL, &hints, &res);
@@ -473,8 +463,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 		shell_print(shell, "Destination IP addr: %s",
 			    fta_net_utils_sckt_addr_ntop(sa));
 	}
-
-
+ 
 	icmp_ping_tasks_execute(shell);
 	return 0;
 }

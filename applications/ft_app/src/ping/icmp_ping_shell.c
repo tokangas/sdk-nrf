@@ -25,12 +25,13 @@ static const char icmp_ping_shell_cmd_usage_str[] =
 	"mandatory options:\n"
 	"  -d destination, [str]   name or ip address\n"
 	"optional options:\n"
-	"  -t timeout,     [int]   ping timeout in msecs\n"
-	"  -c count,       [int]   the number of times to send the ping request\n"
-	"  -i interval,    [int]   an interval between successive packet transmissions.\n"
-	"  -l length,      [int]   payload length to be sent\n"
-	"  -I interface,   [str]   use this option to bind pinging to specific APN.\n"
-	"  -h,             [bool]  shows this information.\n"
+	"  -t timeout,       [int]   ping timeout in msecs\n"
+	"  -c count,         [int]   the number of times to send the ping request\n"
+	"  -i interval,      [int]   an interval between successive packet transmissions.\n"
+	"  -l length,        [int]   payload length to be sent\n"
+	"  -I interface CID, [str]   use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
+	"  -6,               [bool]  force IPv6 usage, e.g. with dual stack interfaces\n"
+	"  -h,               [bool]  shows this information.\n"
 	;
 
 static void icmp_ping_shell_usage_print(const struct shell *shell)
@@ -45,6 +46,7 @@ static void icmp_ping_shell_cmd_defaults_set(icmp_ping_shell_cmd_argv_t *ping_ar
     ping_args->interval = ICMP_PARAM_INTERVAL_DEFAULT;
     ping_args->timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
     ping_args->len = ICMP_PARAM_LENGTH_DEFAULT;
+    ping_args->cid = ICMP_PARAM_NOT_SET;
 }
 /*****************************************************************************/
 int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
@@ -81,6 +83,15 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
                 ping_args.timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
             }            
             break;
+		case 'I': //PDN CID
+			ping_args.cid = atoi(optarg);
+			if (ping_args.cid == 0) {
+				shell_warn(
+					shell,
+					"CID not an integer (> 0), default context used");
+                ping_args.cid = ICMP_PARAM_NOT_SET;
+              }
+            break;
 		case 'c': //count
 			ping_args.count = atoi(optarg);
 			if (ping_args.count == 0) {
@@ -89,7 +100,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 					"count not an integer (> 0), defaulting to %d",
 					ICMP_PARAM_COUNT_DEFAULT);
                 ping_args.timeout = ICMP_PARAM_COUNT_DEFAULT;
-              }            
+              }
             break;
 		case 'i': //interval
 			ping_args.interval = atoi(optarg);
@@ -124,8 +135,6 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             goto show_usage;
     } else {
         /* All good for args, get the current connection info and start the ping: */
-        pdp_context_info_t **pdp_info_tbl;
-    	int pdp_info_count;
         int ret = 0;
   	    pdp_context_info_array_t pdp_context_info_tbl;
 
@@ -137,9 +146,33 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
         else {
             /* TODO: multi context support and dealloc*/
             if (pdp_context_info_tbl.size > 0) {
-                ping_args.current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
-                ping_args.current_sin4 = pdp_context_info_tbl.array[0].sin4;
-                ping_args.current_sin6 = pdp_context_info_tbl.array[0].sin6;
+
+                /* Default context: */
+                if (ping_args.cid == ICMP_PARAM_NOT_SET) {
+                    ping_args.current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
+                    ping_args.current_sin4 = pdp_context_info_tbl.array[0].sin4;
+                    ping_args.current_sin6 = pdp_context_info_tbl.array[0].sin6;
+                }
+                else {
+                    /* Find PDP context info for requested CID: */
+                    int i;
+                    bool found = false;
+
+                    for (i = 0; i < pdp_context_info_tbl.size; i++) {
+                        if (pdp_context_info_tbl.array[i].cid == ping_args.cid) {
+                            ping_args.current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
+                            ping_args.current_sin4 = pdp_context_info_tbl.array[i].sin4;
+                            ping_args.current_sin6 = pdp_context_info_tbl.array[i].sin6;
+                            strcpy(ping_args.current_apn_str, pdp_context_info_tbl.array[i].apn_str);
+                            found = true;
+                        }
+                    }
+
+                    if (!found) {
+                        shell_error(shell, "cannot find CID: %d", ping_args.cid);
+                        return -1;
+                    }
+                }
             }
             else {
                 shell_error(shell, "cannot read current connection info");

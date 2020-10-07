@@ -17,6 +17,7 @@
 
 #define ICMP_MAX_URL		128
 #define ICMP_MAX_LEN		512
+#define ICMP_PARAM_NOT_SET -1
 #define ICMP_PARAM_LENGTH_DEFAULT 0
 #define ICMP_PARAM_COUNT_DEFAULT 4
 #define ICMP_PARAM_TIMEOUT_DEFAULT 3000
@@ -29,9 +30,11 @@ typedef struct {
 	struct addrinfo *dest;
 	struct sockaddr_in current_sin4;
 	struct sockaddr_in6 current_sin6;
+    char current_apn_str[AT_CMD_PDP_CONTEXT_READ_APN_STR_MAX_LEN];
     char current_pdp_type;
 	int len;
 	int timeout;
+	int cid;
 	int count;
 	int interval;
     bool force_ipv6;
