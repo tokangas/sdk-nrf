@@ -124,18 +124,29 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             goto show_usage;
     } else {
         /* All good for args, get the current connection info and start the ping: */
-        pdp_context_info_t pdp_info;
+        pdp_context_info_t **pdp_info_tbl;
+    	int pdp_info_count;
         int ret = 0;
+  	    pdp_context_info_array_t pdp_context_info_tbl;
 
-        ret = ltelc_api_default_pdp_context_read(&pdp_info);
+        ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
         if (ret) {
             shell_error(shell, "cannot read current connection info: %d", ret);
             return -1;
         }
         else {
-            ping_args.current_pdp_type = pdp_info.pdp_type;
-            ping_args.current_sin4 = pdp_info.sin4;
-            ping_args.current_sin6 = pdp_info.sin6;
+            /* TODO: multi context support and dealloc*/
+            if (pdp_context_info_tbl.size > 0) {
+                ping_args.current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
+                ping_args.current_sin4 = pdp_context_info_tbl.array[0].sin4;
+                ping_args.current_sin6 = pdp_context_info_tbl.array[0].sin6;
+            }
+            else {
+                shell_error(shell, "cannot read current connection info");
+                return -1;
+            }
+            if (pdp_context_info_tbl.array != NULL)
+                free(pdp_context_info_tbl.array);
         }
 		return icmp_ping_start(shell, &ping_args);
     }

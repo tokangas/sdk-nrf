@@ -24,11 +24,17 @@ typedef struct {
 	struct sockaddr_in6 sin6;
 } pdp_context_info_t;
 
+typedef struct
+{
+    pdp_context_info_t *array;
+    size_t size;
+} pdp_context_info_array_t;
+
 #if defined(CONFIG_MODEM_INFO)
 void ltelc_api_modem_info_get_for_shell(const struct shell *shell);
 #endif
 #if defined(CONFIG_AT_CMD)
-int ltelc_api_default_pdp_context_read(pdp_context_info_t *populated_info);
+int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
 #endif
 
 #endif /* LTELC_API_H */

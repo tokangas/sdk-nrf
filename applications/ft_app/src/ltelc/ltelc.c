@@ -88,7 +88,7 @@ static void ltelc_rsrp_signal_update(struct k_work *work)
 	     FTA_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
 		return;
 	}
-	
+
 	if (ltelc_subscribe_for_rsrp)
 		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
 	timestamp_prev = k_uptime_get_32();
@@ -275,7 +275,7 @@ int ltelc_pdn_disconnect(const char* apn)
 	} else
 	{
 		/* Not existing connection by using ltelc */
-		printk("Not existing connection by using ltelc to apn %s", apn);
+		printk("No existing connection created by using ltelc to apn %s\n", apn);
 		return -EINVAL;
 	}
 }
