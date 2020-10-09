@@ -39,6 +39,12 @@
 #include <posix/sys/select.h>
 #include <limits.h>
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#include "fta_defines.h"
+#include "ltelc_api.h"
+#include "utils/fta_net_utils.h"
+#endif
+
 #include "iperf.h"
 #include "iperf_api.h"
 #include "iperf_tcp.h"
@@ -413,8 +419,25 @@ iperf_tcp_connect(struct iperf_test *test)
     }
 
     memset(&hints, 0, sizeof(hints));
+
     hints.ai_family = test->settings->domain;
     hints.ai_socktype = SOCK_STREAM;
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	char *apn = NULL;
+
+    /* Set PDN: */
+	if (test->cid != FTA_ARG_NOT_SET) {
+		apn = test->current_apn_str;
+	}
+    hints.ai_next = apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL;
+#endif
+
     snprintf(portstr, sizeof(portstr), "%d", test->server_port);
     if ((gerror = getaddrinfo(test->server_hostname, portstr, &hints, &server_res)) != 0) {
 	if (test->bind_address)
@@ -433,6 +456,17 @@ iperf_tcp_connect(struct iperf_test *test)
         i_errno = IESTREAMCONNECT;
         return -1;
     }
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	/* Set PDN if requested */
+    if (test->cid != FTA_ARG_NOT_SET) {
+		int ret = fta_net_utils_socket_apn_set(s, test->current_apn_str);
+		if (ret != 0) {
+			printf("Cannot bind socket to apn %s\n", test->current_apn_str);
+			return -1;
+		}				
+	}
+#endif
 
     /*
      * Various ways to bind the local end of the connection.

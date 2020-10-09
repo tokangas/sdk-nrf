@@ -62,6 +62,11 @@
 #include <posix/poll.h>
 #endif /* HAVE_POLL_H */
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#include "fta_defines.h"
+#include "ltelc_api.h"
+#include "utils/fta_net_utils.h"
+#endif
 #include "iperf_util.h"
 #include "net.h"
 #include "timer.h"
@@ -124,7 +129,7 @@ timeout_connect(int s, const struct sockaddr *name, socklen_t namelen,
 
 /* make connection to server */
 int
-netdial(int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout)
+netdial(struct iperf_test *test, int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout)/* FTA_IPERF3_INTEGRATION_CHANGE: added test */
 {
     struct addrinfo hints, *local_res, *server_res;
     int s, saved_errno;
@@ -143,14 +148,29 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
     //here was mixed with protos & types
     int type = proto;
     int protocol = 0;
+	char *apn = NULL;
+
     if (type == SOCK_STREAM) {
 	    protocol = IPPROTO_TCP;
      } else if (type == SOCK_DGRAM) {
 	    protocol = IPPROTO_UDP;
      }
 
+    /* Set PDN: */
+	if (test->cid != FTA_ARG_NOT_SET) {
+		apn = test->current_apn_str;
+	}
+
     hints.ai_family = domain;
     hints.ai_socktype = type;
+    hints.ai_next = apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL;
+
     if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0) {
         printf("getaddrinfo failed with error code %d %s\n", gerror, gai_strerror(gerror));
         return -1;
@@ -158,6 +178,8 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
 
     s = socket(server_res->ai_family, type, protocol);
 #else
+    struct addrinfo hints;
+
     hints.ai_family = domain;
     hints.ai_socktype = proto;
     if ((gerror = getaddrinfo(server, NULL, &hints, &server_res)) != 0)
@@ -171,6 +193,17 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
 	freeaddrinfo(server_res);
         return -1;
     }
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	/* Set PDN if requested */
+    if (test->cid != FTA_ARG_NOT_SET) {
+		int ret = fta_net_utils_socket_apn_set(s, test->current_apn_str);
+		if (ret != 0) {
+			printf("Cannot bind socket to apn %s\n", test->current_apn_str);
+			return -1;
+		}				
+	}
+#endif
 
     /* Bind the local address if given a name (with or without --cport) */
     if (local) {
@@ -234,6 +267,8 @@ netdial(int domain, int proto, const char *local, int local_port, const char *se
 	errno = saved_errno;
         return -1;
     }
+    
+    test->remote_addr = *(server_res->ai_addr); /* FTA_IPERF3_INTEGRATION_CHANGE: added */
 
     freeaddrinfo(server_res);
     return s;
@@ -527,15 +562,16 @@ setnonblocking(int fd, int nonblocking)
 }
 
 /****************************************************************************/
-
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //FTA version used instead from iperf_util.c
 int
 getsockdomain(int sock)
 {
     struct sockaddr_storage sa;
     socklen_t len = sizeof(sa);
 
-    if (mock_getsockname(sock, (struct sockaddr *)&sa, &len) < 0) { //FTA_IPERF3_INTEGRATION_CHANGE
+    if (getsockname(sock, (struct sockaddr *)&sa, &len) < 0) {
         return -1;
     }
     return ((struct sockaddr *) &sa)->sa_family;
 }
+#endif

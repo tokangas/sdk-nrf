@@ -66,6 +66,10 @@
 # endif
 #endif
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#include "fta_defines.h"
+#endif
+
 #include "timer.h"
 #include "queue.h"
 #include "cjson.h"
@@ -265,7 +269,10 @@ struct iperf_test
     char     *server_hostname;                  /* -c option */
     char     *tmp_template;
     char     *bind_address;                     /* first -B option */
-    struct sockaddr client_address;  /* FTA_IPERF3_INTEGRATION_CHANGE: added to store client address when acting like a server */
+
+    struct sockaddr client_address;  /* FTA_IPERF3_INTEGRATION_CHANGE: added to store client address when acting like a server, TODO: use remote_addr below? */
+    struct sockaddr remote_addr; /* FTA_IPERF3_INTEGRATION_CHANGE: added */
+
     TAILQ_HEAD(xbind_addrhead, xbind_entry) xbind_addrs; /* all -X opts */
     int       bind_port;                        /* --cport option */
     int       server_port;
@@ -314,7 +321,9 @@ struct iperf_test
     int	      repeating_payload;                /* --repeating-payload */
     int       timestamps;			/* --timestamps */
     char     *timestamp_format;
-
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    int       cid;                          /* -I option */
+#endif
     char     *json_output_string; /* rendered JSON output if json_output is set */
     /* Select related parameters */
     int       max_fd;
@@ -376,7 +385,18 @@ struct iperf_test
     /* Server output (use on server side only) */
     TAILQ_HEAD(iperf_textlisthead, iperf_textline) server_output_list;
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    char current_pdp_type;
+    char current_apn_str[FTA_APN_STR_MAX_LEN];
+	struct sockaddr_in current_sin4;
+	struct sockaddr_in6 current_sin6;
+#endif
+
 };
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#define FTA_IPERF3_CID_NOT_SET -6
+#endif
 
 /* default settings */
 #define PORT 5201  /* default port to listen on (don't use the same port as iperf2) */

@@ -7,12 +7,13 @@
 #include <stdio.h>
 #include <posix/arpa/inet.h>
 #include <posix/sys/socket.h>
+#include <posix/netdb.h>
 
 #include "fta_net_utils.h"
 
 int fta_net_utils_socket_apn_set(int fd, const char *apn)
 {
-	int err;
+	int ret;
 	size_t len;
 	struct ifreq ifr = {0};
 
@@ -20,14 +21,14 @@ int fta_net_utils_socket_apn_set(int fd, const char *apn)
 
 	len = strlen(apn);
 	if (len >= sizeof(ifr.ifr_name)) {
-		printf("Access point name is too long");
+		printf("Access point name is too long\n");
 		return -EINVAL;
 	}
 
 	memcpy(ifr.ifr_name, apn, len);
-	err = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
-	if (err) {
-		printf("Failed to bind socket, error: %d", errno);
+	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (ret < 0) {
+		printf("Failed to bind socket, error: %d, %s\n",  ret, gai_strerror(ret));
 		return -EINVAL;
 	}
 
@@ -56,7 +57,7 @@ int fta_net_utils_sa_family_from_ip_string(const char *src)
 {
 	char buf[INET6_ADDRSTRLEN];
 	if (inet_pton(AF_INET, src, buf)) {
-		printf("ip_address_family_from_string AF_INET");
+		//printf("fta_net_utils_sa_family_from_ip_string AF_INET");
 		return AF_INET;
 	} else if (inet_pton(AF_INET6, src, buf)) {
 		return AF_INET6;

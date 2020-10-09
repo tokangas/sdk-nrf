@@ -81,6 +81,12 @@
 #include <Windows.h>
 #endif /* HAVE_SETPROCESSAFFINITYMASK */
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#include "fta_defines.h"
+#include "ltelc_api.h"
+#include "utils/fta_net_utils.h"
+#endif
+
 #include "net.h"
 #include "iperf.h"
 #include "iperf_api.h"
@@ -122,26 +128,33 @@ static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinlin
 static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
 #endif
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
-static int ip_address_family_from_string(const char *src) {
-    char buf[INET6_ADDRSTRLEN];
-    if (inet_pton(AF_INET, src, buf)) {
-		printf("ip_address_family_from_string AF_INET");
-        return AF_INET;
-    } else if (inet_pton(AF_INET6, src, buf)) {
-        return AF_INET6;
-    }
-    return -1;
-}
-#endif
-
-int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+static int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-	*addr = test->client_address;
-	*addrlen = sizeof(test->client_address);
+    memset(addr, 0, sizeof(struct sockaddr));
+
+	if (test->role == 's') {
+		*addr = test->client_address;
+		*addrlen = sizeof(test->client_address);
+	}
+	else {
+		*addr = test->remote_addr;
+		*addrlen = sizeof(test->remote_addr);
+	}
 
 	return 0;
 }
+/****************************************************************************/
+int fta_iperf3_getsockdomain(struct iperf_test *test, int sock)
+{
+    struct sockaddr_storage sa;
+    socklen_t len = sizeof(sa);
+
+    if (mock_getsockname(test, sock, (struct sockaddr *)&sa, &len) < 0) { //FTA_IPERF3_INTEGRATION_CHANGE
+        return -1;
+    }
+    return ((struct sockaddr *) &sa)->sa_family;
+}
+
 /*************************** Print usage functions ****************************/
 
 void fta_iperf3_usage()
@@ -821,8 +834,8 @@ void iperf_on_connect(struct iperf_test *test)
 		}
 	} else {
 		len = sizeof(sa);
-		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); //FTA_IPERF3_INTEGRATION_TODO: instead this, store when accepted?
-		if (getsockdomain(test->ctrl_sck) == AF_INET) {
+		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); //FTA_IPERF3_INTEGRATION_TODO: instead this, store when accepted/connected?
+		if (fta_iperf3_getsockdomain(test, test->ctrl_sck) == AF_INET) {
 			sa_inP = (struct sockaddr_in *)&sa;
 			inet_ntop(AF_INET, &sa_inP->sin_addr, ipr, sizeof(ipr));
 			port = ntohs(sa_inP->sin_port);
@@ -994,7 +1007,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	//    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
 	while ((flag = getopt(
 			argc, argv,
-			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:E:dh")) !=
+			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:E:I:dh")) !=
 	       -1) {
 		switch (flag) {
 		case 'p':
@@ -1337,10 +1350,19 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		case 'd':
 			test->debug = 1;
 			break;
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+		case 'I':
+			test->cid = atoi(optarg);
+			if (test->cid == 0) {
+				printf("CID not an integer (> 0), default context used\n");
+            }
+			break;
+#else
 		case 'I':
 			test->pidfile = strdup(optarg);
 			server_flag = 1;
 			break;
+#endif
 		case OPT_LOGFILE:
 			test->logfile = strdup(optarg);
 			break;
@@ -2887,11 +2909,11 @@ void add_to_interval_list(struct iperf_stream_result *rp,
 
 void connect_msg(struct iperf_stream *sp)
 {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //let's do it simpler
+#if 1 //let's do it simpler
 	char ipl[INET6_ADDRSTRLEN], ipr[INET6_ADDRSTRLEN];
 	int lport, rport;
 
-	if (getsockdomain(sp->socket) == AF_INET) {
+	if (fta_iperf3_getsockdomain(sp->test, sp->socket) == AF_INET) {
 		inet_ntop(AF_INET,
 			  (void *)&((struct sockaddr_in *)&sp->local_addr)
 				  ->sin_addr,
@@ -2938,7 +2960,81 @@ void connect_msg(struct iperf_stream *sp)
             sp->test->server_hostname ? sp->test->server_hostname : "remote", sp->remote_port);
 #endif //NOT_IN_FTA_IPERF3_INTEGRATION
 }
+/**************************************************************************/
+int iperf_test_fta_pdn_info_set(struct iperf_test *test)
+{
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+  	 pdp_context_info_array_t pdp_context_info_tbl;
+     int ret = 0;
 
+    /* Read/store current PDN context: */
+    ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+
+	test->current_pdp_type = PDP_TYPE_UNKNOWN;
+	if (ret >= 0 && pdp_context_info_tbl.size > 0) {
+
+        if (test->cid == FTA_ARG_NOT_SET) {
+            /* Default context: */
+            test->current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
+            test->current_sin4 = pdp_context_info_tbl.array[0].sin4;
+            test->current_sin6 = pdp_context_info_tbl.array[0].sin6;
+
+			/* If '-B' option has been used, we need to try to find corresponding PDN: */
+			if (test->bind_address) {
+				int i;
+				bool found = false;
+				char ipv4_addr[NET_IPV4_ADDR_LEN];
+				char ipv6_addr[NET_IPV6_ADDR_LEN];
+
+				for (i = 0; i < pdp_context_info_tbl.size; i++) {
+					inet_ntop(AF_INET, &(pdp_context_info_tbl.array[i].sin4.sin_addr), ipv4_addr, sizeof(ipv4_addr));
+					inet_ntop(AF_INET6, &(pdp_context_info_tbl.array[i].sin6.sin6_addr), ipv6_addr, sizeof(ipv6_addr));
+					if (strcmp(test->bind_address, ipv4_addr) == 0 || strcmp(test->bind_address, ipv6_addr)) {
+						test->current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
+						test->current_sin4 = pdp_context_info_tbl.array[i].sin4;
+						test->current_sin6 = pdp_context_info_tbl.array[i].sin6;
+						strcpy(test->current_apn_str, pdp_context_info_tbl.array[i].apn_str);
+                    	found = true;
+						break;
+						}
+					}
+                if (!found) {
+                    printf("cannot find PDN based on requested bind address: %s\n", test->bind_address);
+					i_errno = IEPDN;
+                    return -1;
+                }
+			}
+        } else {
+            /* Find PDP context info for requested CID: */
+            int i;
+            bool found = false;
+
+            for (i = 0; i < pdp_context_info_tbl.size; i++) {
+                if (pdp_context_info_tbl.array[i].cid == test->cid) {
+                    test->current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
+                    test->current_sin4 = pdp_context_info_tbl.array[i].sin4;
+                    test->current_sin6 = pdp_context_info_tbl.array[i].sin6;
+                    strcpy(test->current_apn_str, pdp_context_info_tbl.array[i].apn_str);
+                    found = true;
+					break;
+                    }
+                }
+
+                if (!found) {
+                    printf("cannot find PDN based on requested CID: %d\n", test->cid);
+					i_errno = IEPDN;
+                    return -1;
+                }
+        }
+    }
+    else {
+        printf("cannot read current connection info\n");
+		i_errno = IEPDN;
+        return -1;
+	}    
+#endif
+	return 0;
+}
 /**************************************************************************/
 
 struct iperf_test *iperf_new_test()
@@ -3009,6 +3105,9 @@ int iperf_defaults(struct iperf_test *testp)
 	struct protocol *sctp;
 #endif /* HAVE_SCTP_H */
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	testp->cid = FTA_ARG_NOT_SET;
+#endif
 	testp->omit = OMIT;
 	testp->duration = DURATION;
 	testp->diskfile_name = (char *)0;
@@ -3034,8 +3133,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->stats_interval = testp->reporter_interval = 1;
 	testp->num_streams = 1;
 
-	//testp->settings->domain = AF_UNSPEC; //FTA_IPERF3_INTEGRATION_CHANGE: not supported
-	testp->settings->domain = AF_INET;
+	testp->settings->domain = AF_INET; //FTA_IPERF3_INTEGRATION_CHANGE: was AF_UNSPEC
 	testp->settings->unit_format = 'a';
 	testp->settings->socket_bufsize = 0; /* use autotuning */
 	testp->settings->blksize = DEFAULT_TCP_BLKSIZE;
@@ -5182,8 +5280,9 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	sp->diskfile_fd = -1;
 
 	/* Initialize stream */
-	//FTA_IPERF3_INTEGRATION_CHANGE: only repeating pattern
-	#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+
+//FTA_IPERF3_INTEGRATION_CHANGE: only repeating pattern
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 	{
 		if (test->debug) {
 			printf("note: only repeating pattern supported\n");
@@ -5228,7 +5327,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 	len = sizeof(struct sockaddr_storage);
 
 	//FTA_IPERF3_INTEGRATION_CHANGE: not available, mock used instead
-	if (mock_getsockname(sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
+	if (mock_getsockname(test, sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;
@@ -5247,7 +5346,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 #endif
 	/* Set IP TOS */
 	if ((opt = test->settings->tos)) {
-		if (getsockdomain(sp->socket) == AF_INET6) {
+		if (fta_iperf3_getsockdomain(test, sp->socket) == AF_INET6) {
 #ifdef IPV6_TCLASS
 			if (setsockopt(sp->socket, IPPROTO_IPV6, IPV6_TCLASS,
 				       &opt, sizeof(opt)) < 0) {
@@ -5270,7 +5369,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 #endif
 		}
 	}
-	//FTA_IPERF3_INTEGRATION_TODO: set PDN support? ...currently counting on underlying connection
+
 	return 0;
 }
 

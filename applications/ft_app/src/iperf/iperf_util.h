@@ -33,7 +33,8 @@
 #include <stddef.h>
 
 //FTA_IPERF3_INTEGRATION_CHANGE: getsockname in system is not working
-int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+#include "iperf.h"
+int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 int readentropy(void *out, size_t outsize);

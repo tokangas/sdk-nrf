@@ -123,8 +123,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 				populated_info[iterator].pdp_type =
 					PDP_TYPE_IPV4;
 			}
-			printf("pdp type: %c",
-			       populated_info[iterator].pdp_type);
+			//printf("pdp type: %c", populated_info[iterator].pdp_type);
 		}
 
 		param_str_len = sizeof(populated_info[iterator].apn_str);

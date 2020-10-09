@@ -5,19 +5,20 @@
 #include <net/net_ip.h>
 #include <shell/shell.h>
 
+#include "fta_defines.h"
+
 #define PDP_TYPE_UNKNOWN     0x00
 #define PDP_TYPE_IPV4        0x01
 #define PDP_TYPE_IPV6        0x02
 #define PDP_TYPE_IP4V6       0x03
 
 #define AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN (6 + 1)
-#define AT_CMD_PDP_CONTEXT_READ_APN_STR_MAX_LEN (255)  //TODO: "global" defines for FTA
 #define AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN (255)
 
 typedef struct {
 	uint32_t cid;
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
-	char apn_str[AT_CMD_PDP_CONTEXT_READ_APN_STR_MAX_LEN];
+	char apn_str[FTA_APN_STR_MAX_LEN];
 	char ip_addr_str[AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN];
     char pdp_type;
 	struct sockaddr_in sin4;

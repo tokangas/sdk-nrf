@@ -126,6 +126,15 @@ iperf_main(int argc, char **argv)
         goto exit;
     }
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    retval = iperf_test_fta_pdn_info_set(test);
+    if (retval < 0) {
+        iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
+        retval = -1;
+        goto exit;
+    }
+#endif
+
     if (retval == 0 && run(test) < 0) {
         iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
         retval = -1;

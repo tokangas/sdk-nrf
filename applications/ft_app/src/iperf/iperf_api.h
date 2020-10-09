@@ -292,6 +292,8 @@ void iperf_got_sigend(struct iperf_test *test) __attribute__ ((noreturn));
 #endif
 
 void fta_iperf3_usage(); //FTA_IPERF3_INTEGRATION_CHANGE
+int fta_iperf3_getsockdomain(struct iperf_test *test, int sock); //FTA_IPERF3_INTEGRATION_CHANGE: added
+int iperf_test_fta_pdn_info_set(struct iperf_test *test); //FTA_IPERF3_INTEGRATION_CHANGE: added
 
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 void usage(void);

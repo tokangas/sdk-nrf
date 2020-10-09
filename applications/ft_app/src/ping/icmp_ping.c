@@ -246,7 +246,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	    free(buf);
 		return (uint32_t)delta_t;
 	}
-	if (ping_argv.cid != ICMP_PARAM_NOT_SET) {
+	if (ping_argv.cid != FTA_ARG_NOT_SET) {
 		/* Binding a data socket to an APN: */
 		ret = fta_net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
 		if (ret != 0) {
@@ -404,7 +404,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 
 	shell_print(shell, "initiating ping to: %s", ping_argv.target_name);
 
-	if (ping_argv.cid != ICMP_PARAM_NOT_SET) {
+	if (ping_argv.cid != FTA_ARG_NOT_SET) {
 		apn = ping_argv.current_apn_str;
 	}
 

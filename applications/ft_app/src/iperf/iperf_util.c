@@ -68,6 +68,9 @@ int	getrusage (int, struct rusage*);
 #include <fcntl.h>
 
 #include "cjson.h"
+
+#include "ltelc_api.h" //FTA_IPERF3_INTEGRATION_CHANGE: added
+
 #include "iperf.h"
 #include "iperf_api.h"
 
@@ -85,11 +88,40 @@ static int mock_gethostname(char *name, size_t len)
      return 0;
 }
 /**************************************************************************/
-//FTA_IPERF3_INTEGRATION_CHANGE: added
-int mock_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+//FTA_IPERF3_INTEGRATION_CHANGE: added because zephyr getsockname crashed the system, local port cannot be known by this mock impl
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/getsockname.html
+int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     memset(addr->data, 0, sizeof(addr->data));
-    addr->sa_family = AF_INET; //TODO: ipv6 support
+    addr->sa_family = AF_UNSPEC;
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    if (test->current_pdp_type == PDP_TYPE_IP4V6) {
+		if (test->settings->domain == AF_INET6) {
+            struct sockaddr_in6 *sin6 = &test->current_sin6;
+            struct sockaddr *sa6 = (struct sockaddr *)sin6;
+
+            memcpy(addr, sa6, sizeof(struct sockaddr));
+            addr->sa_family = AF_INET6;
+		}
+        else {
+            /* IPv4 as a default */
+            struct sockaddr_in *sin4 = &test->current_sin4;
+            struct sockaddr *sa4 = (struct sockaddr *)sin4;
+
+            memcpy(addr, sa4, sizeof(struct sockaddr));
+            addr->sa_family = AF_INET;
+        }
+    }
+    else if (test->current_pdp_type == PDP_TYPE_IPV6) {
+            struct sockaddr_in6 *sin6 = &test->current_sin6;
+            struct sockaddr *sa6 = (struct sockaddr *)sin6;
+
+            memcpy(addr, sa6, sizeof(struct sockaddr));
+            addr->sa_family = AF_INET6;
+	}
+#endif
+
     return 0;
 }
 
@@ -300,7 +332,7 @@ cpu_util(double pcpu[3])
 const char *
 get_system_info(void)
 {
-    static const char *buf = "utsname() not supported to print sys info";
+    static const char *buf = CONFIG_FTA_IPERF3_HOST_NAME;
 
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
     static char buf[1024];

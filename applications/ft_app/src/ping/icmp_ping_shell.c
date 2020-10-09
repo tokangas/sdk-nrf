@@ -16,9 +16,6 @@
 #include "icmp_ping.h"
 #include "icmp_ping_shell.h"
 
-#define PING_USAGE_STR                                                         \
-	"USAGE: ping <target_name> <payload_length> <timeout_in_msecs>[ <count>[ <interval_in_msecs>]]"
-
 static const char icmp_ping_shell_cmd_usage_str[] =
 	"Usage: ping [optional options] -d destination\n"
 	"\n"
@@ -46,7 +43,7 @@ static void icmp_ping_shell_cmd_defaults_set(icmp_ping_shell_cmd_argv_t *ping_ar
     ping_args->interval = ICMP_PARAM_INTERVAL_DEFAULT;
     ping_args->timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
     ping_args->len = ICMP_PARAM_LENGTH_DEFAULT;
-    ping_args->cid = ICMP_PARAM_NOT_SET;
+    ping_args->cid = FTA_ARG_NOT_SET;
 }
 /*****************************************************************************/
 int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
@@ -89,7 +86,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_warn(
 					shell,
 					"CID not an integer (> 0), default context used");
-                ping_args.cid = ICMP_PARAM_NOT_SET;
+                ping_args.cid = FTA_ARG_NOT_SET;
               }
             break;
 		case 'c': //count
@@ -144,11 +141,10 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             return -1;
         }
         else {
-            /* TODO: multi context support and dealloc*/
             if (pdp_context_info_tbl.size > 0) {
 
                 /* Default context: */
-                if (ping_args.cid == ICMP_PARAM_NOT_SET) {
+                if (ping_args.cid == FTA_ARG_NOT_SET) {
                     ping_args.current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
                     ping_args.current_sin4 = pdp_context_info_tbl.array[0].sin4;
                     ping_args.current_sin6 = pdp_context_info_tbl.array[0].sin6;

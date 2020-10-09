@@ -26,16 +26,19 @@
  */
 #ifndef __NET_H
 #define __NET_H
+#include "iperf.h"/* FTA_IPERF3_INTEGRATION_CHANGE: added for passing test */
 
 int timeout_connect(int s, const struct sockaddr *name, socklen_t namelen, int timeout);
-int netdial(int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout);
+int netdial(struct iperf_test *test, int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout); /* FTA_IPERF3_INTEGRATION_CHANGE: added test */
 int netannounce(int domain, int proto, const char *local, int port);
 int Nread(int fd, char *buf, size_t count, int prot);
 int Nwrite(int fd, const char *buf, size_t count, int prot) /* __attribute__((hot)) */;
 int has_sendfile(void);
 int Nsendfile(int fromfd, int tofd, const char *buf, size_t count) /* __attribute__((hot)) */;
 int setnonblocking(int fd, int nonblocking);
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 int getsockdomain(int sock);
+#endif
 int parse_qos(const char *tos);
 
 #define NET_SOFTERROR -1
