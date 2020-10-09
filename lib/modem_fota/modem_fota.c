@@ -1090,7 +1090,7 @@ static int start_firmware_download_with_retry()
 		err = fota_download_start(current_job.host,
 					  current_job.path,
 					  CONFIG_MODEM_FOTA_TLS_SECURITY_TAG,
-					  fota_apn, 0); /* TODO: Make configurable */
+					  0, fota_apn);
 		if (err == 0 || download_retry_count <= 0) {
 			/* Download started successfully or no retries
 			 * left
