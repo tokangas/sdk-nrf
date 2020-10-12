@@ -66,11 +66,25 @@ static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 
-	shell_print(shell, "Version:\t%s", FOTA_APP_BUILD_VERSION);
+	int i;
+
+	response_buf[0] = '\0';
+	at_cmd_write("AT+CGMR", response_buf, sizeof(response_buf), NULL);
+	i = 0;
+	while (response_buf[i] != '\0') {
+		if (response_buf[i] == '\r' || response_buf[i] == '\n') {
+			response_buf[i] = '\0';
+			break;
+		}
+		i++;
+	}
+
+	shell_print(shell, "App FW version:\t\t%s", FOTA_APP_BUILD_VERSION);
+	shell_print(shell, "Modem FW version:\t%s", response_buf);
 #if CONFIG_LTE_NETWORK_MODE_NBIOT
-	shell_print(shell, "System mode:\tCat.NB");
+	shell_print(shell, "System mode:\t\tCat.NB");
 #else
-	shell_print(shell, "System mode:\tCat.M");
+	shell_print(shell, "System mode:\t\tCat.M");
 #endif
 
 	return 0;
