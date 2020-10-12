@@ -96,6 +96,7 @@ K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 #define AT_XMONITOR_ACTIVE_TIME_LEN	8
 #define AT_XMONITOR_PARAMS_COUNT_MAX	(AT_XMONITOR_ACTIVE_TIME_INDEX + 1)
 #define AT_XMONITOR_RESPONSE_MAX_LEN	128
+#define AT_CCLK_TIME_LEN		20
 
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_MASK	0xe0
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_2S		0x00
@@ -231,7 +232,7 @@ static void save_update_job_id(const char *job_id)
 	}
 }
 
-static void parse_network_time(const char *time_str)
+static void parse_xtime_time(const char *time_str)
 {
 	struct tm date_time;
 	char temp[3] = {0};
@@ -266,7 +267,50 @@ static void parse_network_time(const char *time_str)
 	temp[1] = time_str[10];
 	date_time.tm_sec = atoi(temp);
 
-	LOG_DBG("Current time: %d.%d.%d %02d:%02d:%02d UTC",
+	LOG_DBG("Time: %d.%d.%d %02d:%02d:%02d UTC",
+		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
+		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
+
+	modem_time = (int64_t)timeutil_timegm64(&date_time) * 1000;
+	modem_time_timestamp = k_uptime_get();
+}
+
+static void parse_cclk_time(const char *time_str)
+{
+	struct tm date_time;
+	char temp[3] = {0};
+
+	/* Year */
+	temp[0] = time_str[0];
+	temp[1] = time_str[1];
+	date_time.tm_year = atoi(temp) + 2000 - 1900;
+
+	/* Month */
+	temp[0] = time_str[3];
+	temp[1] = time_str[4];
+	date_time.tm_mon = atoi(temp);
+
+	/* Day */
+	temp[0] = time_str[6];
+	temp[1] = time_str[7];
+	date_time.tm_mday = atoi(temp);
+
+	/* Hour */
+	temp[0] = time_str[9];
+	temp[1] = time_str[10];
+	date_time.tm_hour = atoi(temp);
+
+	/* Minute */
+	temp[0] = time_str[12];
+	temp[1] = time_str[13];
+	date_time.tm_min = atoi(temp);
+
+	/* Second */
+	temp[0] = time_str[15];
+	temp[1] = time_str[16];
+	date_time.tm_sec = atoi(temp);
+
+	LOG_DBG("Time: %d.%d.%d %02d:%02d:%02d UTC",
 		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
 		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
@@ -471,7 +515,7 @@ static int parse_time_from_xtime_notification(const char *notif)
 
 	time_str = param_string_get(notif, AT_XTIME_UNIVERSAL_TIME_INDEX);
 	if (time_str != NULL) {
-		parse_network_time(time_str);
+		parse_xtime_time(time_str);
 		k_free(time_str);
 		return 0;
 	} else {
@@ -1774,4 +1818,30 @@ void modem_fota_configure(void)
 	if (is_fota_disabled_with_usim()) {
 		disable_fota();
 	}
+}
+
+int modem_fota_set_clock(const char *time_str)
+{
+	int err;
+	char cclk_command[40];
+
+	if (time_str == NULL || strlen(time_str) < AT_CCLK_TIME_LEN) {
+		return -EINVAL;
+	}
+
+	/* Set time to modem */
+	strcpy(cclk_command, "AT+CCLK=\"");
+	strcat(cclk_command, time_str);
+	strcat(cclk_command, "\"");
+	err = at_cmd_write(cclk_command, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("CCLK failed, error: %d", err);
+		return err;
+	}
+
+	parse_cclk_time(time_str);
+
+	k_work_submit(&schedule_next_update_work);
+
+	return err;
 }
