@@ -37,7 +37,6 @@ enum modem_fota_evt_id {
  * @brief Modem FOTA asynchronous callback function.
  *
  * @param event_id Event ID.
- *
  */
 typedef void (*modem_fota_callback_t)(enum modem_fota_evt_id event_id);
 
@@ -57,9 +56,31 @@ int modem_fota_init(modem_fota_callback_t callback);
  * @brief Configure the modem FOTA client.
  *
  * This API must be called right after LTE attach.
- *
  */
 void modem_fota_configure(void);
+
+/**
+ * @brief Sets current time for the modem FOTA client and modem clock.
+ *
+ * Sets the current time used by the modem FOTA client. The given time is also
+ * set to the modem. If LTE network time is not available, current time has
+ * to be provided to the modem FOTA client using this function.
+ *
+ * LTE network time overrides the time set using this function. If time is
+ * available from the LTE network, time doesn't have to be set using this
+ * function.
+ *
+ * @param time_str Time as a null terminated string in format
+ *                 "yy/MM/dd,hh:mm:ss±zz", where the characters, from left to
+ *                 right, indicate year, month, day, hour, minutes, seconds and
+ *                 time zone. Time zone indicates the difference, expressed in
+ *                 quarters of an hour, between the local time and GMT (value
+ *                 range -48...+48). For example "20/10/15,09:12:47+12".
+ *
+ * @retval 0 If the operation was successful.
+ *           Otherwise, a (negative) error code is returned.
+ */
+int modem_fota_set_clock(const char *time_str);
 
 #ifdef __cplusplus
 }
