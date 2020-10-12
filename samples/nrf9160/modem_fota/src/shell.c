@@ -8,6 +8,7 @@
 #include <modem/at_cmd.h>
 #include <net/socket.h>
 #include <modem/lte_lc.h>
+#include <modem/modem_fota.h>
 
 #define DEFAULT_DATA_SEND_INTERVAL 10
 
@@ -62,6 +63,9 @@ K_TIMER_DEFINE(data_send_timer, data_send_timer_handler, NULL);
 #define FOTA_APP_BUILD_VERSION "1.0 beta-4"
 static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 {
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
 	shell_print(shell, "Version:\t%s", FOTA_APP_BUILD_VERSION);
 #if CONFIG_LTE_NETWORK_MODE_NBIOT
 	shell_print(shell, "System mode:\tCat.NB");
@@ -72,8 +76,24 @@ static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static int app_cmd_clock(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+
+	int err;
+	err = modem_fota_set_clock(argv[1]);
+	if (err) {
+		shell_error(shell, "clock: invalid time string");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
+	ARG_UNUSED(argc);
+
 	int err;
 	err = at_cmd_write(argv[1], response_buf, sizeof(response_buf), NULL);
 	if (err) {
@@ -151,6 +171,9 @@ static int app_cmd_data_start(const struct shell *shell, size_t argc, char **arg
 
 static int app_cmd_data_stop(const struct shell *shell, size_t argc, char **argv)
 {
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
 	if (k_timer_remaining_get(&data_send_timer) > 0) {
 		k_timer_stop(&data_send_timer);
 		shell_print(shell, "stop: periodic data stopped");
@@ -241,6 +264,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(app_psm_cmds,
 
 SHELL_STATIC_SUBCMD_SET_CREATE(app_cmds,
 	SHELL_CMD_ARG(ver, NULL, "Firmware version.", app_cmd_ver, 1, 0),
+	SHELL_CMD_ARG(clock, NULL, "'app clock <yy/MM/dd,hh:mm:ss-/+zz>' sets "
+				   "modem clock (see modem AT command "
+				   "specification for AT+CCLK for detailed "
+				   "format description)", app_cmd_clock, 2, 0),
 	SHELL_CMD_ARG(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0),
 	SHELL_CMD_ARG(ping, NULL, "Ping remote host by 'ping <ip> [count]'.",
 		      app_cmd_ping, 2, 1),
