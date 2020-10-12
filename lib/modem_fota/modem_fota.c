@@ -62,7 +62,6 @@ static struct k_work provision_work;
 static struct k_work update_work;
 static struct k_work update_job_status_work;
 static struct k_work read_lte_active_time_work;
-static struct k_work unregister_xtime_work;
 static struct k_work schedule_next_update_work;
 static struct k_delayed_work retry_download_work;
 
@@ -111,7 +110,6 @@ static const char at_cfun_poweroff[] = "AT+CFUN=0";
 static const char at_cfun_normal[] = "AT+CFUN=1";
 static const char at_cfun_offline[] = "AT+CFUN=4";
 static const char at_xtime_enable[] = "AT\%XTIME=1";
-static const char at_xtime_disable[] = "AT\%XTIME=0";
 static const char at_cimi[] = "AT+CIMI";
 static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
@@ -129,9 +127,9 @@ static const char aws_jobs_unknown[] = "UNKNOWN JOB STATUS";
 
 static modem_fota_callback_t event_callback;
 
-/* Network time (milliseconds since epoch) and timestamp when it was got */
-static int64_t network_time;
-static int64_t network_time_timestamp;
+/* Modem time (milliseconds since epoch) and timestamp when it was got */
+static int64_t modem_time;
+static int64_t modem_time_timestamp;
 
 /* Current modem status */
 static enum modem_reg_status reg_status;
@@ -272,13 +270,13 @@ static void parse_network_time(const char *time_str)
 		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
 		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
-	network_time = (int64_t)timeutil_timegm64(&date_time) * 1000;
-	network_time_timestamp = k_uptime_get();
+	modem_time = (int64_t)timeutil_timegm64(&date_time) * 1000;
+	modem_time_timestamp = k_uptime_get();
 }
 
-static bool is_network_time_valid(void)
+static bool is_modem_time_valid(void)
 {
-	return network_time != 0 && network_time_timestamp != 0;
+	return modem_time != 0 && modem_time_timestamp != 0;
 }
 
 static char *param_string_get(const char *str, int index)
@@ -481,20 +479,9 @@ static int parse_time_from_xtime_notification(const char *notif)
 	}
 }
 
-static void unregister_xtime_work_fn(struct k_work *item)
-{
-	int err;
-
-	err = at_cmd_write(at_xtime_disable, NULL, 0, NULL);
-	if (err) {
-		LOG_ERR("Failed to disable XTIME, error: %d", err);
-		return;
-	}
-}
-
 static int64_t get_current_time_in_s(void)
 {
-	return (k_uptime_get() - network_time_timestamp + network_time) / 1000;
+	return (k_uptime_get() - modem_time_timestamp + modem_time) / 1000;
 }
 
 static int activate_fota_pdn(void)
@@ -1462,8 +1449,8 @@ static void calculate_next_update_check_time(void)
 
 static void schedule_next_update(void)
 {
-	if (!fota_enabled || !is_network_time_valid()) {
-		/* FOTA is either disabled or we haven't got network time yet */
+	if (!fota_enabled || !is_modem_time_valid()) {
+		/* FOTA is either disabled or we haven't got time yet */
 		return;
 	}
 
@@ -1676,7 +1663,7 @@ void disable_fota(void)
 
 uint32_t get_time_to_next_update_check(void)
 {
-	if (is_update_scheduled() && is_network_time_valid())
+	if (is_update_scheduled() && is_modem_time_valid())
 		if (update_check_time_s > get_current_time_in_s()) {
 			return update_check_time_s - get_current_time_in_s();
 		} else {
@@ -1713,7 +1700,6 @@ static void at_notification_handler(void *context, const char *notif)
 			== 0) {
 		if (parse_time_from_xtime_notification(notif) == 0) {
 			/* Got network time, schedule next update */
-			k_work_submit(&unregister_xtime_work);
 			k_work_submit(&schedule_next_update_work);
 		}
 	}
@@ -1756,7 +1742,6 @@ int modem_fota_init(modem_fota_callback_t callback)
 	k_work_init(&current_update_info.finish_update_work, finish_update_work_fn);
 	k_work_init(&update_job_status_work, update_job_status_work_fn);
 	k_work_init(&read_lte_active_time_work, read_lte_active_time_work_fn);
-	k_work_init(&unregister_xtime_work, unregister_xtime_work_fn);
 	k_work_init(&schedule_next_update_work, schedule_next_update_work_fn);
 	k_delayed_work_init(&retry_download_work, retry_download_work_fn);
 
