@@ -630,6 +630,7 @@ static void erase_modem_fw_backup(void)
 	err = nrf_setsockopt(fd, NRF_SOL_DFU, NRF_SO_DFU_BACKUP_DELETE, NULL, 0);
 	if (err < 0) {
 		LOG_ERR("Failed to erase modem FW backup, errno: %d", errno);
+		nrf_close(fd);
 		return;
 	}
 	while (true) {
