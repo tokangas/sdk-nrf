@@ -192,6 +192,22 @@ iperf_tcp_listen(struct iperf_test *test)
         snprintf(portstr, 6, "%d", test->server_port);
         memset(&hints, 0, sizeof(hints));
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	char *apn = NULL;
+
+    /* Set PDN: */
+	if (test->cid != FTA_ARG_NOT_SET) {
+		apn = test->current_apn_str;
+	}
+    hints.ai_next = apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL;
+#endif
+
 	/*
 	 * If binding to the wildcard address with no explicit address
 	 * family specified, then force us to get an AF_INET6 socket.
@@ -205,6 +221,7 @@ iperf_tcp_listen(struct iperf_test *test)
 	}
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_flags = AI_PASSIVE;
+
         if ((gerror = getaddrinfo(test->bind_address, portstr, &hints, &res)) != 0) {
             i_errno = IESTREAMLISTEN;
             return -1;
@@ -216,6 +233,16 @@ iperf_tcp_listen(struct iperf_test *test)
             return -1;
         }
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+        /* Set PDN if requested */
+        if (test->cid != FTA_ARG_NOT_SET) {
+            int ret = fta_net_utils_socket_apn_set(s, test->current_apn_str);
+            if (ret != 0) {
+                printf("iperf_tcp_listen: cannot bind socket to apn %s\n", test->current_apn_str);
+                return -1;
+            }				
+        }
+#endif
         if (test->no_delay) {
             opt = 1;
             if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt)) < 0) {

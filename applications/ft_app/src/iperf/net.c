@@ -277,7 +277,7 @@ netdial(struct iperf_test *test, int domain, int proto, const char *local, int l
 /***************************************************************/
 
 int
-netannounce(int domain, int proto, const char *local, int port)
+netannounce(struct iperf_test *test, int domain, int proto, const char *local, int port)/* FTA_IPERF3_INTEGRATION_CHANGE: added test */
 {
     struct addrinfo hints, *res;
     char portstr[6];
@@ -308,21 +308,52 @@ netannounce(int domain, int proto, const char *local, int port)
     //here was mixed with protos & types
     int type = proto;
     int protocol = 0;
+	char *apn = NULL;
+
     if (type == SOCK_STREAM) {
 	    protocol = IPPROTO_TCP;
      } else if (type == SOCK_DGRAM) {
 	    protocol = IPPROTO_UDP;
      }
-            
+    /* Set PDN: */
+	if (test->cid != FTA_ARG_NOT_SET) {
+		apn = test->current_apn_str;
+	}
+
     hints.ai_socktype = type;
     hints.ai_protocol = protocol;
     hints.ai_flags = AI_PASSIVE;
+    
+    /* Set PDN to hints if requested: */
+    hints.ai_next = apn ?
+			&(struct addrinfo) {
+				.ai_family    = AF_LTE,
+				.ai_socktype  = SOCK_MGMT,
+				.ai_protocol  = NPROTO_PDN,
+				.ai_canonname = (char *)apn
+			} : NULL;
+    
     if ((gerror = getaddrinfo(local, portstr, &hints, &res)) != 0) {
         printf("getaddrinfo failed with error code %d %s\n", gerror, gai_strerror(gerror));
         return -1;
     }
 
     s = socket(res->ai_family, type, protocol);
+    
+    if (s < 0) {
+        printk("listen socket creation failed\n");
+	    freeaddrinfo(res);
+        return -1;
+    }
+
+	/* Set PDN for the socket if requested */
+    if (test->cid != FTA_ARG_NOT_SET) {
+		int ret = fta_net_utils_socket_apn_set(s, test->current_apn_str);
+		if (ret != 0) {
+			printf("Cannot bind socket to apn %s\n", test->current_apn_str);
+			return -1;
+		}				
+	}
 #else
     hints.ai_socktype = proto;
     hints.ai_flags = AI_PASSIVE;
@@ -330,12 +361,12 @@ netannounce(int domain, int proto, const char *local, int port)
         return -1; 
 
     s = socket(res->ai_family, proto, 0);
-#endif
     if (s < 0) {
         printk("listen socket creation failed\n");
 	    freeaddrinfo(res);
         return -1;
-    }
+    }    
+#endif
 
     opt = 1;
     if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, 

@@ -30,7 +30,7 @@
 
 int timeout_connect(int s, const struct sockaddr *name, socklen_t namelen, int timeout);
 int netdial(struct iperf_test *test, int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout); /* FTA_IPERF3_INTEGRATION_CHANGE: added test */
-int netannounce(int domain, int proto, const char *local, int port);
+int netannounce(struct iperf_test *test, int domain, int proto, const char *local, int port); /* FTA_IPERF3_INTEGRATION_CHANGE: added test */
 int Nread(int fd, char *buf, size_t count, int prot);
 int Nwrite(int fd, const char *buf, size_t count, int prot) /* __attribute__((hot)) */;
 int has_sendfile(void);
