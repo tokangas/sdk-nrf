@@ -58,6 +58,9 @@
 #include <posix/netinet/tcp.h>
 #include <posix/sys/time.h>
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#include <modem/modem_info.h>
+#endif
 #if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
 #endif
@@ -807,6 +810,30 @@ void iperf_on_connect(struct iperf_test *test)
 	struct sockaddr_in6 *sa_in6P;
 	socklen_t len;
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	int ret = modem_info_string_get(MODEM_INFO_DATE_TIME, now_str, sizeof(now_str));
+	if (ret >= 0) {
+		if (test->json_output)
+			cJSON_AddItemToObject(
+				test->json_start, "timestamp",
+				iperf_json_printf("time: %s  timesecs: %d", now_str,
+						(int64_t)now_secs));
+		else if (test->verbose)
+			iperf_printf(test, report_time, now_str);
+	}
+	else {
+		now_secs = time((time_t *)0);
+		(void)strftime(now_str, sizeof(now_str), rfc1123_fmt,
+				gmtime(&now_secs));
+		if (test->json_output)
+			cJSON_AddItemToObject(
+				test->json_start, "timestamp",
+				iperf_json_printf("time: %s  timesecs: %d", now_str,
+						(int64_t)now_secs));
+		else if (test->verbose)
+			iperf_printf(test, report_time, now_str);
+	}
+#else
 	now_secs = time((time_t *)0);
 	(void)strftime(now_str, sizeof(now_str), rfc1123_fmt,
 		       gmtime(&now_secs));
@@ -817,6 +844,7 @@ void iperf_on_connect(struct iperf_test *test)
 					  (int64_t)now_secs));
 	else if (test->verbose)
 		iperf_printf(test, report_time, now_str);
+#endif
 
 	if (test->role == 'c') {
 		if (test->json_output)
