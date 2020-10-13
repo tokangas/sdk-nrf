@@ -270,7 +270,6 @@ struct iperf_test
     char     *tmp_template;
     char     *bind_address;                     /* first -B option */
 
-    struct sockaddr client_address;  /* FTA_IPERF3_INTEGRATION_CHANGE: added to store client address when acting like a server, TODO: use remote_addr below? */
     struct sockaddr remote_addr; /* FTA_IPERF3_INTEGRATION_CHANGE: added */
 
     TAILQ_HEAD(xbind_addrhead, xbind_entry) xbind_addrs; /* all -X opts */

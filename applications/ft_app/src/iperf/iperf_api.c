@@ -135,11 +135,7 @@ static int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr
 {
     memset(addr, 0, sizeof(struct sockaddr));
 
-	if (test->role == 's') {
-		*addr = test->client_address;
-		*addrlen = sizeof(test->client_address);
-	}
-	else {
+	{
 		*addr = test->remote_addr;
 		*addrlen = sizeof(test->remote_addr);
 	}

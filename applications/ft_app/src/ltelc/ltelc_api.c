@@ -109,6 +109,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		} else {
 			populated_info[iterator].pdp_type_str[param_str_len] =
 				'\0';
+				
 			populated_info[iterator].pdp_type = PDP_TYPE_UNKNOWN;
 			if (strcmp(populated_info[iterator].pdp_type_str,
 				   "IPV4V6") == 0) {
@@ -119,7 +120,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 				populated_info[iterator].pdp_type =
 					PDP_TYPE_IPV6;
 			} else if (strcmp(populated_info[iterator].pdp_type_str,
-					  "IPV4") == 0) {
+					  "IP") == 0) {
 				populated_info[iterator].pdp_type =
 					PDP_TYPE_IPV4;
 			}

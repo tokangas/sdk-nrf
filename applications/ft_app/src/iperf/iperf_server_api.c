@@ -121,9 +121,9 @@ iperf_accept(struct iperf_test *test)
         i_errno = IEACCEPT;
         return -1;
     }
-    //store client address
+    //store remote address
     sa = (struct sockaddr *)&client_addr;
-    test->client_address = *sa;
+    test->remote_addr = *sa;
 #else
     struct sockaddr_storage addr;
 

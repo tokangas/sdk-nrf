@@ -96,7 +96,14 @@ int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr,
     addr->sa_family = AF_UNSPEC;
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    if (test->current_pdp_type == PDP_TYPE_IP4V6) {
+    if (test->current_pdp_type == PDP_TYPE_IPV4) {
+        struct sockaddr_in *sin4 = &test->current_sin4;
+        struct sockaddr *sa4 = (struct sockaddr *)sin4;
+
+        memcpy(addr, sa4, sizeof(struct sockaddr));
+        addr->sa_family = AF_INET;
+    }
+    else if (test->current_pdp_type == PDP_TYPE_IP4V6) {
 		if (test->settings->domain == AF_INET6) {
             struct sockaddr_in6 *sin6 = &test->current_sin6;
             struct sockaddr *sa6 = (struct sockaddr *)sin6;
