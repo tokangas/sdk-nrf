@@ -227,7 +227,7 @@ clean_exit:
 void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 {
 	pdp_context_info_array_t pdp_context_info_tbl;
-	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE];
+	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE + 1];
 	int ret;
 
 	ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
@@ -247,6 +247,15 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 	} else {
 		shell_error(shell,
 			    "\nUnable to obtain modem ip parameters (%d)", ret);
+	}
+	
+	ret = modem_info_string_get(MODEM_INFO_DATE_TIME, info_str,
+				    sizeof(info_str));
+	if (ret >= 0) {
+		shell_print(shell, "Mobile network time and date: %s", info_str);
+	} else {
+		shell_error(shell,
+			    "\nUnable to obtain modem time (%d)", ret);
 	}
 
 #if defined(CONFIG_AT_CMD)
