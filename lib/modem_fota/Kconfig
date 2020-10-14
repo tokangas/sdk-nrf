@@ -141,6 +141,16 @@ config MODEM_FOTA_SERVER_RETRY_COUNT
 	  Sets the number of retries when trying to connect to the DM and the
 	  firmware download servers.
 
+config MODEM_FOTA_FIRMWARE_SANITY_CHECK
+	bool "Automatically revert to previous firmware version in case of job update failure"
+	default y
+	help
+	  If enabled, the FOTA job document update after a successful firmware
+	  update is used as a sanity check for the updated firmware. In case the
+	  device can't connect to the LTE network or fails to update the FOTA job
+	  document, the modem firmware is automatically rolled back to the previous
+	  version and the FOTA job document status is updated to "rejected".
+
 config MODEM_FOTA_SHELL
 	bool "Enable shell interface"
 	depends on SHELL
