@@ -1727,6 +1727,29 @@ void set_time_to_next_update_check(uint32_t seconds)
 		start_update_check_timer();
 }
 
+static void parse_xtime_notification(const char *notif)
+{
+	bool time_already_available;
+
+	time_already_available = is_modem_time_valid();
+	if (parse_time_from_xtime_notification(notif) == 0) {
+		/* Next update is scheduled/timer updated in two cases:
+		 *  1) We didn't have time available yet, i.e. this is the first
+		 *     XTIME notification.
+		 *  2) Update check is currently not ongoing, i.e. an update
+		 *     check has been scheduled and the timer is running. In
+		 *     this case the time to next check is recalculated using
+		 *     the updated time and timer restarted.
+		 * If we already had time available but next update is not
+		 * scheduled, then an update check is currently running and we
+		 * don't want to schedule the next update check yet.
+		 */
+		if (!time_already_available || is_update_scheduled()) {
+			k_work_submit(&schedule_next_update_work);
+		}
+	}
+}
+
 static void at_notification_handler(void *context, const char *notif)
 {
 	ARG_UNUSED(context);
@@ -1743,10 +1766,7 @@ static void at_notification_handler(void *context, const char *notif)
 		parse_cscon_notification(notif);
 	} else if (strncmp(at_xtime_notif, notif, sizeof(at_xtime_notif) - 1)
 			== 0) {
-		if (parse_time_from_xtime_notification(notif) == 0) {
-			/* Got network time, schedule next update */
-			k_work_submit(&schedule_next_update_work);
-		}
+		parse_xtime_notification(notif);
 	}
 }
 
