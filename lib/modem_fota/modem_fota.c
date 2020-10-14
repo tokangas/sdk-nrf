@@ -97,6 +97,7 @@ K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 #define AT_XMONITOR_PARAMS_COUNT_MAX	(AT_XMONITOR_ACTIVE_TIME_INDEX + 1)
 #define AT_XMONITOR_RESPONSE_MAX_LEN	128
 #define AT_CCLK_TIME_LEN		20
+#define AT_XMODEMUUID_UUID_LEN		36
 
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_MASK	0xe0
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_2S		0x00
@@ -116,6 +117,7 @@ static const char at_xsystemmode_read[] = "AT\%XSYSTEMMODE?";
 static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
 static const char at_xmonitor[] = "AT\%XMONITOR";
+static const char at_xmodemuuid[] = "AT\%XMODEMUUID";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
 static const char aws_jobs_succeeded[] = "SUCCEEDED";
@@ -151,6 +153,8 @@ static int download_retry_count;
 static bool provisioning_done;
 /* Next scheduled update check time (seconds since epoch) */
 static int64_t update_check_time_s;
+/* Modem build UUID before update */
+static char *previous_modem_uuid;
 /* Update job ID, used to update the job after reboot */
 static char *update_job_id;
 
@@ -192,6 +196,21 @@ static int settings_set(const char *name, size_t len,
 			update_job_id = NULL;
 			return -EINVAL;
 		}
+	} else if (!strcmp(name, "modem_uuid")) {
+		if (len != AT_XMODEMUUID_UUID_LEN + 1)
+			return -EINVAL;
+
+		previous_modem_uuid = k_malloc(AT_XMODEMUUID_UUID_LEN + 1);
+		if (previous_modem_uuid == NULL)
+			return -ENOMEM;
+
+		if (read_cb(cb_arg, previous_modem_uuid, len) > 0) {
+			return 0;
+		} else {
+			k_free(previous_modem_uuid);
+			previous_modem_uuid = NULL;
+			return -EINVAL;
+		}
 	}
 
 	return -ENOENT;
@@ -229,6 +248,16 @@ static void save_update_job_id(const char *job_id)
 	} else {
 		settings_save_one("modem_fota/update_job_id",
 				  job_id, strlen(job_id) + 1);
+	}
+}
+
+static void save_modem_uuid(const char *uuid)
+{
+	if (uuid == NULL) {
+		settings_delete("modem_fota/modem_uuid");
+	} else {
+		settings_save_one("modem_fota/modem_uuid",
+				  uuid, AT_XMODEMUUID_UUID_LEN + 1);
 	}
 }
 
@@ -646,6 +675,56 @@ static void erase_modem_fw_backup(void)
 	nrf_close(fd);
 }
 
+static void schedule_modem_fw_revert(void)
+{
+	int fd;
+	int err;
+
+	LOG_WRN("Scheduling modem FW revert on next boot...");
+
+	fd = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_STREAM, NRF_PROTO_DFU);
+	if (fd < 0) {
+		LOG_ERR("Failed to open modem DFU socket");
+		return;
+	}
+
+	err = nrf_setsockopt(fd, NRF_SOL_DFU, NRF_SO_DFU_REVERT, NULL, 0);
+	if (err < 0) {
+		LOG_ERR("Failed to schedule modem FW revert, errno: %d", errno);
+	}
+
+	nrf_close(fd);
+}
+
+static int get_modem_uuid(char *uuid_buf)
+{
+	int err;
+	char uuid_str[64];
+	char *uuid_ptr;
+
+	err = at_cmd_write(at_xmodemuuid, uuid_str, sizeof(uuid_str), NULL);
+	if (err) {
+		return err;
+	}
+
+	/* Remove command name and space from output */
+	uuid_ptr = strchr(uuid_str, ' ');
+	if (uuid_ptr == NULL) {
+		return -EINVAL;
+	}
+	uuid_ptr++;
+
+	/* Check if UUID is a quoted string */
+	if (*uuid_ptr == '\"') {
+		uuid_ptr++;
+	}
+
+	strncpy(uuid_buf, uuid_ptr, AT_XMODEMUUID_UUID_LEN);
+	uuid_buf[AT_XMODEMUUID_UUID_LEN] = '\0';
+
+	return 0;
+}
+
 static int get_pending_job(void)
 {
 	int ret;
@@ -751,12 +830,6 @@ static int update_job_status(void)
 
 	if (ret == 0) {
 		LOG_INF("Job status updated");
-
-		/* cleanup job only on terminal statuses */
-		if ((current_job.status != AWS_JOBS_IN_PROGRESS) &&
-		    (current_job.status != AWS_JOBS_QUEUED)) {
-			fota_client_job_free(&current_job);
-		}
 	} else {
 		LOG_ERR("Failed to update job status, error: %d\n", ret);
 	}
@@ -814,7 +887,9 @@ static void reboot_to_apply_update(void)
  */
 static void finish_update_work_fn(struct k_work *item)
 {
+	int err;
 	struct update_info *info;
+	char modem_uuid[AT_XMODEMUUID_UUID_LEN + 1];
 	bool reboot_now = false;
 
 	info = CONTAINER_OF(item, struct update_info, finish_update_work);
@@ -825,6 +900,13 @@ static void finish_update_work_fn(struct k_work *item)
 		 * after reboot.
 		 */
 		save_update_job_id(current_job.id);
+		/* Save current modem UUID so that we can check if modem was
+		 * really updated or not.
+		 */
+		err = get_modem_uuid(modem_uuid);
+		if (err == 0) {
+			save_modem_uuid(modem_uuid);
+		}
 
 		/* If modem firmware update was downloaded, a reboot is needed
 		 * to apply the update.
@@ -837,9 +919,6 @@ static void finish_update_work_fn(struct k_work *item)
 			/* No point in retrying a rejected job */
 			update_job_status();
 			erase_modem_fw_backup();
-		} else {
-			/* Free the job and try later */
-			fota_client_job_free(&current_job);
 		}
 		break;
 
@@ -847,6 +926,8 @@ static void finish_update_work_fn(struct k_work *item)
 		/* No update available */
 		break;
 	}
+
+	fota_client_job_free(&current_job);
 
 	deactivate_fota_pdn();
 	restore_system_mode();
@@ -1279,6 +1360,32 @@ static void update_job_status_after_apply(void)
 	k_work_submit_to_queue(&work_q, &update_job_status_work);
 }
 
+static bool modem_fw_updated(void)
+{
+	int err;
+	char modem_uuid[AT_XMODEMUUID_UUID_LEN + 1];
+
+	if (previous_modem_uuid == NULL) {
+		/* UUID check not possible */
+		return false;
+	}
+	LOG_DBG("Previous modem UUID: %s", log_strdup(previous_modem_uuid));
+
+	err = get_modem_uuid(modem_uuid);
+	if (err) {
+		/* UUID check not possible */
+		return false;
+	}
+	LOG_DBG("Current modem UUID: %s", log_strdup(modem_uuid));
+
+	if (strncmp(previous_modem_uuid, modem_uuid, AT_XMODEMUUID_UUID_LEN) != 0) {
+		/* UUID has changed, modem FW has been updated */
+		return true;
+	}
+
+	return false;
+}
+
 /* Updates the FOTA job document after the modem has been updated. Failures
  * in this function are considered to be caused by the new modem firmware and
  * trigger the modem firmware to be reverted.
@@ -1286,28 +1393,58 @@ static void update_job_status_after_apply(void)
 static void update_job_status_work_fn(struct k_work *item)
 {
 	int err;
+	bool update_successful;
 
-	LOG_INF("Modem firmware was updated, updating job");
+	update_successful = modem_fw_updated();
+
+	if (update_successful) {
+		LOG_INF("Modem firmware was updated, updating job");
+	} else {
+		LOG_WRN("Modem firmware was rejected, updating job");
+	}
 
 	if (!wait_until_attached(3600)) {
-		/* TODO: Revert modem firmware */
-		return;
+		LOG_ERR("Connecting to LTE failed");
+
+		if (IS_ENABLED(CONFIG_MODEM_FOTA_FIRMWARE_SANITY_CHECK) &&
+				update_successful) {
+			/* Assuming the new MFW is faulty. Reverting back to
+			 * previous version. */
+			schedule_modem_fw_revert();
+			/* This call reboots the device before returning. */
+			reboot_to_apply_update();
+		}
+
+		LOG_ERR("Failed to update job status");
+		goto clean_exit;
 	}
 
 	/* If FOTA is not allowed in NB-IoT and the current mode is NB-IoT,
 	 * we need to switch to M1 for the job update
 	 */
-	if (!IS_ENABLED(CONFIG_MODEM_FOTA_ALLOWED_IN_NBIOT)) {
-		if (lte_mode == MODEM_LTE_MODE_NBIOT) {
-			LOG_INF("Switching to LTE-M for job update");
-			/* Wait for inactivity, but ignore possible timeout */
-			wait_for_data_inactivity();
-			if (!switch_system_mode_to_lte_m()) {
-				/* If connecting to LTE-M failed */
-				restore_system_mode();
-				/* TODO: Revert modem firmware */
-				return;
+	if (!IS_ENABLED(CONFIG_MODEM_FOTA_ALLOWED_IN_NBIOT) &&
+			lte_mode == MODEM_LTE_MODE_NBIOT) {
+		LOG_INF("Switching to LTE-M for job update");
+		/* Wait for inactivity, but ignore possible timeout */
+		wait_for_data_inactivity();
+		if (!switch_system_mode_to_lte_m()) {
+			LOG_ERR("Switching to LTE-M failed");
+			restore_system_mode();
+
+			if (IS_ENABLED(CONFIG_MODEM_FOTA_FIRMWARE_SANITY_CHECK) &&
+					update_successful) {
+				/* Assuming the new MFW is faulty.
+				 * Reverting back to previous
+				 * version. */
+				schedule_modem_fw_revert();
+				/* This call reboots the device before
+				 * returning.
+				 */
+				reboot_to_apply_update();
 			}
+
+			LOG_ERR("Failed to update job status");
+			goto clean_exit;
 		}
 	}
 
@@ -1315,25 +1452,46 @@ static void update_job_status_work_fn(struct k_work *item)
 	if (err) {
 		LOG_ERR("Activating FOTA PDN failed");
 		restore_system_mode();
-		/* TODO: Revert modem firmware */
-		return;
+
+		if (IS_ENABLED(CONFIG_MODEM_FOTA_FIRMWARE_SANITY_CHECK) &&
+				update_successful) {
+			/* Assuming the new MFW is faulty. Reverting back to
+			 * previous version. */
+			schedule_modem_fw_revert();
+			/* This call reboots the device before returning. */
+			reboot_to_apply_update();
+		}
+
+		LOG_ERR("Failed to update job status");
+		goto clean_exit;
 	}
 
 	/* Update job status to server */
 	current_job.id = update_job_id;
 	update_job_id = NULL;
-	current_job.status = AWS_JOBS_SUCCEEDED;
+	if (update_successful) {
+		current_job.status = AWS_JOBS_SUCCEEDED;
+	} else {
+		current_job.status = AWS_JOBS_REJECTED;
+	}
 	err = update_job_status();
-
 	if (err) {
-		/* TODO: Revert modem firmware */
-		return;
+		if (IS_ENABLED(CONFIG_MODEM_FOTA_FIRMWARE_SANITY_CHECK) &&
+				update_successful) {
+			/* Assuming the new MFW is faulty. Reverting back to
+			 * previous version. */
+			schedule_modem_fw_revert();
+			/* This call reboots the device before returning. */
+			reboot_to_apply_update();
+		}
 	}
 
 	deactivate_fota_pdn();
 	restore_system_mode();
 
-	/* Update was successful, erase the backup */
+clean_exit:
+
+	/* Erase the modem FW backup */
 	erase_modem_fw_backup();
 
 	/* Clear job ID from NV */
