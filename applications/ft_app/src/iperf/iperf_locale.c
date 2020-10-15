@@ -105,7 +105,7 @@ const char fta_iperf3_usage_support_str[] =
                            "  -d                emit debugging output\n"
                            "  -v                show version information and quit\n"
                            "  -h                show this message and quit\n"
-                           "  -I   <interface>  use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
+                           "  -I   <CID>        use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
 
                            "\nServer specific:\n"
                            "  -s               run in server mode\n"
