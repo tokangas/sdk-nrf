@@ -26,7 +26,7 @@ static const char icmp_ping_shell_cmd_usage_str[] =
 	"  -c count,         [int]   the number of times to send the ping request\n"
 	"  -i interval,      [int]   an interval between successive packet transmissions.\n"
 	"  -l length,        [int]   payload length to be sent\n"
-	"  -I interface CID, [str]   use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
+	"  -I interface CID, [int]   use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
 	"  -6,               [bool]  force IPv6 usage, e.g. with dual stack interfaces\n"
 	"  -h,               [bool]  shows this information.\n"
 	;

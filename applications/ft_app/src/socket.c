@@ -43,22 +43,6 @@ typedef enum {
 #define SOCKET_FD_NONE -1
 #define SOCKET_SEND_DATA_INTERVAL_NONE -1
 
-typedef struct {
-	socket_command command;
-	int id;
-	int family;
-	int type;
-	char ip_address[100+1];
-	int port;
-	int bind_port;
-	bool data_to_be_sent;
-	int data_length;
-	int data_interval;
-	bool receive_start;
-} socket_cmd_args_t;
-
-static socket_cmd_args_t socket_cmd_args;
-
 struct data_transfer_info {
 	struct k_work work;
 	struct k_timer timer;
@@ -88,14 +72,6 @@ char send_buffer[SEND_BUFFER_SIZE];
 char receive_buffer[RECEIVE_BUFFER_SIZE];
 const struct shell* shell_global;
 
-
-static void socket_cmd_args_clear(socket_cmd_args_t* args) {
-	memset(args, 0, sizeof(socket_cmd_args_t));
-	socket_cmd_args.id = SOCKET_ID_NONE;
-	socket_cmd_args.family = AF_INET;
-	socket_cmd_args.type = SOCK_STREAM;
-	socket_cmd_args.data_interval = SOCKET_SEND_DATA_INTERVAL_NONE;
-}
 
 static void socket_info_clear(socket_info_t* socket_info) {
 	if (socket_info->in_use) {
@@ -160,7 +136,7 @@ const char usage_str[] =
 	"  -f, [str]  Address family: 'inet' (ipv4, default) or 'inet6' (ipv6)\n"
 	"  -t, [str]  Address type: 'stream' (tcp, default) or 'dgram' (udp)\n"
 	"  -b, [int]  Local port to bind the socket to\n"
-	"  -I, [str]  Use this option to bind socket to specific PDN CID.\n"
+	"  -I, [int]  Use this option to bind socket to specific PDN CID.\n"
 	"             See ltelc command for available interfaces.\n"
 	"\n"
 	"Options for 'send' command:\n"
@@ -425,7 +401,7 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 	socket_info->bind_port = bind_port;
 	socket_info->pdn_cid = pdn_cid;
 
-	if (pdn_cid != 0) {
+	if (pdn_cid > 0) {
 		int ret;
 		char apn_str[FTA_APN_STR_MAX_LEN];
 		memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
@@ -703,7 +679,6 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err = 0;
 	shell_global = shell;
-	socket_cmd_args_clear(&socket_cmd_args);
 	// Before parsing the command line, reset getopt index to the start of the arguments
 	optind = 1;
 
@@ -713,23 +688,24 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	// Command = argv[1]
+	socket_command command;
 	bool require_socket_id = false;
 	if (!strcmp(argv[1], "connect")) {
-		socket_cmd_args.command = SOCKET_CMD_CONNECT;
+		command = SOCKET_CMD_CONNECT;
 	} else if (!strcmp(argv[1], "send")) {
-		socket_cmd_args.command = SOCKET_CMD_SEND;
+		command = SOCKET_CMD_SEND;
 		require_socket_id = true;
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 	} else if (!strcmp(argv[1], "recv")) {
-		socket_cmd_args.command = SOCKET_CMD_RECV;
+		command = SOCKET_CMD_RECV;
 		require_socket_id = true;
 	} else if (!strcmp(argv[1], "close")) {
-		socket_cmd_args.command = SOCKET_CMD_CLOSE;
+		command = SOCKET_CMD_CLOSE;
 		require_socket_id = true;
 	} else if (!strcmp(argv[1], "list")) {
-		socket_cmd_args.command = SOCKET_CMD_LIST;
+		command = SOCKET_CMD_LIST;
 	} else if (!strcmp(argv[1], "help")) {
-		socket_cmd_args.command = SOCKET_CMD_HELP;
+		command = SOCKET_CMD_HELP;
 	} else {
 		shell_error(shell, "Unsupported command=%s\n", argv[1]);
 		print_usage();
@@ -738,20 +714,28 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	// Increase getopt command line parsing index not to handle command
 	optind++;
 
-	int flag;
-	int pdn_cid = 0;
-	bool verbose = false;
-	// TODO: Handle arguments in similar manner, i.e., move everything here or move 'data' to socket_cmd_args
+	int flag = 0;
+	int arg_socket_id = SOCKET_ID_NONE;
+	int arg_family = AF_INET;
+	int arg_type = SOCK_STREAM;
+	char arg_ip_address[100+1];
+	int arg_port = 0;
+	int arg_bind_port = 0;
+	int arg_pdn_cid = 0;
+	int arg_data_length = 0;
+	int arg_data_interval = SOCKET_SEND_DATA_INTERVAL_NONE;
+	bool arg_receive_start = false;
+	bool arg_verbose = false;
 	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
 		int ip_address_len = 0;
 		switch (flag) {
 		case 'i': // Socket ID
-			socket_cmd_args.id = atoi(optarg);
+			arg_socket_id = atoi(optarg);
 			break;
 		case 'I': // PDN CID
-			pdn_cid = atoi(optarg);
-			if (pdn_cid == 0) {
-				shell_error(shell, "PDN CID (%d) must be positive integer.", pdn_cid);
+			arg_pdn_cid = atoi(optarg);
+			if (arg_pdn_cid == 0) {
+				shell_error(shell, "PDN CID (%d) must be positive integer.", arg_pdn_cid);
 				return -EINVAL;
 			}
 			break;
@@ -760,18 +744,18 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			if (ip_address_len > 100) {
 				shell_error(shell, "Address length %d exceeded. Maximum is 100.", ip_address_len);
 			}
-			memcpy(socket_cmd_args.ip_address, optarg, ip_address_len);
+			memcpy(arg_ip_address, optarg, ip_address_len);
 			break;
 		case 'p': // Port
-			socket_cmd_args.port = atoi(optarg);
+			arg_port = atoi(optarg);
 			break;
 		case 'f': // Address family
 			if (!strcmp(optarg, "inet")) {
-				socket_cmd_args.family = AF_INET;
+				arg_family = AF_INET;
 			} else if (!strcmp(optarg, "inet6")) {
-				socket_cmd_args.family = AF_INET6;
+				arg_family = AF_INET6;
 			} else if (!strcmp(optarg, "packet")) {
-				socket_cmd_args.family = AF_PACKET;
+				arg_family = AF_PACKET;
 			} else {
 				shell_error(shell, "Unsupported family=%s", optarg);
 				return -EINVAL;
@@ -779,65 +763,63 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case 't': // Socket type
 			if (!strcmp(optarg, "stream")) {
-				socket_cmd_args.type = SOCK_STREAM;
+				arg_type = SOCK_STREAM;
 			} else if (!strcmp(optarg, "dgram")) {
-				socket_cmd_args.type = SOCK_DGRAM;
-			} else if (!strcmp(optarg, "raw")) {
-				socket_cmd_args.type = SOCK_RAW;
+				arg_type = SOCK_DGRAM;
 			} else {
 				shell_error(shell, "Unsupported type=%s", optarg);
 				return -EINVAL;
 			}
 			break;
 		case 'b': // Bind port
-			socket_cmd_args.bind_port = atoi(optarg);
+			arg_bind_port = atoi(optarg);
 			break;
 		case 'd': // Data to be sent is available in send buffer
 			strcpy(send_buffer, optarg);
 			break;
 		case 'l': // Length of undefined data to be sent
-			socket_cmd_args.data_length = atoi(optarg);
+			arg_data_length = atoi(optarg);
 			break;
 		case 'e': // Interval in which data will be sent
-			socket_cmd_args.data_interval = atoi(optarg);
+			arg_data_interval = atoi(optarg);
 			break;
 		case 'r': // Start monitoring received data
-			socket_cmd_args.receive_start = true;
+			arg_receive_start = true;
 			break;
 		case 'v': // Start monitoring received data
-			verbose = true;
+			arg_verbose = true;
 			break;
 		}
 	}
 
 	socket_info_t *socket_info = NULL;
 	if (require_socket_id) {
-		if (socket_cmd_args.id == SOCKET_ID_NONE) {
+		if (arg_socket_id == SOCKET_ID_NONE) {
 			shell_error(shell, "Socket id not given. -i option is mandatory for command=%s",
 				argv[1]); // TODO: Change argv to command
 			return -EINVAL;
 		}
-		if (socket_cmd_args.id < 0 || socket_cmd_args.id > MAX_SOCKETS) {
+		if (arg_socket_id < 0 || arg_socket_id > MAX_SOCKETS) {
 			shell_error(shell, "Socket id=%d must a postive number smaller than %d",
-				socket_cmd_args.id, MAX_SOCKETS);
+				arg_socket_id, MAX_SOCKETS);
 			return -EINVAL;
 		}
-		socket_info = &(sockets[socket_cmd_args.id]);
+		socket_info = &(sockets[arg_socket_id]);
 		if (!socket_info->in_use) {
-			shell_error(shell, "Socket id=%d not available", socket_cmd_args.id);
+			shell_error(shell, "Socket id=%d not available", arg_socket_id);
 			return -EINVAL;
 		}
 	}
 
-	switch (socket_cmd_args.command) {
+	switch (command) {
 		case SOCKET_CMD_CONNECT:
-			err = socket_open_and_connect(socket_cmd_args.family, socket_cmd_args.type, socket_cmd_args.ip_address, socket_cmd_args.port, socket_cmd_args.bind_port, pdn_cid);
+			err = socket_open_and_connect(arg_family, arg_type, arg_ip_address, arg_port, arg_bind_port, arg_pdn_cid);
 			break;
 		case SOCKET_CMD_SEND:
-			err = socket_send_data(socket_info, send_buffer, socket_cmd_args.data_length, socket_cmd_args.data_interval);
+			err = socket_send_data(socket_info, send_buffer, arg_data_length, arg_data_interval);
 			break;
 		case SOCKET_CMD_RECV:
-			socket_recv(socket_info, socket_cmd_args.receive_start);
+			socket_recv(socket_info, arg_receive_start);
 			break;
 		case SOCKET_CMD_CLOSE:
 			socket_close(socket_info);
@@ -846,10 +828,10 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 			socket_list();
 			break;
 		case SOCKET_CMD_HELP:
-			socket_help(verbose);
+			socket_help(arg_verbose);
 			break;
 		default:
-			shell_error(shell, "Internal error. Unknown socket command=%d", socket_cmd_args.command);
+			shell_error(shell, "Internal error. Unknown socket command=%d", command);
 			err = -EINVAL;
 			break;
 	}
