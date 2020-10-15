@@ -92,6 +92,9 @@ static int mock_gethostname(char *name, size_t len)
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/getsockname.html
 int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
+    /* Note:
+       very dummy, not doing anything according to given sockfd, just returning current local address by set preference
+    */
     memset(addr->data, 0, sizeof(addr->data));
     addr->sa_family = AF_UNSPEC;
 

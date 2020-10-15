@@ -331,6 +331,7 @@ iperf_tcp_listen(struct iperf_test *test)
 	 * connections as well.  See documentation in netannounce() for
 	 * more details.
 	 */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #if defined(IPV6_V6ONLY) && !defined(__OpenBSD__)
 	if (res->ai_family == AF_INET6 && (test->settings->domain == AF_UNSPEC || test->settings->domain == AF_INET)) {
 	    if (test->settings->domain == AF_UNSPEC)
@@ -348,7 +349,7 @@ iperf_tcp_listen(struct iperf_test *test)
 	    }
 	}
 #endif /* IPV6_V6ONLY */
-
+#endif
         if (bind(s, (struct sockaddr *) res->ai_addr, res->ai_addrlen) < 0) {
 	    saved_errno = errno;
             close(s);

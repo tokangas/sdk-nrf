@@ -161,8 +161,8 @@ tmr_timeout( struct iperf_time* nowP )
     getnow(nowP, &now);
     /* Since the list is sorted, we only need to look at the first timer. */
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-#define MAX_TIMEOUT_IN_MICROSECS (1000000LL * 10LL)  // XXX 10 seconds
-#define MIN_TIMEOUT_IN_MICROSECS (1000000LL * 1LL)  // XXX 1 seconds, cannot be less than 1 secs
+#define MAX_TIMEOUT_IN_MICROSECS (1000000LL * 3LL)  // 3 seconds
+#define MIN_TIMEOUT_IN_MICROSECS 1000LL             // 1 ms
     if (timers == NULL) {
 	    usecs = MAX_TIMEOUT_IN_MICROSECS;
     } else {

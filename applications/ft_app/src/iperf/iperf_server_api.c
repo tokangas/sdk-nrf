@@ -112,20 +112,33 @@ iperf_accept(struct iperf_test *test)
     int s;
     signed char rbuf = ACCESS_DENIED;
     socklen_t len;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)	
-    struct sockaddr_in client_addr;  //modified due to nrf91_socket_offload_accept() -> in this way ipv6 won't work -> FTA_IPERF3_INTEGRATION_TODO
+    struct sockaddr_storage addr;
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    //modified due to nrf91_socket_offload_accept() -> in this way ipv6 won't work -> FTA_IPERF3_INTEGRATION_TODO
+    struct sockaddr_in client_addr; 
+    struct sockaddr_in6 client6_addr;
     struct sockaddr *sa;
 
-    len = sizeof(client_addr);
-    if ((s = accept(test->listener, (struct sockaddr *)&client_addr, &len)) < 0) {
+    /* Workaround due to nrf91_socket_offload_accept / bsdlib that requires len to be either of in4 or in6 */    
+    int domain = fta_iperf3_getsockdomain(test, test->ctrl_sck);
+
+    if (domain == AF_INET) {
+        len = sizeof(client_addr);
+    }
+    else {
+        len = sizeof(client6_addr);
+    }
+
+    if ((s = accept(test->listener, (struct sockaddr *)&addr, &len)) < 0) {
         i_errno = IEACCEPT;
         return -1;
     }
+
     //store remote address
-    sa = (struct sockaddr *)&client_addr;
+    sa = (struct sockaddr *)&addr;
     test->remote_addr = *sa;
 #else
-    struct sockaddr_storage addr;
 
     len = sizeof(addr);
     if ((s = accept(test->listener, (struct sockaddr *) &addr, &len)) < 0) {
