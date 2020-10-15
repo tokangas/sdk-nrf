@@ -11,7 +11,10 @@
 #endif
 #include <fcntl.h>
 
+#include "fta_defines.h"
+#include "ltelc_api.h"
 #include "utils/freebsd-getopt/getopt.h"
+#include "utils/fta_net_utils.h"
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
@@ -69,6 +72,7 @@ typedef struct {
 	int type;
 	int port;
 	int bind_port;
+	int pdn_cid;
 	bool in_use;
 	bool log_receive_data;
 	int64_t recv_start_time_ms;
@@ -148,7 +152,7 @@ const char usage_str[] =
 	"  help:    Show this usage. No mandatory options.\n"
 	"\n"
 	"General options:\n"
-	"  -i, [int]  socket id. Use 'list' command to see open sockets.\n"
+	"  -i, [int]  Socket id. Use 'list' command to see open sockets.\n"
 	"\n"
 	"Options for 'connect' command:\n"
 	"  -a, [str]  Address as ip address or hostname\n"
@@ -156,6 +160,8 @@ const char usage_str[] =
 	"  -f, [str]  Address family: 'inet' (ipv4, default) or 'inet6' (ipv6)\n"
 	"  -t, [str]  Address type: 'stream' (tcp, default) or 'dgram' (udp)\n"
 	"  -b, [int]  Local port to bind the socket to\n"
+	"  -I, [str]  Use this option to bind socket to specific PDN CID.\n"
+	"             See ltelc command for available interfaces.\n"
 	"\n"
 	"Options for 'send' command:\n"
 	"  -d, [str]  Data to be sent. Cannot be used with -l option.\n"
@@ -354,12 +360,12 @@ static void set_socket_mode(int fd, enum socket_mode mode)
     }
 }
 
-static int socket_open_and_connect(int family, int type, char* ip_address, int port, int bind_port)
+static int socket_open_and_connect(int family, int type, char* ip_address, int port, int bind_port, int pdn_cid)
 {
 	int err;
 
-	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, ip_address=%s",
-		family, type, port, bind_port, ip_address);
+	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, ip_address=%s",
+		family, type, port, bind_port, pdn_cid, ip_address);
 
 	// TODO: TLS support
 	// TODO: Check that LTE link is connected because errors are not very descriptive if it's not.
@@ -417,6 +423,49 @@ static int socket_open_and_connect(int family, int type, char* ip_address, int p
 	socket_info->type = type;
 	socket_info->port = port;
 	socket_info->bind_port = bind_port;
+	socket_info->pdn_cid = pdn_cid;
+
+	if (pdn_cid != 0) {
+		int ret;
+		char apn_str[FTA_APN_STR_MAX_LEN];
+		memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
+		pdp_context_info_array_t pdp_context_info_tbl;
+
+		ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+		if (ret) {
+			shell_error(shell_global, "cannot read current connection info: %d", ret);
+			return -1;
+		} else {
+			/* Find PDP context info for requested CID */
+			int i;
+			bool found = false;
+
+			for (i = 0; i < pdp_context_info_tbl.size; i++) {
+				if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
+					strcpy(apn_str, pdp_context_info_tbl.array[i].apn_str);
+					found = true;
+				}
+			}
+			if (!found) {
+				shell_error(shell_global, "cannot find CID: %d", pdn_cid);
+				return -1;
+			}
+		}
+
+		/* Binding a data socket to an APN: */
+		ret = fta_net_utils_socket_apn_set(fd, apn_str);
+		if (ret != 0) {
+			shell_error(shell_global, "Cannot bind socket to apn %s", apn_str);
+			shell_error(shell_global, "probably due to https://projecttools.nordicsemi.no/jira/browse/NCSDK-6645");
+
+			if (pdp_context_info_tbl.array != NULL)
+				free(pdp_context_info_tbl.array);
+			return -1;
+		}
+
+		if (pdp_context_info_tbl.array != NULL)
+			free(pdp_context_info_tbl.array);
+	}
 
 	// GET ADDRESS
 	struct addrinfo hints = {
@@ -627,13 +676,14 @@ static void socket_list() {
 		socket_info_t* socket_info = &(sockets[i]);
 		if (socket_info->in_use) {
 			opened_sockets = true;
-			shell_print(shell_global, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d, bind_port=%d", 
+			shell_print(shell_global, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d, bind_port=%d, pdn=%d", 
 				i,
 				socket_info->fd,
 				socket_info->family,
 				socket_info->type,
 				socket_info->port,
-				socket_info->bind_port);
+				socket_info->bind_port,
+				socket_info->pdn_cid);
 		}
 	}
 
@@ -689,13 +739,21 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 	optind++;
 
 	int flag;
+	int pdn_cid = 0;
 	bool verbose = false;
 	// TODO: Handle arguments in similar manner, i.e., move everything here or move 'data' to socket_cmd_args
-	while ((flag = getopt(argc, argv, "i:a:p:f:t:b:d:l:e:rv")) != -1) {
+	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
 		int ip_address_len = 0;
 		switch (flag) {
 		case 'i': // Socket ID
 			socket_cmd_args.id = atoi(optarg);
+			break;
+		case 'I': // PDN CID
+			pdn_cid = atoi(optarg);
+			if (pdn_cid == 0) {
+				shell_error(shell, "PDN CID (%d) must be positive integer.", pdn_cid);
+				return -EINVAL;
+			}
 			break;
 		case 'a': // IP address, or hostname
 			ip_address_len = strlen(optarg);
@@ -773,7 +831,7 @@ int socket_shell(const struct shell *shell, size_t argc, char **argv)
 
 	switch (socket_cmd_args.command) {
 		case SOCKET_CMD_CONNECT:
-			err = socket_open_and_connect(socket_cmd_args.family, socket_cmd_args.type, socket_cmd_args.ip_address, socket_cmd_args.port, socket_cmd_args.bind_port);
+			err = socket_open_and_connect(socket_cmd_args.family, socket_cmd_args.type, socket_cmd_args.ip_address, socket_cmd_args.port, socket_cmd_args.bind_port, pdn_cid);
 			break;
 		case SOCKET_CMD_SEND:
 			err = socket_send_data(socket_info, send_buffer, socket_cmd_args.data_length, socket_cmd_args.data_interval);
