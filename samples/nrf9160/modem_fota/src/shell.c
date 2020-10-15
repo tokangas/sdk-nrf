@@ -60,7 +60,7 @@ void data_send_timer_handler(struct k_timer *dummy)
 
 K_TIMER_DEFINE(data_send_timer, data_send_timer_handler, NULL);
 
-#define FOTA_APP_BUILD_VERSION "1.0 beta-4"
+#define FOTA_APP_BUILD_VERSION "1.0 beta-5"
 static int app_cmd_ver(const struct shell *shell, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
