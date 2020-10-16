@@ -1,6 +1,6 @@
 zephyr_include_directories(.)
 
-target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cJSON.c)
+target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cjson.c)
 target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dscp.c)
 target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/iperf_api.c)
 target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/iperf_auth.c)
