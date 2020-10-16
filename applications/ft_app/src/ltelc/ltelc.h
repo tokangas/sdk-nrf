@@ -9,6 +9,6 @@ void ltelc_init(void);
 void ltelc_ind_handler(const struct lte_lc_evt *const evt);
 void ltelc_rsrp_subscribe(bool subscribe) ;
 int ltelc_pdn_init_and_connect(const char *apn_name);
-int ltelc_pdn_disconnect(const char* apn);
+int ltelc_pdn_disconnect(const char* apn, int pdn_cid);
 
 #endif

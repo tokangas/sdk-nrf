@@ -42,7 +42,7 @@ static sys_dlist_t pdn_socket_list;
 typedef struct {
 	sys_dnode_t dnode;
 	int fd;
-    char apn[LTELC_APN_STR_MAX_LENGTH + 1];
+	char apn[LTELC_APN_STR_MAX_LENGTH + 1];
 } ltelc_pdn_socket_info_t;
 
 #if defined(CONFIG_MODEM_INFO)
@@ -162,7 +162,7 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 static int ltelc_pdn_socket_info_clear(ltelc_pdn_socket_info_t* pdn_socket_info)
 {
 	int ret_val = nrf_close(pdn_socket_info->fd);
-    
+
 	if (sys_dnode_is_linked(&pdn_socket_info->dnode))
 		sys_dlist_remove(&pdn_socket_info->dnode);
 
@@ -213,6 +213,35 @@ static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn
 	// }
 	return found_pdn_socket_info;
 }
+
+static int ltelc_get_apn_by_pdn_cid(int pdn_cid, char* apn_str)
+{
+	int ret;
+	pdp_context_info_array_t pdp_context_info_tbl;
+
+	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+	if (ret) {
+		shell_error(uart_shell, "cannot read current connection info: %d", ret);
+		return -1;
+	}
+
+	/* Find PDP context info for requested CID */
+	ret = -1;
+	int i;
+	for (i = 0; i < pdp_context_info_tbl.size; i++) {
+		if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
+			memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
+			strcpy(apn_str, pdp_context_info_tbl.array[i].apn_str);
+			ret = 0;
+		}
+	}
+
+	if (pdp_context_info_tbl.array != NULL) {
+		free(pdp_context_info_tbl.array);
+	}
+	return ret;
+}
+
 void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
 	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
@@ -240,7 +269,7 @@ int ltelc_pdn_init_and_connect(const char *apn_name)
 	}
 #endif
 
-    if (apn_name != NULL) {
+	if (apn_name != NULL) {
 		ltelc_pdn_socket_info_t* pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_name);
 		if (pdn_socket_info == NULL) {
 			ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
@@ -270,16 +299,30 @@ int ltelc_pdn_init_and_connect(const char *apn_name)
 	return -EINVAL;
 }
 
-int ltelc_pdn_disconnect(const char* apn)
+int ltelc_pdn_disconnect(const char* apn, int pdn_cid)
 {
-	ltelc_pdn_socket_info_t* pdn_socket_info  = ltelc_pdn_socket_info_get_by_apn(apn);
+	ltelc_pdn_socket_info_t* pdn_socket_info = NULL;
+	if (apn != NULL) {
+		pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn);
+	} else if (pdn_cid >= 0) {
+		// TODO: Check if there is more elegant way of handling apn string
+		char apn_str[FTA_APN_STR_MAX_LEN];
+		int ret = ltelc_get_apn_by_pdn_cid(pdn_cid, apn_str);
+		if (ret != 0) {
+			printk("No APN found for PDN CID %d\n", pdn_cid);
+		} else {
+			pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_str);
+		}
+	} else {
+		shell_error(uart_shell, "Either APN or PDN CID must be given\n");
+		return -EINVAL;
+	}
 
 	if (pdn_socket_info != NULL) {
 		return ltelc_pdn_socket_info_clear(pdn_socket_info);
-	} else
-	{
+	} else {
 		/* Not existing connection by using ltelc */
-		printk("No existing connection created by using ltelc to apn %s\n", apn);
+		printk("No existing connection created by using ltelc to apn %s\n", FTA_STRING_NULL_CHECK(apn));
 		return -EINVAL;
 	}
 }
