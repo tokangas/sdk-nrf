@@ -1,6 +1,7 @@
 #include <shell/shell.h>
 #include <assert.h>
 #include <strings.h>
+#include <stdio.h>
 #if defined (CONFIG_POSIX_API)
 #include <unistd.h>
 #include <netdb.h>
@@ -526,18 +527,22 @@ static double calculate_throughput(uint32_t data_len, int64_t time_ms)
 
 static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 {
+	char output_buffer[100];
+
 	// 8 for bits in one byte, and 1000 for ms->s conversion.
 	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
 	double throughput = calculate_throughput(data_len, time_ms);
 
-	shell_print(shell_global,
-			"\nSummary:\n"
-			"Data length: %7u bytes\n"
-			"Time:        %7.2f s\n"
-			"Throughput:  %7.0f bit/s\n",
-			data_len,
-			(float)time_ms / 1000,
-			throughput);
+	sprintf(output_buffer,
+		"\nSummary:\n"
+		"Data length: %7u bytes\n"
+		"Time:        %7.2f s\n"
+		"Throughput:  %7.0f bit/s\n",
+		data_len,
+		(float)time_ms / 1000,
+		throughput);
+
+	shell_print(shell_global, "%s", output_buffer);
 }
 
 static int socket_send_data(socket_info_t* socket_info, char* data, int data_length, int interval) {
@@ -563,6 +568,7 @@ static int socket_send_data(socket_info_t* socket_info, char* data, int data_len
 
 		int64_t time_stamp = k_uptime_get();
 		int print_interval = 10;
+		char output_buffer[50];
 		while (data_left > 0) {
 			if (data_left < SEND_BUFFER_SIZE-1) {
 				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
@@ -577,8 +583,9 @@ static int socket_send_data(socket_info_t* socket_info, char* data, int data_len
 
 			if ((ul_time_intermediate_ms / (double)1000) > print_interval) {
 				double throughput = calculate_throughput(bytes_sent, ul_time_intermediate_ms);
-				shell_print(shell_global,"%7u bytes, %6.2fs, %6.0f bit/s",
-						bytes_sent, (float)ul_time_intermediate_ms / 1000, throughput);
+				sprintf(output_buffer, "%7u bytes, %6.2fs, %6.0f bit/s",
+					bytes_sent, (float)ul_time_intermediate_ms / 1000, throughput);
+				shell_print(shell_global, "%s", output_buffer);
 				print_interval += 10;
 			}
 		}
