@@ -45,9 +45,7 @@ typedef enum {
 #define SOCKET_FD_NONE -1
 #define SOCKET_SEND_DATA_INTERVAL_NONE -1
 
-extern socket_info_t sockets[MAX_SOCKETS];
 extern char send_buffer[SEND_BUFFER_SIZE];
-//char receive_buffer[RECEIVE_BUFFER_SIZE];
 const struct shell* shell_global;
 
 
@@ -256,38 +254,18 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		}
 	}
 
-// TODO: Handle socket id in corresponding functions and pass just arg_socket_id in there
-	socket_info_t *socket_info = NULL;
-	if (require_socket_id) {
-		if (arg_socket_id == SOCKET_ID_NONE) {
-			shell_error(shell, "Socket id not given. -i option is mandatory for command=%s",
-				argv[1]); // TODO: Change argv to command
-			return -EINVAL;
-		}
-		if (arg_socket_id < 0 || arg_socket_id > MAX_SOCKETS) {
-			shell_error(shell, "Socket id=%d must a postive number smaller than %d",
-				arg_socket_id, MAX_SOCKETS);
-			return -EINVAL;
-		}
-		socket_info = &(sockets[arg_socket_id]);
-		if (!socket_info->in_use) {
-			shell_error(shell, "Socket id=%d not available", arg_socket_id);
-			return -EINVAL;
-		}
-	}
-
 	switch (command) {
 		case SOCKET_CMD_CONNECT:
 			err = socket_open_and_connect(arg_family, arg_type, arg_ip_address, arg_port, arg_bind_port, arg_pdn_cid);
 			break;
 		case SOCKET_CMD_SEND:
-			err = socket_send_data(socket_info, send_buffer, arg_data_length, arg_data_interval);
+			err = socket_send_data(arg_socket_id, send_buffer, arg_data_length, arg_data_interval);
 			break;
 		case SOCKET_CMD_RECV:
-			socket_recv(socket_info, arg_receive_start);
+			err = socket_recv(arg_socket_id, arg_receive_start);
 			break;
 		case SOCKET_CMD_CLOSE:
-			socket_close(socket_info);
+			err = socket_close(arg_socket_id);
 			break;
 		case SOCKET_CMD_LIST:
 			socket_list();

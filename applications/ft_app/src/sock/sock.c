@@ -41,35 +41,10 @@ typedef enum {
 	SOCKET_CMD_HELP
 } socket_command;
 
+
 #define SOCKET_ID_NONE -1
 #define SOCKET_FD_NONE -1
 #define SOCKET_SEND_DATA_INTERVAL_NONE -1
-
-/*
-struct data_transfer_info {
-	struct k_work work;
-	struct k_timer timer;
-	int socket_id;
-};
-
-typedef struct {
-	int id;
-	int fd;
-	int family;
-	int type;
-	int port;
-	int bind_port;
-	int pdn_cid;
-	bool in_use;
-	bool log_receive_data;
-	int64_t recv_start_time_ms;
-	int64_t recv_end_time_ms;
-	uint32_t recv_data_len;
-	bool recv_start_throughput;
-	struct addrinfo *addrinfo;
-	struct data_transfer_info send_info;
-} socket_info_t;
-*/
 
 socket_info_t sockets[MAX_SOCKETS] = {0};
 char send_buffer[SEND_BUFFER_SIZE];
@@ -191,7 +166,7 @@ K_THREAD_DEFINE(socket_receive_thread, RECEIVE_STACK_SIZE,
                 socket_receive_handler, NULL, NULL, NULL,
                 RECEIVE_PRIORITY, 0, 0);
 
-int socket_send(socket_info_t *socket_info, char* data, bool log_data)
+static int socket_send(socket_info_t *socket_info, char* data, bool log_data)
 {
 	int bytes;
 
@@ -467,7 +442,32 @@ static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 	shell_print(shell_global, "%s", output_buffer);
 }
 
-int socket_send_data(socket_info_t* socket_info, char* data, int data_length, int interval) {
+static socket_info_t* get_socket_info_by_id(int socket_id)
+{
+	socket_info_t *socket_info = NULL;
+	if (socket_id == SOCKET_ID_NONE) {
+		shell_error(shell_global, "Socket id not given. -i option is mandatory"); //for command=%s", argv[1]); // TODO: Change argv to command
+		return NULL;
+	}
+	if (socket_id < 0 || socket_id > MAX_SOCKETS) {
+		shell_error(shell_global, "Socket id=%d must a postive number smaller than %d",
+			socket_id, MAX_SOCKETS);
+		return NULL;
+	}
+	socket_info = &(sockets[socket_id]);
+	if (!socket_info->in_use) {
+		shell_error(shell_global, "Socket id=%d not available", socket_id);
+		return NULL;
+	}
+	return socket_info;
+}
+
+int socket_send_data(int socket_id, char* data, int data_length, int interval)
+{
+	socket_info_t* socket_info = get_socket_info_by_id(socket_id);
+	if (socket_info == NULL) {
+		return -EINVAL;
+	}
 
 	// Enable receive data logging as previous commands might have left it disabled
 	socket_info->log_receive_data = true;
@@ -553,7 +553,12 @@ int socket_send_data(socket_info_t* socket_info, char* data, int data_length, in
 	return 0;
 }
 
-void socket_recv(socket_info_t* socket_info, bool receive_start) {
+int socket_recv(int socket_id, bool receive_start)
+{
+	socket_info_t* socket_info = get_socket_info_by_id(socket_id);
+	if (socket_info == NULL) {
+		return -EINVAL;
+	}
 
 	if (receive_start) {
 		shell_print(shell_global, "Receive data calculation start socket id=%d", socket_info->id);
@@ -567,12 +572,18 @@ void socket_recv(socket_info_t* socket_info, bool receive_start) {
 			socket_info->recv_data_len,
 			socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
 	}
+	return 0;
 }
 
-void socket_close(socket_info_t* socket_info)
+int socket_close(int socket_id)
 {
+	socket_info_t* socket_info = get_socket_info_by_id(socket_id);
+	if (socket_info == NULL) {
+		return -EINVAL;
+	}
 	shell_print(shell_global, "Close socket id=%d, fd=%d", socket_info->id, socket_info->fd);
 	socket_info_clear(socket_info);
+	return 0;
 }
 
 void socket_list() {
