@@ -21,13 +21,13 @@
 #define SEND_BUFFER_SIZE 4096+1
 
 typedef enum {
-	SOCKET_CMD_CONNECT = 0,
-	SOCKET_CMD_SEND,
-	SOCKET_CMD_RECV,
-	SOCKET_CMD_CLOSE,
-	SOCKET_CMD_LIST,
-	SOCKET_CMD_HELP
-} socket_command;
+	SOCK_CMD_CONNECT = 0,
+	SOCK_CMD_SEND,
+	SOCK_CMD_RECV,
+	SOCK_CMD_CLOSE,
+	SOCK_CMD_LIST,
+	SOCK_CMD_HELP
+} sock_command;
 
 extern char send_buffer[SEND_BUFFER_SIZE];
 const struct shell* shell_global;
@@ -108,13 +108,13 @@ const char usage_example_str[] =
 	"  sock list\n"
 	;
 
-static void print_usage()
+static void sock_print_usage()
 {
 	shell_print(shell_global, "%s", usage_str);
 }
 
-static void socket_help(bool verbose) {
-	print_usage();
+static void sock_help(bool verbose) {
+	sock_print_usage();
 	if (verbose) {
 		shell_print(shell_global, "%s", usage_example_str);
 	}
@@ -128,39 +128,39 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	optind = 1;
 
 	if (argc < 2) {
-		print_usage();
+		sock_print_usage();
 		return 0;
 	}
 
 	// Command = argv[1]
-	socket_command command;
+	sock_command command;
 	bool require_socket_id = false;
 	if (!strcmp(argv[1], "connect")) {
-		command = SOCKET_CMD_CONNECT;
+		command = SOCK_CMD_CONNECT;
 	} else if (!strcmp(argv[1], "send")) {
-		command = SOCKET_CMD_SEND;
+		command = SOCK_CMD_SEND;
 		require_socket_id = true;
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 	} else if (!strcmp(argv[1], "recv")) {
-		command = SOCKET_CMD_RECV;
+		command = SOCK_CMD_RECV;
 		require_socket_id = true;
 	} else if (!strcmp(argv[1], "close")) {
-		command = SOCKET_CMD_CLOSE;
+		command = SOCK_CMD_CLOSE;
 		require_socket_id = true;
 	} else if (!strcmp(argv[1], "list")) {
-		command = SOCKET_CMD_LIST;
+		command = SOCK_CMD_LIST;
 	} else if (!strcmp(argv[1], "help")) {
-		command = SOCKET_CMD_HELP;
+		command = SOCK_CMD_HELP;
 	} else {
 		shell_error(shell, "Unsupported command=%s\n", argv[1]);
-		print_usage();
+		sock_print_usage();
 		return -EINVAL;
 	}
 	// Increase getopt command line parsing index not to handle command
 	optind++;
 
 	int flag = 0;
-	int arg_socket_id = SOCKET_ID_NONE;
+	int arg_socket_id = SOCK_ID_NONE;
 	int arg_family = AF_INET;
 	int arg_type = SOCK_STREAM;
 	char arg_ip_address[100+1];
@@ -168,7 +168,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_bind_port = 0;
 	int arg_pdn_cid = 0;
 	int arg_data_length = 0;
-	int arg_data_interval = SOCKET_SEND_DATA_INTERVAL_NONE;
+	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
 	bool arg_receive_start = false;
 	bool arg_verbose = false;
 	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
@@ -238,23 +238,23 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	switch (command) {
-		case SOCKET_CMD_CONNECT:
-			err = socket_open_and_connect(arg_family, arg_type, arg_ip_address, arg_port, arg_bind_port, arg_pdn_cid);
+		case SOCK_CMD_CONNECT:
+			err = sock_open_and_connect(arg_family, arg_type, arg_ip_address, arg_port, arg_bind_port, arg_pdn_cid);
 			break;
-		case SOCKET_CMD_SEND:
-			err = socket_send_data(arg_socket_id, send_buffer, arg_data_length, arg_data_interval);
+		case SOCK_CMD_SEND:
+			err = sock_send_data(arg_socket_id, send_buffer, arg_data_length, arg_data_interval);
 			break;
-		case SOCKET_CMD_RECV:
-			err = socket_recv(arg_socket_id, arg_receive_start);
+		case SOCK_CMD_RECV:
+			err = sock_recv(arg_socket_id, arg_receive_start);
 			break;
-		case SOCKET_CMD_CLOSE:
-			err = socket_close(arg_socket_id);
+		case SOCK_CMD_CLOSE:
+			err = sock_close(arg_socket_id);
 			break;
-		case SOCKET_CMD_LIST:
-			socket_list();
+		case SOCK_CMD_LIST:
+			sock_list();
 			break;
-		case SOCKET_CMD_HELP:
-			socket_help(arg_verbose);
+		case SOCK_CMD_HELP:
+			sock_help(arg_verbose);
 			break;
 		default:
 			shell_error(shell, "Internal error. Unknown socket command=%d", command);
