@@ -18,19 +18,7 @@
 #include "utils/freebsd-getopt/getopt.h"
 #include "utils/fta_net_utils.h"
 
-// Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
-#define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
 #define SEND_BUFFER_SIZE 4096+1
-#define RECEIVE_BUFFER_SIZE 1536
-#define RECEIVE_STACK_SIZE 2048
-#define RECEIVE_PRIORITY 5
-// Timeout for polling socket receive data. This limits how quickly data can be received after socket creation.
-#define RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
-
-enum socket_mode {
-	SOCKET_MODE_BLOCKING = 0,
-	SOCKET_MODE_NONBLOCKING
-};
 
 typedef enum {
 	SOCKET_CMD_CONNECT = 0,
@@ -41,13 +29,8 @@ typedef enum {
 	SOCKET_CMD_HELP
 } socket_command;
 
-#define SOCKET_ID_NONE -1
-#define SOCKET_FD_NONE -1
-#define SOCKET_SEND_DATA_INTERVAL_NONE -1
-
 extern char send_buffer[SEND_BUFFER_SIZE];
 const struct shell* shell_global;
-
 
 const char usage_str[] =
 	"Usage: sock <command> [options]\n"

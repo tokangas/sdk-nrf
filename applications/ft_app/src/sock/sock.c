@@ -26,6 +26,7 @@
 #define RECEIVE_PRIORITY 5
 // Timeout for polling socket receive data. This limits how quickly data can be received after socket creation.
 #define RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
+#define SOCKET_FD_NONE -1
 
 enum socket_mode {
 	SOCKET_MODE_BLOCKING = 0,
@@ -64,10 +65,6 @@ typedef struct {
 	struct addrinfo *addrinfo;
 	struct data_transfer_info send_info;
 } socket_info_t;
-
-#define SOCKET_ID_NONE -1
-#define SOCKET_FD_NONE -1
-#define SOCKET_SEND_DATA_INTERVAL_NONE -1
 
 socket_info_t sockets[MAX_SOCKETS] = {0};
 char send_buffer[SEND_BUFFER_SIZE];
