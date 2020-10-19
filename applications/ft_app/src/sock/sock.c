@@ -134,12 +134,12 @@ static void set_sock_mode(int fd, enum sock_mode mode)
     }
 }
 
-int sock_open_and_connect(int family, int type, char* ip_address, int port, int bind_port, int pdn_cid)
+int sock_open_and_connect(int family, int type, char* address, int port, int bind_port, int pdn_cid)
 {
 	int err;
 
-	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, ip_address=%s",
-		family, type, port, bind_port, pdn_cid, ip_address);
+	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
+		family, type, port, bind_port, pdn_cid, address);
 
 	// TODO: TLS support
 	// TODO: Check that LTE link is connected because errors are not very descriptive if it's not.
@@ -246,7 +246,7 @@ int sock_open_and_connect(int family, int type, char* ip_address, int port, int 
 		.ai_family = family,
 		.ai_socktype = type,
 	};
-	err = getaddrinfo(ip_address, NULL, &hints, &socket_info->addrinfo);
+	err = getaddrinfo(address, NULL, &hints, &socket_info->addrinfo);
 	if (err) {
 		shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
 		sock_info_clear(socket_info);
