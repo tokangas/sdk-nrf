@@ -12,7 +12,7 @@
 #include "ping/icmp_ping_shell.h"
 #endif
 #if defined (CONFIG_FTA_SOCK)
-#include "sock.h"
+#include "sock_shell.h"
 #endif
 #if defined (CONFIG_POSIX_API)
 #include <sys/select.h>
@@ -58,7 +58,7 @@ SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 #if defined (CONFIG_FTA_SOCK)
 SHELL_CMD_REGISTER(sock, NULL,
 	"Commands for socket operations such as connect and send.",
-	socket_shell);
+	sock_shell);
 #endif
 
 #if defined (CONFIG_FTA_PING)
