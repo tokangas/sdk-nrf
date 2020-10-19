@@ -20,12 +20,12 @@
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
-#define SEND_BUFFER_SIZE 4096+1
-#define RECEIVE_BUFFER_SIZE 1536
-#define RECEIVE_STACK_SIZE 2048
-#define RECEIVE_PRIORITY 5
+#define SOCK_SEND_BUFFER_SIZE 4096+1
+#define SOCK_RECEIVE_BUFFER_SIZE 1536
+#define SOCK_RECEIVE_STACK_SIZE 2048
+#define SOCK_RECEIVE_PRIORITY 5
 // Timeout for polling socket receive data. This limits how quickly data can be received after socket creation.
-#define RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
+#define SOCK_RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
 #define SOCK_FD_NONE -1
 
 enum sock_mode {
@@ -58,9 +58,9 @@ typedef struct {
 } sock_info_t;
 
 sock_info_t sockets[MAX_SOCKETS] = {0};
-char send_buffer[SEND_BUFFER_SIZE];
-char receive_buffer[RECEIVE_BUFFER_SIZE];
-extern const struct shell* shell_global;
+char send_buffer[SOCK_SEND_BUFFER_SIZE];
+char receive_buffer[SOCK_RECEIVE_BUFFER_SIZE];
+extern const struct shell* shell_global; // TODO: Get rid of this variable here
 
 
 static void sock_info_clear(sock_info_t* socket_info) {
@@ -87,6 +87,26 @@ static int get_socket_id_by_fd(int fd)
 	return -1;
 }
 
+static sock_info_t* get_socket_info_by_id(int socket_id)
+{
+	sock_info_t *socket_info = NULL;
+	if (socket_id == SOCK_ID_NONE) {
+		shell_error(shell_global, "Socket id not given. -i option is mandatory"); //for command=%s", argv[1]); // TODO: Can we print command somehow
+		return NULL;
+	}
+	if (socket_id < 0 || socket_id > MAX_SOCKETS) {
+		shell_error(shell_global, "Socket id=%d must a postive number smaller than %d",
+			socket_id, MAX_SOCKETS);
+		return NULL;
+	}
+	socket_info = &(sockets[socket_id]);
+	if (!socket_info->in_use) {
+		shell_error(shell_global, "Socket id=%d not available", socket_id);
+		return NULL;
+	}
+	return socket_info;
+}
+
 static sock_info_t* reserve_socket_id()
 {
 	sock_info_t* socket_info = NULL;
@@ -101,137 +121,6 @@ static sock_info_t* reserve_socket_id()
 		socket_id++;
 	}
 	return socket_info;
-}
-
-static void sock_receive_handler()
-{
-	struct pollfd fds[MAX_SOCKETS];
-
-	while (true) {
-		int count = 0;
-
-		for (int i = 0; i < MAX_SOCKETS; i++) {
-			if (sockets[i].in_use) {
-				fds[count].fd = sockets[i].fd;
-				fds[count].events = POLLIN;
-				fds[count].revents = 0;
-				count++;
-			}
-		}
-
-		int ret = poll(fds, count, RECEIVE_POLL_TIMEOUT_MS);
-
-		if (ret > 0) {
-			for (int i = 0; i < count; i++) {
-				int socket_id = get_socket_id_by_fd(fds[i].fd);
-				if (socket_id == SOCK_ID_NONE) {
-					// Socket has been already deleted from internal structures.
-					// This occurs at least when we close socket after which
-					// there will be notification for it.
-					continue;
-				}
-				sock_info_t* socket_info = &(sockets[socket_id]);
-
-				if (fds[i].revents & POLLIN) {
-					int buffer_size;
-
-					if (socket_info->recv_start_throughput) {
-						socket_info->recv_start_time_ms = k_uptime_get();
-						socket_info->recv_start_throughput = false;
-					}
-
-					while ((buffer_size = recv(
-							fds[i].fd,
-							receive_buffer,
-							RECEIVE_BUFFER_SIZE,
-							0)) > 0) {
-						
-						if (socket_info->log_receive_data) {
-							shell_print(shell_global,
-								"Received data for socket socket_id=%d, buffer_size=%d:\n\t%s",
-								socket_id,
-								buffer_size,
-								receive_buffer);
-						}
-						socket_info->recv_data_len += buffer_size;
-						memset(receive_buffer, '\0',
-							RECEIVE_BUFFER_SIZE);
-					}
-					socket_info->recv_end_time_ms = k_uptime_get();
-				}
-				if (fds[i].revents & POLLHUP) {
-					shell_print(shell_global, "Socket id=%d (fd=%d) disconnected so closing.", socket_id, fds[i].fd);
-					sock_info_clear(socket_info);
-				}
-				if (fds[i].revents & POLLNVAL) {
-					shell_print(shell_global, "Socket id=%d invalid", socket_id);
-					sock_info_clear(socket_info);
-				}
-			}
-		}
-	}
-	shell_print(shell_global, "sock_receive_handler exit");
-}
-
-K_THREAD_DEFINE(sock_receive_thread, RECEIVE_STACK_SIZE,
-                sock_receive_handler, NULL, NULL, NULL,
-                RECEIVE_PRIORITY, 0, 0);
-
-static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
-{
-	int bytes;
-
-	if (log_data) {
-		shell_print(shell_global, "Socket data send:\n\t%s", data);
-	}
-
-	if (socket_info->type == SOCK_STREAM) {
-		// TCP
-		bytes = send(socket_info->fd, data, strlen(data), 0);
-	} else {
-		// UDP
-		int dest_addr_len = 0;
-		if (socket_info->family == AF_INET) {
-			dest_addr_len = sizeof(struct sockaddr_in);
-		} else if (socket_info->family == AF_INET6) {
-			dest_addr_len = sizeof(struct sockaddr_in6);
-		}
-		bytes = sendto(socket_info->fd, data, strlen(data), 0,
-			socket_info->addrinfo->ai_addr, dest_addr_len);
-	}
-	if (bytes < 0) {
-		shell_print(shell_global, "socket send failed, err %d", errno);
-		return -1;
-	}
-	return bytes;
-}
-
-static void data_send_work_handler(struct k_work *item)
-{
-	struct data_transfer_info* data_send_info_ptr =
-		CONTAINER_OF(item, struct data_transfer_info, work);
-	int socket_id = data_send_info_ptr->socket_id;
-	sock_info_t* socket_info = &sockets[socket_id];
-
-	if (!sockets[socket_id].in_use) {
-		shell_print(shell_global,
-			"Socket id=%d not in use. Fatal error and sending won't work.",
-			socket_id);
-			// TODO: stop timer
-		return;
-	}
-
-	sock_send(socket_info, send_buffer, true);
-}
-
-static void data_send_timer_handler(struct k_timer *dummy)
-{
-	struct data_transfer_info* data_send_info_ptr =
-		CONTAINER_OF(dummy, struct data_transfer_info, timer);
-	int socket_id = data_send_info_ptr->socket_id;
-	sock_info_t* socket_info = &sockets[socket_id];
-
-	k_work_submit(&socket_info->send_info.work);
 }
 
 static void set_sock_mode(int fd, enum sock_mode mode)
@@ -453,24 +342,61 @@ static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 	shell_print(shell_global, "%s", output_buffer);
 }
 
-static sock_info_t* get_socket_info_by_id(int socket_id)
+static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 {
-	sock_info_t *socket_info = NULL;
-	if (socket_id == SOCK_ID_NONE) {
-		shell_error(shell_global, "Socket id not given. -i option is mandatory"); //for command=%s", argv[1]); // TODO: Change argv to command
-		return NULL;
+	int bytes;
+
+	if (log_data) {
+		shell_print(shell_global, "Socket data send:\n\t%s", data);
 	}
-	if (socket_id < 0 || socket_id > MAX_SOCKETS) {
-		shell_error(shell_global, "Socket id=%d must a postive number smaller than %d",
-			socket_id, MAX_SOCKETS);
-		return NULL;
+
+	if (socket_info->type == SOCK_STREAM) {
+		// TCP
+		bytes = send(socket_info->fd, data, strlen(data), 0);
+	} else {
+		// UDP
+		int dest_addr_len = 0;
+		if (socket_info->family == AF_INET) {
+			dest_addr_len = sizeof(struct sockaddr_in);
+		} else if (socket_info->family == AF_INET6) {
+			dest_addr_len = sizeof(struct sockaddr_in6);
+		}
+		bytes = sendto(socket_info->fd, data, strlen(data), 0,
+			socket_info->addrinfo->ai_addr, dest_addr_len);
 	}
-	socket_info = &(sockets[socket_id]);
-	if (!socket_info->in_use) {
-		shell_error(shell_global, "Socket id=%d not available", socket_id);
-		return NULL;
+	if (bytes < 0) {
+		shell_print(shell_global, "socket send failed, err %d", errno);
+		return -1;
 	}
-	return socket_info;
+	return bytes;
+}
+
+static void data_send_work_handler(struct k_work *item)
+{
+	struct data_transfer_info* data_send_info_ptr =
+		CONTAINER_OF(item, struct data_transfer_info, work);
+	int socket_id = data_send_info_ptr->socket_id;
+	sock_info_t* socket_info = &sockets[socket_id];
+
+	if (!sockets[socket_id].in_use) {
+		shell_print(shell_global,
+			"Socket id=%d not in use. Fatal error and sending won't work.",
+			socket_id);
+			// TODO: stop timer
+		return;
+	}
+
+	sock_send(socket_info, send_buffer, true);
+}
+
+static void data_send_timer_handler(struct k_timer *dummy)
+{
+	struct data_transfer_info* data_send_info_ptr =
+		CONTAINER_OF(dummy, struct data_transfer_info, timer);
+	int socket_id = data_send_info_ptr->socket_id;
+	sock_info_t* socket_info = &sockets[socket_id];
+
+	k_work_submit(&socket_info->send_info.work);
 }
 
 int sock_send_data(int socket_id, char* data, int data_length, int interval)
@@ -496,15 +422,15 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval)
 		socket_info->log_receive_data = false;
 		set_sock_mode(socket_info->fd, SOCK_MODE_BLOCKING);
 
-		memset(send_buffer, 0, SEND_BUFFER_SIZE);
-		memset(send_buffer, 'd', SEND_BUFFER_SIZE-1);
+		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
+		memset(send_buffer, 'd', SOCK_SEND_BUFFER_SIZE-1);
 
 		int64_t time_stamp = k_uptime_get();
 		int print_interval = 10;
 		char output_buffer[50];
 		while (data_left > 0) {
-			if (data_left < SEND_BUFFER_SIZE-1) {
-				memset(send_buffer, 0, SEND_BUFFER_SIZE-1);
+			if (data_left < SOCK_SEND_BUFFER_SIZE-1) {
+				memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE-1);
 				memset(send_buffer, 'l', data_left);
 			}
 			bytes_sent += sock_send(socket_info, send_buffer, false);
@@ -523,7 +449,7 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval)
 			}
 		}
 		int64_t ul_time_ms = k_uptime_delta(&time_stamp);
-		memset(send_buffer, 0, SEND_BUFFER_SIZE);
+		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
 		set_sock_mode(socket_info->fd, SOCK_MODE_NONBLOCKING);
 		print_throughput_summary(bytes_sent, ul_time_ms);
 
@@ -563,6 +489,80 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval)
 	}
 	return 0;
 }
+
+static void sock_receive_handler()
+{
+	struct pollfd fds[MAX_SOCKETS];
+
+	while (true) {
+		int count = 0;
+
+		for (int i = 0; i < MAX_SOCKETS; i++) {
+			if (sockets[i].in_use) {
+				fds[count].fd = sockets[i].fd;
+				fds[count].events = POLLIN;
+				fds[count].revents = 0;
+				count++;
+			}
+		}
+
+		int ret = poll(fds, count, SOCK_RECEIVE_POLL_TIMEOUT_MS);
+
+		if (ret > 0) {
+			for (int i = 0; i < count; i++) {
+				int socket_id = get_socket_id_by_fd(fds[i].fd);
+				if (socket_id == SOCK_ID_NONE) {
+					// Socket has been already deleted from internal structures.
+					// This occurs at least when we close socket after which
+					// there will be notification for it.
+					continue;
+				}
+				sock_info_t* socket_info = &(sockets[socket_id]);
+
+				if (fds[i].revents & POLLIN) {
+					int buffer_size;
+
+					if (socket_info->recv_start_throughput) {
+						socket_info->recv_start_time_ms = k_uptime_get();
+						socket_info->recv_start_throughput = false;
+					}
+
+					while ((buffer_size = recv(
+							fds[i].fd,
+							receive_buffer,
+							SOCK_RECEIVE_BUFFER_SIZE,
+							0)) > 0) {
+						
+						if (socket_info->log_receive_data) {
+							shell_print(shell_global,
+								"Received data for socket socket_id=%d, buffer_size=%d:\n\t%s",
+								socket_id,
+								buffer_size,
+								receive_buffer);
+						}
+						socket_info->recv_data_len += buffer_size;
+						memset(receive_buffer, '\0',
+							SOCK_RECEIVE_BUFFER_SIZE);
+					}
+					socket_info->recv_end_time_ms = k_uptime_get();
+				}
+				if (fds[i].revents & POLLHUP) {
+					shell_print(shell_global, "Socket id=%d (fd=%d) disconnected so closing.", socket_id, fds[i].fd);
+					sock_info_clear(socket_info);
+				}
+				if (fds[i].revents & POLLNVAL) {
+					shell_print(shell_global, "Socket id=%d invalid", socket_id);
+					sock_info_clear(socket_info);
+				}
+			}
+		}
+	}
+	shell_print(shell_global, "sock_receive_handler exit");
+}
+
+K_THREAD_DEFINE(sock_receive_thread, SOCK_RECEIVE_STACK_SIZE,
+                sock_receive_handler, NULL, NULL, NULL,
+                SOCK_RECEIVE_PRIORITY, 0, 0);
 
 int sock_recv(int socket_id, bool receive_start)
 {
