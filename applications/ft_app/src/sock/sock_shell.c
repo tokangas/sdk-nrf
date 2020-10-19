@@ -113,11 +113,12 @@ static void sock_print_usage()
 	shell_print(shell_global, "%s", usage_str);
 }
 
-static void sock_help(bool verbose) {
+static int sock_help(bool verbose) {
 	sock_print_usage();
 	if (verbose) {
 		shell_print(shell_global, "%s", usage_example_str);
 	}
+	return 0;
 }
 
 int sock_shell(const struct shell *shell, size_t argc, char **argv)
@@ -134,19 +135,15 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// Command = argv[1]
 	sock_command command;
-	bool require_socket_id = false;
 	if (!strcmp(argv[1], "connect")) {
 		command = SOCK_CMD_CONNECT;
 	} else if (!strcmp(argv[1], "send")) {
 		command = SOCK_CMD_SEND;
-		require_socket_id = true;
 		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 	} else if (!strcmp(argv[1], "recv")) {
 		command = SOCK_CMD_RECV;
-		require_socket_id = true;
 	} else if (!strcmp(argv[1], "close")) {
 		command = SOCK_CMD_CLOSE;
-		require_socket_id = true;
 	} else if (!strcmp(argv[1], "list")) {
 		command = SOCK_CMD_LIST;
 	} else if (!strcmp(argv[1], "help")) {
@@ -251,10 +248,10 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sock_close(arg_socket_id);
 			break;
 		case SOCK_CMD_LIST:
-			sock_list();
+			err = sock_list();
 			break;
 		case SOCK_CMD_HELP:
-			sock_help(arg_verbose);
+			err = sock_help(arg_verbose);
 			break;
 		default:
 			shell_error(shell, "Internal error. Unknown socket command=%d", command);

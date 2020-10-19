@@ -597,7 +597,7 @@ int sock_close(int socket_id)
 	return 0;
 }
 
-void sock_list() {
+int sock_list() {
 	bool opened_sockets = false;
 	for (int i = 0; i < MAX_SOCKETS; i++) {
 		sock_info_t* socket_info = &(sockets[i]);
@@ -617,4 +617,5 @@ void sock_list() {
 	if (!opened_sockets) {
 		shell_print(shell_global, "There are no open sockets");
 	}
+	return 0;
 }

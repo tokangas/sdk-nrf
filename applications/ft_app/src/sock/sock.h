@@ -8,6 +8,6 @@ int sock_open_and_connect(int family, int type, char* ip_address, int port, int 
 int sock_send_data(int socket_id, char* data, int data_length, int interval);
 int sock_recv(int socket_id, bool receive_start);
 int sock_close(int socket_id);
-void sock_list();
+int sock_list();
 
 #endif
