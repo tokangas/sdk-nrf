@@ -12,7 +12,7 @@ config FTA_IPERF3
 	bool  "Enable FTA iperf3 support"
     default y
 
-config FTA_SOCKET
+config FTA_SOCK
 	bool  "Enable FTA socket tool support"
     default y
 
