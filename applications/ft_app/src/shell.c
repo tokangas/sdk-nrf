@@ -11,8 +11,8 @@
 #if defined (CONFIG_FTA_PING)
 #include "ping/icmp_ping_shell.h"
 #endif
-#if defined (CONFIG_FTA_SOCKET)
-#include "socket.h"
+#if defined (CONFIG_FTA_SOCK)
+#include "sock.h"
 #endif
 #if defined (CONFIG_POSIX_API)
 #include <sys/select.h>
@@ -55,7 +55,7 @@ static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
 
-#if defined (CONFIG_FTA_SOCKET)
+#if defined (CONFIG_FTA_SOCK)
 SHELL_CMD_REGISTER(sock, NULL,
 	"Commands for socket operations such as connect and send.",
 	socket_shell);
