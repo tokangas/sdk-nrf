@@ -38,6 +38,7 @@ target_sources(app PRIVATE src/utils/fta_net_utils.c)
 target_sources(app PRIVATE src/utils/freebsd-getopt/getopt.c)
 add_subdirectory_ifdef(CONFIG_FTA_LTELC src/ltelc)
 add_subdirectory_ifdef(CONFIG_FTA_PING src/ping)
+add_subdirectory_ifdef(CONFIG_FTA_CURL src/curl)
 add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
 target_sources_ifdef(
 	CONFIG_FTA_SOCKET
