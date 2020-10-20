@@ -18,7 +18,10 @@
 #include "utils/freebsd-getopt/getopt.h"
 #include "utils/fta_net_utils.h"
 
-#define SEND_BUFFER_SIZE 4096+1
+// Maximum length of the address
+#define SOCK_MAX_ADDR_LEN 100
+// Maximum length of the data that can be specified with -d option
+#define SOCK_MAX_SEND_DATA_LEN 200
 
 typedef enum {
 	SOCK_CMD_CONNECT = 0,
@@ -29,7 +32,6 @@ typedef enum {
 	SOCK_CMD_HELP
 } sock_command;
 
-extern char send_buffer[SEND_BUFFER_SIZE];
 const struct shell* shell_global;
 
 const char usage_str[] =
@@ -113,11 +115,12 @@ static void sock_print_usage()
 	shell_print(shell_global, "%s", usage_str);
 }
 
-static void sock_help(bool verbose) {
+static int sock_help(bool verbose) {
 	sock_print_usage();
 	if (verbose) {
 		shell_print(shell_global, "%s", usage_example_str);
 	}
+	return 0;
 }
 
 int sock_shell(const struct shell *shell, size_t argc, char **argv)
@@ -134,19 +137,14 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// Command = argv[1]
 	sock_command command;
-	bool require_socket_id = false;
 	if (!strcmp(argv[1], "connect")) {
 		command = SOCK_CMD_CONNECT;
 	} else if (!strcmp(argv[1], "send")) {
 		command = SOCK_CMD_SEND;
-		require_socket_id = true;
-		memset(send_buffer, 0, SEND_BUFFER_SIZE);
 	} else if (!strcmp(argv[1], "recv")) {
 		command = SOCK_CMD_RECV;
-		require_socket_id = true;
 	} else if (!strcmp(argv[1], "close")) {
 		command = SOCK_CMD_CLOSE;
-		require_socket_id = true;
 	} else if (!strcmp(argv[1], "list")) {
 		command = SOCK_CMD_LIST;
 	} else if (!strcmp(argv[1], "help")) {
@@ -163,16 +161,21 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_socket_id = SOCK_ID_NONE;
 	int arg_family = AF_INET;
 	int arg_type = SOCK_STREAM;
-	char arg_ip_address[100+1];
+	char arg_address[SOCK_MAX_ADDR_LEN+1];
 	int arg_port = 0;
 	int arg_bind_port = 0;
 	int arg_pdn_cid = 0;
+	char arg_send_data[SOCK_MAX_SEND_DATA_LEN+1];
 	int arg_data_length = 0;
 	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
 	bool arg_receive_start = false;
 	bool arg_verbose = false;
+
+	// Parse command line
 	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
-		int ip_address_len = 0;
+		int addr_len = 0;
+		int send_data_len = 0;
+
 		switch (flag) {
 		case 'i': // Socket ID
 			arg_socket_id = atoi(optarg);
@@ -185,11 +188,14 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			break;
 		case 'a': // IP address, or hostname
-			ip_address_len = strlen(optarg);
-			if (ip_address_len > 100) {
-				shell_error(shell, "Address length %d exceeded. Maximum is 100.", ip_address_len);
+			addr_len = strlen(optarg);
+			if (addr_len > SOCK_MAX_ADDR_LEN) {
+				shell_error(shell, "Address length %d exceeded. Maximum is %d.",
+					addr_len, SOCK_MAX_ADDR_LEN);
+				return -EINVAL;
 			}
-			memcpy(arg_ip_address, optarg, ip_address_len);
+			memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
+			memcpy(arg_address, optarg, addr_len);
 			break;
 		case 'p': // Port
 			arg_port = atoi(optarg);
@@ -220,7 +226,14 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			arg_bind_port = atoi(optarg);
 			break;
 		case 'd': // Data to be sent is available in send buffer
-			strcpy(send_buffer, optarg);
+			send_data_len = strlen(optarg);
+			if (send_data_len > SOCK_MAX_SEND_DATA_LEN) {
+				shell_error(shell, "Data length %d exceeded. Maximum is %d. Given data: %s",
+					send_data_len, SOCK_MAX_SEND_DATA_LEN, optarg);
+				return -EINVAL;
+			}
+			memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
+			strcpy(arg_send_data, optarg);
 			break;
 		case 'l': // Length of undefined data to be sent
 			arg_data_length = atoi(optarg);
@@ -237,12 +250,13 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		}
 	}
 
+	// Run given command with it's arguments
 	switch (command) {
 		case SOCK_CMD_CONNECT:
-			err = sock_open_and_connect(arg_family, arg_type, arg_ip_address, arg_port, arg_bind_port, arg_pdn_cid);
+			err = sock_open_and_connect(arg_family, arg_type, arg_address, arg_port, arg_bind_port, arg_pdn_cid);
 			break;
 		case SOCK_CMD_SEND:
-			err = sock_send_data(arg_socket_id, send_buffer, arg_data_length, arg_data_interval);
+			err = sock_send_data(arg_socket_id, arg_send_data, arg_data_length, arg_data_interval);
 			break;
 		case SOCK_CMD_RECV:
 			err = sock_recv(arg_socket_id, arg_receive_start);
@@ -251,10 +265,10 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sock_close(arg_socket_id);
 			break;
 		case SOCK_CMD_LIST:
-			sock_list();
+			err = sock_list();
 			break;
 		case SOCK_CMD_HELP:
-			sock_help(arg_verbose);
+			err = sock_help(arg_verbose);
 			break;
 		default:
 			shell_error(shell, "Internal error. Unknown socket command=%d", command);
