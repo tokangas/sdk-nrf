@@ -24,6 +24,10 @@ config FTA_LTELC
 	bool  "Enable FTA LTE link control support"
     default y
 
+config FTA_CURL
+	bool  "Enable CURL"
+    default n
+
 if FTA_IPERF3
 menu "FTA iperf3 selections"
 

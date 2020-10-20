@@ -39,5 +39,6 @@ target_sources(app PRIVATE src/utils/freebsd-getopt/getopt.c)
 add_subdirectory_ifdef(CONFIG_FTA_SOCK src/sock)
 add_subdirectory_ifdef(CONFIG_FTA_LTELC src/ltelc)
 add_subdirectory_ifdef(CONFIG_FTA_PING src/ping)
+add_subdirectory_ifdef(CONFIG_FTA_CURL src/curl)
 add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
 # NORDIC SDK APP END
