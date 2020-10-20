@@ -46,6 +46,23 @@ config FTA_IPERF3_FUNCTIONAL_CHANGES
 
 endmenu #FTA iperf3
 endif #FTA_IPERF3
+
+
+if FTA_CURL
+menu "FTA CURL selections"
+
+#invisible configs:
+config FTA_CURL_LIB
+	bool
+    default y
+
+config FTA_CURL_TOOL
+	bool
+    default n
+
+endmenu #FTA CURL
+endif #FTA_CURL
+
 endmenu #FTA
 
 #menu "Zephyr Kernel"

@@ -3,7 +3,6 @@
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
 target_compile_definitions(app PRIVATE HAVE_CONFIG_H)
 
 #LIB_CFILES = altsvc.c amigaos.c asyn-ares.c asyn-thread.c base64.c            \

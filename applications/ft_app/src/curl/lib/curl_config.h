@@ -291,22 +291,22 @@
 #undef HAVE_GETPWUID_R
 
 /* Define to 1 if you have the `getrlimit' function. */
-#define HAVE_GETRLIMIT 1
+#undef HAVE_GETRLIMIT
 
 /* Define to 1 if you have the getservbyport_r function. */
-#define HAVE_GETSERVBYPORT_R 1
+#undef HAVE_GETSERVBYPORT_R
 
 /* Define to 1 if you have the getsockname function. */
-#define HAVE_GETSOCKNAME 1
+#undef HAVE_GETSOCKNAME
 
 /* Define to 1 if you have the `gettimeofday' function. */
-#define HAVE_GETTIMEOFDAY 1
+#undef HAVE_GETTIMEOFDAY
 
 /* Define to 1 if you have a working glibc-style strerror_r function. */
 #undef HAVE_GLIBC_STRERROR_R
 
 /* Define to 1 if you have a working gmtime_r function. */
-#define HAVE_GMTIME_R 1
+#undef HAVE_GMTIME_R
 
 /* if you have the function gnutls_srp_verifier */
 #undef HAVE_GNUTLS_SRP
@@ -460,7 +460,7 @@
 #define HAVE_LONGLONG 1
 
 /* Define to 1 if you have the `mach_absolute_time' function. */
-/* #undef HAVE_MACH_ABSOLUTE_TIME */
+#undef HAVE_MACH_ABSOLUTE_TIME
 
 /* Define to 1 if you have the malloc.h header file. */
 #define HAVE_MALLOC_H 1
@@ -469,7 +469,7 @@
 #define HAVE_MEMORY_H 1
 
 /* Define to 1 if you have the memrchr function or macro. */
-/* #undef HAVE_MEMRCHR */
+#undef HAVE_MEMRCHR
 
 /* Define to 1 if you have the MSG_NOSIGNAL flag. */
 #undef HAVE_MSG_NOSIGNAL
@@ -478,7 +478,7 @@
 #define HAVE_NETDB_H 1
 
 /* Define to 1 if you have the <netinet/in6.h> header file. */
-/* #undef HAVE_NETINET_IN6_H */
+#undef HAVE_NETINET_IN6_H
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
@@ -704,7 +704,7 @@
 #define HAVE_STRUCT_TIMEVAL 1
 
 /* Define to 1 if suseconds_t is an available type. */
-#define HAVE_SUSECONDS_T 1
+#undef HAVE_SUSECONDS_T
 
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #undef HAVE_SYS_FILIO_H
@@ -773,19 +773,19 @@
 #define HAVE_USLEEP 1
 
 /* Define to 1 if you have the `utime' function. */
-#define HAVE_UTIME 1
+#undef HAVE_UTIME
 
 /* Define to 1 if you have the `utimes' function. */
-#define HAVE_UTIMES 1
+#undef HAVE_UTIMES
 
 /* Define to 1 if you have the <utime.h> header file. */
-#define HAVE_UTIME_H 1
+#undef HAVE_UTIME_H
 
 /* Define to 1 if compiler supports C99 variadic macro style. */
 #define HAVE_VARIADIC_MACROS_C99 1
 
 /* Define to 1 if compiler supports old gcc variadic macro style. */
-#define HAVE_VARIADIC_MACROS_GCC 1
+#undef HAVE_VARIADIC_MACROS_GCC
 
 /* Define to 1 if you have the winber.h header file. */
 #undef HAVE_WINBER_H
@@ -818,10 +818,10 @@
 #undef HAVE_WOLFSSL_USEALPN
 
 /* Define this symbol if your OS supports changing the contents of argv */
-#define HAVE_WRITABLE_ARGV 1
+#undef HAVE_WRITABLE_ARGV
 
 /* Define to 1 if you have the writev function. */
-#define HAVE_WRITEV 1
+#undef HAVE_WRITEV
 
 /* Define to 1 if you have the ws2tcpip.h header file. */
 #undef HAVE_WS2TCPIP_H
@@ -863,7 +863,7 @@
 #undef NTLM_WB_FILE
 
 /* cpu-machine-OS */
-#define OS "x86_64-pc-linux-gnu"
+#define OS "zephyr"
 
 /* Name of package */
 //#define PACKAGE "curl"
