@@ -110,7 +110,11 @@ int parseconfig(const char *filename, struct GlobalConfig *global)
         }
 
         /* Check if the file exists - if not, try _curlrc */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         file = fopen(pathalloc, FOPEN_READTEXT);
+#else
+        file = NULL;
+#endif
         if(file) {
           filename = pathalloc;
           break;
@@ -130,9 +134,11 @@ int parseconfig(const char *filename, struct GlobalConfig *global)
   }
 
   if(!file && filename) { /* no need to fopen() again */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     if(strcmp(filename, "-"))
       file = fopen(filename, FOPEN_READTEXT);
     else
+#endif    
       file = stdin;
   }
 

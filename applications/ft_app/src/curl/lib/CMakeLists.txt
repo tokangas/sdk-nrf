@@ -47,5 +47,21 @@ target_sources(app PRIVATE
 	transfer.c urlapi.c version.c warnless.c wildcard.c x509asn1.c dynbuf.c
 	version_win32.c easyoptions.c easygetopt.c
 )
+#lib vtls cfiles
+#LIB_VTLS_CFILES = vtls/bearssl.c vtls/gskit.c vtls/gtls.c vtls/keylog.c  \
+#  vtls/mbedtls.c vtls/mbedtls_threadlock.c vtls/mesalink.c vtls/nss.c    \
+#  vtls/openssl.c vtls/schannel.c vtls/schannel_verify.c vtls/sectransp.c \
+#  vtls/vtls.c vtls/wolfssl.c
+target_sources(app PRIVATE 
+	vtls/bearssl.c vtls/gskit.c vtls/gtls.c vtls/keylog.c
+	vtls/mbedtls.c vtls/mbedtls_threadlock.c vtls/mesalink.c vtls/nss.c
+	vtls/openssl.c vtls/schannel.c vtls/schannel_verify.c vtls/sectransp.c
+	vtls/vtls.c vtls/wolfssl.c)
+
+#	LIB_VAUTH_CFILES = vauth/cleartext.c vauth/cram.c vauth/digest.c             \
+#	vauth/digest_sspi.c vauth/krb5_gssapi.c vauth/krb5_sspi.c vauth/ntlm.c     \
+#	vauth/ntlm_sspi.c vauth/oauth2.c vauth/spnego_gssapi.c vauth/spnego_sspi.c \
+#	vauth/vauth.c
+  
 #target_sources(app PRIVATE easyoptions.c easygetopt.c)
 #target_sources(app PRIVATE http.c http2.c http_chunks.c http_digest.c http_negotiate.c http_ntlm.c http_proxy.c)

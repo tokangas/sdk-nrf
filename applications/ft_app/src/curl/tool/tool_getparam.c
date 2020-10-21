@@ -796,6 +796,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         break;
 
       case 'v': /* --stderr */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         if(strcmp(nextarg, "-")) {
           FILE *newfile = fopen(nextarg, FOPEN_WRITETEXT);
           if(!newfile)
@@ -808,6 +809,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
           }
         }
         else
+#endif
           global->errors = stdout;
         break;
       case 'w': /* --interface */
@@ -1363,7 +1365,11 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             set_binmode(stdin);
           }
           else {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION            
             file = fopen(p, "rb");
+#else
+            file = NULL;
+#endif
             if(!file)
               warnf(global,
                     "Couldn't read data from file \"%s\", this makes "
@@ -1429,7 +1435,11 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             set_binmode(stdin);
         }
         else {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION          
           file = fopen(nextarg, "rb");
+#else
+          file = NULL;
+#endif
           if(!file)
             warnf(global, "Couldn't read data from file \"%s\", this makes "
                   "an empty POST.\n", nextarg);
@@ -1793,7 +1803,11 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         char *string;
         size_t len;
         bool use_stdin = !strcmp(&nextarg[1], "-");
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
         FILE *file = use_stdin?stdin:fopen(&nextarg[1], FOPEN_READTEXT);
+#else
+        FILE *file = NULL;
+#endif
         if(!file)
           warnf(global, "Failed to open %s!\n", &nextarg[1]);
         else {
@@ -2146,7 +2160,11 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         }
         else {
           fname = nextarg;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION          
           file = fopen(nextarg, FOPEN_READTEXT);
+#else
+          file = NULL;
+#endif
         }
         Curl_safefree(config->writeout);
         err = file2string(&config->writeout, file);

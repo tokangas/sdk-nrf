@@ -165,6 +165,7 @@ static curl_off_t vms_realfilesize(const char *name,
   FILE * file;
 
   /* !checksrc! disable FOPENMODE 1 */
+#erroro "why here??"  
   file = fopen(name, "r"); /* VMS */
   if(file == NULL) {
     return 0;
@@ -285,6 +286,7 @@ static CURLcode pre_transfer(struct GlobalConfig *global,
      * header for VARIABLE header files only the bare record data needs
      * to be considered with one appended if implied CC
      */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #ifdef __VMS
     /* Calculate the real upload size for VMS */
     per->infd = -1;
@@ -305,6 +307,7 @@ static CURLcode pre_transfer(struct GlobalConfig *global,
 #else
       per->infd = open(per->uploadfile, O_RDONLY | O_BINARY);
     if((per->infd == -1) || fstat(per->infd, &fileinfo))
+#endif
 #endif
     {
       helpf(global->errors, "Can't open '%s'!\n", per->uploadfile);
@@ -876,10 +879,14 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
         /* Single header file for all URLs */
         if(config->headerfile) {
-          /* open file for output: */
+          /* open file for output: */          
           if(strcmp(config->headerfile, "-")) {
             FILE *newfile;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
             newfile = fopen(config->headerfile, per->prev == NULL?"wb":"ab");
+#else
+            newfile = NULL;
+#endif
             if(!newfile) {
               warnf(config->global, "Failed to open %s\n", config->headerfile);
               result = CURLE_WRITE_ERROR;
@@ -911,6 +918,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         outs->stream = stdout;
 
         /* --etag-compare */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
         if(config->etag_compare_file) {
           char *etag_from_file = NULL;
           char *header = NULL;
@@ -950,7 +958,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
             fclose(file);
           }
         }
-
+#endif
         /* --etag-save */
         etag_save = &per->etag_save;
         etag_save->stream = stdout;
@@ -958,7 +966,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         if(config->etag_save_file) {
           /* open file for output: */
           if(strcmp(config->etag_save_file, "-")) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION            
             FILE *newfile = fopen(config->etag_save_file, "wb");
+#else
+            FILE *newfile = NULL;
+#endif            
             if(!newfile) {
               warnf(
                 config->global,
@@ -1093,6 +1105,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           }
 
           if(config->resume_from) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #ifdef __VMS
             /* open file for output, forcing VMS output format into stream
                mode which is needed for stat() call above to always work. */
@@ -1101,6 +1114,9 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 #else
             /* open file for output: */
             FILE *file = fopen(per->outfile, "ab");
+#endif
+#else
+            FILE *file = NULL;
 #endif
             if(!file) {
               errorf(global, "Can't open '%s'!\n", per->outfile);
@@ -1574,6 +1590,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
            *    --cert <filename>:<password> --cert-type p12
            *  but is designed to test blob */
 #if defined(CURLDEBUG) || defined(DEBUGBUILD)
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
           if(config->cert && (strlen(config->cert) > 8) &&
              (memcmp(config->cert, "loadmem=",8) == 0)) {
             FILE *fInCert = fopen(config->cert + 8, "rb");
@@ -1609,6 +1626,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           }
           else
 #endif
+#endif
           my_setopt_str(curl, CURLOPT_SSLCERT, config->cert);
           my_setopt_str(curl, CURLOPT_PROXY_SSLCERT, config->proxy_cert);
           my_setopt_str(curl, CURLOPT_SSLCERTTYPE, config->cert_type);
@@ -1617,6 +1635,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
 
 #if defined(CURLDEBUG) || defined(DEBUGBUILD)
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
           if(config->key && (strlen(config->key) > 8) &&
              (memcmp(config->key, "loadmem=",8) == 0)) {
             FILE *fInCert = fopen(config->key + 8, "rb");
@@ -1651,6 +1670,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
             free(certdata);
           }
           else
+#endif
 #endif
           my_setopt_str(curl, CURLOPT_SSLKEY, config->key);
           my_setopt_str(curl, CURLOPT_PROXY_SSLKEY, config->proxy_key);
@@ -2560,9 +2580,11 @@ CURLcode operate(struct GlobalConfig *global, int argc, argv_item_t argv[])
       if(res == PARAM_HELP_REQUESTED)
         tool_help(global->help_category);
       /* Check if we were asked for the manual */
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
       else if(res == PARAM_MANUAL_REQUESTED)
         hugehelp();
       /* Check if we were asked for the version information */
+#endif      
       else if(res == PARAM_VERSION_INFO_REQUESTED)
         tool_version_info();
       /* Check if we were asked to list the SSL engines */

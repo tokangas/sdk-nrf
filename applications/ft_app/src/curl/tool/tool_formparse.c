@@ -570,7 +570,11 @@ static int get_param_part(struct OperationConfig *config, char endchar,
             endpos--;
         sep = *p;
         *endpos = '\0';
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
         fp = fopen(hdrfile, FOPEN_READTEXT);
+#else
+        fp = NULL;
+#endif
         if(!fp)
           warnf(config->global, "Cannot read from %s: %s\n", hdrfile,
                 strerror(errno));

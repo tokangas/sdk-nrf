@@ -616,8 +616,11 @@ schannel_connect_step1(struct connectdata *conn, int sockindex)
           &cert_store_path, &cert_thumbprint_str);
 
         if(result && (data->set.ssl.primary.clientcert[0]!='\0'))
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
           fInCert = fopen(data->set.ssl.primary.clientcert, "rb");
-
+#else
+          fInCert = NULL;
+#endif
         if(result && !fInCert) {
           failf(data, "schannel: Failed to get certificate location"
                 " or file for %s",

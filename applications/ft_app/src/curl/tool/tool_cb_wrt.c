@@ -52,6 +52,7 @@
 bool tool_create_output_file(struct OutStruct *outs,
                              struct OperationConfig *config)
 {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION  
   struct GlobalConfig *global;
   FILE *file = NULL;
   DEBUGASSERT(outs);
@@ -98,6 +99,9 @@ bool tool_create_output_file(struct OutStruct *outs,
   outs->bytes = 0;
   outs->init = 0;
   return TRUE;
+#else
+  return FALSE;
+#endif  
 }
 
 /*

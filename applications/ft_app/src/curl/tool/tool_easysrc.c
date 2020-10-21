@@ -178,8 +178,12 @@ void dumpeasysrc(struct GlobalConfig *config)
   FILE *out;
   bool fopened = FALSE;
   if(strcmp(o, "-")) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
     out = fopen(o, FOPEN_WRITETEXT);
     fopened = TRUE;
+#else
+    out = NULL;
+#endif
   }
   else
     out = stdout;

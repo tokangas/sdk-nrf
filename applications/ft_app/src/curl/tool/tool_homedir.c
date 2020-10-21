@@ -85,7 +85,11 @@ char *homedir(const char *fname)
     if(home) {
       char *c = curl_maprintf("%s" DIR_CHAR "%s", home, fname);
       if(c) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         int fd = open(c, O_RDONLY);
+#else
+        int fd = NULL;
+#endif
         curl_free(c);
         if(fd >= 0) {
           close(fd);

@@ -48,6 +48,7 @@
 #  endif
 #endif
 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION 
 static void show_dir_errno(FILE *errors, const char *name)
 {
   switch(errno) {
@@ -83,6 +84,7 @@ static void show_dir_errno(FILE *errors, const char *name)
     break;
   }
 }
+#endif
 
 /*
  * Create the needed directory hierarchy recursively in order to save
@@ -101,6 +103,7 @@ static void show_dir_errno(FILE *errors, const char *name)
 
 CURLcode create_dir_hierarchy(const char *outfile, FILE *errors)
 {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION  
   char *tempdir;
   char *tempdir2;
   char *outdup;
@@ -167,4 +170,7 @@ CURLcode create_dir_hierarchy(const char *outfile, FILE *errors)
   Curl_safefree(outdup);
 
   return result;
+#else
+  return CURLE_WRITE_ERROR;
+#endif
 }

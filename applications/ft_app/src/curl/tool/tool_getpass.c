@@ -228,7 +228,11 @@ char *getpass_r(const char *prompt, /* prompt to display */
 {
   ssize_t nread;
   bool disabled;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION  
   int fd = open("/dev/tty", O_RDONLY);
+#else
+int fd = -1;
+#endif
   if(-1 == fd)
     fd = STDIN_FILENO; /* use stdin if the tty couldn't be used */
 

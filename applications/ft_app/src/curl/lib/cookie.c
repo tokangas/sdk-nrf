@@ -1129,9 +1129,13 @@ struct CookieInfo *Curl_cookie_init(struct Curl_easy *data,
     /* points to a "" string */
     fp = NULL;
   }
-  else
+  else {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     fp = file?fopen(file, FOPEN_READTEXT):NULL;
-
+#else
+    fp = NULL; //file operations not supported
+#endif
+  }
   c->newsession = newsession; /* new session? */
 
   if(fp) {
@@ -1533,7 +1537,11 @@ static int cookie_output(struct Curl_easy *data,
     if(!tempstore)
       return 1;
 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     out = fopen(tempstore, FOPEN_WRITETEXT);
+#else
+    out = NULL; //file operations not supported
+#endif
     if(!out)
       goto error;
   }
