@@ -27,6 +27,9 @@
 #if defined (CONFIG_FTA_LTELC)
 #include "ltelc_shell.h"
 #endif
+#if defined (CONFIG_FTA_CURL)	
+#include "fta_curl.h"
+#endif
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
@@ -51,6 +54,15 @@ static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 	(void)iperf_main(argc, argv);
 	return 0;
 }
+#endif
+
+#if defined (CONFIG_FTA_CURL)	
+static int cmd_curl(const struct shell *shell, size_t argc, char **argv)
+{
+	(void)curl_tool_main(argc, argv);
+	return 0;
+}
+SHELL_CMD_REGISTER(curl, NULL, NULL, cmd_curl);
 #endif
 
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);

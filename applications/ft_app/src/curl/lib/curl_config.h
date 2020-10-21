@@ -68,7 +68,7 @@
 #define CURL_DISABLE_NETRC 1
 
 /* if the OpenSSL configuration won't be loaded automatically */
-/* #undef CURL_DISABLE_OPENSSL_AUTO_LOAD_CONFIG */
+#define CURL_DISABLE_OPENSSL_AUTO_LOAD_CONFIG 1
 
 /* disable date parsing */
 #define CURL_DISABLE_PARSEDATE 1
@@ -237,13 +237,13 @@
 #define HAVE_GETADDRINFO_THREADSAFE 1
 
 /* Define to 1 if you have the `geteuid' function. */
-#define HAVE_GETEUID 1
+#undef HAVE_GETEUID
 
 /* Define to 1 if you have the gethostbyaddr function. */
-#define HAVE_GETHOSTBYADDR 1
+#undef HAVE_GETHOSTBYADDR
 
 /* Define to 1 if you have the gethostbyaddr_r function. */
-#define HAVE_GETHOSTBYADDR_R 1
+#undef HAVE_GETHOSTBYADDR_R
 
 /* gethostbyaddr_r() takes 5 args */
 /* #undef HAVE_GETHOSTBYADDR_R_5 */
@@ -252,13 +252,13 @@
 /* #undef HAVE_GETHOSTBYADDR_R_7 */
 
 /* gethostbyaddr_r() takes 8 args */
-#define HAVE_GETHOSTBYADDR_R_8 1
+#undef HAVE_GETHOSTBYADDR_R_8
 
 /* Define to 1 if you have the gethostbyname function. */
-#define HAVE_GETHOSTBYNAME 1
+#undef HAVE_GETHOSTBYNAME
 
 /* Define to 1 if you have the gethostbyname_r function. */
-#define HAVE_GETHOSTBYNAME_R 1
+#undef HAVE_GETHOSTBYNAME_R
 
 /* gethostbyname_r() takes 3 args */
 /* #undef HAVE_GETHOSTBYNAME_R_3 */
@@ -267,7 +267,7 @@
 /* #undef HAVE_GETHOSTBYNAME_R_5 */
 
 /* gethostbyname_r() takes 6 args */
-#define HAVE_GETHOSTBYNAME_R_6 1
+/* #define HAVE_GETHOSTBYNAME_R_6 1 */
 
 /* Define to 1 if you have the gethostname function. */
 #undef HAVE_GETHOSTNAME
@@ -536,7 +536,7 @@
 #undef HAVE_PEM_H
 
 /* Define to 1 if you have the `pipe' function. */
-#define HAVE_PIPE 1
+#undef HAVE_PIPE
 
 /* if you have the PK11_CreateManagedGenericObject function */
 #undef HAVE_PK11_CREATEMANAGEDGENERICOBJECT
