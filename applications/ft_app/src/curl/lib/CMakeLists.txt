@@ -3,8 +3,10 @@
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(app PRIVATE HAVE_CONFIG_H)
+#target_compile_definitions(app PRIVATE HAVE_CONFIG_H CURL_NO_OLDIES BUILDING_LIBCURL)
+target_compile_definitions(app PRIVATE HAVE_CONFIG_H CURL_NO_OLDIES)
 
+#add_definitions(HAVE_CONFIG_H CURL_NO_OLDIES BUILDING_LIBCURL)
 #LIB_CFILES = altsvc.c amigaos.c asyn-ares.c asyn-thread.c base64.c            \
 #  conncache.c connect.c content_encoding.c cookie.c curl_addrinfo.c           \
 #  curl_ctype.c curl_des.c curl_endian.c curl_fnmatch.c curl_get_line.c        \
@@ -24,5 +26,26 @@ target_compile_definitions(app PRIVATE HAVE_CONFIG_H)
 #  transfer.c urlapi.c version.c warnless.c wildcard.c x509asn1.c dynbuf.c     \
 #  version_win32.c easyoptions.c easygetopt.c
 
-target_sources(app PRIVATE easyoptions.c easygetopt.c)
-target_sources(app PRIVATE http.c http2.c http_chunks.c http_digest.c http_negotiate.c http_ntlm.c http_proxy.c)
+
+target_sources(app PRIVATE 
+	altsvc.c amigaos.c asyn-ares.c asyn-thread.c base64.c
+	conncache.c connect.c content_encoding.c cookie.c curl_addrinfo.c
+	curl_ctype.c curl_des.c curl_endian.c curl_fnmatch.c curl_get_line.c
+	curl_gethostname.c curl_gssapi.c curl_memrchr.c curl_multibyte.c
+	curl_ntlm_core.c curl_ntlm_wb.c curl_path.c curl_range.c curl_rtmp.c
+	curl_sasl.c curl_sspi.c curl_threads.c dict.c dotdot.c easy.c escape.c
+	file.c fileinfo.c formdata.c ftp.c url.c ftplistparser.c getenv.c getinfo.c
+	gopher.c hash.c hmac.c hostasyn.c hostcheck.c hostip.c hostip4.c hostip6.c
+	hostsyn.c http.c http2.c http_chunks.c http_digest.c http_negotiate.c
+	http_ntlm.c http_proxy.c idn_win32.c if2ip.c imap.c inet_ntop.c inet_pton.c
+	krb5.c ldap.c llist.c md4.c md5.c memdebug.c mime.c mprintf.c mqtt.c
+	multi.c netrc.c non-ascii.c nonblock.c openldap.c parsedate.c pingpong.c
+	pop3.c progress.c psl.c doh.c rand.c rename.c rtsp.c select.c
+	sendf.c setopt.c sha256.c share.c slist.c smb.c smtp.c socketpair.c socks.c
+	socks_gssapi.c socks_sspi.c speedcheck.c splay.c strcase.c strdup.c
+	strerror.c strtok.c strtoofft.c system_win32.c telnet.c tftp.c timeval.c
+	transfer.c urlapi.c version.c warnless.c wildcard.c x509asn1.c dynbuf.c
+	version_win32.c easyoptions.c easygetopt.c
+)
+#target_sources(app PRIVATE easyoptions.c easygetopt.c)
+#target_sources(app PRIVATE http.c http2.c http_chunks.c http_digest.c http_negotiate.c http_ntlm.c http_proxy.c)

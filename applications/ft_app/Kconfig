@@ -58,7 +58,7 @@ config FTA_CURL_LIB
 
 config FTA_CURL_TOOL
 	bool
-    default n
+    default y
 
 endmenu #FTA CURL
 endif #FTA_CURL

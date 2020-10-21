@@ -32,7 +32,7 @@
 #  include <netinet/in6.h>
 #endif
 #ifdef HAVE_NETDB_H
-#  include <netdb.h>
+#  include <netdb.h>  
 #endif
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
@@ -105,6 +105,10 @@ Curl_freeaddrinfo(struct Curl_addrinfo *cahead)
  * There should be no single call to system's getaddrinfo() in the
  * whole library, any such call should be 'routed' through this one.
  */
+
+//FTA_CURL_INTEGRATION_CHANGE
+#define EAI_MEMORY DNS_EAI_MEMORY
+#define EAI_NODATA DNS_EAI_NODATA
 
 int
 Curl_getaddrinfo_ex(const char *nodename,

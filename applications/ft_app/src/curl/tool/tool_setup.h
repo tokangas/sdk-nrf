@@ -21,8 +21,9 @@
  * KIND, either express or implied.
  *
  ***************************************************************************/
-
+#if !defined(CURL_NO_OLDIES)
 #define CURL_NO_OLDIES
+#endif
 
 /*
  * curl_setup.h may define preprocessor macros such as _FILE_OFFSET_BITS and

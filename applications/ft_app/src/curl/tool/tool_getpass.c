@@ -217,6 +217,11 @@ static bool ttyecho(bool enable, int fd)
   return TRUE; /* enabled */
 }
 
+//FTA_CURL_INTEGRATION_CHANGE: should have come from elsewhere?
+#ifndef STDIN_FILENO
+#  define STDIN_FILENO  fileno(stdin)
+#endif
+
 char *getpass_r(const char *prompt, /* prompt to display */
                 char *password,     /* buffer to store password in */
                 size_t buflen)      /* size of buffer to store password in */

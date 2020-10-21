@@ -26,7 +26,7 @@
  */
  //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #if defined (CONFIG_POSIX_API)
-////FTA_IPERF3_INTEGRATION_CHANGE: caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
+//FTA_IPERF3_INTEGRATION_CHANGE: caused __BSD_VISIBLE to be enabled name collisions with select and fdsets when no POSIX APi
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

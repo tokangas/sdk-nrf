@@ -67,7 +67,6 @@ target_sources(app PRIVATE
   tool_help.c
   tool_helpers.c
   tool_homedir.c
-  tool_hugehelp.c
   tool_libinfo.c
   tool_main.c
   tool_metalink.c

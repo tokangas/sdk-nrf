@@ -55,6 +55,7 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
 
   (void)handle; /* not used */
 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //localtime() not supported
   if(config->tracetime) {
     struct tm *now;
     static time_t epoch_offset;
@@ -71,6 +72,7 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
               now->tm_hour, now->tm_min, now->tm_sec, (long)tv.tv_usec);
   }
   else
+#endif
     timebuf[0] = 0;
 
   if(!config->trace_stream) {

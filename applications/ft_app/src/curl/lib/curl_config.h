@@ -2,7 +2,7 @@
 /* lib/curl_config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* to enable curl debug memory tracking */
-#define CURLDEBUG 1
+#undef CURLDEBUG
 
 /* Location of default ca bundle */
 #undef CURL_CA_BUNDLE
@@ -104,7 +104,7 @@
 #define CURL_DISABLE_TFTP 1
 
 /* to disable verbose strings */
-/* #undef CURL_DISABLE_VERBOSE_STRINGS */
+#undef CURL_DISABLE_VERBOSE_STRINGS
 
 /* Definition to make a library symbol externally visible. */
 #define CURL_EXTERN_SYMBOL __attribute__ ((__visibility__ ("default")))
@@ -207,22 +207,22 @@
 #define HAVE_FCNTL_O_NONBLOCK 1
 
 /* Define to 1 if you have the `fnmatch' function. */
-#define HAVE_FNMATCH 1
+#undef HAVE_FNMATCH
 
 /* Define to 1 if you have the freeaddrinfo function. */
 #define HAVE_FREEADDRINFO 1
 
 /* Define to 1 if you have the freeifaddrs function. */
-#define HAVE_FREEIFADDRS 1
+#undef HAVE_FREEIFADDRS
 
 /* Define to 1 if you have the fsetxattr function. */
-#define HAVE_FSETXATTR 1
+#undef HAVE_FSETXATTR
 
 /* fsetxattr() takes 5 args */
-#define HAVE_FSETXATTR_5 1
+#undef HAVE_FSETXATTR_5
 
 /* fsetxattr() takes 6 args */
-/* #undef HAVE_FSETXATTR_6 */
+#undef HAVE_FSETXATTR_6
 
 /* Define to 1 if you have the ftruncate function. */
 #undef HAVE_FTRUNCATE
@@ -270,7 +270,7 @@
 #define HAVE_GETHOSTBYNAME_R_6 1
 
 /* Define to 1 if you have the gethostname function. */
-#define HAVE_GETHOSTNAME 1
+#undef HAVE_GETHOSTNAME
 
 /* Define to 1 if you have a working getifaddrs function. */
 #undef HAVE_GETIFADDRS
@@ -336,7 +336,7 @@
 #undef HAVE_IDN2_H
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
-#define HAVE_IFADDRS_H 1
+#undef HAVE_IFADDRS_H 
 
 /* Define to 1 if you have the `if_nametoindex' function. */
 #undef HAVE_IF_NAMETOINDEX
@@ -662,10 +662,10 @@
 /* #undef HAVE_STRCMPI */
 
 /* Define to 1 if you have the strdup function. */
-#define HAVE_STRDUP 1
+#undef HAVE_STRDUP
 
 /* Define to 1 if you have the strerror_r function. */
-#define HAVE_STRERROR_R 1
+#undef HAVE_STRERROR_R
 
 /* Define to 1 if you have the stricmp function. */
 #undef HAVE_STRICMP
@@ -740,10 +740,10 @@
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <sys/uio.h> header file. */
-#define HAVE_SYS_UIO_H 1
+#undef HAVE_SYS_UIO_H
 
 /* Define to 1 if you have the <sys/un.h> header file. */
-#define HAVE_SYS_UN_H 1
+#undef HAVE_SYS_UN_H
 
 /* Define to 1 if you have the <sys/utime.h> header file. */
 #undef HAVE_SYS_UTIME_H

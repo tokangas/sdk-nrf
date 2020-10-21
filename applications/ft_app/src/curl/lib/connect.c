@@ -106,8 +106,8 @@ static void
 tcpkeepalive(struct Curl_easy *data,
              curl_socket_t sockfd)
 {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
   int optval = data->set.tcp_keepalive?1:0;
-
   /* only set IDLE and INTVL if setting KEEPALIVE is successful */
   if(setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE,
         (void *)&optval, sizeof(optval)) < 0) {
@@ -157,6 +157,9 @@ tcpkeepalive(struct Curl_easy *data,
 #endif
 #endif
   }
+#else //SO_KEEPALIVE not supported in zephyr
+  infof(data, "Failed to set SO_KEEPALIVE on fd %d: not supported\n", sockfd);
+#endif
 }
 
 static CURLcode

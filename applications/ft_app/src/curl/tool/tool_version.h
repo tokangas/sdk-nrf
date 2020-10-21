@@ -21,7 +21,7 @@
  * KIND, either express or implied.
  *
  ***************************************************************************/
-#include <curl/curlver.h>
+#include "curlver.h"
 
 #define CURL_NAME "curl"
 #define CURL_COPYRIGHT LIBCURL_COPYRIGHT
