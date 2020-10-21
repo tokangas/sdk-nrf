@@ -1650,6 +1650,11 @@ static void calculate_next_update_check_time(void)
 	save_update_check_time();
 }
 
+static bool is_update_check_timer_running(void)
+{
+	return k_timer_remaining_get(&update_check_timer) != 0;
+}
+
 static void schedule_next_update(void)
 {
 	if (!fota_enabled || !is_modem_time_valid()) {
@@ -1666,10 +1671,21 @@ static void schedule_next_update(void)
 	if (is_update_scheduled()) {
 		/* Check if the scheduled time has already passed */
 		if (is_time_for_update_check()) {
-			/* Scheduled update check time has passed while
-			 * device was powered off
-			 */
-			start_update_check();
+			if (!is_update_check_timer_running()) {
+				/* Scheduled update check time has passed while
+				 * device was powered off, skip this check
+				 */
+				LOG_INF("Time for update check already passed, "
+					"skip check");
+				calculate_next_update_check_time();
+				start_update_check_timer();
+			} else {
+				/* Update check timer is running, most likely
+				 * time was updated past next update check,
+				 * start check now
+				 */
+				start_update_check();
+			}
 		} else {
 			/* Not yet time for next update check, start
 			 * timer
