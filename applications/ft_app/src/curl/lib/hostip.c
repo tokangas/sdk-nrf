@@ -68,6 +68,9 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
+//FTA_CURL_INTEGRATION_CHANGE:
+#include "utils/fta_time_utils.h"
+
 #if defined(CURLRES_SYNCH) && \
     defined(HAVE_ALARM) && defined(SIGALRM) && defined(HAVE_SIGSETJMP)
 /* alarm-based timeouts can only be used with all the dependencies satisfied */
@@ -234,7 +237,7 @@ void Curl_hostcache_prune(struct Curl_easy *data)
   if(data->share)
     Curl_share_lock(data, CURL_LOCK_DATA_DNS, CURL_LOCK_ACCESS_SINGLE);
 
-  time(&now);
+  fta_time(&now); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
 
   /* Remove outdated and unused entries from the hostcache */
   hostcache_prune(data->dns.hostcache,
@@ -283,7 +286,7 @@ fetch_addr(struct connectdata *conn,
     /* See whether the returned entry is stale. Done before we release lock */
     struct hostcache_prune_data user;
 
-    time(&user.now);
+    fta_time(&user.now); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
     user.cache_timeout = data->set.dns_cache_timeout;
 
     if(hostcache_timestamp_remove(&user, dns)) {
@@ -442,7 +445,7 @@ Curl_cache_addr(struct Curl_easy *data,
 
   dns->inuse = 1;   /* the cache has the first reference */
   dns->addr = addr; /* this is the address(es) */
-  time(&dns->timestamp);
+  fta_time(&dns->timestamp); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
   if(dns->timestamp == 0)
     dns->timestamp = 1;   /* zero indicates CURLOPT_RESOLVE entry */
 

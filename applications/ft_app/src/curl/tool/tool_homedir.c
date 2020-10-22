@@ -88,7 +88,7 @@ char *homedir(const char *fname)
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         int fd = open(c, O_RDONLY);
 #else
-        int fd = NULL;
+        int fd = -1;
 #endif
         curl_free(c);
         if(fd >= 0) {

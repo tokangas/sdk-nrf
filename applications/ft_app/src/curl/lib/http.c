@@ -83,6 +83,9 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
+//FTA_CURL_INTEGRATION_CHANGE:
+#include "utils/fta_time_utils.h"
+
 /*
  * Forward declarations.
  */
@@ -3876,7 +3879,7 @@ CURLcode Curl_http_readwrite_headers(struct Curl_easy *data,
       }
       else
         /* convert date to number of seconds into the future */
-        retry_after = date - time(NULL);
+        retry_after = date - fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
       data->info.retry_after = retry_after; /* store it */
     }
     else if(!k->http_bodyless && checkprefix("Content-Range:", headp)) {

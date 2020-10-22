@@ -44,6 +44,10 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+
+//FTA_CURL_INTEGRATION_CHANGE:
+#include "utils/fta_time_utils.h"
+
 #ifdef MSDOS
 #  define USE_WATT32
 #endif
@@ -2248,7 +2252,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         nextarg++;
         break;
       }
-      now = time(NULL);
+      now = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
       config->condtime = (curl_off_t)curl_getdate(nextarg, &now);
       if(-1 == config->condtime) {
         /* now let's see if it is a file name to get the time from instead! */

@@ -45,6 +45,9 @@
 
 #include "strcase.h"
 
+//FTA_CURL_INTEGRATION_CHANGE:
+#include "utils/fta_time_utils.h"
+
 #define ENABLE_CURLX_PRINTF
 /* use our own printf() functions */
 #include "curlx.h"
@@ -324,7 +327,9 @@ static CURLcode pre_transfer(struct GlobalConfig *global,
       uploadfilesize = fileinfo.st_size;
 
     if(uploadfilesize != -1) {
-      struct OperationConfig *config = per->config; /* for the macro below */
+      struct OperationConfig *config; /* for the macro below */
+
+      config = per->config;
       my_setopt(per->curl, CURLOPT_INFILESIZE_LARGE, uploadfilesize);
     }
     per->input.fd = per->infd;
@@ -918,7 +923,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         outs->stream = stdout;
 
         /* --etag-compare */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         if(config->etag_compare_file) {
           char *etag_from_file = NULL;
           char *header = NULL;
@@ -1190,13 +1195,16 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
         if(per->uploadfile && config->resume_from_current)
           config->resume_from = -1; /* -1 will then force get-it-yourself */
-
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         if(output_expected(per->this_url, per->uploadfile) && outs->stream &&
            isatty(fileno(outs->stream)))
           /* we send the output to a tty, therefore we switch off the progress
              meter */
           per->noprogress = global->noprogress = global->isatty = TRUE;
-        else {
+        else 
+#endif
+
+        {
           /* progress meter is per download, so restore config
              values */
           per->noprogress = global->noprogress = orig_noprogress;
@@ -2189,7 +2197,7 @@ static CURLcode add_parallel_transfers(struct GlobalConfig *global,
     if(per->added)
       /* already added */
       continue;
-    if(per->startat && (time(NULL) < per->startat)) {
+    if(per->startat && (fta_time(NULL) < per->startat)) { //FTA_CURL_INTEGRATION_CHANGE: no time() available
       /* this is still delaying */
       sleeping = TRUE;
       continue;
@@ -2232,7 +2240,7 @@ static CURLcode parallel_transfers(struct GlobalConfig *global,
   struct timeval start = tvnow();
   bool more_transfers;
   bool added_transfers;
-  time_t tick = time(NULL);
+  time_t tick = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: no time() available
 
   multi = curl_multi_init();
   if(!multi)
@@ -2274,14 +2282,14 @@ static CURLcode parallel_transfers(struct GlobalConfig *global,
           if(retry) {
             ended->added = FALSE; /* add it again */
             /* we delay retries in full integer seconds only */
-            ended->startat = delay ? time(NULL) + delay/1000 : 0;
+            ended->startat = delay ? fta_time(NULL) + delay/1000 : 0; //FTA_CURL_INTEGRATION_CHANGE: no time() available
           }
           else
             (void)del_per_transfer(ended);
         }
       } while(msg);
       if(!checkmore) {
-        time_t tock = time(NULL);
+        time_t tock = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: no time() available
         if(tick != tock) {
           checkmore = TRUE;
           tick = tock;

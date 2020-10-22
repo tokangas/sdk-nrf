@@ -25,7 +25,9 @@
 extern const char * const Curl_wkday[7];
 extern const char * const Curl_month[12];
 
+#ifndef CURL_DISABLE_PARSEDATE //FTA_CURL_INTEGRATION_CHANGE
 CURLcode Curl_gmtime(time_t intime, struct tm *store);
+#endif
 
 /* Curl_getdate_capped() differs from curl_getdate() in that this will return
    TIME_T_MAX in case the parsed time value was too big, instead of an

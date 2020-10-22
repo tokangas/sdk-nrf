@@ -49,13 +49,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
   struct GlobalConfig *config = operation->global;
   FILE *output = config->errors;
   const char *text;
-  struct timeval tv;
   char timebuf[20];
-  time_t secs;
 
   (void)handle; /* not used */
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //localtime() not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //time () && localtime() not supported
+  time_t secs;
+  struct timeval tv;
   if(config->tracetime) {
     struct tm *now;
     static time_t epoch_offset;
