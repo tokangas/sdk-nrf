@@ -74,11 +74,19 @@ curl_off_t getfiletime(const char *filename, FILE *error_stream)
             (unsigned int)GetLastError());
   }
 #else
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+//not supported decently by newlibc, if enabled, following linker error:
+//.1/../../../../arm-none-eabi/bin/ld.exe: C:/work/nRFConnectSDK/v1.3.0/toolchain/opt/arm-none-eabi/lib/thumb/v8-m.main+fp/hard\libc_nano.a(lib_a-statr.o): in function `_stat_r':
+//statr.c:(.text._stat_r+0xe): undefined reference to `_stat'
+
   struct_stat statbuf;
   if(-1 != stat(filename, &statbuf)) {
     result = (curl_off_t)statbuf.st_mtime;
   }
-  else if(errno != ENOENT) {
+  else 
+  if(errno != ENOENT) 
+#endif    
+  {
     fprintf(error_stream,
             "Failed to get filetime: %s\n", strerror(errno));
   }

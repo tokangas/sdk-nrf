@@ -1092,6 +1092,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           }
 
           if(config->resume_from_current) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+//not supported decently by newlibc, if enabled, following linker error:
+//.1/../../../../arm-none-eabi/bin/ld.exe: C:/work/nRFConnectSDK/v1.3.0/toolchain/opt/arm-none-eabi/lib/thumb/v8-m.main+fp/hard\libc_nano.a(lib_a-statr.o): in function `_stat_r':
+//statr.c:(.text._stat_r+0xe): undefined reference to `_stat'
+
             /* We're told to continue from where we are now. Get the size
                of the file as it is now and open it for append instead */
             struct_stat fileinfo;
@@ -1100,6 +1105,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
               /* set offset to current file size: */
               config->resume_from = fileinfo.st_size;
             else
+#endif            
               /* let offset be 0 */
               config->resume_from = 0;
           }

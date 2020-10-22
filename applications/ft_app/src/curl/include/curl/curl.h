@@ -80,13 +80,7 @@
 #endif
 
 #if !defined(CURL_WIN32) && !defined(_WIN32_WCE)
-#if defined (CONFIG_POSIX_API)
-//FTA_IPERF3_INTEGRATION_CHANGE: caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#define __USE_GNU
-#endif
+
 
 #include <sys/select.h> //FTA_CURL_INTEGRATION_CHANGE: added
 #include <sys/socket.h>
