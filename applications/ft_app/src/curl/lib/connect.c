@@ -493,6 +493,7 @@ static CURLcode bindlocal(struct connectdata *conn,
 static bool verifyconnect(curl_socket_t sockfd, int *error)
 {
   bool rc = TRUE;
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //jani: jostain syystä vaikka ei erroria niin BSD lib assertoi TODO: write bug?
 #ifdef SO_ERROR
   int err = 0;
   curl_socklen_t errSize = sizeof(err);
@@ -550,6 +551,7 @@ static bool verifyconnect(curl_socket_t sockfd, int *error)
   (void)sockfd;
   if(error)
     *error = SOCKERRNO;
+#endif
 #endif
   return rc;
 }
