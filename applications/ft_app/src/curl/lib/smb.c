@@ -117,7 +117,13 @@ const struct Curl_handler Curl_handler_smbs = {
 };
 #endif
 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #define MAX_PAYLOAD_SIZE  0x8000
+#else
+/* In embedded this needs to be a lot of smaller */
+#define MAX_PAYLOAD_SIZE  (8*1024)
+#endif
+
 #define MAX_MESSAGE_SIZE  (MAX_PAYLOAD_SIZE + 0x1000)
 #define CLIENTNAME        "curl"
 #define SERVICENAME       "?????"

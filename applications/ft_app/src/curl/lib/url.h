@@ -35,9 +35,17 @@
    libcurl able to do significantly faster uploads in some circumstances. Even
    larger buffers can help further, but this is deemed a fair memory/speed
    compromise. */
+
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #define UPLOADBUFFER_DEFAULT 65536
 #define UPLOADBUFFER_MAX (2*1024*1024)
 #define UPLOADBUFFER_MIN CURL_MAX_WRITE_SIZE
+#else
+/* In embedded this needs to be a lot of smaller */
+#define UPLOADBUFFER_DEFAULT 2048
+#define UPLOADBUFFER_MAX (2 * CURL_MAX_WRITE_SIZE)
+#define UPLOADBUFFER_MIN CURL_MAX_WRITE_SIZE
+#endif
 
 /*
  * Prototypes for library-wide functions provided by url.c
