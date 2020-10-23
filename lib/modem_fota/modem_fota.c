@@ -1639,14 +1639,39 @@ static void calculate_next_update_check_time(void)
 
 	seconds_to_update_check =
 		(CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60);
-	max_rand = CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60;
 
+	max_rand = CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60;
 	if (max_rand > 0) {
 		/* Add random variation to the update check interval */
 		seconds_to_update_check += sys_rand32_get() % max_rand;
 	}
 
 	update_check_time_s = get_current_time_in_s() + seconds_to_update_check;
+	save_update_check_time();
+}
+
+static void calculate_postponed_update_check_time(void)
+{
+	uint32_t max_rand;
+
+	LOG_DBG("Scheduling postponed update check");
+
+	/* When update check is postponed, the update check time is moved
+	 * forward by the update check interval until the time is in the
+	 * future. After this the random part is added to the update check time.
+	 */
+
+	while (is_time_for_update_check()) {
+		update_check_time_s +=
+			CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL * 60;
+	}
+
+	max_rand = CONFIG_MODEM_FOTA_UPDATE_CHECK_INTERVAL_RANDOMNESS * 60;
+	if (max_rand > 0) {
+		/* Add random variation to the update check interval */
+		update_check_time_s += sys_rand32_get() % max_rand;
+	}
+
 	save_update_check_time();
 }
 
@@ -1676,8 +1701,8 @@ static void schedule_next_update(void)
 				 * device was powered off, skip this check
 				 */
 				LOG_INF("Time for update check already passed, "
-					"skip check");
-				calculate_next_update_check_time();
+					"postpone check");
+				calculate_postponed_update_check_time();
 				start_update_check_timer();
 			} else {
 				/* Update check timer is running, most likely
