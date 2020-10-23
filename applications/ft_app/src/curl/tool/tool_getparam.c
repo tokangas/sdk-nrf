@@ -1810,7 +1810,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
         FILE *file = use_stdin?stdin:fopen(&nextarg[1], FOPEN_READTEXT);
 #else
-        FILE *file = NULL;
+        FILE *file = use_stdin?stdin:NULL;
 #endif
         if(!file)
           warnf(global, "Failed to open %s!\n", &nextarg[1]);
