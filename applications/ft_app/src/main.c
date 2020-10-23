@@ -76,7 +76,7 @@ static void modem_trace_enable(void)
 
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
-static int fta_shell_init(struct device *unused)
+static int fta_shell_init(const struct device *unused)
 {
 	ARG_UNUSED(unused);
 
