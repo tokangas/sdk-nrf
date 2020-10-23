@@ -59,6 +59,17 @@ div.figure {
  padding-top: 10px;
 }
 
+/* differentiate more between headings */
+
+h5 {
+ font-size: 105%;
+}
+
+h6 {
+ font-size: 90%;
+}
+
+
 /* Background colors for the different sets */
 .ncs {
  background-color: #00a9ce;
@@ -75,6 +86,17 @@ div.figure {
 .kconfig {
  background-color: #e82424
 }
+
+
+/* footer */
+footer table {
+ width: 100%;
+}
+
+#nordiclogo {
+ width: 100px;
+}
+
 
 /*
  * dbk tweak for doxygen-generated API headings (for RTD theme)
@@ -123,4 +145,101 @@ div#version_status {
  border: 1px dotted black;
  padding: 5px;
  margin-top: 10px;
+}
+
+
+/* numbered steps */
+
+div.numbered-step>h2::before, div.numbered-step>h3::before, div.numbered-step>h4::before, div.numbered-step>h5::before {
+  background: #cccccc;
+  border-radius: 0.8em;
+  -moz-border-radius: 0.8em;
+  -webkit-border-radius: 0.8em;
+  color: #ffffff;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 1.6em;
+  margin-right: 5px;
+  text-align: center;
+  width: 1.6em;
+}
+
+h1 {counter-reset: step-count-h2;}
+h2 {counter-reset: step-count-h3;}
+h3 {counter-reset: step-count-h4;}
+h4 {counter-reset: step-count-h5;}
+h5 {counter-reset: step-count-h6;}
+
+div.numbered-step>h2::before {
+  counter-increment: step-count-h2;
+  content: counter(step-count-h2);
+}
+
+div.numbered-step>h3::before {
+  counter-increment: step-count-h3;
+  content: counter(step-count-h3);
+}
+
+div.numbered-step>h4::before {
+  counter-increment: step-count-h4;
+  content: counter(step-count-h4);
+}
+
+div.numbered-step>h5::before {
+  counter-increment: step-count-h5;
+  content: counter(step-count-h5);
+}
+
+div.numbered-step>h6::before {
+  counter-increment: step-count-h6;
+  content: counter(step-count-h6);
+}
+
+
+/* add a section divider */
+
+.rst-content h2 {
+ border-top: 1px solid #ddd;
+ padding-top: 20px;
+ overflow-x: auto;
+ line-height: 40px;
+}
+
+
+/* change the bullet item for links to subpages */
+
+.toctree-wrapper ul li {
+  list-style: none !important;
+}
+
+.toctree-wrapper ul li::before {
+  content: "\27A4";
+  padding-right: 10px;
+  color: #444;
+}
+
+
+/* add styling for a local ToC */
+
+.contents.local {
+    float: right;
+    border: 1px solid #ddd;
+    background-color: #fafafa;
+    padding: 10px 10px 0px 0px;
+    margin: 0px 0px 25px 25px;
+    max-width: 30%;
+}
+
+.contents.local a {
+    font-size: 13px;
+    line-height: 13px;
+}
+
+.contents.local ul p {
+    margin-bottom: 0px;
+}
+
+.rst-content .admonition {
+   overflow-x: auto;
+   clear: left;
 }

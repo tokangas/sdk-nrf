@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
+zephyr_library()
+
 zephyr_library_sources(model_utils.c)
 
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_ONOFF_SRV gen_onoff_srv.c)
@@ -49,5 +51,12 @@ zephyr_library_sources_ifdef(CONFIG_BT_MESH_TIME_CLI time_cli.c)
 
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_TIME time.c)
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_TIME time_util.c)
+
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHT_CTL_CLI light_ctl_cli.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHT_TEMP_SRV light_temp_srv.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHT_CTL_SRV light_ctl_srv.c)
+
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SCENE_SRV scene_srv.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SCENE_CLI scene_cli.c)
 
 zephyr_linker_sources(SECTIONS sensor_types.ld)

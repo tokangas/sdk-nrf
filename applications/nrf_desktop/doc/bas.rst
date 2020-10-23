@@ -3,7 +3,11 @@
 GATT Battery Service module
 ###########################
 
-Use this ``bas`` module to enable and define the GATT Battery Service, and notify the subscribers about the battery level changes.
+.. contents::
+   :local:
+   :depth: 2
+
+Use the GATT Battery Service module to enable and define the GATT Battery Service, and notify the subscribers about the battery level changes.
 
 Module events
 *************
@@ -18,8 +22,8 @@ Module events
 Configuration
 *************
 
-The module is enabled with the ``CONFIG_DESKTOP_BAS_ENABLE`` option.
-The option is selected by ``CONFIG_DESKTOP_HID_PERIPHERAL`` -- Battery Service is required for the HID peripheral device.
+The module is enabled with the :option:`CONFIG_DESKTOP_BAS_ENABLE` option.
+The option is selected by :option:`CONFIG_DESKTOP_HID_PERIPHERAL` -- Battery Service is required for the HID peripheral device.
 
 Implementation details
 **********************

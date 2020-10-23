@@ -3,6 +3,10 @@
 LTE link controller
 ###################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The LTE link controller library is intended to be used for simpler control of LTE connections on an nRF9160 SiP.
 
 This library provides the API and configurations for setting up an LTE connection with definite properties.
@@ -18,9 +22,9 @@ This provides the user an ability to decide the best way to handle the waiting t
 
 An event handler can be registered with the LTE link controller library using one of the following structures:
 
-* :cpp:type:`lte_lc_register_handler`
-* :cpp:type:`lte_lc_connect_async`
-* :cpp:type:`lte_lc_init_and_connect_async`
+* :c:type:`lte_lc_register_handler`
+* :c:type:`lte_lc_connect_async`
+* :c:type:`lte_lc_init_and_connect_async`
 
 You can thus set the event handler separately or as part of a call to a non-blocking function to establish an LTE connection.
 

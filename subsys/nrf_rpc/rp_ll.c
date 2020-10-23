@@ -46,10 +46,10 @@ BUILD_ASSERT(VRING_RX_ADDRESS >= SHM_START_ADDR);
 
 /* Handlers for TX and RX channels */
 /* TX handler */
-static struct device *ipm_tx_handle;
+static const struct device *ipm_tx_handle;
 
 /* RX handler */
-static struct device *ipm_rx_handle;
+static const struct device *ipm_rx_handle;
 
 static struct rpmsg_virtio_device rvdev;
 struct rpmsg_device *rdev;
@@ -125,7 +125,8 @@ const struct virtio_dispatch dispatch = {
 };
 
 /* Callback launch right after some data has arrived. */
-static void ipm_callback(void *context, uint32_t id, volatile void *data)
+static void ipm_callback(struct device *ipmdev, void *user_data, uint32_t id,
+			 volatile void *data)
 {
 	k_work_submit_to_queue(&my_work_q, &work_item);
 }

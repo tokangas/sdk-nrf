@@ -43,12 +43,29 @@ enum fota_download_evt_id {
 };
 
 /**
+ * @brief FOTA download error cause values.
+ */
+enum fota_download_error_cause {
+	/** No error, used when event ID is not FOTA_DOWNLOAD_EVT_ERROR. */
+	FOTA_DOWNLOAD_ERROR_CAUSE_NO_ERROR,
+	/** Downloading the update failed. The download may be retried. */
+	FOTA_DOWNLOAD_ERROR_CAUSE_DOWNLOAD_FAILED,
+	/** The update is invalid and was rejected. Retry will not help. */
+	FOTA_DOWNLOAD_ERROR_CAUSE_INVALID_UPDATE,
+};
+
+/**
  * @brief FOTA download event data.
  */
 struct fota_download_evt {
 	enum fota_download_evt_id id;
-	/** Download progress % */
-	int progress;
+
+	union {
+		/** Error cause. */
+		enum fota_download_error_cause cause;
+		/** Download progress %. */
+		int progress;
+	};
 };
 
 /**
@@ -79,7 +96,7 @@ int fota_download_init(fota_download_callback_t client_callback);
  * @param sec_tag Security tag you want to use with HTTPS set to -1 to Disable.
  * @param apn Access Point Name to use or NULL to use the default APN.
  * @param fragment_size Fragment size to be used for the download.
- *			If 0, CONFIG_DOWNLOAD_CLIENT_HTTP_FRAG_SIZE is used.
+ *			If 0, @option{CONFIG_DOWNLOAD_CLIENT_HTTP_FRAG_SIZE} is used.
  *
  * @retval 0	     If download has started successfully.
  * @retval -EALREADY If download is already ongoing.

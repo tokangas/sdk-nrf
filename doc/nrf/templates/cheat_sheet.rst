@@ -5,6 +5,10 @@
 Cheat Sheet
 ###########
 
+.. contents::
+   :local:
+   :depth: 2
+
 This topic is not meant to be included in the output, but to serve as reference for common RST syntax and linking between doc sets.
 
 RST syntax
@@ -305,8 +309,8 @@ See `the breathe documentation <https://breathe.readthedocs.io/en/latest/directi
 
 To link to doxygen macros, enums or functions use:
 
-* :c:macro:`BT_GATT_HIDS_INFORMATION_LEN`
-* :cpp:func:`bt_gatt_hids_init`
+* :c:macro:`BT_HIDS_INFORMATION_LEN`
+* :c:func:`bt_hids_init`
 
 Linked RST project
 ==================

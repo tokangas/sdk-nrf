@@ -3,7 +3,11 @@
 Zigbee: Network coordinator
 ###########################
 
-This Zigbee network coordinator sample establishes the Zigbee network and commissions Zigbee devices that want to join the network.
+.. contents::
+   :local:
+   :depth: 2
+
+This :ref:`Zigbee <ug_zigbee>` network coordinator sample establishes the Zigbee network and commissions Zigbee devices that want to join the network.
 
 You can use this sample together with the :ref:`Zigbee light bulb <zigbee_light_bulb_sample>` and the :ref:`Zigbee light switch <zigbee_light_switch_sample>` to set up a basic Zigbee network.
 
@@ -18,9 +22,9 @@ Requirements
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set8_start
-   :end-before: set8_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833
 
 You can use one of the development kits listed above.
 

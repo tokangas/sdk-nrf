@@ -3,6 +3,10 @@
 nRF9160: Asset Tracker
 ######################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Asset Tracker demonstrates how to use the :ref:`lib_nrf_cloud` to connect an nRF9160-based board to the `nRF Cloud`_ via LTE, transmit GPS and sensor data, and retrieve information about the device.
 
 
@@ -92,9 +96,9 @@ Requirements
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set6_start
-   :end-before: set6_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: thingy91_nrf9160ns, nrf9160dk_nrf9160ns
 
 .. include:: /includes/spm.txt
 
@@ -168,7 +172,7 @@ To enable the LwM2M carrier library, add the following parameter to your build c
 
 ``-DOVERLAY_CONFIG=lwm2m_carrier_overlay.conf``
 
-In |SES|, select :guilabel:`Tools` > :guilabel:`Options` > :guilabel:`nRF Connect` to add the above CMake parameter.
+In |SES|, select :guilabel:`Tools` -> :guilabel:`Options` -> :guilabel:`nRF Connect` to add the above CMake parameter.
 See :ref:`cmake_options` for more information.
 
 Alternatively, you can manually set the configuration options to match the contents of the overlay config file.
@@ -182,11 +186,20 @@ Building and running
 
 The Kconfig file of the application contains options to configure the application.
 For example, configure ``CONFIG_POWER_OPTIMIZATION_ENABLE`` to enable power optimization or ``CONFIG_TEMP_USE_EXTERNAL`` to use an external temperature sensor instead of simulated temperature data.
-In |SES|, select **Project** > **Configure nRF Connect SDK project** to browse and configure these options.
-Alternatively, use the command line tool ``menuconfig`` or configure the options directly in ``prj.conf``.
+In |SES|, select :guilabel:`Project` -> :guilabel:`Configure nRF Connect SDK project` to browse and configure these options.
+Alternatively, use the command line tool ``menuconfig`` or configure the options directly in :file:`prj.conf`.
+
+.. external_antenna_note_start
+
+.. note::
+   For nRF9160 DK v0.15.0 and later, set the :option:`CONFIG_NRF9160_GPS_ANTENNA_EXTERNAL` option to ``y`` when building the application to achieve the best external antenna performance.
+
+.. external_antenna_note_end
 
 This application supports the |NCS| :ref:`ug_bootloader`, but it is disabled by default.
 To enable the immutable bootloader, set ``CONFIG_SECURE_BOOT=y``.
+
+
 
 Testing
 =======
@@ -238,7 +251,7 @@ This application uses the following |NCS| libraries and drivers:
 * :ref:`lte_lc_readme`
 * |NCS| modules abstracted via the LwM2M carrier OS abstraction layer (:file:`lwm2m_os.h`)
 
-.. include:: /../../lib/bin/lwm2m_carrier/lwm2m_carrier.rst
+.. include:: /../../lib/bin/lwm2m_carrier/doc/app_integration.rst
   :start-after: lwm2m_osal_mod_list_start
   :end-before: lwm2m_osal_mod_list_end
 

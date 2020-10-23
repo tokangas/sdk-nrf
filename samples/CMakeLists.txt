@@ -5,6 +5,20 @@
 #
 
 if (CONFIG_SPM)
+  get_cmake_property(VARIABLES              VARIABLES)
+  get_cmake_property(VARIABLES_CACHED CACHE_VARIABLES)
+
+  set(regex "^CONFIG_SPM_SERVICE.+")
+
+  list(FILTER VARIABLES        INCLUDE REGEX ${regex})
+  list(FILTER VARIABLES_CACHED INCLUDE REGEX ${regex})
+
+  foreach(var_name ${VARIABLES} ${VARIABLES_CACHED})
+    set(spm_${var_name} ${${var_name}})
+  endforeach()
+
+  set(spm_CONFIG_SPM_SECURE_SERVICES ${CONFIG_SPM_SECURE_SERVICES})
+
   add_child_image(
     NAME spm
     SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/spm
@@ -22,11 +36,18 @@ if (CONFIG_SPM)
 endif()
 
 if (CONFIG_SECURE_BOOT)
-  add_child_image(
-    NAME b0
-    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/bootloader
-    )
-endif ()
+  if (CONFIG_SOC_NRF5340_CPUNET)
+    add_child_image(
+      NAME b0n
+      SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/nrf5340/netboot
+      )
+  else()
+    add_child_image(
+      NAME b0
+      SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/bootloader
+      )
+  endif()
+endif()
 
 # Special handling for the nRF53 when using RPMSG HCI.
 # Automatically include the hci_rpmsg sample as child image, and change
@@ -41,6 +62,23 @@ if (CONFIG_BT_RPMSG_NRF53)
       add_overlay_config(
         hci_rpmsg
         ${NRF_DIR}/subsys/bluetooth/controller/bt_ll_softdevice_hci_rpmsg.conf
+        )
+    endif()
+    if (CONFIG_BOOTLOADER_MCUBOOT AND CONFIG_NRF53_UPGRADE_NETWORK_CORE)
+      # Inject this configuration from parent image hci_rpmsg to enable
+      # secure bootloader on the network core. This enables firmware update
+      # of the network core application.
+      add_overlay_config(
+        hci_rpmsg
+        "${ZEPHYR_NRF_MODULE_DIR}/subsys/bootloader/image/secure_boot.conf"
+        )
+
+      # Inject this configuration from parent image mcuboot to enable
+      # the PCD subsystem which is used to communicate the firmware update
+      # to the network core bootloader.
+      add_overlay_config(
+        mcuboot
+        "${ZEPHYR_NRF_MODULE_DIR}/subsys/pcd/pcd.conf"
         )
     endif()
 
@@ -62,6 +100,6 @@ if (CONFIG_NCS_SAMPLE_EMPTY_APP_CORE_CHILD_IMAGE)
   add_child_image(
     NAME empty_app_core
     SOURCE_DIR ${NRF_DIR}/samples/nrf5340/empty_app_core
-    DOMAIN CPUNET
-    BOARD ${CONFIG_DOMAIN_CPUNET_BOARD})
+    DOMAIN CPUAPP
+    BOARD ${CONFIG_DOMAIN_CPUAPP_BOARD})
 endif()

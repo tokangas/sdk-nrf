@@ -49,13 +49,18 @@ void main(void)
  * that the network core is not started yet. More pins can be added if the
  * network core needs them.
  */
-static int network_gpio_allow(struct device *dev)
+static int network_gpio_allow(const struct device *dev)
 {
 	ARG_UNUSED(dev);
 
 	/* Allow Network MCU to use all GPIOs */
 	for (uint32_t i = 0; i < ARRAY_SIZE(NRF_P0_S->PIN_CNF); i++) {
 		NRF_P0_S->PIN_CNF[i] = (GPIO_PIN_CNF_MCUSEL_NetworkMCU <<
+					GPIO_PIN_CNF_MCUSEL_Pos);
+	}
+
+	for (uint32_t i = 0; i < P1_PIN_NUM; i++) {
+		NRF_P1_S->PIN_CNF[i] = (GPIO_PIN_CNF_MCUSEL_NetworkMCU <<
 					GPIO_PIN_CNF_MCUSEL_Pos);
 	}
 

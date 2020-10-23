@@ -3,6 +3,10 @@
 Bluetooth: Mesh Light Switch
 ############################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Bluetooth Mesh Light Switch sample demonstrates how to set up a basic Mesh client model application and control LEDs with the Bluetooth Mesh, using the :ref:`bt_mesh_onoff_readme`.
 
 Overview
@@ -41,33 +45,20 @@ The models are used for the following purposes:
 * Health Server provides ``attention`` callbacks that are used during provisioning to call your attention to the device.
   These callbacks trigger blinking of the LEDs.
 
-The model handling is implemented in :file:`src/model_handler.c`, which uses the :ref:`dk_buttons_and_leds_readme` to detect button presses on the board.
+The model handling is implemented in :file:`src/model_handler.c`, which uses the :ref:`dk_buttons_and_leds_readme` library to detect button presses on the board.
 
-If the model is configured to publish to a unicast address, the model handler calls :cpp:func:`bt_mesh_onoff_cli_set` to turn the LEDs of a Mesh Light device on or off.
+If the model is configured to publish to a unicast address, the model handler calls :c:func:`bt_mesh_onoff_cli_set` to turn the LEDs of a Mesh Light device on or off.
 The response from the target device updates the corresponding LED on the Mesh Light Switch device.
-If the model is configured to publish to a group address, it calls :cpp:func:`bt_mesh_onoff_cli_set_unack` instead, to avoid getting responses from multiple devices at once.
-
-
+If the model is configured to publish to a group address, it calls :c:func:`bt_mesh_onoff_cli_set_unack` instead, to avoid getting responses from multiple devices at once.
 
 Requirements
 ************
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set1_start
-   :end-before: set1_end
-
-.. note::
-   If you use nRF5340 PDK, add the following options to the configuration of the network sample:
-
-   .. code-block:: none
-
-      CONFIG_BT_CTLR_TX_BUFFER_SIZE=74
-      CONFIG_BT_CTLR_DATA_LENGTH_MAX=74
-      CONFIG_BT_LL_SW_SPLIT=y
-
-   This is required because Bluetooth Mesh has different |BLE| Controller requirements than other Bluetooth samples.
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340pdk_nrf5340_cpuapp_and_cpuappns, nrf52840dk_nrf52840, nrf52dk_nrf52832
 
 The sample requires a smartphone with Nordic Semiconductor's nRF Mesh mobile app installed in one of the following versions:
 

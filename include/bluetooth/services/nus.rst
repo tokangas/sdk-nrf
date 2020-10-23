@@ -3,7 +3,11 @@
 Nordic UART Service (NUS)
 #########################
 
-The BLE GATT Nordic UART Service is a custom service that receives and writes data and serves as a bridge to the UART interface.
+.. contents::
+   :local:
+   :depth: 2
+
+The Bluetooth LE GATT Nordic UART Service is a custom service that receives and writes data and serves as a bridge to the UART interface.
 
 The NUS Service is used in the :ref:`peripheral_uart` sample.
 
@@ -34,9 +38,9 @@ Notify
 API documentation
 *****************
 
-| Header file: :file:`include/nus.h`
+| Header file: :file:`include/bluetooth/services/nus.h`
 | Source file: :file:`subsys/bluetooth/services/nus.c`
 
-.. doxygengroup:: bt_gatt_nus
+.. doxygengroup:: bt_nus
    :project: nrf
    :members:

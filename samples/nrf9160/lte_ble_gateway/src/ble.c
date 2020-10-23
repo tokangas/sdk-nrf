@@ -6,6 +6,7 @@
 
 #include <zephyr.h>
 
+#include <bluetooth/bluetooth.h>
 #include <bluetooth/gatt.h>
 #include <bluetooth/uuid.h>
 #include <bluetooth/gatt_dm.h>
@@ -153,7 +154,7 @@ void scan_filter_match(struct bt_scan_device_info *device_info,
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 
-	bt_addr_le_to_str(device_info->addr, addr, sizeof(addr));
+	bt_addr_le_to_str(device_info->recv_info->addr, addr, sizeof(addr));
 
 	printk("Device found: %s\n", addr);
 }
@@ -170,8 +171,8 @@ static void scan_start(void)
 	int err;
 
 	struct bt_le_scan_param scan_param = {
-		.type = BT_HCI_LE_SCAN_ACTIVE,
-		.filter_dup = BT_HCI_LE_SCAN_FILTER_DUP_ENABLE,
+		.type = BT_LE_SCAN_TYPE_ACTIVE,
+		.options = BT_LE_SCAN_OPT_FILTER_DUPLICATE,
 		.interval = 0x0010,
 		.window = 0x0010,
 	};

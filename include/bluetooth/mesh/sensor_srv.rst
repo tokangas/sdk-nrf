@@ -3,6 +3,10 @@
 Sensor Server
 #############
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Sensor Server model holds a list of sensors, and exposes them to the mesh network.
 There may be multiple Sensor Server models on a single mesh node, and each model may hold up to 47 sensors.
 
@@ -21,7 +25,7 @@ This allows for a fine-grained control of the access rights for the Sensor Serve
 Configuration
 =============
 
-The Sensor Server model requires a list of :cpp:type:`bt_mesh_sensor` pointers at compile time.
+The Sensor Server model requires a list of :c:struct:`bt_mesh_sensor` pointers at compile time.
 The list of sensors cannot be changed at runtime, and only one of each type of sensors can be held by a Sensor Server.
 To expose multiple sensors of the same type, multiple Sensor Servers must be instantiated on different elements.
 

@@ -103,6 +103,11 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
   set(app_sign_depends
     $<IF:${sign_merged},${merged_hex_file_depends},zephyr_final>)
 
+  if (NOT DEFINED CONFIG_BOOT_SIGNATURE_KEY_FILE)
+    include(${CMAKE_BINARY_DIR}/mcuboot/shared_vars.cmake)
+    set(CONFIG_BOOT_SIGNATURE_KEY_FILE ${mcuboot_SIGNATURE_KEY_FILE})
+  endif ()
+
   if (DEFINED mcuboot_CONF_FILE)
     get_filename_component(mcuboot_CONF_DIR ${mcuboot_CONF_FILE} DIRECTORY)
     if (EXISTS ${mcuboot_CONF_DIR}/${CONFIG_BOOT_SIGNATURE_KEY_FILE})
@@ -180,6 +185,36 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
     "load_address=$<TARGET_PROPERTY:partition_manager,PM_APP_ADDRESS>"
     "version_MCUBOOT=${CONFIG_MCUBOOT_IMAGE_VERSION}"
     )
+
+  if (CONFIG_NRF53_UPGRADE_NETWORK_CORE
+      AND CONFIG_HCI_RPMSG_BUILD_STRATEGY_FROM_SOURCE)
+    # Network core application updates are enabled.
+    # We know this since MCUBoot is enabled on the application core, and
+    # a network core child image is included in the build.
+    # These updates are verified by the application core MCUBoot.
+    # Create a signed variant of the network core application.
+
+    # Load the shared vars to get the path to the hex file to sign.
+    include(${CMAKE_BINARY_DIR}/hci_rpmsg/shared_vars.cmake)
+
+    sign(${CPUNET_PM_SIGNED_APP_HEX}
+      ${PROJECT_BINARY_DIR}/net_core_app
+      $<TARGET_PROPERTY:partition_manager,net_app_TO_SECONDARY>
+      hci_rpmsg_subimage
+      net_core_app_signed_hex
+      )
+
+    add_custom_target(
+      net_core_app_sign_target
+      DEPENDS ${net_core_app_signed_hex}
+      )
+
+    add_dependencies(
+      mcuboot_sign_target
+      net_core_app_sign_target
+      )
+
+  endif()
 
   if (CONFIG_BUILD_S1_VARIANT AND ("${CONFIG_S1_VARIANT_IMAGE_NAME}" STREQUAL "mcuboot"))
     # Secure Boot (B0) is enabled, and we have to build update candidates
@@ -259,3 +294,21 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
   endif()
 endif()
 
+# Zephyr has a Kconfig option used for signing an application image
+# with MCUboot using west sign. If partition manager is in use and
+# there are multiple images, we want to make sure users understand
+# this option should probably be left alone, since the NCS build
+# system has its own way of managing signing.
+if (CONFIG_MCUBOOT_SIGNATURE_KEY_FILE)
+    message(WARNING
+      "CONFIG_MCUBOOT_SIGNATURE_KEY_FILE is set to \"${CONFIG_MCUBOOT_SIGNATURE_KEY_FILE}\".
+You are using the NCS Mcuboot signing, which means this option will be ignored.
+Image signing in NCS is done via the MCUboot image's \
+ CONFIG_BOOT_SIGNATURE_KEY_FILE option.
+Consider setting CONFIG_MCUBOOT_SIGNATURE_KEY_FILE in your application image\
+ back to its default value, the empty string.")
+endif()
+
+# NCS Handles everything regarding mcuboot, ensure Zephyr doesn't interfere.
+# This is a temporary solution until Zephyr signing has been made more modular.
+set(CONFIG_BOOTLOADER_MCUBOOT False PARENT_SCOPE)

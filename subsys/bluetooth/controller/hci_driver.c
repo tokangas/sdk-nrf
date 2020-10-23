@@ -18,6 +18,7 @@
 #include <sdc_hci.h>
 #include <sdc_hci_vs.h>
 #include "multithreading_lock.h"
+#include "hci_internal.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
 #define LOG_MODULE_NAME sdc_hci_driver
@@ -100,7 +101,7 @@ static int cmd_handle(struct net_buf *cmd)
 	int errcode = MULTITHREADING_LOCK_ACQUIRE();
 
 	if (!errcode) {
-		errcode = sdc_hci_cmd_put(cmd->data);
+		errcode = hci_internal_cmd_put(cmd->data);
 		MULTITHREADING_LOCK_RELEASE();
 	}
 	if (errcode) {
@@ -215,7 +216,7 @@ static bool event_packet_is_discardable(const uint8_t *hci_buf)
 		uint8_t subevent = hci_buf[2];
 
 		switch (subevent) {
-		case SDC_HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT:
+		case SDC_HCI_SUBEVENT_VS_QOS_CONN_EVENT_REPORT:
 			return true;
 		default:
 			return false;
@@ -278,7 +279,7 @@ static bool fetch_and_process_hci_evt(uint8_t *p_hci_buffer)
 
 	errcode = MULTITHREADING_LOCK_ACQUIRE();
 	if (!errcode) {
-		errcode = sdc_hci_evt_get(p_hci_buffer);
+		errcode = hci_internal_evt_get(p_hci_buffer);
 		MULTITHREADING_LOCK_RELEASE();
 	}
 
@@ -327,7 +328,9 @@ static void recv_thread(void *p1, void *p2, void *p3)
 
 		received_evt = fetch_and_process_hci_evt(&hci_buffer[0]);
 
-		received_data = fetch_and_process_acl_data(&hci_buffer[0]);
+		if (IS_ENABLED(CONFIG_BT_CONN)) {
+			received_data = fetch_and_process_acl_data(&hci_buffer[0]);
+		}
 
 		/* Let other threads of same priority run in between. */
 		k_yield();
@@ -348,7 +351,7 @@ static int hci_driver_open(void)
 			K_THREAD_STACK_SIZEOF(recv_thread_stack), recv_thread,
 			NULL, NULL, NULL, K_PRIO_COOP(CONFIG_SDC_RX_PRIO), 0,
 			K_NO_WAIT);
-	k_thread_name_set(&recv_thread_data, "blectlr recv");
+	k_thread_name_set(&recv_thread_data, "SDC RX");
 
 	uint8_t build_revision[SDC_BUILD_REVISION_SIZE];
 
@@ -413,6 +416,34 @@ static int hci_driver_open(void)
 		k_panic();
 		/* No return from k_panic(). */
 		return -ENOMEM;
+	}
+
+	if (IS_ENABLED(CONFIG_BT_BROADCASTER)) {
+		err = sdc_support_adv();
+		if (err) {
+			return -ENOTSUP;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_PERIPHERAL)) {
+		err = sdc_support_slave();
+		if (err) {
+			return -ENOTSUP;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_OBSERVER)) {
+		err = sdc_support_scan();
+		if (err) {
+			return -ENOTSUP;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_CENTRAL)) {
+		err = sdc_support_master();
+		if (err) {
+			return -ENOTSUP;
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_BT_DATA_LEN_UPDATE)) {
@@ -499,12 +530,12 @@ uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr addrs[], uint8_t size)
 
 void bt_ctlr_set_public_addr(const uint8_t *addr)
 {
-	const sdc_hci_vs_cmd_zephyr_write_bd_addr_t *bd_addr = (void *)addr;
+	const sdc_hci_cmd_vs_zephyr_write_bd_addr_t *bd_addr = (void *)addr;
 
-	(void)sdc_hci_vs_cmd_zephyr_write_bd_addr(bd_addr);
+	(void)sdc_hci_cmd_vs_zephyr_write_bd_addr(bd_addr);
 }
 
-static int hci_driver_init(struct device *unused)
+static int hci_driver_init(const struct device *unused)
 {
 	ARG_UNUSED(unused);
 	int err = 0;

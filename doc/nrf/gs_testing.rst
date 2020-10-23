@@ -3,9 +3,14 @@
 Testing a sample application
 ############################
 
-Follow the instructions in the **Testing** section of the documentation for the sample to ensure that the application runs as expected.
+.. contents::
+   :local:
+   :depth: 2
 
-Information about the current state of the application is usually provided through the LEDs and/or via UART.
+Follow the instructions in the testing section of the sample documentation to ensure that the application runs as expected.
+
+Information about the current state of the application is usually provided through the LEDs or through UART, or through both.
+See the user interface section of the sample documentation for description of the LED states or available UART commands.
 
 .. _putty:
 
@@ -22,6 +27,13 @@ Connect with the following settings:
  * No parity
  * HW flow control: None
 
+If you want to send commands via UART, make sure to configure the required line endings and turn on local echo and local line editing:
+
+.. figure:: /images/putty.svg
+   :alt: PuTTY configuration for sending commands via UART
+
+UART can also be used for logging purposes as one of the :ref:`logging backends <ug_logging_backends>`.
+
 .. _testing_rtt:
 
 How to use RTT
@@ -34,6 +46,8 @@ To view the logging output using Real Time Transfer (RTT), modify the configurat
     CONFIG_USE_SEGGER_RTT=y
     CONFIG_RTT_CONSOLE=y
     CONFIG_UART_CONSOLE=n
+
+SEGGER's J-Link RTT can also be used for logging purposes as one of the :ref:`logging backends <ug_logging_backends>`.
 
 .. note::
 
@@ -78,11 +92,11 @@ To connect to the nRF9160-based board with LTE Link Monitor, perform the followi
 
    .. note::
 
-      Make sure that **Automatic requests** is enabled in LTE Link Monitor.
+      Make sure that **Automatic requests** is enabled in LTE Link Monitor.
 
 #. Connect the nRF9160-based board to the PC with a USB cable.
 #. Power on the nRF9160-based board.
-#. Click **Select Device** and select the particular board entry from the drop-down list in the LTE Link Monitor.
+#. Click :guilabel:`Select Device` and select the particular board entry from the drop-down list in the LTE Link Monitor.
 #. Observe that the LTE Link monitor app starts AT communication with the modem of the nRF9160-based board and shows the status of the communication in the display terminal.
    The app also displays any information that is logged on UART.
 

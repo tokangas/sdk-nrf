@@ -3,6 +3,10 @@
 Modifying a sample application
 ##############################
 
+.. contents::
+   :local:
+   :depth: 2
+
 After programming and testing a sample application, you probably want to make some modifications to the application, for example, add your own files with additional functionality, change compilation options, or update the default configuration.
 
 
@@ -23,7 +27,7 @@ Editing :file:`CMakeList.txt` directly
 
 Add all files that your application uses to the ``target_sources`` function in :file:`CMakeList.txt`.
 To include several files, it can be useful to specify them with a wildcard.
-For example, to include all ``.c`` files from the ``src`` folder, add the following lines to your :file:`CMakeList.txt`::
+For example, to include all :file:`.c` files from the :file:`src` folder, add the following lines to your :file:`CMakeList.txt`::
 
    FILE(GLOB app_sources src/*.c)
    target_sources(app PRIVATE ${app_sources})
@@ -58,7 +62,7 @@ In the window that is displayed, you can define compilation options for the proj
 
 .. note::
    These compilation options apply to the application project only.
-   To manage Zephyr and other subsystems, go to :guilabel:`Project` > :guilabel:`Configure nRF Connect SDK Project`.
+   To manage Zephyr and other subsystems, go to :guilabel:`Project` -> :guilabel:`Configure nRF Connect SDK Project`.
 
 
 SES tags in :file:`CMakeLists.txt`
@@ -126,7 +130,7 @@ Changes are picked up immediately, and you do not need to re-open the project in
 While it is possible to edit the :file:`.config` file directly, you should use SES or a tool like menuconfig or guiconfig to update it.
 These tools present all available options and allow you to select the ones that you need.
 
-To edit the file in SES, select :guilabel:`Project` > :guilabel:`Configure nRF Connect SDK Project`.
+To edit the file in SES, select :guilabel:`Project` -> :guilabel:`Configure nRF Connect SDK Project`.
 If your application contains more than one image (see :ref:`ug_multi_image`), you must select the correct target.
 To configure the parent image (the main application), select :guilabel:`menuconfig`.
 The other options allow you to configure the child images.
@@ -148,8 +152,13 @@ Providing CMake options
 You can provide additional options for building your application to the CMake process, which can be useful, for example, to switch between different build scenarios.
 These options are specified when CMake is run, thus not during the actual build, but when configuring the build.
 
-If you work with SES, this configuration takes place when you open an |NCS| project, and you must therefore provide the CMake options before you open the project.
-To specify CMake options, click :guilabel:`Tools` > :guilabel:`Options`, select the :guilabel:`nRF Connect` tab, and specify a value for :guilabel:`Additional CMake options`.
+If you work with SES, you can specify global CMake options that are used for all projects, and you can modify these options when you open a project:
+
+* Specify global CMake options in the SES options before opening a project.
+  Click :guilabel:`Tools` > :guilabel:`Options`, select the :guilabel:`nRF Connect` tab, and specify a value for :guilabel:`Additional CMake options`.
+* Specify project-specific CMake options when opening the |NCS| project.
+  Click :guilabel:`File` > :guilabel:`Open nRF Connect SDK project`, select :guilabel:`Extended Settings`, and specify the options in the :guilabel:`Extra CMake Build Options` field.
+  This field is prepopulated with the global CMake options, and you can modify them, remove them, or add to them for the current project.
 
 If you work on the command line, pass the additional options to the ``west build`` command.
 The options must be added after a ``--`` at the end of the command.
@@ -163,7 +172,7 @@ Configuring build types
 .. build_types_overview_start
 
 Build types enable you to use different sets of configuration options for each board.
-You can create several build type ``.conf`` files per board and select one of them when building the application.
+You can create several build type :file:`.conf` files per board and select one of them when building the application.
 This means that you do not have to use one :file:`prj.conf` file for your project and modify it each time to fit your needs.
 
 .. build_types_overview_end
@@ -202,12 +211,18 @@ Selecting a build type in SES
 
 To select the build type in SEGGER Embedded Studio:
 
-1. Go to :guilabel:`Tools` -> :guilabel:`Options...` -> :guilabel:`nRF Connect`.
-#. Set ``Additional CMake Options`` to ``-DCMAKE_BUILD_TYPE=selected_build_type``.
+1. Go to :guilabel:`File` > :guilabel:`Open nRF Connect SDK project`, select the current project, and specify the board name and build directory.
+#. Select :guilabel:`Extended Settings`.
+#. In the :guilabel:`Extra CMake Build Options` field, specify ``-DCMAKE_BUILD_TYPE=selected_build_type``.
    For example, for ``ZRelease`` set the following value: ``-DCMAKE_BUILD_TYPE=ZRelease``.
-#. Reload the project.
+#. Do not select :guilabel:`Clean Build Directory`.
+#. Click :guilabel:`OK` to re-open the project.
 
-The changes will be applied after reloading.
+
+.. note::
+   You can also specify the build type in the :guilabel:`Additional CMake Options` field in :guilabel:`Tools` -> :guilabel:`Options` -> :guilabel:`nRF Connect`.
+   However, the changes will only be applied after re-opening the project.
+   Reloading the project is not sufficient.
 
 .. build_types_selection_ses_end
 

@@ -3,6 +3,10 @@
 Thread certification
 ####################
 
+.. contents::
+   :local:
+   :depth: 2
+
 Thread Group requires certification for devices using the Thread protocol.
 You can follow different scenarios to assure that your Nordic Semiconductor device based on |NCS| becomes a Thread-certified product.
 
@@ -11,12 +15,7 @@ For general information about the certification process, check the `Thread Group
 Thread certification options
 ****************************
 
-Depending on your development approach, you have the following certification options when using Nordic Semiconductor devices.
-
-.. contents::
-	:local:
-	:depth: 2
-
+Depending on your development approach, you have several certification options when using Nordic Semiconductor devices.
 
 Certification by inheritance without modifications to binaries
 ==============================================================
@@ -57,7 +56,6 @@ A detailed description of how to assemble and configure a Thread Test Bed and ru
 
 Complete the following steps to run the certification tests:
 
-
 #. Build the certification image.
 
    The :ref:`ot_cli_sample` sample is used as a base, modified with an overlay file.
@@ -69,6 +67,7 @@ Complete the following steps to run the certification tests:
 
    .. note::
       The overlay file selects the precompiled OpenThread libraries by default.
+      It also enables :ref:`multiprotocol support <ug_multiprotocol_support>` with Bluetooth LE advertising.
 
 #. Prepare Thread Test Harness.
 

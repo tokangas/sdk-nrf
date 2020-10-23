@@ -3,6 +3,10 @@
 HID Service module
 ##################
 
+.. contents::
+   :local:
+   :depth: 2
+
 Use the HID Service module to handle the GATT Human Interface Device Service.
 The GATT Service is used to exchange HID data with the peer connected over Bluetooth.
 For this reason, it is mandatory for every nRF Desktop peripheral.
@@ -24,10 +28,10 @@ Complete the following steps to configure the module:
 
 1. Complete the basic Bluetooth configuration, as described in :ref:`nrf_desktop_bluetooth_guide`.
    During this configuration, you must enable the :option:`CONFIG_BT_PERIPHERAL` Kconfig option for every nRF Desktop peripheral.
-   When this option is enabled, the ``CONFIG_DESKTOP_HID_PERIPHERAL`` is set to ``y``, which enables the following two additional options, among others:
+   When this option is enabled, the :option:`CONFIG_DESKTOP_HID_PERIPHERAL` is set to ``y``, which enables the following two additional options, among others:
 
-   * :option:`CONFIG_BT_GATT_HIDS` - This is required because the HID Service module is based on the :ref:`hids_readme` implementation of the GATT Service.
-   * ``CONFIG_DESKTOP_HIDS_ENABLE`` - This enables the ``hids`` application module.
+   * :option:`CONFIG_BT_HIDS` - This is required because the HID Service module is based on the :ref:`hids_readme` implementation of the GATT Service.
+   * :option:`CONFIG_DESKTOP_HIDS_ENABLE` - This enables the ``hids`` application module.
 
    This step also enables the |GATT_HID|.
 #. Enable the :ref:`bt_conn_ctx_readme` (:option:`CONFIG_BT_CONN_CTX`).
@@ -42,13 +46,13 @@ The HID Service application module forwards the information about the enabled HI
 These notifications are enabled by the connected Bluetooth Central.
 By default, the ``hids`` application module starts forwarding the subscriptions right after the Bluetooth connection is secured.
 
-You can define additional delay for forwarding the notifications on connection (``CONFIG_DESKTOP_HIDS_FIRST_REPORT_DELAY``).
+You can define additional delay for forwarding the notifications on connection (:option:`CONFIG_DESKTOP_HIDS_FIRST_REPORT_DELAY`).
 Sending the first HID report to the connected Bluetooth peer is delayed by this period of time.
 
 .. note::
    The nRF Desktop centrals perform the GATT service discovery and reenable the HID notifications on every reconnection.
    A HID report that is received before the subscription is reenabled will be dropped before it reaches the application.
-   The ``CONFIG_DESKTOP_HIDS_FIRST_REPORT_DELAY`` is used for keyboard reference design (nRF52832 Desktop Keyboard) to make sure that the input will not be lost on reconnection with the nRF Desktop dongle.
+   The :option:`CONFIG_DESKTOP_HIDS_FIRST_REPORT_DELAY` is used for keyboard reference design (nRF52832 Desktop Keyboard) to make sure that the input will not be lost on reconnection with the nRF Desktop dongle.
 
 Implementation details
 **********************
@@ -73,7 +77,7 @@ Detailed information about the usage of LEDs to display information to the user 
 Bluetooth LE connections and disconnections
 ===========================================
 
-The module informs the |GATT_HID| about the Bluetooth LE connections and disconnections using :cpp:func:`bt_gatt_hids_notify_connected` and :cpp:func:`bt_gatt_hids_notify_disconnected`, respectively.
+The module informs the |GATT_HID| about the Bluetooth LE connections and disconnections using :c:func:`bt_hids_connected` and :c:func:`bt_hids_disconnected`, respectively.
 
 Registered handlers
 ===================
@@ -93,8 +97,8 @@ The event is submitted when the |GATT_HID| calls a callback related to enabling 
 Transport for configuration channel
 ===================================
 
-The HID Service application module works as a transport for the :ref:`nrf_desktop_config_channel` and exchanges the HID feature reports over Bluetooth LE.
-The module communicates with the |conf_channel| listeners using |conf_channel| events.
+The HID Service application module works as a transport for the :ref:`nrf_desktop_config_channel` and exchanges the |conf_channel| HID reports over Bluetooth LE.
+The module communicates with the |conf_channel| listeners using ``config_event``.
 
 .. |GATT_HID| replace:: GATT HID Service
 .. |HID_state| replace:: HID state module

@@ -3,8 +3,11 @@
 BLE Console
 ###########
 
-BLE Console is a desktop application that can be used to communicate with an nRF
-device over *Bluetooth* Low Energy using the :ref:`shell_bt_nus_readme`.
+.. contents::
+   :local:
+   :depth: 2
+
+Bluetooth LE Console is a desktop application that can be used to communicate with an nRF device over Bluetooth Low Energy using the :ref:`shell_bt_nus_readme`.
 
 The application supports Linux only and cannot be run on Windows.
 You should run it on a natively installed Linux.
@@ -59,6 +62,6 @@ Pairing with the device
 ***********************
 
 After configuring the Bluetooth daemon, you can pair with the device using the Bluetooth tools provided by your Linux vendor.
-For example, in Ubuntu simply go to **Settings > Bluetooth**.
+For example, in Ubuntu simply go to :guilabel:`Settings` -> :guilabel:`Bluetooth`.
 
 After pairing successfully, you can start using BLE Console.

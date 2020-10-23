@@ -3,6 +3,10 @@
 Bootloader storage
 ##################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The bootloader storage library is used by the :ref:`bootloader` to read from and write to a protected data area that contains the provisioned bootloader data.
 The library can also be included into the application to allow reading the provisioned data.
 
@@ -40,7 +44,7 @@ The number of available slots, thus the number of different version numbers that
 
 The monotonic counter is enabled by default.
 You can disable it through :option:`CONFIG_SB_MONOTONIC_COUNTER`.
-If the counter is enabled, the :ref:`doc_bl_validation` library checks it against an image's version during :cpp:func:`bl_validate_firmware`.
+If the counter is enabled, the :ref:`doc_bl_validation` library checks it against an image's version during :c:func:`bl_validate_firmware`.
 
 
 API documentation

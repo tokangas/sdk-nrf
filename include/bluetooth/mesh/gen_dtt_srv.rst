@@ -3,6 +3,10 @@
 Generic Default Transition Time Server
 ######################################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The DTT Server provides a common way to specify the state transition time for other models on the same element.
 If other generic models on the same element receive state change commands without transition parameters, they will use the default transition time specified by the DTT Server model.
 This way, the DTT Server can define a consistent transition time for all states on their elements, without depending on client configurations.
@@ -43,8 +47,8 @@ Generic Default Transition Time: ``int32_t``
     Values lower than 100 milliseconds and higher than 0 are encoded as 100 milliseconds.
     Values higher than the max value of 620 minutes are encoded as "undefined".
 
-    The DTT Server holds the memory for this state itself, and optionally notifies the user of any changes through :cpp:member:`bt_mesh_dtt_srv::update_handler`.
-    If your application changes the transition time manually, the change must be published using :cpp:func:`bt_mesh_dtt_srv_pub`.
+    The DTT Server holds the memory for this state itself, and optionally notifies the user of any changes through :c:member:`bt_mesh_dtt_srv.update_handler`.
+    If your application changes the transition time manually, the change must be published using :c:func:`bt_mesh_dtt_srv_pub`.
 
 Extended models
 ===============

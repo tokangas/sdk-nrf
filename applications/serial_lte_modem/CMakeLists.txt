@@ -12,6 +12,10 @@ cmake_minimum_required(VERSION 3.13.1)
 #
 # Configure the SPM image to enable the peripherals that this sample
 # needs.
+set(mcuboot_CONF_FILE
+  ${CMAKE_CURRENT_LIST_DIR}/slm_mcuboot.conf
+  )
+
 set(spm_CONF_FILE
   prj.conf
   ${CMAKE_CURRENT_LIST_DIR}/child_secure_partition_manager.conf
@@ -28,6 +32,10 @@ target_sources(app PRIVATE src/slm_at_icmp.c)
 target_sources(app PRIVATE src/slm_at_gps.c)
 target_sources(app PRIVATE src/slm_at_mqtt.c)
 target_sources(app PRIVATE src/slm_at_ftp.c)
+target_sources(app PRIVATE src/slm_at_httpc.c)
+target_sources(app PRIVATE src/slm_at_fota.c)
+target_sources_ifdef(CONFIG_SLM_NATIVE_TLS app PRIVATE src/slm_native_tls.c)
+target_sources_ifdef(CONFIG_SLM_NATIVE_TLS app PRIVATE src/slm_at_cmng.c)
 
 add_subdirectory(src/tcpip_proxy)
 

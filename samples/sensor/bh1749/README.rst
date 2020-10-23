@@ -3,6 +3,10 @@
 BH1749: Ambient Light Sensor IC
 #####################################################
 
+.. contents::
+   :local:
+   :depth: 2
+
 This sample application sets up the BH1749 color sensor to provide 8-bit
 measurement data every time a set threshold value (>50) is reached for the
 RED color channel.
@@ -15,9 +19,9 @@ Requirements
 
 The sample supports the following nRF9160-based device:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set10_start
-   :end-before: set10_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: thingy91_nrf9160ns
 
 Building and Running
 ********************

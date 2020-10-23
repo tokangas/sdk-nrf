@@ -3,6 +3,10 @@
 Profiler
 ########
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Profiler sample demonstrates the functionality of the :ref:`profiler` subsystem.
 It shows how to use the Profiler to log and visualize data about custom events that are not part of the :ref:`event_manager`.
 
@@ -25,9 +29,9 @@ Requirements
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set9_start
-   :end-before: set9_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf9160dk_nrf9160ns, nrf52840dk_nrf52840, nrf52dk_nrf52832
 
 Building and running
 ********************
@@ -48,6 +52,9 @@ See the Profiler documentation for more information.
 Connect to the board with a terminal emulator (for example, PuTTY) to see messages displayed by the sample.
 See :ref:`putty` for the required settings.
 
+.. tip::
+   If you use SEGGER Embedded Studio, make sure to stop debugging before you run Python scripts.
+   Otherwise, you may observe problems with accessing RTT data by the profiler scripts.
 
 Dependencies
 ************

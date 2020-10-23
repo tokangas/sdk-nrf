@@ -1,10 +1,15 @@
 .. _nrf_desktop_ble_qos:
 
-Bluetooth LE Quality of Service module
-#######################################
+|BLE| Quality of Service module
+###############################
 
-Use the Bluetooth LE Quality of Service (QoS) module to achieve better connection quality and higher report rate by avoiding congested RF channels.
-The module can be used only by nRF Desktop central with the nrfxlib's Link Layer (:option:`CONFIG_BT_LL_SOFTDEVICE`).
+.. contents::
+   :local:
+   :depth: 2
+
+Use the |BLE| Quality of Service (QoS) module to achieve better connection quality and higher report rate by avoiding congested RF channels.
+The module can be used by both nRF Desktop peripheral and nRF Desktop central with the SoftDevice Link Layer (:option:`CONFIG_BT_LL_SOFTDEVICE`).
+However, only the Bluetooth central can update the |BLE| channel map that is in use.
 
 Module events
 *************
@@ -22,26 +27,27 @@ Configuration
 The module requires the basic Bluetooth configuration, as described in :ref:`nrf_desktop_bluetooth_guide`.
 
 The QoS module uses the ``chmap_filter`` library, whose API is described in :file:`src/util/chmap_filter/include/chmap_filter.h`.
-The library is linked if ``CONFIG_DESKTOP_BLE_QOS_ENABLE`` Kconfig option is enabled.
+The library is linked if :option:`CONFIG_DESKTOP_BLE_QOS_ENABLE` Kconfig option is enabled.
 
-Enable the module using the ``CONFIG_DESKTOP_BLE_QOS_ENABLE`` Kconfig option.
+Enable the module using the :option:`CONFIG_DESKTOP_BLE_QOS_ENABLE` Kconfig option.
 The option selects :option:`CONFIG_BT_HCI_VS_EVT_USER`, because the module uses vendor-specific HCI events.
 
-You can use the ``CONFIG_DESKTOP_BLE_QOS_STATS_PRINTOUT_ENABLE`` option to enable real-time QoS information printouts through a virtual COM port (serial port emulated over USB).
+You can use the :option:`CONFIG_DESKTOP_BLE_QOS_STATS_PRINTOUT_ENABLE` option to enable real-time QoS information printouts through a virtual COM port (serial port emulated over USB).
 This option also enables and configures the COM port (USB CDC ACM).
+For this reason, the :option:`CONFIG_USB` must be enabled.
 
 The QoS module creates additional thread for processing the QoS algorithm.
 You can define the following options:
 
-* ``CONFIG_DESKTOP_BLE_QOS_INTERVAL``
+* :option:`CONFIG_DESKTOP_BLE_QOS_INTERVAL`
     This option specifies the amount of time of the processing interval for the QoS thread.
     The interval is defined in milliseconds.
     The thread periodically performs calculations and then sleeps during the interval.
     Longer intervals give more time to accumulate the Cyclic Redundancy Check (CRC) stats.
-* ``CONFIG_DESKTOP_BLE_QOS_STACK_SIZE``
+* :option:`CONFIG_DESKTOP_BLE_QOS_STACK_SIZE`
     This option defines the base stack size for the QoS thread.
-* ``CONFIG_DESKTOP_BLE_QOS_STATS_PRINT_STACK_SIZE``
-    This option specifies the stack size increase if ``CONFIG_DESKTOP_BLE_QOS_STATS_PRINTOUT_ENABLE`` is enabled.
+* :option:`CONFIG_DESKTOP_BLE_QOS_STATS_PRINT_STACK_SIZE`
+    This option specifies the stack size increase if :option:`CONFIG_DESKTOP_BLE_QOS_STATS_PRINTOUT_ENABLE` is enabled.
 
 .. tip::
    You can use the default thread stack sizes as long as you do not modify the module source code.
@@ -50,12 +56,12 @@ Configuration channel options
 *****************************
 
 You can use the :ref:`nrf_desktop_config_channel` to configure the module or read the configuration.
-The module provides the following configuration options:
+The module is a configuration channel listener and provides the following configuration options:
 
 * ``sample_count_min``
    Minimum number of samples needed for channel map processing.
 * ``min_channel_count``
-   Minimum Bluetooth LE channel count.
+   Minimum |BLE| channel count.
 * ``weight_crc_ok``
    Weight of CRC OK.
    Fixed point value with 1/100 scaling.
@@ -72,7 +78,7 @@ The module provides the following configuration options:
 * ``eval_keepout_duration``
    Duration during which a channel will be blocked before it is considered for re-evaluation (in seconds).
 * ``eval_success_threshold``
-   Average rating threshold for approving a blocked Bluetooth LE channel that is under evaluation by the QoS module.
+   Average rating threshold for approving a blocked |BLE| channel that is under evaluation by the QoS module.
    Fixed point value with 1/100 scaling.
 * ``wifi_rating_inc``
    Wi-Fi strength rating multiplier.
@@ -102,7 +108,7 @@ SoftDevice Controller interaction
 ====================================
 
 The module uses CRC information from the SoftDevice Controller to adjust the channel map.
-The CRC information is received through the vendor-specific Bluetooth HCI event (:cpp:enum:`HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT`).
+The CRC information is received through the vendor-specific Bluetooth HCI event (:c:enum:`SDC_HCI_SUBEVENT_VS_QOS_CONN_EVENT_REPORT`).
 
 Additional thread
 =================
@@ -114,9 +120,10 @@ The thread is used to periodically perform the following operations:
 * Check and apply new blacklist received through the :ref:`nrf_desktop_config_channel`.
 * Process channel map filter.
 * Get channel map suggested by the ``chmap_filter`` library.
-* Update the used channel map.
+* Submit the suggested channel map as ``ble_qos_event``.
+* If the device is a Bluetooth central, update the used |BLE| channel map.
 
-If the ``CONFIG_DESKTOP_BLE_QOS_STATS_PRINTOUT_ENABLE`` Kconfig option is set, the module prints the following information through the virtual COM port:
+If the :option:`CONFIG_DESKTOP_BLE_QOS_STATS_PRINTOUT_ENABLE` Kconfig option is set, the module prints the following information through the virtual COM port:
 
 * HID report rate
    The module counts the number of HID input reports received via Bluetoooth LE and prints the report rate through the virtual COM port every 100 packets.

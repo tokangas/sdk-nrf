@@ -14,7 +14,7 @@
 LOG_MODULE_REGISTER(motion, CONFIG_ASSET_TRACKER_LOG_LEVEL);
 
 motion_handler_t handler;
-static struct device *accel_dev;
+static const struct device *accel_dev;
 static struct k_work_q *motion_work_q;
 static struct k_delayed_work motion_work;
 
@@ -95,7 +95,7 @@ static int get_orientation(motion_orientation_state_t *orientation,
 }
 
 /**@brief Callback for sensor trigger events */
-static void sensor_trigger_handler(struct device *dev,
+static void sensor_trigger_handler(const struct device *dev,
 			struct sensor_trigger *trigger)
 {
 	ARG_UNUSED(dev);
@@ -108,6 +108,8 @@ static void sensor_trigger_handler(struct device *dev,
 static void motion_work_q_handler(struct k_work *work)
 {
 	motion_data_t motion_data;
+
+	motion_data.ts = k_uptime_get();
 
 	if (accelerometer_poll(&motion_data.acceleration) == 0) {
 		if (get_orientation(&motion_data.orientation,

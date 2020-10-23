@@ -29,6 +29,10 @@ manifest:
       url-base: https://github.com/ThrowTheSwitch
     - name: armmbed
       url-base: https://github.com/ARMmbed
+    - name: nanopb
+      url-base: https://github.com/nanopb
+    - name: alexa
+      url-base: https://github.com/alexa
 
   # If not otherwise specified, the projects below should be obtained
   # from the ncs remote.
@@ -46,7 +50,7 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
       repo-path: sdk-zephyr
-      revision: 91d81dc7e0ce35987e66c4c2e11c6372808a904a
+      revision: 41ce8e165a9af4171ef52a73aede89da6ce60920
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
@@ -88,16 +92,16 @@ manifest:
     # changes.
     - name: mcuboot
       repo-path: sdk-mcuboot
-      revision: 50eec26a462d8cbc171dbbdca623979294a6227b
+      revision: c74627b65540fdb4105216361688199b6eceff4d
       path: bootloader/mcuboot
     - name: mcumgr
       repo-path: sdk-mcumgr
-      revision: cfe5eb98a9493017448846fd1a44a9340bd0a22f
+      revision: v0.1.0-ncs1-rc1
       path: modules/lib/mcumgr
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: d71ca932ad47e38e9ac4afef7ccbb97f289c9e8d
+      revision: 19cff87ddc90cb84e338b1b04e19b976c355508a
     # Other third-party repositories.
     - name: cmock
       path: test/cmock
@@ -110,8 +114,16 @@ manifest:
     - name: mbedtls-nrf
       path: mbedtls
       repo-path: mbedtls
-      revision: mbedtls-2.16.6
+      revision: mbedtls-2.23.0
       remote: armmbed
+    - name: nanopb
+      path: modules/lib/nanopb
+      revision: nanopb-0.4.2
+      remote: nanopb
+    - name: Alexa-Gadgets-Embedded-Sample-Code
+      path: modules/alexa-embedded
+      revision: face92d8c62184832793f518bb1f19379538c5c1
+      remote: alexa
 
   # West-related configuration for the nrf repository.
   self:
