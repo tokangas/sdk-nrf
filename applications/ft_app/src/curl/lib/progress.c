@@ -569,6 +569,7 @@ static void progress_meter(struct connectdata *conn)
           time_left,     /* 8 letters */                /* time left */
           max5data(data->progress.current_speed, max5[5])
     );
+  fprintf(data->set.err, "\n"); //FTA_CURL_INTEGRATION_CHANGE
 
   /* we flush the output stream to make it appear as soon as possible */
   fflush(data->set.err);

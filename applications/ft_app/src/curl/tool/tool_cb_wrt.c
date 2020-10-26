@@ -100,8 +100,15 @@ bool tool_create_output_file(struct OutStruct *outs,
   outs->init = 0;
   return TRUE;
 #else
+  if (strcmp(outs->filename, "/dev/null") == 0) {
+    outs->s_isreg = FALSE;
+    outs->stream = stdout;
+    outs->bytes = 0;
+    outs->init = 0;
+    return TRUE;
+  }
   return FALSE;
-#endif  
+#endif
 }
 
 /*
@@ -231,11 +238,17 @@ size_t tool_write_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
   }
   else
 #endif
+  if(outs->s_isreg) {
     rc = fwrite(buffer, sz, nmemb, outs->stream);
-
-  if(bytes == rc)
-    /* we added this amount of data to the output */
+    if(bytes == rc)
+      /* we added this amount of data to the output */
+      outs->bytes += bytes;
+  }
+  else {
+    /* To "/dev/null" eveyr write is succesful */
     outs->bytes += bytes;
+    rc = bytes;
+  }
 
   if(config->readbusy) {
     config->readbusy = FALSE;
