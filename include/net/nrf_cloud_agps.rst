@@ -3,6 +3,10 @@
 nRF Cloud A-GPS
 ###############
 
+.. contents::
+   :local:
+   :depth: 2
+
 The nRF Cloud A-GPS library enables applications to request and process Assisted GPS (`A-GPS`_) data from `nRF Cloud`_ to be used with the nRF9160 SiP.
 This library is an enhancement to the :ref:`lib_nrf_cloud`.
 
@@ -32,9 +36,9 @@ A-GPS data can be requested using one of the following methods:
 * By specifying an array of A-GPS types
 * By requesting all the available assistance data
 
-The :cpp:func:`nrf_cloud_agps_request` function is used to request by type, and the :cpp:func:`nrf_cloud_agps_request_all` function is used to return all available assistance data.
+The :c:func:`nrf_cloud_agps_request` function is used to request by type, and the :c:func:`nrf_cloud_agps_request_all` function is used to return all available assistance data.
 
-When nRF Cloud responds with the requested A-GPS data, the :cpp:func:`nrf_cloud_agps_process` function processes the received data.
+When nRF Cloud responds with the requested A-GPS data, the :c:func:`nrf_cloud_agps_process` function processes the received data.
 The function parses the data and passes it on to the modem.
 
 Practical considerations
@@ -56,7 +60,7 @@ If the GPS service has already started before the device enters the RRC idle mod
 Limitations
 ***********
 
-.. include:: ../../samples/nrf9160/nrf_cloud_agps/README.rst
+.. include:: ../../samples/nrf9160/agps/README.rst
    :start-after: agpslimitation_start
    :end-before: agpslimitation_end
 

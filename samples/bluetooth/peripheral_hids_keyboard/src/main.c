@@ -109,9 +109,9 @@ enum {
 };
 
 /* HIDS instance. */
-BT_GATT_HIDS_DEF(hids_obj,
-		 OUTPUT_REPORT_MAX_LEN,
-		 INPUT_REPORT_KEYS_MAX_LEN);
+BT_HIDS_DEF(hids_obj,
+	    OUTPUT_REPORT_MAX_LEN,
+	    INPUT_REPORT_KEYS_MAX_LEN);
 
 static volatile bool is_adv;
 
@@ -133,7 +133,7 @@ static const struct bt_data sd[] = {
 static struct conn_mode {
 	struct bt_conn *conn;
 	bool in_boot_mode;
-} conn_mode[CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT];
+} conn_mode[CONFIG_BT_HIDS_MAX_CLIENT_COUNT];
 
 static const uint8_t hello_world_str[] = {
 	0x0b,	/* Key h */
@@ -165,7 +165,7 @@ struct pairing_data_mitm {
 
 K_MSGQ_DEFINE(mitm_queue,
 	      sizeof(struct pairing_data_mitm),
-	      CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT,
+	      CONFIG_BT_HIDS_MAX_CLIENT_COUNT,
 	      4);
 
 static void advertising_start(void)
@@ -206,7 +206,7 @@ void nfc_field_detected(void)
 {
 	dk_set_led_on(NFC_LED);
 
-	for (int i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+	for (int i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (!conn_mode[i].conn) {
 			k_work_submit(&adv_work);
 			break;
@@ -256,14 +256,14 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	printk("Connected %s\n", addr);
 	dk_set_led_on(CON_STATUS_LED);
 
-	err = bt_gatt_hids_notify_connected(&hids_obj, conn);
+	err = bt_hids_connected(&hids_obj, conn);
 
 	if (err) {
 		printk("Failed to notify HID service about connection\n");
 		return;
 	}
 
-	for (size_t i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (!conn_mode[i].conn) {
 			conn_mode[i].conn = conn;
 			conn_mode[i].in_boot_mode = false;
@@ -272,7 +272,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 
 #if CONFIG_NFC_OOB_PAIRING == 0
-	for (size_t i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (!conn_mode[i].conn) {
 			advertising_start();
 			return;
@@ -293,13 +293,13 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 	printk("Disconnected from %s (reason %u)\n", addr, reason);
 
-	err = bt_gatt_hids_notify_disconnected(&hids_obj, conn);
+	err = bt_hids_disconnected(&hids_obj, conn);
 
 	if (err) {
 		printk("Failed to notify HID service about disconnection\n");
 	}
 
-	for (size_t i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (conn_mode[i].conn == conn) {
 			conn_mode[i].conn = NULL;
 		} else {
@@ -348,7 +348,7 @@ static struct bt_conn_cb conn_callbacks = {
 };
 
 
-static void caps_lock_handler(const struct bt_gatt_hids_rep *rep)
+static void caps_lock_handler(const struct bt_hids_rep *rep)
 {
 	uint8_t report_val = ((*rep->data) & OUTPUT_REPORT_BIT_MASK_CAPS_LOCK) ?
 			  1 : 0;
@@ -356,7 +356,7 @@ static void caps_lock_handler(const struct bt_gatt_hids_rep *rep)
 }
 
 
-static void hids_outp_rep_handler(struct bt_gatt_hids_rep *rep,
+static void hids_outp_rep_handler(struct bt_hids_rep *rep,
 				  struct bt_conn *conn,
 				  bool write)
 {
@@ -373,7 +373,7 @@ static void hids_outp_rep_handler(struct bt_gatt_hids_rep *rep,
 }
 
 
-static void hids_boot_kb_outp_rep_handler(struct bt_gatt_hids_rep *rep,
+static void hids_boot_kb_outp_rep_handler(struct bt_hids_rep *rep,
 					  struct bt_conn *conn,
 					  bool write)
 {
@@ -390,19 +390,19 @@ static void hids_boot_kb_outp_rep_handler(struct bt_gatt_hids_rep *rep,
 }
 
 
-static void hids_pm_evt_handler(enum bt_gatt_hids_pm_evt evt,
+static void hids_pm_evt_handler(enum bt_hids_pm_evt evt,
 				struct bt_conn *conn)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 	size_t i;
 
-	for (i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+	for (i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (conn_mode[i].conn == conn) {
 			break;
 		}
 	}
 
-	if (i >= CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT) {
+	if (i >= CONFIG_BT_HIDS_MAX_CLIENT_COUNT) {
 		printk("Cannot find connection handle when processing PM");
 		return;
 	}
@@ -410,12 +410,12 @@ static void hids_pm_evt_handler(enum bt_gatt_hids_pm_evt evt,
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
 	switch (evt) {
-	case BT_GATT_HIDS_PM_EVT_BOOT_MODE_ENTERED:
+	case BT_HIDS_PM_EVT_BOOT_MODE_ENTERED:
 		printk("Boot mode entered %s\n", addr);
 		conn_mode[i].in_boot_mode = true;
 		break;
 
-	case BT_GATT_HIDS_PM_EVT_REPORT_MODE_ENTERED:
+	case BT_HIDS_PM_EVT_REPORT_MODE_ENTERED:
 		printk("Report mode entered %s\n", addr);
 		conn_mode[i].in_boot_mode = false;
 		break;
@@ -429,9 +429,9 @@ static void hids_pm_evt_handler(enum bt_gatt_hids_pm_evt evt,
 static void hid_init(void)
 {
 	int err;
-	struct bt_gatt_hids_init_param    hids_init_obj = { 0 };
-	struct bt_gatt_hids_inp_rep       *hids_inp_rep;
-	struct bt_gatt_hids_outp_feat_rep *hids_outp_rep;
+	struct bt_hids_init_param    hids_init_obj = { 0 };
+	struct bt_hids_inp_rep       *hids_inp_rep;
+	struct bt_hids_outp_feat_rep *hids_outp_rep;
 
 	static const uint8_t report_map[] = {
 		0x05, 0x01,       /* Usage Page (Generic Desktop) */
@@ -488,8 +488,8 @@ static void hid_init(void)
 
 	hids_init_obj.info.bcd_hid = BASE_USB_HID_SPEC_VERSION;
 	hids_init_obj.info.b_country_code = 0x00;
-	hids_init_obj.info.flags = (BT_GATT_HIDS_REMOTE_WAKE |
-				    BT_GATT_HIDS_NORMALLY_CONNECTABLE);
+	hids_init_obj.info.flags = (BT_HIDS_REMOTE_WAKE |
+				    BT_HIDS_NORMALLY_CONNECTABLE);
 
 	hids_inp_rep =
 		&hids_init_obj.inp_rep_group_init.reports[INPUT_REP_KEYS_IDX];
@@ -508,7 +508,7 @@ static void hid_init(void)
 	hids_init_obj.boot_kb_outp_rep_handler = hids_boot_kb_outp_rep_handler;
 	hids_init_obj.pm_evt_handler = hids_pm_evt_handler;
 
-	err = bt_gatt_hids_init(&hids_obj, &hids_init_obj);
+	err = bt_hids_init(&hids_obj, &hids_init_obj);
 	__ASSERT(err == 0, "HIDS initialization failed\n");
 }
 
@@ -612,6 +612,16 @@ static void pairing_complete(struct bt_conn *conn, bool bonded)
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
+	struct pairing_data_mitm pairing_data;
+
+	if (k_msgq_peek(&mitm_queue, &pairing_data) != 0) {
+		return;
+	}
+
+	if (pairing_data.conn == conn) {
+		bt_conn_unref(pairing_data.conn);
+		k_msgq_get(&mitm_queue, &pairing_data, K_NO_WAIT);
+	}
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
@@ -659,10 +669,10 @@ static int key_report_con_send(const struct keyboard_state *state,
 		*key_data++ = *key_state++;
 	}
 	if (boot_mode) {
-		err = bt_gatt_hids_boot_kb_inp_rep_send(&hids_obj, conn, data,
+		err = bt_hids_boot_kb_inp_rep_send(&hids_obj, conn, data,
 							sizeof(data), NULL);
 	} else {
-		err = bt_gatt_hids_inp_rep_send(&hids_obj, conn,
+		err = bt_hids_inp_rep_send(&hids_obj, conn,
 						INPUT_REP_KEYS_IDX, data,
 						sizeof(data), NULL);
 	}
@@ -678,7 +688,7 @@ static int key_report_con_send(const struct keyboard_state *state,
  */
 static int key_report_send(void)
 {
-	for (size_t i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (conn_mode[i].conn) {
 			int err;
 
@@ -851,21 +861,32 @@ static void num_comp_reply(bool accept)
 
 static void button_changed(uint32_t button_state, uint32_t has_changed)
 {
+	static bool pairing_button_pressed;
 
 	uint32_t buttons = button_state & has_changed;
 
 	if (k_msgq_num_used_get(&mitm_queue)) {
 		if (buttons & KEY_PAIRING_ACCEPT) {
+			pairing_button_pressed = true;
 			num_comp_reply(true);
 
 			return;
 		}
 
 		if (buttons & KEY_PAIRING_REJECT) {
+			pairing_button_pressed = true;
 			num_comp_reply(false);
 
 			return;
 		}
+	}
+
+	/* Do not take any action if the pairing button is released. */
+	if (pairing_button_pressed &&
+	    (has_changed & (KEY_PAIRING_ACCEPT | KEY_PAIRING_REJECT))) {
+		pairing_button_pressed = false;
+
+		return;
 	}
 
 	if (has_changed & KEY_TEXT_MASK) {
@@ -878,7 +899,7 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 	if (has_changed & KEY_ADV_MASK) {
 		size_t i;
 
-		for (i = 0; i < CONFIG_BT_GATT_HIDS_MAX_CLIENT_COUNT; i++) {
+		for (i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 			if (!conn_mode[i].conn) {
 				advertising_start();
 				return;
@@ -910,7 +931,7 @@ static void configure_gpio(void)
 
 static void bas_notify(void)
 {
-	uint8_t battery_level = bt_gatt_bas_get_battery_level();
+	uint8_t battery_level = bt_bas_get_battery_level();
 
 	battery_level--;
 
@@ -918,7 +939,7 @@ static void bas_notify(void)
 		battery_level = 100U;
 	}
 
-	bt_gatt_bas_set_battery_level(battery_level);
+	bt_bas_set_battery_level(battery_level);
 }
 
 

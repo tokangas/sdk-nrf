@@ -3,6 +3,10 @@
 Bluetooth: Mesh Light
 #####################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Bluetooth Mesh Light sample demonstrates how to set up a basic Mesh server model application and control LEDs with the Bluetooth Mesh, using the :ref:`bt_mesh_onoff_readme`.
 
 .. note::
@@ -47,27 +51,16 @@ The models are used for the following purposes:
 * Health Server provides ``attention`` callbacks that are used during provisioning to call your attention to the device.
   These callbacks trigger blinking of the LEDs.
 
-The model handling is implemented in :file:`src/model_handler.c`, which uses the :ref:`dk_buttons_and_leds_readme` to control each LED on the board according to the matching received messages of Generic OnOff Server.
+The model handling is implemented in :file:`src/model_handler.c`, which uses the :ref:`dk_buttons_and_leds_readme` library to control each LED on the board according to the matching received messages of Generic OnOff Server.
 
 Requirements
 ************
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set1_start
-   :end-before: set1_end
-
-.. note::
-   If you use nRF5340 PDK, add the following options to the configuration of the network sample:
-
-   .. code-block:: none
-
-      CONFIG_BT_CTLR_TX_BUFFER_SIZE=74
-      CONFIG_BT_CTLR_DATA_LENGTH_MAX=74
-      CONFIG_BT_LL_SW_SPLIT=y
-
-   This is required because Bluetooth Mesh has different |BLE| Controller requirements than other Bluetooth samples.
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340pdk_nrf5340_cpuapp_and_cpuappns, nrf52840dk_nrf52840, nrf52dk_nrf52832
 
 The sample also requires a smartphone with Nordic Semiconductor's nRF Mesh mobile app installed in one of the following versions:
 

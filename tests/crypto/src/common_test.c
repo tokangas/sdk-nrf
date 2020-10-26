@@ -61,14 +61,17 @@ int init_drbg(const unsigned char *p_optional_seed, size_t len)
 		p_seed = p_optional_seed;
 	}
 
-	struct device *p_device =
+	const struct device *p_device =
 	    device_get_binding(DT_LABEL(DT_CHOSEN(zephyr_entropy)));
 
 	if (p_device == NULL)
 		return -ENODEV;
 
+	// Ensure previously run test is properly deallocated
+	// (This frees the mutex inside ctr_drbg context)
+	mbedtls_ctr_drbg_free(&drbg_ctx);
 	mbedtls_ctr_drbg_init(&drbg_ctx);
-	return mbedtls_ctr_drbg_seed(&drbg_ctx, entropy_func, p_device,
+	return mbedtls_ctr_drbg_seed(&drbg_ctx, entropy_func, (void *)p_device,
 				     p_seed, len);
 }
 #elif defined(MBEDTLS_HMAC_DRBG_C)
@@ -88,9 +91,12 @@ int init_drbg(const unsigned char *p_optional_seed, size_t len)
 		p_seed = p_optional_seed;
 	}
 
+	// Ensure previously run test is properly deallocated
+	// (This frees the mutex inside hmac_drbg context)
+	mbedtls_hmac_drbg_free(&drbg_ctx);
 	mbedtls_hmac_drbg_init(&drbg_ctx);
 
-	struct device *p_device =
+	const struct device *p_device =
 	    device_get_binding(DT_LABEL(DT_CHOSEN(zephyr_entropy)));
 
 	if (!p_device)
@@ -99,7 +105,8 @@ int init_drbg(const unsigned char *p_optional_seed, size_t len)
 	const mbedtls_md_info_t *p_info =
 		mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
 
-	return mbedtls_hmac_drbg_seed(&drbg_ctx, p_info, entropy_func, p_device, p_seed, len);
+	return mbedtls_hmac_drbg_seed(&drbg_ctx, p_info, entropy_func,
+		(void *)p_device, p_seed, len);
 }
 #endif
 

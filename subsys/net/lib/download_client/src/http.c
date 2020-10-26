@@ -73,7 +73,8 @@ int http_get_request_send(struct download_client *client)
 	 * When using HTTP, we request the whole resource to minimize
 	 * network usage (only one request/response are sent).
 	 */
-	if (client->proto == IPPROTO_TLS_1_2) {
+	if (client->proto == IPPROTO_TLS_1_2
+	   || IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_RANGE_REQUESTS)) {
 		len = snprintf(client->buf,
 			CONFIG_DOWNLOAD_CLIENT_BUF_SIZE,
 			GET_HTTPS_TEMPLATE, file, host, client->progress, off);
@@ -131,7 +132,8 @@ static int http_header_parse(struct download_client *client, size_t *hdr_len)
 
 	p = strstr(client->buf, "http/1.1 206");
 	if (!p) {
-		if (client->proto == IPPROTO_TLS_1_2) {
+		if (client->proto == IPPROTO_TLS_1_2
+		   || IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_RANGE_REQUESTS)) {
 			LOG_ERR("Server did not honor partial content request");
 			return -1;
 		}
@@ -146,7 +148,8 @@ static int http_header_parse(struct download_client *client, size_t *hdr_len)
 	 * and via "Content-Range" in case of HTTPS with range requests.
 	 */
 	if (client->file_size == 0) {
-		if (client->proto == IPPROTO_TLS_1_2) {
+		if (client->proto == IPPROTO_TLS_1_2
+		   || IS_ENABLED(CONFIG_DOWNLOAD_CLIENT_RANGE_REQUESTS)) {
 			p = strstr(client->buf, "content-range");
 			if (!p) {
 				LOG_ERR("Server did not send "
@@ -154,6 +157,10 @@ static int http_header_parse(struct download_client *client, size_t *hdr_len)
 				return -1;
 			}
 			p = strstr(p, "/");
+			if (!p) {
+				LOG_ERR("No file size in response");
+				return -1;
+			}
 		} else { /* proto == PROTO_HTTP */
 			p = strstr(client->buf, "content-length");
 			if (!p) {
@@ -162,14 +169,17 @@ static int http_header_parse(struct download_client *client, size_t *hdr_len)
 					return -1;
 			}
 			p = strstr(p, ":");
+			if (!p) {
+				LOG_ERR("No file size in response");
+				return -1;
+			}
+			/* Accumulate any eventual progress (starting offset)
+			 * when reading the file size from Content-Length
+			 */
+			client->file_size = client->progress;
 		}
 
-		if (!p) {
-			LOG_ERR("No file size in response");
-			return -1;
-		}
-
-		client->file_size = atoi(p + 1);
+		client->file_size += atoi(p + 1);
 		LOG_DBG("File size = %u", client->file_size);
 	}
 

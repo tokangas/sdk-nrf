@@ -3,6 +3,10 @@
 Bluetooth Mesh concepts
 #######################
 
+.. contents::
+   :local:
+   :depth: 2
+
 Bluetooth Mesh is a profile specification developed and published by the Bluetooth Special Interest Group (SIG).
 This document explains the basic concepts of the Bluetooth Mesh and gives an overview of the operation and capabilities of the profile, as well as the life cycle of a mesh device.
 For more information about the |NCS| implementation of the Bluetooth Mesh, see :ref:`Bluetooth Mesh architecture documentation <mesh_architecture>`.
@@ -16,15 +20,8 @@ However, Bluetooth Mesh specifies a completely new host layer, and although some
 
    Relationship between Bluetooth Mesh and |BLE| specifications
 
-Read more about basic Bluetooth Mesh concepts in the following sections:
-
-.. contents::
-   :local:
-   :depth: 2
-
+This page describes basic Bluetooth Mesh concepts.
 Check the official `Bluetooth Mesh glossary`_ for definitions of the most important Bluetooth Mesh-related terms used in this documentation.
-
-----
 
 .. _mesh_concepts_app_areas:
 
@@ -39,8 +36,6 @@ This is mainly due to the need for keeping the radio running constantly.
 Therefore, unlike the |BLE| advertisers, active mesh devices cannot be powered by coin-cell batteries for extended periods of time.
 
 Bluetooth Mesh supports up to 32767 devices in a network, with a maximum network diameter of 126 hops.
-
-----
 
 .. _mesh_concepts_network_topo:
 
@@ -118,8 +113,6 @@ This protocol allows legacy |BLE| devices to participate in the mesh network by 
 The legacy device gets assigned an address and the necessary keys to become a full-fledged member of the network.
 The device receives the security credentials through the regular provisioning procedure or through some out-of-band mechanism.
 
-----
-
 .. _mesh_concepts_addressing:
 
 Addressing
@@ -144,8 +137,6 @@ There can at most be 16127 general purpose group addresses in a mesh network.
 Virtual addresses can be considered a special form of group addresses, and can be used to represent any number of devices.
 Each virtual address is a 128-bit UUID generated from a text label.
 The virtual addresses do not have to be tracked by a network configuration device, and in this way, users can generate virtual addresses before deployment or addresses can be generated ad-hoc between devices in the network.
-
-----
 
 .. _mesh_concepts_models_and_elements:
 
@@ -179,8 +170,6 @@ This publish address can be of any type.
    Access layer structure
 
 For more information about models, see :ref:`bt_mesh_models`.
-
-----
 
 .. _mesh_concepts_lifecycle:
 
@@ -253,8 +242,6 @@ After a new light switch has been provisioned:
 #. The user sets the model's publish address to the *Kitchen Area* group address, to which all the light bulbs in the kitchen subscribe.
 
 The next time the new light switch is pressed, all light bulbs in the kitchen turn on.
-
-----
 
 .. _mesh_concepts_security:
 

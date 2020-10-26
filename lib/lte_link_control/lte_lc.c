@@ -176,27 +176,14 @@ static const char *const system_mode_params[] = {
 	[LTE_LC_SYSTEM_MODE_NBIOT_GPS]	= "0,1,1,0",
 };
 
-/* TODO: Clean up the below antenna tuning code and decide on where it should
- *	 stay in the link controller or not.
- */
-#if defined(CONFIG_LWM2M_CARRIER) && !defined(CONFIG_GPS_USE_SIM)
-#if defined(CONFIG_BOARD_THINGY91_NRF9160NS)
-	const char *const lwm2m_ant_cfg[] = {
-			"AT%XMAGPIO=1,1,1,7,1,746,803,2,698,748,"
-			"2,1710,2200,3,824,894,4,880,960,5,791,849,"
-			"7,1565,1586",
-			"AT%XCOEX0=1,1,1565,1586"};
-#elif defined(CONFIG_BOARD_NRF9160DK_NRF9160NS)
-	const char *const lwm2m_ant_cfg[] = {
-			"AT\%XMAGPIO=1,0,0,1,1,1565,1586"
-#if defined(CONFIG_NRF9160_GPS_ANTENNA_ONBOARD)
-			, "AT\%XCOEX0=1,1,1565,1586"
-#elif defined(CONFIG_NRF9160_GPS_ANTENNA_EXTERNAL)
-			, "AT\%XCOEX0"
-#endif
-			};
-#endif
-#endif
+#if !defined(CONFIG_BSD_LIBRARY_SYS_INIT) && \
+	defined(CONFIG_BOARD_THINGY91_NRF9160NS)
+static const char thingy91_magpio[] = {
+	"AT%XMAGPIO=1,1,1,7,1,746,803,2,698,748,"
+	"2,1710,2200,3,824,894,4,880,960,5,791,849,"
+	"7,1565,1586"
+};
+#endif /* !CONFIG_BSD_LIBRARY_SYS_INIT && CONFIG_BOARD_THINGY91_NRF9160NS */
 
 static struct k_sem link;
 
@@ -557,16 +544,13 @@ static int w_lte_lc_init(void)
 			sys_mode_current);
 	}
 
-#if defined(CONFIG_LWM2M_CARRIER) && !defined(CONFIG_GPS_USE_SIM) && \
-	(defined(CONFIG_BOARD_THINGY91_NRF9160NS) || \
-	 defined(CONFIG_BOARD_NRF9160_PCA10090NS))
-	/* Configuring MAGPIO/COEX, so that the correct antenna
+#if !defined(CONFIG_BSD_LIBRARY_SYS_INIT) && \
+	defined(CONFIG_BOARD_THINGY91_NRF9160NS)
+	/* Configuring MAGPIO, so that the correct antenna
 	 * matching network is used for each LTE band and GPS.
 	 */
-	for (size_t i = 0; i < ARRAY_SIZE(lwm2m_ant_cfg); i++) {
-		if (at_cmd_write(lwm2m_ant_cfg[i], NULL, 0, NULL) != 0) {
-			return -EIO;
-		}
+	if (at_cmd_write(thingy91_magpio, NULL, 0, NULL) != 0) {
+		return -EIO;
 	}
 #endif
 
@@ -702,7 +686,7 @@ static int w_lte_lc_connect(bool blocking)
 	return err;
 }
 
-static int w_lte_lc_init_and_connect(struct device *unused)
+static int w_lte_lc_init_and_connect(const struct device *unused)
 {
 	int ret;
 
@@ -750,7 +734,7 @@ int lte_lc_connect(void)
 /* lte lc Init and connect wrapper */
 int lte_lc_init_and_connect(void)
 {
-	struct device *x = 0;
+	const struct device *x = 0;
 
 	int err = w_lte_lc_init_and_connect(x);
 
@@ -794,6 +778,17 @@ int lte_lc_power_off(void)
 {
 	if (at_cmd_write(power_off, NULL, 0, NULL) != 0) {
 		return -EIO;
+	}
+
+	return 0;
+}
+
+int lte_lc_deinit(void)
+{
+	if (is_initialized) {
+		is_initialized = false;
+		at_notif_deregister_handler(NULL, at_handler);
+		return lte_lc_power_off();
 	}
 
 	return 0;

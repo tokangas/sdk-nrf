@@ -42,6 +42,7 @@
 #include <modem/at_cmd.h>
 #include "watchdog.h"
 #include "gps_controller.h"
+#include <date_time.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(asset_tracker, CONFIG_ASSET_TRACKER_LOG_LEVEL);
@@ -76,6 +77,11 @@ defined(CONFIG_NRF_CLOUD_PROVISION_CERTIFICATES)
 #define CLOUD_LED_ON_STR "{\"led\":\"on\"}"
 #define CLOUD_LED_OFF_STR "{\"led\":\"off\"}"
 #define CLOUD_LED_MSK UI_LED_1
+
+/* Timeout in seconds in which the application will wait for an initial event
+ * from the date time library.
+ */
+#define DATE_TIME_TIMEOUT_S 15
 
 /* Interval in milliseconds after which the device will reboot
  * if the disconnect event has not been handled.
@@ -118,6 +124,8 @@ static struct modem_param_info modem_param;
 static struct cloud_channel_data signal_strength_cloud_data;
 #endif /* CONFIG_MODEM_INFO */
 
+static struct gps_agps_request agps_request;
+
 static int64_t gps_last_active_time;
 static int64_t gps_last_search_start_time;
 static atomic_t carrier_requested_disconnect;
@@ -128,11 +136,6 @@ static bool flip_mode_enabled = true;
 static motion_data_t last_motion_data = {
 	.orientation = MOTION_ORIENTATION_NOT_KNOWN,
 };
-
-#if IS_ENABLED(CONFIG_GPS_START_ON_MOTION)
-/* Current state of activity monitor */
-static motion_activity_state_t last_activity_state = MOTION_ACTIVITY_NOT_KNOWN;
-#endif
 
 /* Variable to keep track of nRF cloud association state. */
 enum cloud_association_state {
@@ -146,6 +149,7 @@ static atomic_val_t cloud_association =
 	ATOMIC_INIT(CLOUD_ASSOCIATION_STATE_INIT);
 
 /* Structures for work */
+static struct k_work sensors_start_work;
 static struct k_work send_gps_data_work;
 static struct k_work send_button_data_work;
 static struct k_work send_modem_at_cmd_work;
@@ -176,6 +180,7 @@ static K_SEM_DEFINE(bsdlib_initialized, 0, 1);
 static K_SEM_DEFINE(lte_connected, 0, 1);
 static K_SEM_DEFINE(cloud_ready_to_connect, 0, 1);
 #endif
+static K_SEM_DEFINE(date_time_obtained, 0, 1);
 
 #if CONFIG_MODEM_INFO
 static struct k_delayed_work rsrp_work;
@@ -245,8 +250,11 @@ int lwm2m_carrier_event_handler(const lwm2m_carrier_event_t *event)
 	case LWM2M_CARRIER_EVENT_DISCONNECTED:
 		LOG_INF("LWM2M_CARRIER_EVENT_DISCONNECTED");
 		break;
-	case LWM2M_CARRIER_EVENT_READY:
-		LOG_INF("LWM2M_CARRIER_EVENT_READY");
+	case LWM2M_CARRIER_EVENT_LTE_READY:
+		LOG_INF("LWM2M_CARRIER_EVENT_LTE_READY");
+		break;
+	case LWM2M_CARRIER_EVENT_REGISTERED:
+		LOG_INF("LWM2M_CARRIER_EVENT_REGISTERED");
 		k_sem_give(&cloud_ready_to_connect);
 		break;
 	case LWM2M_CARRIER_EVENT_FOTA_START:
@@ -373,7 +381,7 @@ static void send_agps_request(struct k_work *work)
 {
 	ARG_UNUSED(work);
 
-#if defined(CONFIG_NRF_CLOUD_AGPS)
+#if defined(CONFIG_AGPS)
 	int err;
 	static int64_t last_request_timestamp;
 
@@ -388,16 +396,16 @@ static void send_agps_request(struct k_work *work)
 
 	LOG_INF("Sending A-GPS request");
 
-	err = nrf_cloud_agps_request_all();
+	err = gps_agps_request(agps_request, GPS_SOCKET_NOT_PROVIDED);
 	if (err) {
-		LOG_ERR("A-GPS request failed, error: %d", err);
+		LOG_ERR("Failed to request A-GPS data, error: %d", err);
 		return;
 	}
 
 	last_request_timestamp = k_uptime_get();
 
 	LOG_INF("A-GPS request sent");
-#endif /* defined(CONFIG_NRF_CLOUD_AGPS) */
+#endif /* defined(CONFIG_AGPS) */
 }
 
 void cloud_connect_error_handler(enum cloud_connect_result err)
@@ -620,7 +628,24 @@ static void send_modem_at_cmd_work_fn(struct k_work *work)
 	k_sem_give(&modem_at_cmd_sem);
 }
 
-static void gps_handler(struct device *dev, struct gps_event *evt)
+static void gps_time_set(struct gps_pvt *gps_data)
+{
+	/* Change datetime.year and datetime.month to accommodate the
+	 * correct input format.
+	 */
+	struct tm gps_time = {
+		.tm_year = gps_data->datetime.year - 1900,
+		.tm_mon = gps_data->datetime.month - 1,
+		.tm_mday = gps_data->datetime.day,
+		.tm_hour = gps_data->datetime.hour,
+		.tm_min = gps_data->datetime.minute,
+		.tm_sec = gps_data->datetime.seconds,
+	};
+
+	date_time_set(&gps_time);
+}
+
+static void gps_handler(const struct device *dev, struct gps_event *evt)
 {
 	gps_last_active_time = k_uptime_get();
 
@@ -647,6 +672,7 @@ static void gps_handler(struct device *dev, struct gps_event *evt)
 		break;
 	case GPS_EVT_PVT_FIX:
 		LOG_INF("GPS_EVT_PVT_FIX");
+		gps_time_set(&evt->pvt);
 		break;
 	case GPS_EVT_NMEA:
 		/* Don't spam logs */
@@ -658,6 +684,7 @@ static void gps_handler(struct device *dev, struct gps_event *evt)
 		gps_data.len = evt->nmea.len;
 		gps_cloud_data.data.buf = gps_data.buf;
 		gps_cloud_data.data.len = gps_data.len;
+		gps_cloud_data.ts = k_uptime_get();
 		gps_cloud_data.tag += 1;
 
 		if (gps_cloud_data.tag == 0) {
@@ -690,6 +717,7 @@ static void gps_handler(struct device *dev, struct gps_event *evt)
 		/* Send A-GPS request with short delay to avoid LTE network-
 		 * dependent corner-case where the request would not be sent.
 		 */
+		memcpy(&agps_request, &evt->agps_request, sizeof(agps_request));
 		k_delayed_work_submit_to_queue(&application_work_q,
 					       &send_agps_request_work,
 					       K_SECONDS(1));
@@ -720,6 +748,7 @@ static void button_send(bool pressed)
 
 	button_cloud_data.data.buf = data;
 	button_cloud_data.data.len = strlen(data);
+	button_cloud_data.ts = k_uptime_get();
 	button_cloud_data.tag += 1;
 
 	if (button_cloud_data.tag == 0) {
@@ -731,10 +760,6 @@ static void button_send(bool pressed)
 #endif
 
 #if IS_ENABLED(CONFIG_GPS_START_ON_MOTION)
-static bool motion_activity_is_active(void)
-{
-	return (last_activity_state == MOTION_ACTIVITY_ACTIVE);
-}
 
 static void motion_trigger_gps(motion_data_t  motion_data)
 {
@@ -748,7 +773,7 @@ static void motion_trigger_gps(motion_data_t  motion_data)
 		return;
 	}
 
-	if (motion_activity_is_active() && gps_control_is_enabled()) {
+	if (!gps_control_is_active() && gps_control_is_enabled()) {
 		static int64_t next_active_time;
 		int64_t last_active_time = gps_last_active_time / 1000;
 		int64_t now = k_uptime_get() / 1000;
@@ -796,15 +821,6 @@ static void motion_trigger_gps(motion_data_t  motion_data)
 /**@brief Callback from the motion module. Sends motion data to cloud. */
 static void motion_handler(motion_data_t  motion_data)
 {
-
-#if IS_ENABLED(CONFIG_GPS_START_ON_MOTION)
-	/* toggle state since the accelerometer does not yet report
-	 * which state occurred
-	 */
-	last_activity_state = (last_activity_state != MOTION_ACTIVITY_ACTIVE) ?
-			      MOTION_ACTIVITY_ACTIVE : MOTION_ACTIVITY_INACTIVE;
-#endif
-
 	if (motion_data.orientation != last_motion_data.orientation) {
 		last_motion_data = motion_data;
 		k_work_submit_to_queue(&application_work_q,
@@ -1284,6 +1300,11 @@ void sensors_start(void)
 	}
 }
 
+static void sensors_start_work_fn(struct k_work *work)
+{
+	sensors_start();
+}
+
 /**@brief nRF Cloud specific callback for cloud association event. */
 static void on_user_pairing_req(const struct cloud_event *evt)
 {
@@ -1364,7 +1385,7 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 		boot_write_img_confirmed();
 #endif
 		atomic_set(&cloud_association, CLOUD_ASSOCIATION_STATE_READY);
-		sensors_start();
+		k_work_submit_to_queue(&application_work_q, &sensors_start_work);
 		break;
 	case CLOUD_EVT_ERROR:
 		LOG_INF("CLOUD_EVT_ERROR");
@@ -1382,19 +1403,16 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 			return;
 		}
 
-#if defined(CONFIG_NRF_CLOUD_AGPS)
-		/* The decoder didn't handle the data, check if it's A-GPS data
-		 */
-		err = nrf_cloud_agps_process(evt->data.msg.buf,
-					     evt->data.msg.len,
-					     NULL);
+#if defined(CONFIG_AGPS)
+		err = gps_process_agps_data(evt->data.msg.buf,
+					    evt->data.msg.len);
 		if (err) {
 			LOG_WRN("Data was not valid A-GPS data, err: %d", err);
 			break;
 		}
 
 		LOG_INF("A-GPS data processed");
-#endif /* defined(CONFIG_GPS_USE_AGPS) */
+#endif /* defined(CONFIG_AGPS) */
 		break;
 	}
 	case CLOUD_EVT_PAIR_REQUEST:
@@ -1434,7 +1452,7 @@ void connection_evt_handler(const struct cloud_event *const evt)
 		k_delayed_work_cancel(&cloud_reboot_work);
 		k_sem_take(&cloud_disconnected, K_NO_WAIT);
 		atomic_set(&cloud_connect_attempts, 0);
-#if defined(CONFIG_CLOUD_PERSISTENT_SESSIONS)
+#if !IS_ENABLED(CONFIG_MQTT_CLEAN_SESSION)
 		LOG_INF("Persistent Sessions = %u",
 			evt->data.persistent_session);
 #endif
@@ -1539,6 +1557,7 @@ static void long_press_handler(struct k_work *work)
 /**@brief Initializes and submits delayed work. */
 static void work_init(void)
 {
+	k_work_init(&sensors_start_work, sensors_start_work_fn);
 	k_work_init(&send_gps_data_work, send_gps_data_work_fn);
 	k_work_init(&send_button_data_work, send_button_data_work_fn);
 	k_work_init(&send_modem_at_cmd_work, send_modem_at_cmd_work_fn);
@@ -1771,9 +1790,9 @@ static void no_sim_go_offline(struct k_work *work)
 #endif /* CONFIG_BSD_LIBRARY */
 }
 
+#if defined(CONFIG_LTE_LINK_CONTROL)
 static void lte_handler(const struct lte_lc_evt *const evt)
 {
-#if defined(CONFIG_BSD_LIBRARY)
 	switch (evt->type) {
 	case LTE_LC_EVT_NW_REG_STATUS:
 
@@ -1816,11 +1835,38 @@ static void lte_handler(const struct lte_lc_evt *const evt)
 	default:
 		break;
 	}
-#endif /* CONFIG_BSD_LIBRARY */
+}
+#endif /* defined(CONFIG_LTE_LINK_CONTROL) */
+
+static void date_time_event_handler(const struct date_time_evt *evt)
+{
+	switch (evt->type) {
+	case DATE_TIME_OBTAINED_MODEM:
+		LOG_INF("DATE_TIME_OBTAINED_MODEM");
+		break;
+	case DATE_TIME_OBTAINED_NTP:
+		LOG_INF("DATE_TIME_OBTAINED_NTP");
+		break;
+	case DATE_TIME_OBTAINED_EXT:
+		LOG_INF("DATE_TIME_OBTAINED_EXT");
+		break;
+	case DATE_TIME_NOT_OBTAINED:
+		LOG_INF("DATE_TIME_NOT_OBTAINED");
+		break;
+	default:
+		break;
+	}
+
+	/* Do not depend on obtained time, continue upon any event from the
+	 * date time library.
+	 */
+	k_sem_give(&date_time_obtained);
 }
 
 void main(void)
 {
+	int ret;
+
 	LOG_INF("Asset tracker started");
 	k_work_q_start(&application_work_q, application_stack_area,
 		       K_THREAD_STACK_SIZEOF(application_stack_area),
@@ -1841,9 +1887,9 @@ void main(void)
 	ui_init(ui_evt_handler);
 #endif
 	work_init();
-#if defined(CONFIG_BSD_LIBRARY)
+#if defined(CONFIG_LTE_LINK_CONTROL)
 	lte_lc_register_handler(lte_handler);
-#endif /* CONFIG_BSD_LIBRARY */
+#endif /* defined(CONFIG_LTE_LINK_CONTROL) */
 	while (modem_configure() != 0) {
 		LOG_WRN("Failed to establish LTE connection.");
 		LOG_WRN("Will retry in %d seconds.",
@@ -1855,6 +1901,14 @@ void main(void)
 	LOG_INF("Waiting for LWM2M carrier to complete initialization...");
 	k_sem_take(&cloud_ready_to_connect, K_FOREVER);
 #endif
+
+	date_time_update_async(date_time_event_handler);
+
+	ret = k_sem_take(&date_time_obtained, K_SECONDS(DATE_TIME_TIMEOUT_S));
+	if (ret) {
+		LOG_WRN("Date time, no callback event within %d seconds",
+			DATE_TIME_TIMEOUT_S);
+	}
 
 	connect_to_cloud(0);
 }

@@ -2,7 +2,6 @@
 #include <net/mqtt.h>
 #include <net/socket.h>
 #include <net/cloud.h>
-#include <random/rand32.h>
 #include <stdio.h>
 
 #if defined(CONFIG_AWS_FOTA)
@@ -409,6 +408,8 @@ static int aws_iot_topics_populate(char *const id, size_t id_len)
 	return 0;
 }
 
+/** Returns the number of topics subscribed to (0 or greater),
+  * or a negative error code. */
 static int topic_subscribe(void)
 {
 	int err;
@@ -482,7 +483,7 @@ static int topic_subscribe(void)
 		const struct mqtt_subscription_list app_sub_list = {
 			.list = app_topic_data.list,
 			.list_count = app_topic_data.list_count,
-			.message_id = sys_rand32_get()
+			.message_id = k_cycle_get_32()
 		};
 
 		for (size_t i = 0; i < app_sub_list.list_count; i++) {
@@ -500,7 +501,7 @@ static int topic_subscribe(void)
 		const struct mqtt_subscription_list aws_sub_list = {
 			.list = (struct mqtt_topic *)&aws_iot_rx_list,
 			.list_count = ARRAY_SIZE(aws_iot_rx_list),
-			.message_id = sys_rand32_get()
+			.message_id = k_cycle_get_32()
 		};
 
 		for (size_t i = 0; i < aws_sub_list.list_count; i++) {
@@ -514,7 +515,10 @@ static int topic_subscribe(void)
 		}
 	}
 
-	return err;
+	if (err < 0) {
+		return err;
+	}
+	return app_topic_data.list_count + ARRAY_SIZE(aws_iot_rx_list);
 }
 
 static int publish_get_payload(struct mqtt_client *const c, size_t length)
@@ -565,18 +569,34 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 			break;
 		}
 
-		if (!mqtt_evt->param.connack.session_present_flag) {
-			topic_subscribe();
-		}
-
 		LOG_DBG("MQTT client connected!");
 
 		aws_iot_evt.data.persistent_session =
+				   !IS_ENABLED(CONFIG_MQTT_CLEAN_SESSION) &&
 				   mqtt_evt->param.connack.session_present_flag;
 		aws_iot_evt.type = AWS_IOT_EVT_CONNECTED;
 		aws_iot_notify_event(&aws_iot_evt);
-		aws_iot_evt.type = AWS_IOT_EVT_READY;
-		aws_iot_notify_event(&aws_iot_evt);
+
+		if (!mqtt_evt->param.connack.session_present_flag) {
+			err = topic_subscribe();
+
+			if (err < 0) {
+				aws_iot_evt.type = AWS_IOT_EVT_ERROR;
+				aws_iot_evt.data.err = err;
+				aws_iot_notify_event(&aws_iot_evt);
+				break;
+			}
+			if (err == 0) {
+				/* There were not topics to subscribe to. */
+				aws_iot_evt.type = AWS_IOT_EVT_READY;
+				aws_iot_notify_event(&aws_iot_evt);
+			} /* else: wait for SUBACK */
+		} else {
+			/** pre-existing session:
+			  * subscription is already established */
+			aws_iot_evt.type = AWS_IOT_EVT_READY;
+			aws_iot_notify_event(&aws_iot_evt);
+		}
 		break;
 	case MQTT_EVT_DISCONNECT:
 		LOG_DBG("MQTT_EVT_DISCONNECT: result = %d", mqtt_evt->result);
@@ -622,6 +642,9 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 		LOG_DBG("MQTT_EVT_SUBACK: id = %d result = %d",
 			mqtt_evt->param.suback.message_id,
 			mqtt_evt->result);
+		/* MQTT subscription established. */
+		aws_iot_evt.type = AWS_IOT_EVT_READY;
+		aws_iot_notify_event(&aws_iot_evt);
 		break;
 	default:
 		break;
@@ -782,10 +805,6 @@ static int client_broker_init(struct mqtt_client *const client)
 	client->tx_buf_size		= sizeof(tx_buffer);
 	client->transport.type		= MQTT_TRANSPORT_SECURE;
 
-#if defined(CONFIG_AWS_IOT_PERSISTENT_SESSIONS)
-	client->clean_session		= 0U;
-#endif
-
 	static sec_tag_t sec_tag_list[] = { CONFIG_AWS_IOT_SEC_TAG };
 	struct mqtt_sec_config *tls_cfg = &(client->transport).tls.config;
 
@@ -897,7 +916,7 @@ int aws_iot_send(const struct aws_iot_data *const tx_data)
 	param.message.topic.topic.size	= tx_data_pub.topic.len;
 	param.message.payload.data	= tx_data_pub.ptr;
 	param.message.payload.len	= tx_data_pub.len;
-	param.message_id		= sys_rand32_get();
+	param.message_id		= k_cycle_get_32();
 	param.dup_flag			= 0;
 	param.retain_flag		= 0;
 
@@ -1113,12 +1132,12 @@ reset:
 #ifdef CONFIG_BOARD_QEMU_X86
 #define POLL_THREAD_STACK_SIZE 4096
 #else
-#define POLL_THREAD_STACK_SIZE 2560
-#endif /* defined(CONFIG_AWS_IOT_CONNECTION_POLL_THREAD) */
+#define POLL_THREAD_STACK_SIZE 3072
+#endif
 K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
 		aws_iot_cloud_poll, NULL, NULL, NULL,
 		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
-#endif
+#endif /* defined(CONFIG_AWS_IOT_CONNECTION_POLL_THREAD) */
 
 #if defined(CONFIG_CLOUD_API)
 static int api_init(const struct cloud_backend *const backend,

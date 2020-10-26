@@ -3,7 +3,11 @@
 Thread: NCP
 ###########
 
-The Thread NCP sample demonstrates the usage of OpenThread Network Co-Processor architecture inside the Zephyr environment.
+.. contents::
+   :local:
+   :depth: 2
+
+The :ref:`Thread <ug_thread>` NCP sample demonstrates the usage of OpenThread's :ref:`thread_architectures_designs_cp_ncp` architecture inside the Zephyr environment.
 
 The sample is based on Zephyr's :ref:`zephyr:ncp-sample` sample.
 However, it customizes Zephyr's sample to the NCS requirements (for example, by increasing the stack size dedicated for the user application), and also extends it with several features:
@@ -13,56 +17,50 @@ However, it customizes Zephyr's sample to the NCS requirements (for example, by 
 * No obsolete configuration options.
 * Vendor hooks for NCP allowing User to extend handled properties by its own, customized functionalities.
 
+This sample supports optional :ref:`ot_ncp_sample_vendor_hook_extension` and :ref:`logging extension <ot_ncp_sample_logging>`, which can be turned on or off independently.
+See :ref:`ot_ncp_sample_features_enabling` for details.
+
 Overview
 ********
 
-The sample demonstrates using an NCP target on the MCU to communicate with Userspace WPAN Network Daemon (wpantund) on Unix-like operating system.
+The sample demonstrates using an NCP target on the MCU to communicate with Userspace WPAN Network Daemon (`wpantund`_) on Unix-like operating system.
 According to the NCP architecture, the MCU part needs to cooperate with user higher layer process to establish the complete full stack application.
 The sample shows how to set connection between NCP and wpantund.
 
 This sample comes with the :ref:`full set of OpenThread functionalities <thread_ug_feature_sets>` enabled (:option:`CONFIG_OPENTHREAD_NORDIC_LIBRARY_MASTER`).
 
-.. _ot_ncp_sample_features:
+.. _ot_ncp_sample_vendor_hook_extension:
 
-Additional features for NCP sample
-==================================
+Vendor hooks extension
+======================
 
-Besides its basic functionalities, this sample supports additional features, which can be turned on or off independently.
-These features are defined as overlays to the main project configuration file.
-
-The following features are available in the NCP sample:
-
-* :file:`overlay-vendor_hook.conf` - Enables vendor hooks feature support.
-* :file:`overlay-logging.conf` - Presents how to change log levels of specific modules.
-
-Vendor hooks
-------------
-
-The vendor hook feature allows you to define your own commands and properties for the Spinel protocol, and extend the standard set used in communication with NCP.
+The vendor hook feature extension allows you to define your own commands and properties for the `Spinel protocol`_, and extend the standard set used in communication with NCP.
 Thanks to this feature, you can add new custom functionalities and manage them from host device by using serial interface - in the same way as the default functionalities.
 
 For more detailed information about the vendor hooks feature and host device configuration, see :ref:`ug_thread_vendor_hooks`.
-For information about how to enable the vendor hook feature for this sample, see `Enabling vendor hook feature`_.
+For information about how to enable the vendor hook feature for this sample, see :ref:`ot_ncp_sample_features_enabling_hooks`.
 
-Logging
--------
+.. _ot_ncp_sample_logging:
 
-This sample by default uses Spinel logging backend, which allows sending log messages to the host device using Spinel protocol.
-Presented feature is very useful, because it doesn't require having seperate interfaces to communicate with NCP via Spinel protocol and collect log messages.
-Moreover selecting Spinel logging backend (by setting CONFIG_LOG_BACKEND_SPINEL) doesn't exclude using another backend like UART or RTT at the same time.
+Logging extension
+=================
 
-By default log levels of all modules are set to critical to not engage microprocessor in unnecessary activites, but User is able to change it in overlay :file:`overlay-logging.conf`.
-It is possible to change log levels of User modules, whole Zephyr system and OpenThread independently to make solution flexible.
-For information how to include overlay file, when building target, see `Enabling additional features`_.
+This sample by default uses :ref:`Spinel logging backend <ug_logging_backends_spinel>`, which allows sending log messages to the host device using the Spinel protocol.
+This feature is very useful, because it does not require having separate interfaces to communicate with NCP through the Spinel protocol and collect log messages.
+Moreover, selecting the Spinel logging backend (by setting :option:`CONFIG_LOG_BACKEND_SPINEL`) does not exclude using another backend like UART or RTT at the same time.
+
+By default, the log levels for all modules are set to critical to not engage the microprocessor in unnecessary activities.
+To make the solution flexible, you can change independently the log levels for your modules, for the whole Zephyr system, and for OpenThread.
+Use the :file:`overlay-logging.conf` overlay file as reference for this purpose.
 
 Requirements
 ************
 
 The sample supports the following development kits for testing the network status:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set8_start
-   :end-before: set8_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833
 
 To test the sample, you need at least one development kit NCP board.
 Additional NCP boards can be used for the :ref:`optional testing of network joining <ot_ncp_sample_testing_more_boards>`.
@@ -80,7 +78,9 @@ It is also possible to communicate with NCP board using `PySpinel`_ commands.
 
 You can use your own application instead of wpantund and PySpinel provided that it supports the spinel communication protocol.
 
-Sample by default reconfigures baudrate 1000000 bit/s for serial communication.
+.. note::
+    |thread_hwfc_enabled|
+    In addition, the NCP sample by default reconfigures the baud rate to 1000000 bit/s.
 
 Building and running
 ********************
@@ -93,18 +93,22 @@ Building and running
 
 .. _ot_ncp_sample_features_enabling:
 
-Enabling additional features
+Activating sample extensions
 ============================
 
-When building the sample, you can enable :ref:`additional sample features <ot_ncp_sample_features>`.
-To do this, modify :makevar:`OVERLAY_CONFIG`.
-For example, to enable vendor hooks, set :file:`overlay-vendor_hook.conf`.
-See :ref:`cmake_options` for instructions on how to add this option.
+To activate the optional extensions supported by this sample, modify :makevar:`OVERLAY_CONFIG` in the following manner:
 
+* For the vendor hooks feature support, set :file:`overlay-vendor_hook.conf`.
+  See :ref:`ot_ncp_sample_features_enabling_hooks` for more information.
+* For the logging variant that presents how to change log levels of specific modules, set :file:`overlay-logging.conf`.
+
+See :ref:`cmake_options` for instructions on how to add this option.
 For more information about using configuration overlay files, see :ref:`zephyr:important-build-vars` in the Zephyr documentation.
 
-Enabling vendor hook feature
-----------------------------
+.. _ot_ncp_sample_features_enabling_hooks:
+
+Activating vendor hook feature
+------------------------------
 
 For this sample, handling of extension commands and properties is done through the vendor hook :file:`.cpp` file, which is dynamically attached to the NCP component during the compilation.
 
@@ -135,13 +139,13 @@ After building the sample and programming it to your development kit, test it by
 
    .. code-block:: console
 
-      wpanctl:leader_interface> status
+      wpanctl:leader_if> status
 
    The output will look similar to the following:
 
    .. code-block:: console
 
-      leader_interface => [
+      leader_if => [
         "NCP:State" => "offline"
         "Daemon:Enabled" => true
         "NCP:Version" => "OPENTHREAD/gde3f05d8; NONE; Jul  7 2020 10:04:51"
@@ -155,7 +159,7 @@ After building the sample and programming it to your development kit, test it by
 
    .. code-block:: console
 
-      wpanctl:leader_interface> form "My_OpenThread_network"
+      wpanctl:leader_if> form "My_OpenThread_network"
 
    The output will look similar to the following:
 
@@ -169,13 +173,13 @@ After building the sample and programming it to your development kit, test it by
 
    .. code-block:: console
 
-      wpanctl:leader_interface> status
+      wpanctl:leader_if> status
 
 The final output will be similar to the following:
 
 .. code-block:: console
 
-   leader_interface => [
+   leader_if => [
      "NCP:State" => "associated"
      "Daemon:Enabled" => true
      "NCP:Version" => "OPENTHREAD/gde3f05d8; NONE; Jul  7 2020 10:04:51"
@@ -212,24 +216,24 @@ Optionally, if you are using more than one NCP board, you can test the network j
    For `baudrate`, use value 1000000.
    For `serial_port_name_board2`, use the value from the previous step.
    For `network_interface_name_board2`, use a name of your choice.
-   In this testing procedure, this will be `joiner_interface`.
+   In this testing procedure, this will be `joiner_if`.
 #. Open another shell and run another wpanctl process for the second board by using following command:
 
    .. code-block:: console
 
-      wpanctl -I joiner_interface
+      wpanctl -I joiner_if
 
 #. In the wpanctl shell, run the following command to check the NCP board state:
 
    .. code-block:: console
 
-      wpanctl:joiner_interface> status
+      wpanctl:joiner_if> status
 
    The output will look similar to the following:
 
    .. code-block:: console
 
-      joiner_interface => [
+      joiner_if => [
          "NCP:State" => "offline"
          "Daemon:Enabled" => true
          "NCP:Version" => "OPENTHREAD/gde3f05d8; NONE; Jul  7 2020 10:04:51"
@@ -243,7 +247,7 @@ Optionally, if you are using more than one NCP board, you can test the network j
 
    .. code-block:: console
 
-      wpanctl:leader_interface> get Network:Key
+      wpanctl:leader_if> get Network:Key
 
    The output will look similar to the following:
 
@@ -255,13 +259,13 @@ Optionally, if you are using more than one NCP board, you can test the network j
 
    .. code-block:: console
 
-      wpanctl:joiner_interface> set Network:Key 2429EFAF21421AE3CB30B9204016EDC9
+      wpanctl:joiner_if> set Network:Key 2429EFAF21421AE3CB30B9204016EDC9
 
 #. In the second board's wpanctl shell, run the following command to scan your neighborhood and find the network formed with the leader NCP board:
 
    .. code-block:: console
 
-      wpanctl:joiner_interface> scan
+      wpanctl:joiner_if> scan
 
    The output will look similar to the following:
 
@@ -278,7 +282,7 @@ Optionally, if you are using more than one NCP board, you can test the network j
 
    .. code-block:: console
 
-      wpanctl:joiner_interface> join 2
+      wpanctl:joiner_if> join 2
 
    The output will look similar to the following:
 
@@ -303,8 +307,3 @@ This sample uses the following Zephyr libraries:
 * :ref:`zephyr:logging_api`:
 
   * ``include/logging/log.h``
-
-----
-
-Copyright disclaimer
-    |Google_CCLicense|

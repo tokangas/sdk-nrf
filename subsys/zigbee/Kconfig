@@ -9,9 +9,11 @@ menuconfig ZIGBEE
 	imply FPU
 	select APP_LINK_WITH_ZBOSS
 	select PM_SINGLE_IMAGE
+	select NET_L2_ZIGBEE
+	select NETWORKING
+	imply MPSL
 	imply COUNTER
 	imply COUNTER_TIMER3
-	imply NRF_802154_RADIO_DRIVER
 	imply ENTROPY_GENERATOR
 	imply POLL
 	imply FLASH
@@ -95,13 +97,6 @@ config ZIGBEE_APP_CB_QUEUE_LENGTH
 	  Elements from this queue are flushed right after ZBOSS context awakes,
 	  before the actual callback execution.
 
-config ZIGBEE_VENDOR_OUI
-	hex "A value that represents MAC Address Block Large"
-	default 0xf4ce36
-	help
-	  A value that represents MAC Address Block Large (MA-L, formerly called Organizationally Unique Identifier, or OUI), a part of the device's EUI-64 address.
-	  By default, use Nordic Semiconductor's MA-L block (f4-ce-36), assigned by the IEEE Registration Authority.
-
 config ZIGBEE_DEBUG_FUNCTIONS
 	bool "Include Zigbee debug functions"
 	help
@@ -129,22 +124,61 @@ config ZIGBEE_SHELL_LOG_ENABLED
 	help
 	  Include functions for Zigbee Shell logging.
 
+# Configure ZBOSS_TRACE_LOG_LEVEL
+choice
+	prompt "Max compiled-in log level for ZBOSS trace"
+	default ZBOSS_TRACE_LOG_LEVEL_OFF
+
+config ZBOSS_TRACE_LOG_LEVEL_OFF
+	bool "Off"
+
+config ZBOSS_TRACE_LOG_LEVEL_ERR
+	depends on LOG
+	bool "Error"
+
+config ZBOSS_TRACE_LOG_LEVEL_WRN
+	depends on LOG
+	bool "Warning"
+
+config ZBOSS_TRACE_LOG_LEVEL_INF
+	depends on LOG
+	bool "Info"
+
+config ZBOSS_TRACE_LOG_LEVEL_DBG
+	depends on LOG
+	bool "Debug"
+
+endchoice
+
+config ZBOSS_TRACE_LOG_LEVEL
+	int
+	default 0 if ZBOSS_TRACE_LOG_LEVEL_OFF
+	default 1 if ZBOSS_TRACE_LOG_LEVEL_ERR
+	default 2 if ZBOSS_TRACE_LOG_LEVEL_WRN
+	default 3 if ZBOSS_TRACE_LOG_LEVEL_INF
+	default 4 if ZBOSS_TRACE_LOG_LEVEL_DBG
+
 config ZBOSS_TRACE_MASK
 	hex "Trace mask of ZBOSS stack logs"
 	default 0x0000
-	range 0x0000 0x0B5C
+	range 0x0000 0xFFFF
 	help
 	  Selectively enable Zigbee binary trace logs.
 	  The mask value should be a bitwise OR of values assigned to selected modules.
 
 	  Available modules are:
 
+	  - 0x8000 SPI platform implementation
 	  - 0x4000 Zigbee Green Power
+	  - 0x2000 Custom components
+	  - 0x1000 UART and NCP transport
 	  - 0x0800 Application
+	  - 0x0400 MAC Lower Layer
 	  - 0x0200 Zigbee Light Link
 	  - 0x0100 Zigbee Cluster Library
 	  - 0x0080 Security
 	  - 0x0040 Zigbee Device Object
+	  - 0x0020 Zigbee Smart Energy
 	  - 0x0010 Application Support layer
 	  - 0x0008 Network layer
 	  - 0x0004 MAC layer
@@ -155,10 +189,11 @@ config ZBOSS_TRACE_MASK
 
 	  Note: For general debugging purposes, please use 0x0C48.
 
-# Configure ZBOSS_TRACE_LOG_LEVEL
-module = ZBOSS_TRACE
-module-str = ZBOSS trace
-source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+config ZBOSS_TRAF_DUMP
+	bool "Enable logging received 802.15.4 frames over ZBOSS traces"
+	depends on !ZBOSS_TRACE_LOG_LEVEL_OFF
+	help
+	  Dumps all packets destined to the node over ZBOSS binary trace protocol
 
 # Configure ZIGBEE_SHELL_LOG_LEVEL
 module = ZIGBEE_SHELL
@@ -182,7 +217,8 @@ menu "ZBOSS osif configuration"
 menuconfig ZIGBEE_HAVE_SERIAL
 	bool "UART serial abstract for ZBOSS OSIF"
 	select SERIAL
-	select UART_ASYNC_API
+	select UART_INTERRUPT_DRIVEN
+	select RING_BUFFER
 
 if ZIGBEE_HAVE_SERIAL
 
@@ -194,19 +230,44 @@ config ZIGBEE_UART_TX_TIMEOUT
 	int "Timeout value for starting asynchronous transmission, in milliseconds"
 	default 10
 
+config ZIGBEE_UART_PARTIAL_TX_TIMEOUT
+	int "Timeout value between the last transmitted byte and the TX ready event if only a part of TX buffer was transmitted, in milliseconds"
+	default 10
+
 config ZIGBEE_UART_RX_TIMEOUT
 	int "Timeout value for starting asynchronous reception, in milliseconds"
 	default 10
 
 config ZIGBEE_UART_PARTIAL_RX_TIMEOUT
-	int "Timeout value between the last received byte and the RX event if only a part of RX buffer was received, in milliseconds"
-	default 10
+       int "Timeout value between the last received byte and the RX event if only a part of RX buffer was received, in milliseconds"
+       default 10
+
+config ZIGBEE_UART_RX_BUF_LEN
+	int "Size of the asynchronous receive buffer"
+	default 16
 
 config ZIGBEE_UART_TX_BUF_LEN
 	int "Size of the synchronous transmit buffer"
 	default 128
 
 endif #ZIGBEE_HAVE_SERIAL
+
+
+config ZIGBEE_USE_LEDS
+	bool "LEDs abstract for ZBOSS OSIF"
+	imply GPIO
+	imply DK_LIBRARY
+
+config ZIGBEE_USE_DIMMABLE_LED
+	bool "Dimmable LED (PWM) abstract for ZBOSS OSIF"
+	imply GPIO
+	imply PWM
+
+config ZIGBEE_USE_BUTTONS
+	bool "Buttons abstract for ZBOSS OSIF"
+	imply GPIO
+	imply DK_LIBRARY
+
 
 menuconfig ZIGBEE_SHELL
 	bool "Enable Zigbee Shell"
@@ -230,13 +291,15 @@ config ZIGBEE_SHELL_ENDPOINT
 	int "Number of endpoint to be used by the Zigbee Shell instance"
 	range 1 240
 
-endif #ZIGBEE_SHELL
-
-config RADIO_STATISTICS
-	bool "Collect radio statistics"
-	default n
+config ZIGBEE_SHELL_CTX_MGR_ENTRIES_NBR
+	int "Number of entries in context manager"
+	default 24
+	range 3 254
 	help
-	  This option enables the radio statistics.
+	  Number of entries in context manager of Zigbee Shell.
+	  Entries are shared by ZDO commands, ZCL commands and PING commands.
+
+endif #ZIGBEE_SHELL
 
 endmenu #menu "ZBOSS osif configuration"
 

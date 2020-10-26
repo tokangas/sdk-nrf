@@ -66,8 +66,9 @@ static void cadence_store(const struct bt_mesh_sensor_srv *srv)
 		}
 	}
 
-	if (bt_mesh_model_data_store(srv->model, false, NULL,
-				     buf.data, buf.len)) {
+	if (IS_ENABLED(CONFIG_SETTINGS) &&
+	    bt_mesh_model_data_store(srv->model, false, NULL, buf.data,
+				     buf.len)) {
 		BT_ERR("Sensor server data store failed");
 	}
 }
@@ -458,7 +459,7 @@ static void cadence_set(struct bt_mesh_model *mod, struct bt_mesh_msg_ctx *ctx,
 				    &threshold);
 	if (err) {
 		BT_WARN("Invalid cadence");
-		goto respond;
+		return;
 	}
 
 	BT_DBG("Min int: %u div: %u "

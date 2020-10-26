@@ -3,6 +3,10 @@
 |NCS| v1.3.0 Release Notes
 ##########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 |NCS| delivers reference software and supporting libraries for developing low-power wireless applications with Nordic Semiconductor products.
 It includes the MCUboot and the Zephyr RTOS open source projects, which are continuously integrated and re-distributed with the SDK.
 
@@ -65,7 +69,7 @@ nRF9160
   * :ref:`lib_date_time` library - maintains the current date-time UTC from multiple time sources (modem, NTP servers).
   * :ref:`lib_ftp_client` library - can be used to download or upload FTP server files.
   * :ref:`lib_nrf_cloud_agps` library - provides a way to request and process A-GPS data from nRF Cloud to be used with the nRF9160 SiP.
-    The :ref:`nrf_cloud_agps_sample` sample demonstrates how to use the library.
+    The :ref:`agps_sample` sample demonstrates how to use the library.
   * :ref:`connectivity_bridge` application with dual UART and Bluetooth LE support - replaces the :ref:`usb_uart_bridge_sample` sample.
 
 * :ref:`gps_with_supl_support_sample` sample:
@@ -94,12 +98,12 @@ nRF9160
 
 * :ref:`modem_key_mgmt` library:
 
-  * Added a :cpp:func:`modem_key_mgmt_cmp` function to the API, which allows to compare with a credential stored in the modem.
+  * Added a :c:func:`modem_key_mgmt_cmp` function to the API, which allows to compare with a credential stored in the modem.
   * Various minor fixes.
 
 * :ref:`modem_info_readme` library:
 
-  * Fixed an error in reading :cpp:enumerator:`MODEM_INFO_RSRP <modem_info::MODEM_INFO_RSRP>`.
+  * Fixed an error in reading :c:enumerator:`MODEM_INFO_RSRP`.
   * Added APN readout.
 
 * :ref:`lte_lc_readme` library:
@@ -351,7 +355,7 @@ NFC
 Immutable bootloader
 --------------------
 
-* Exposed :cpp:func:`fw_info_ext_api_provide` as an :ref:`external API <doc_fw_info_ext_api>`, so that :doc:`mcuboot:index` can use it to provide external APIs from the :ref:`bootloader` to its images.
+* Exposed :c:func:`fw_info_ext_api_provide` as an :ref:`external API <doc_fw_info_ext_api>`, so that :doc:`mcuboot:index` can use it to provide external APIs from the :ref:`bootloader` to its images.
   This means that requesting external APIs in applications works even if MCUboot is included.
 * Fixed a bug so that the :ref:`bootloader` works with nRF5340 SPU flash regions.
 * Added a :ref:`doc_bl_storage` library:
@@ -406,7 +410,7 @@ Build system
 Zephyr
 ======
 
-* Updated the time-out type to :cpp:type:`k_timeout_t`, because the Zephyr kernel deprecated its integer type as time-out in different APIs (timeout, scheduling, ...).
+* Updated the time-out type to :c:type:`k_timeout_t`, because the Zephyr kernel deprecated its integer type as time-out in different APIs (timeout, scheduling, ...).
 * Updated all files to use the C/C++ Devicetree generic API, because the C/C++ Devicetree value fetching API was reworked in Zephyr so that it uses compatible strings and new function-like macros to match properties.
   See :ref:`zephyr:dt-from-c`.
 
@@ -443,7 +447,7 @@ In addition to documentation related to the changes listed above, the following 
 * :ref:`nrfxlib:bsdlib` - added documentation about :ref:`nrfxlib:gnss_extension`
 * :ref:`nrfxlib:mpsl` - added documentation about :ref:`nrfxlib:mpsl_timeslot`, :ref:`nrfxlib:mpsl_radio_notification`, and :ref:`nrfxlib:mpsl_tx_power_control`
 * :ref:`nrfxlib:nfc` - added documentation about :ref:`nrfxlib:type_2_tag` and :ref:`nrfxlib:type_4_tag`, updated the :ref:`nrfxlib:nfc_integration_notes`
-* :ref:`nrfxlib:nrf_security_readme` - updated
+* :ref:`nrfxlib:nrf_security` - updated
 
 Known issues
 ************
@@ -457,7 +461,7 @@ nRF9160
 From v1.2.0
 -----------
 
-* The :cpp:func:`nrf_send` function in the :ref:`nrfxlib:bsdlib` might be blocking for several minutes, even if the socket is configured for non-blocking operation.
+* The :c:func:`nrf_send` function in the :ref:`nrfxlib:bsdlib` might be blocking for several minutes, even if the socket is configured for non-blocking operation.
   The behavior depends on the cellular network connection.
 * The :ref:`asset_tracker` sample might show up to 2.5 mA current consumption in idle mode with ``CONFIG_POWER_OPTIMIZATION_ENABLE=y``.
 * The SEGGER Control Block cannot be found by automatic search by the RTT Viewer/Logger.
@@ -560,7 +564,7 @@ Zephyr
 ======
 
 * If the Zephyr kernel preempts the current thread and performs a context switch to a new thread while the current thread is executing a secure service, the behavior is undefined and might lead to a kernel fault.
-  To prevent this situation, a thread that aims to call a secure service must temporarily lock the kernel scheduler (:cpp:func:`k_sched_lock`) and unlock the scheduler (:cpp:func:`k_sched_unlock`) after returning from the secure call. (NCSIDB-108)
+  To prevent this situation, a thread that aims to call a secure service must temporarily lock the kernel scheduler (:c:func:`k_sched_lock`) and unlock the scheduler (:c:func:`k_sched_unlock`) after returning from the secure call. (NCSIDB-108)
 
 
 

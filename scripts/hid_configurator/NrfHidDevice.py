@@ -21,6 +21,7 @@ OPT_FIELD_POS = 0
 OPT_FIELD_MAX_OPT_CNT = 0xf
 
 OPT_MODULE_DESCR = 0x0
+OPT_DESCR_MODULE_VARIANT = 'module_variant'
 
 POLL_INTERVAL_DEFAULT = 0.02
 POLL_RETRY_COUNT = 200
@@ -40,8 +41,8 @@ class ConfigStatus(IntEnum):
     SUCCESS            = 8
     TIMEOUT            = 9
     REJECT             = 10
-    WRITE_ERROR        = 11
-    DISCONNECTED_ERROR = 12
+    WRITE_FAIL         = 11
+    DISCONNECTED       = 12
     FAULT              = 99
 
 class NrfHidTransport():
@@ -322,6 +323,22 @@ class NrfHidDevice():
                 'id' : opt_idx,
             }
             opt_idx += 1
+
+        # Fetch module's variant (if specified).
+        # The module variant is e.g. motion sensor model (PMW3360, PAW3212, ...).
+        # Script uses module variant to identify descriptions of config options.
+        if OPT_DESCR_MODULE_VARIANT in module_config['options']:
+            event_id = (module_id << MOD_FIELD_POS) | \
+                       (module_config['options'][OPT_DESCR_MODULE_VARIANT]['id'] << OPT_FIELD_POS)
+
+            success, fetched_data = NrfHidTransport.exchange_feature_report(dev, recipient,
+                                                                            event_id, ConfigStatus.FETCH,
+                                                                            None)
+            if not success or not fetched_data:
+                return None, None
+
+            module_variant = fetched_data.decode('utf-8').replace(chr(0x00), '')
+            module_name = '{}/{}'.format(module_name, module_variant)
 
         return module_name, module_config
 

@@ -3,6 +3,10 @@
 Board module
 ############
 
+.. contents::
+   :local:
+   :depth: 2
+
 The board module is used to ensure the proper state of GPIO pins that are not configured by other modules in the application.
 Ensuring the proper state is done by setting the state of the mentioned pins on the system start and wake-up, and when the system enters the low-power mode.
 
@@ -29,13 +33,13 @@ The :file:`port_state_def.h` file defines the states set to the GPIO ports by th
 * ``port_state_on`` - State set on the system start and wake-up.
 * ``port_state_off`` - State set when the system enters the low-power mode.
 
-Every :cpp:class:`port_state` refers to a single GPIO port and contains the following information:
+Every :c:struct:`port_state` refers to a single GPIO port and contains the following information:
 
-* :cpp:member:`name` - GPIO device name (obtained from :ref:`devicetree <zephyr:dt-guide>`, for example with ``DT_LABEL(DT_NODELABEL(gpio0))``).
-* :cpp:member:`ps` - Pointer to the array of :cpp:class:`pin_state`.
-* :cpp:member:`ps_count` - Size of the `ps` array.
+* :c:member:`port_state.name` - GPIO device name (obtained from :ref:`devicetree <zephyr:dt-guide>`, for example with ``DT_LABEL(DT_NODELABEL(gpio0))``).
+* :c:member:`port_state.ps` - Pointer to the array of :c:struct:`pin_state`.
+* :c:member:`port_state.ps_count` - Size of the `ps` array.
 
-Every :cpp:class:`pin_state` defines the state of a single GPIO pin:
+Every :c:struct:`pin_state` defines the state of a single GPIO pin:
 
-* :cpp:member:`pin` - Pin number.
-* :cpp:member:`val` - Value set for the pin.
+* :c:member:`pin_state.pin` - Pin number.
+* :c:member:`pin_state.val` - Value set for the pin.

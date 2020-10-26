@@ -3,6 +3,10 @@
 Cryptography tests
 ##################
 
+.. contents::
+   :local:
+   :depth: 2
+
 Cryptography tests verify the functionality of the :ref:`nrfxlib:nrf_security` by using known test vectors approved by the National Institute of Standards and Technology (NIST) and others.
 
 Overview
@@ -123,9 +127,9 @@ Requirements
 
 The tests support the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set18_start
-   :end-before: set18_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf9160dk_nrf9160ns, nrf52840dk_nrf52840
 
 .. note::
    Nordic devices such as nRF51, nRF52810, or nRF52811 cannot run the full test suite because of limited flash capacity.

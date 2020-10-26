@@ -15,32 +15,16 @@ Among others, OpenThread has the following main advantages:
 * Support for system-on-chip (SoC), network co-processor (NCP) and radio co-processor (RCP) designs.
 * Official Thread certification.
 
-For more information about some aspects of Thread, see the following pages:
+For more information about some aspects of Thread, see the subpages.
+
+You can also find more information at `OpenThread.io`_ and `Thread Group`_ pages.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Subpages:
 
+   ug_thread_supported_features.rst
    ug_thread_architectures.rst
    ug_thread_ot_integration.rst
+   ug_thread_ot_memory.rst
    ug_thread_commissioning.rst
-
-You can also find more at `OpenThread.io`_ and `Thread Group`_ pages.
-
-.. _thread_ug_supported features:
-
-Supported features
-******************
-
-The OpenThread implementation of the Thread protocol supports all features defined in the Thread 1.1.1 specification.
-This includes:
-
-* All Thread networking layers:
-
-  * IPv6
-  * 6LoWPAN
-  * IEEE 802.15.4 with MAC security
-  * Mesh Link Establishment
-  * Mesh Routing
-
-* All device roles
-* Border Router support

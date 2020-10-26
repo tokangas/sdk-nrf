@@ -3,6 +3,10 @@
 Profiler
 ########
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Profiler provides an interface for logging and visualizing data for performance measurements, while the system is running.
 You can use the module to profile :ref:`event_manager` events or custom events.
 The output is provided via RTT and can be visualized in `SEGGER SystemView`_ or in a custom Python backend.
@@ -22,14 +26,14 @@ Apart from standard configuration parameters, there is one required setting:
   Set this option to add the Profiler source code to the application.
   If you use the Event Manager, you can also set this option by selecting :option:`CONFIG_DESKTOP_EVENT_MANAGER_PROFILER_ENABLED`.
 
-Call :cpp:func:`profiler_init` during the application start to initialize the Profiler.
+Call :c:func:`profiler_init` during the application start to initialize the Profiler.
 If you set :option:`CONFIG_DESKTOP_EVENT_MANAGER_PROFILER_ENABLED`, the Profiler is automatically initialized when you initialize the :ref:`event_manager`.
 
 
 Profiling custom events
 ***********************
 
-To profile custom events, you must register them using :cpp:func:`profiler_register_event_type`.
+To profile custom events, you must register them using :c:func:`profiler_register_event_type`.
 
 The following code example shows how to register event types::
 
@@ -44,9 +48,9 @@ The following code example shows how to register event types::
 
 After registering the types, you can send information about event occurrences using the following functions:
 
-* :cpp:func:`profiler_log_start` - Start logging.
-* :cpp:func:`profiler_log_encode_u32` - Add data connected with the event (optional).
-* :cpp:func:`profiler_log_send` - Send profiled data.
+* :c:func:`profiler_log_start` - Start logging.
+* :c:func:`profiler_log_encode_u32` - Add data connected with the event (optional).
+* :c:func:`profiler_log_send` - Send profiled data.
 
 It is good practice to wrap the calls in one function that you then call to profile event occurrences.
 The following code example shows a function for profiling an event with data::
@@ -128,7 +132,7 @@ When running ``plot_from_files.py`` or ``real_time_plot.py``, the profiled event
 When displaying Event Manager events, submissions are marked as dots.
 Processing of the events is displayed as rectangles, visualizing the processing time.
 
-Use the **start/stop** button below the plot to pause or resume real time plot translation.
+Use the :guilabel:`start/stop` button below the plot to pause or resume real time plot translation.
 Scroll to zoom in or out.
 When paused, scrolling zooms to the cursor location.
 When plotting in real time, scrolling zooms to the right edge of the plot.

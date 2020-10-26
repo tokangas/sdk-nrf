@@ -3,6 +3,10 @@
 Generic OnOff Server
 ####################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Generic OnOff Server contains a single controllable On/Off state.
 
 States
@@ -12,7 +16,7 @@ The Generic OnOff Server model contains the following state:
 
 Generic OnOff: ``boolean``
     Generic boolean state representing an On/Off state.
-    Your application is expected to hold the state memory and provide access to the state through the :cpp:type:`bt_mesh_onoff_srv_handlers` handler structure.
+    Your application is expected to hold the state memory and provide access to the state through the :c:struct:`bt_mesh_onoff_srv_handlers` handler structure.
 
     Changes to the Generic OnOff state may include transition parameters.
     When transitioning to a new OnOff state:

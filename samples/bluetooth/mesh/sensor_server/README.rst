@@ -3,6 +3,10 @@
 Bluetooth: Mesh sensor server
 ###############################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Bluetooth Mesh sensor server sample demonstrates how to set up a basic Mesh sensor server model application that provides sensor data to one :ref:`Mesh sensor client <bt_mesh_sensor_cli_readme>` model.
 Four different sensor types are used to showcase different ways for the server to publish data.
 In addition, the samples demonstrate usage of both :ref:`single-channel sensor types and sensor series types <bt_mesh_sensor_types_channels>`.
@@ -21,10 +25,10 @@ This sample is split into the following source files:
 
 The following Mesh sensor types are used in this sample:
 
-* :cpp:var:`bt_mesh_sensor_present_dev_op_temp` - Published by the server according to its publishing period (see :ref:`bluetooth_mesh_sensor_server_conf_models`).
-* :cpp:var:`bt_mesh_sensor_rel_runtime_in_a_dev_op_temp_range` - Periodically requested by the client.
-* :cpp:var:`bt_mesh_sensor_presence_detected` - Published when a button is pressed on the server board.
-* :cpp:var:`bt_mesh_sensor_time_since_presence_detected` - Periodically requested by the client and published by the server according to its publishing period (see :ref:`bluetooth_mesh_sensor_server_conf_models`).
+* :c:var:`bt_mesh_sensor_present_dev_op_temp` - Published by the server according to its publishing period (see :ref:`bluetooth_mesh_sensor_server_conf_models`).
+* :c:var:`bt_mesh_sensor_rel_runtime_in_a_dev_op_temp_range` - Periodically requested by the client.
+* :c:var:`bt_mesh_sensor_presence_detected` - Published when a button is pressed on the server board.
+* :c:var:`bt_mesh_sensor_time_since_presence_detected` - Periodically requested by the client and published by the server according to its publishing period (see :ref:`bluetooth_mesh_sensor_server_conf_models`).
 
 Moreover, the on-chip ``TEMP_NRF5`` temperature sensor is used.
 
@@ -56,16 +60,16 @@ The models are used for the following purposes:
   These callbacks trigger blinking of the LEDs.
 * Mesh sensor server provides sensor data to one or more :ref:`Mesh sensor client(s) <bt_mesh_sensor_cli_readme>`.
 
-The model handling is implemented in :file:`src/model_handler.c`, which uses the ``TEMP_NRF5`` temperature sensor, and :ref:`dk_buttons_and_leds_readme` to detect button presses.
+The model handling is implemented in :file:`src/model_handler.c`, which uses the ``TEMP_NRF5`` temperature sensor, and the :ref:`dk_buttons_and_leds_readme` library to detect button presses.
 
 Requirements
 ************
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set2_start
-   :end-before: set2_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :sample-yaml-rows:
 
 The sample also requires a smartphone with Nordic Semiconductor's nRF Mesh mobile app installed in one of the following versions:
 

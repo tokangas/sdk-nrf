@@ -226,8 +226,8 @@ ALIASES                = "rst=\verbatim embed:rst" \
                          "endrststar=\endverbatim" \
                          "r=\verbatim embed:rst:leading-asterisk" \
                          "er=\endverbatim"
-
-ALIASES 	       += "req=\xrefitem req \"Requirement\" \"Requirements\" "
+ALIASES += option{1}="\verbatim embed:rst:inline :option:`\1` \endverbatim"
+ALIASES += "req=\xrefitem req \"Requirement\" \"Requirements\" "
 
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding "class=itcl::class"
@@ -802,7 +802,12 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = */zboss/* */openthread/include/*
+EXCLUDE_PATTERNS       = */zboss/* \
+                         */openthread/include/* \
+                         */openthread/lib/* \
+                         */nrf_cc312_platform/* \
+                         */nrf_cc312_mbedcrypto/* \
+                         */nrf_cc310_mbedcrypto/include/*
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
 # (namespaces, classes, functions, etc.) that should be excluded from the
@@ -1946,7 +1951,7 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             = "MBEDTLS_CONFIG_FILE=\"@NRFXLIB_BINARY_DIR@/mbedtls_doxygen_config.h\"" \
                          "CONFIG_MBEDTLS_VANILLA_BACKEND=y" \
-                         "CONFIG_CC310_BACKEND=y" \
+                         "CONFIG_CC3XX_BACKEND=y" \
                          "CONFIG_SYS_CLOCK_EXISTS=y" \
                          "CONFIG_THREAD_MONITOR=y" \
                          "CONFIG_THREAD_CUSTOM_DATA=y" \

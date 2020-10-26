@@ -3,6 +3,10 @@
 Motion module
 #############
 
+.. contents::
+   :local:
+   :depth: 2
+
 The motion module is responsible for generating events related to movement.
 The movement can be detected using the motion sensor, but it can also be sourced from GPIO pins or simulated.
 
@@ -16,16 +20,18 @@ Module events
 .. note::
     |nrf_desktop_module_event_note|
 
+.. _nrf_desktop_motion_configuration:
+
 Configuration
 *************
 
 The motion module selects the source of movement based on the following configuration options:
 
-* ``CONFIG_DESKTOP_MOTION_NONE`` - Module is disabled.
-* ``CONFIG_DESKTOP_MOTION_SENSOR_PMW3360_ENABLE`` - Movement data is obtained from the gaming-grade ``PMW3360`` motion sensor.
-* ``CONFIG_DESKTOP_MOTION_SENSOR_PAW3212_ENABLE`` - Movement data is obtained from ``PAW3212`` motion sensor.
-* ``CONFIG_DESKTOP_MOTION_BUTTONS_ENABLE`` - Movement data is generated using buttons.
-* ``CONFIG_DESKTOP_MOTION_SIMULATED_ENABLE`` - Movement data is simulated (controlled from Zephyr's shell).
+* :option:`CONFIG_DESKTOP_MOTION_NONE` - Module is disabled.
+* :option:`CONFIG_DESKTOP_MOTION_SENSOR_PMW3360_ENABLE` - Movement data is obtained from the gaming-grade ``PMW3360`` motion sensor.
+* :option:`CONFIG_DESKTOP_MOTION_SENSOR_PAW3212_ENABLE` - Movement data is obtained from ``PAW3212`` motion sensor.
+* :option:`CONFIG_DESKTOP_MOTION_BUTTONS_ENABLE` - Movement data is generated using buttons.
+* :option:`CONFIG_DESKTOP_MOTION_SIMULATED_ENABLE` - Movement data is simulated (controlled from Zephyr's :ref:`zephyr:shell_api`).
 
 See the following sections for more information.
 
@@ -34,42 +40,65 @@ Depending on the selected configuration option, different implementation file is
 Movement data from motion sensors
 =================================
 
-Selecting either of the motion sensors (``CONFIG_DESKTOP_MOTION_SENSOR_PMW3360_ENABLE`` or ``CONFIG_DESKTOP_MOTION_SENSOR_PAW3212_ENABLE``) adds the :file:`src/hw_interface/motion_sensor.c` file to the compilation.
+Selecting either of the motion sensors (:option:`CONFIG_DESKTOP_MOTION_SENSOR_PMW3360_ENABLE` or :option:`CONFIG_DESKTOP_MOTION_SENSOR_PAW3212_ENABLE`) adds the :file:`src/hw_interface/motion_sensor.c` file to the compilation.
 
 The motion sensor is sampled from the context of a dedicated thread.
-The option ``CONFIG_DESKTOP_MOTION_SENSOR_THREAD_STACK_SIZE`` is used to set the thread's stack size.
+The option :option:`CONFIG_DESKTOP_MOTION_SENSOR_THREAD_STACK_SIZE` is used to set the thread's stack size.
 
 The motion sensor default sensitivity and power saving switching times can be set with the following options:
 
-* ``CONFIG_DESKTOP_MOTION_SENSOR_CPI`` - Default CPI.
-* ``CONFIG_DESKTOP_MOTION_SENSOR_SLEEP1_TIMEOUT_MS`` - ``Sleep 1`` mode default switch time.
-* ``CONFIG_DESKTOP_MOTION_SENSOR_SLEEP2_TIMEOUT_MS`` - ``Sleep 2`` mode default switch time.
-* ``CONFIG_DESKTOP_MOTION_SENSOR_SLEEP3_TIMEOUT_MS`` - ``Sleep 3`` mode default switch time.
+* :option:`CONFIG_DESKTOP_MOTION_SENSOR_CPI` - Default CPI.
+* :option:`CONFIG_DESKTOP_MOTION_SENSOR_SLEEP1_TIMEOUT_MS` - ``Sleep 1`` mode default switch time.
+* :option:`CONFIG_DESKTOP_MOTION_SENSOR_SLEEP2_TIMEOUT_MS` - ``Sleep 2`` mode default switch time.
+* :option:`CONFIG_DESKTOP_MOTION_SENSOR_SLEEP3_TIMEOUT_MS` - ``Sleep 3`` mode default switch time.
 
 For more information, see the sensor documentation and the Kconfig help.
 
 Movement data from buttons
 ==========================
 
-Selecting the ``CONFIG_DESKTOP_MOTION_BUTTONS_ENABLE`` option adds the :file:`src/hw_interface/motion_buttons.c` file to the compilation.
+Selecting the :option:`CONFIG_DESKTOP_MOTION_BUTTONS_ENABLE` option adds the :file:`src/hw_interface/motion_buttons.c` file to the compilation.
 
 Simulated movement data
 =======================
 
-Selecting the ``CONFIG_DESKTOP_MOTION_SIMULATED_ENABLE`` option adds the :file:`src/hw_interface/motion_simulated.c` file to the compilation.
-This option depends on the shell (``CONFIG_DESKTOP_SHELL_ENABLE`` option) to be enabled in the application configuration.
+Selecting the :option:`CONFIG_DESKTOP_MOTION_SIMULATED_ENABLE` option adds the :file:`src/hw_interface/motion_simulated.c` file to the compilation.
 
-When using this option, the motion module registers a shell module ``motion_sim`` and links to it two commands: ``start`` and ``stop``.
+If shell is available (:option:`CONFIG_SHELL` option is set) the motion module registers a shell module ``motion_sim`` and links to it two commands: ``start`` and ``stop``.
+If shell is not available motion generation starts automatically when the device is connected to the USB or Bluetooth.
 
 When started, the module will generate simulated motion events.
 The movement data in each event will be tracing the predefined path, an eight-sided polygon.
 
 You can configure the path with the following options:
 
-* ``CONFIG_DESKTOP_MOTION_SIMULATED_EDGE_TIME`` - Sets how long each edge is traced.
-* ``CONFIG_DESKTOP_MOTION_SIMULATED_SCALE_FACTOR`` - Scales the size of the polygon.
+* :option:`CONFIG_DESKTOP_MOTION_SIMULATED_EDGE_TIME` - Sets how long each edge is traced.
+* :option:`CONFIG_DESKTOP_MOTION_SIMULATED_SCALE_FACTOR` - Scales the size of the polygon.
 
 The ``stop`` command will cause the module to stop generating new events.
+
+Configuration channel
+*********************
+
+In a :ref:`configuration <nrf_desktop_motion_configuration>` where either :option:`CONFIG_DESKTOP_MOTION_SENSOR_PMW3360_ENABLE` or :option:`CONFIG_DESKTOP_MOTION_SENSOR_PAW3212_ENABLE` is used, you can configure the module through the :ref:`nrf_desktop_config_channel`.
+In these configurations, the module is a configuration channel listener and it provides the following configuration options:
+
+* :c:macro:`OPT_DESCR_MODULE_VARIANT`
+    This is a special, read-only option used to provide information about the module variant.
+    For the motion sensor, the module variant is a sensor model written in lowercase, for example ``pmw3360`` or ``paw3212``.
+
+    The :ref:`nrf_desktop_config_channel_script` uses the sensor model to identify the descriptions of the configuration options.
+    These descriptions are defined in the :file:`nrf/scripts/hid_configurator/modules/module_config.py`.
+* ``cpi``
+    The motion sensor CPI.
+* ``downshift``, ``rest1``, ``rest2``
+    These firmware option names correspond to switch times of motion sensor modes, namely the sleep modes of ``PAW3212`` and the rest modes of ``PMW3360``.
+    This kind of modes is used by a motion sensor to reduce the power consumption, but it also increases the sensor's response time when a motion is detected after a period of inactivity.
+
+    The :ref:`nrf_desktop_config_channel_script` refers to these mode options using names that depend on the sensor variant:
+
+    * For ``PAW3212``, the mode options are called respectively: ``sleep1_timeout``, ``sleep2_timeout``, and ``sleep3_timeout``.
+    * For ``PMW3360``, the mode options are called respectively: ``downshift_run``, ``downshift_rest1``, and ``downshift_rest2``.
 
 Implementation details
 **********************
@@ -116,5 +145,5 @@ Upon connection, the following happens:
 #. At that point, a next motion sampling is performed and the next ``motion_event`` sent.
 
 The module continues to sample data until disconnection or when there is no motion detected.
-The ``motion`` module assumes no motion when a number of consecutive samples equal to ``CONFIG_DESKTOP_MOTION_SENSOR_EMPTY_SAMPLES_COUNT`` returns zero on both axis.
+The ``motion`` module assumes no motion when a number of consecutive samples equal to :option:`CONFIG_DESKTOP_MOTION_SENSOR_EMPTY_SAMPLES_COUNT` returns zero on both axis.
 In such case, the module will switch back to ``STATE_IDLE`` and wait for the motion sensor trigger.

@@ -3,6 +3,10 @@
 Secure bootloader chain
 #######################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The |NCS| provides a secure bootloader solution based on the chain of trust concept.
 
 By using this bootloader chain, you can easily ensure that all code that is executed is authorized and your application is protected against running altered code.
@@ -41,8 +45,7 @@ The following image shows an abstract representation of the memory layout, assum
 
    Memory layout
 
-For detailed information about the memory layout, see the partition configuration in the DTS overlay file for the board that you are using.
-This file is located in ``subsys\bootloader\dts``.
+For detailed information about the memory layout, see the partition configuration in the :file:`<build folder>/partitions.yml` file or run ``ninja partition_manager_report``.
 
 .. _immutable_bootloader:
 
@@ -114,11 +117,23 @@ To add MCUboot as upgradable bootloader to your application, set :option:`CONFIG
 |how_to_configure|
 
 To make MCUboot upgradable, you must also add the immutable bootloader.
+Set option :option:`CONFIG_SECURE_BOOT` to do this.
 
 .. note::
    It is possible to include this bootloader without the immutable bootloader.
    In this case, MCUboot will act as an immutable bootloader.
 
+It is possible for MCUboot to use the cryptographic functionality exposed by the immutable bootloader, reducing the flash usage for MCUboot to less than 16 kB.
+To enable this configuration, apply the :file:`overlay-minimal-size.conf` Kconfig overlay file for the MCUboot image.
+This can be done in the following way:
+
+* Using cmake::
+
+     cmake -GNinja -DBOARD=nrf52840dk_nrf5840 -Dmcuboot_OVERLAY_CONFIG=overlay-minimal-size.conf -DCONFIG_SECURE_BOOT=y -DCONFIG_BOOTLOADER_MCUBOOT=y ../
+
+* Using west::
+
+     west build -b nrf52840dk_nrf52840 zephyr/samples/hello_world -- -Dmcuboot_OVERLAY_CONFIG=overlay-minimal-external-crypto.conf -DCONFIG_SECURE_BOOT=y -DCONFIG_BOOTLOADER_MCUBOOT=y
 
 See :doc:`mcuboot:index` for information about the default implementation of MCUboot.
 :ref:`mcuboot:mcuboot_ncs` gives details on the integration of MCUboot in |NCS|.

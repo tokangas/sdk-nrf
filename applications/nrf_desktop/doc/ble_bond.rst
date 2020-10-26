@@ -3,6 +3,10 @@
 Bluetooth LE bond module
 ########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 Use the |ble_bond| to manage the Bluetooth peers and bonds.
 The module controls the following operations:
 
@@ -57,7 +61,7 @@ Module states
 The |ble_bond| is implemented as a state machine.
 Every transition is triggered by an :ref:`event_manager` event with a predefined value.
 Some transitions can be also triggered by internal time-out.
-For example, the transition from :cpp:enum:`STATE_ERASE_PEER` to :cpp:enum:`STATE_IDLE` can be triggered by ``click_event``, ``selector_event``, or an internal time-out.
+For example, the transition from :c:enumerator:`STATE_ERASE_PEER` to :c:enumerator:`STATE_IDLE` can be triggered by ``click_event``, ``selector_event``, or an internal time-out.
 
 The following diagram shows states and transitions between these states after the module is initialized:
 
@@ -66,14 +70,18 @@ The following diagram shows states and transitions between these states after th
 
    nRF Desktop Bluetooth LE bond module state diagram (click to enlarge)
 
-Receiving ``click_event`` with a click type that is not included in the schematic will result in cancelling the ongoing operation and returning to :cpp:enum:`STATE_IDLE`.
-This does not apply to :cpp:enum:`STATE_DONGLE_CONN`.
+.. note::
+  The diagram does not present the states related to module going into standby (:c:enum:`STATE_STANDBY`, :c:enum:`STATE_DISABLED_STANDBY`, :c:enum:`STATE_DONGLE_CONN_STANDBY`).
+  For more information about the standby states, see `Standby states`_.
+
+Receiving ``click_event`` with a click type that is not included in the schematic will result in cancelling the ongoing operation and returning to :c:enumerator:`STATE_IDLE`.
+This does not apply to :c:enumerator:`STATE_DONGLE_CONN`.
 In this state, all the peer operations triggered by ``click_event`` are disabled.
 
 When the transition occurs:
 
-a. The ``ble_peer_operation_event`` with the defined :cpp:member:`op` is submitted.
-   For example, when the user confirms the erase advertising, the ``ble_peer_operation_event`` is submitted with :cpp:member:`op` set to :cpp:enum:`PEER_OPERATION_ERASE_ADV`.
+a. The :c:struct:`ble_peer_operation_event` with the defined :c:member:`ble_peer_operation_event.op` is submitted.
+   For example, when the user confirms the erase advertising, the :c:struct:`ble_peer_operation_event` is submitted with :c:member:`ble_peer_operation_event.op` set to :c:enumerator:`PEER_OPERATION_ERASE_ADV`.
 #. The currently selected application local identity is updated (if anything changed).
 
 Peer erasing
@@ -97,6 +105,27 @@ The new peer is associated with the currently used application local identity.
 After a time-out or on user request, the erase advertising is stopped.
 The application local identity still uses the Bluetooth local identity that was associated with it before the erase advertising.
 
+.. note::
+   The erase advertising time-out can be extended in case a new peer connects.
+   This ensures that a new peer will have time to establish the Bluetooth security level.
+
+   The time-out is increased to a bigger value when the passkey authentication is enabled (:option:`CONFIG_DESKTOP_BLE_ENABLE_PASSKEY`).
+   This gives the end user enough time to enter the passkey.
+
+Standby states
+==============
+
+The module can go into one of the following standby states to make sure that the peer operations are not triggered when the device is suspended by :ref:`nrf_desktop_power_manager`:
+
+* :c:enumerator:`STATE_DISABLED_STANDBY` - the module is suspended before initialization.
+* :c:enumerator:`STATE_DONGLE_CONN_STANDBY` - the module is suspended while the dongle peer is selected.
+* :c:enumerator:`STATE_STANDBY` - the module is suspended while other Bluetooth peers are selected.
+
+Going into the standby states and leaving them happens in reaction to the following events:
+
+* ``power_down_event`` - on this event, the module goes into one of the standby states and the ongoing peer operation is cancelled.
+* ``wake_up_event`` - on this event, the module returns from the standby state.
+
 Configuration
 *************
 
@@ -117,17 +146,17 @@ Peer control using a button
 
 Complete the following steps to let the user control Bluetooth peers using the dedicated button:
 
-1. Set the ``CONFIG_DESKTOP_BLE_PEER_CONTROL`` option to enable the feature.
+1. Set the :option:`CONFIG_DESKTOP_BLE_PEER_CONTROL` option to enable the feature.
 #. Configure the :ref:`nrf_desktop_buttons`.
-#. Define the button's key ID as ``CONFIG_DESKTOP_BLE_PEER_CONTROL_BUTTON``.
+#. Define the button's key ID as :option:`CONFIG_DESKTOP_BLE_PEER_CONTROL_BUTTON`.
 #. Add the button to the :ref:`nrf_desktop_click_detector` configuration, because the |ble_bond| reacts on ``click_event``.
 
 The following peer operations can be enabled:
 
-* ``CONFIG_DESKTOP_BLE_PEER_ERASE`` - Bluetooth LE peer erase triggered at any time.
-* ``CONFIG_DESKTOP_BLE_PEER_ERASE_ON_START`` - Erase advertising triggered by long press of the predefined button on system start.
+* :option:`CONFIG_DESKTOP_BLE_PEER_ERASE` - Bluetooth LE peer erase triggered at any time.
+* :option:`CONFIG_DESKTOP_BLE_PEER_ERASE_ON_START` - Erase advertising triggered by long press of the predefined button on system start.
   This option can be used only by nRF Desktop peripheral.
-* ``CONFIG_DESKTOP_BLE_PEER_SELECT`` - Select Bluetooth LE peer.
+* :option:`CONFIG_DESKTOP_BLE_PEER_SELECT` - Select Bluetooth LE peer.
   This option can be used only by nRF Desktop peripheral.
 * ``CONFIG_DESKTOP0_BLE_NEW_PEER_SCAN_REQUEST`` - Scan for new Bluetooth peers.
   This option can be used only by nRF Desktop central.
@@ -138,7 +167,7 @@ Peer control using a hardware selector
 .. note::
     This feature can be used only by nRF Desktop peripheral devices.
 
-Set the ``CONFIG_DESKTOP_BLE_DONGLE_PEER_ENABLE`` option to use the dedicated local identity to connect with the dongle.
+Set the :option:`CONFIG_DESKTOP_BLE_DONGLE_PEER_ENABLE` option to use the dedicated local identity to connect with the dongle.
 The last application local identity (the one with the highest ID) is used for this purpose.
 
 The dongle is the nRF Desktop central.
@@ -148,8 +177,8 @@ This local identity is meant to be paired with the dongle during the production 
 The dongle peer is selected using the :ref:`nrf_desktop_selector`.
 You must also define the following parameters of the selector used to switch between dongle peer and other Bluetooth LE peers:
 
-* ``CONFIG_DESKTOP_BLE_DONGLE_PEER_SELECTOR_ID`` - Selector ID.
-* ``CONFIG_DESKTOP_BLE_DONGLE_PEER_SELECTOR_POS`` - Selector position for the dongle peer (when selector is in other position, other Bluetooth peers are selected).
+* :option:`CONFIG_DESKTOP_BLE_DONGLE_PEER_SELECTOR_ID` - Selector ID.
+* :option:`CONFIG_DESKTOP_BLE_DONGLE_PEER_SELECTOR_POS` - Selector position for the dongle peer (when selector is in other position, other Bluetooth peers are selected).
 
 .. note::
     The Bluetooth local identity used for the dongle peer does not provide any special capabilities.
@@ -162,7 +191,7 @@ Default Bluetooth local identity on peripheral
 ==============================================
 
 By default, the default Bluetooth local identity is unused, because it cannot be reset.
-You can set ``CONFIG_DESKTOP_BLE_USE_DEFAULT_ID`` to make the nRF Desktop peripheral initially use the default Bluetooth local identity for the application local identity with ID ``0``.
+You can set :option:`CONFIG_DESKTOP_BLE_USE_DEFAULT_ID` to make the nRF Desktop peripheral initially use the default Bluetooth local identity for the application local identity with ID ``0``.
 After the successful erase advertising for application local identity with ID ``0``, the default Bluetooth local identity is switched out and it is no longer used.
 The peer bonded with the default Bluetooth local identity is unpaired.
 
@@ -180,7 +209,10 @@ The module provides the following :ref:`nrf_desktop_config_channel` options:
 * ``peer_search`` - Request scanning for new peripherals.
   The option is available only for the nRF Desktop central.
 
-The options can be used only if the module is in :cpp:enum:`STATE_IDLE`.
+Perform :ref:`nrf_desktop_config_channel` set operation on selected option to trigger the operation.
+The options can be used only if the module is in :c:enumerator:`STATE_IDLE`.
+Because of this, they cannot be used when device is suspended by :ref:`nrf_desktop_power_manager`.
+The device must be woken up from suspended state before the operation is started.
 
 Shell integration
 *****************

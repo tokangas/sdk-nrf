@@ -39,7 +39,7 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT),
 /* Define the length of the IMEI AT COMMAND response buffer */
 #define CGSN_RESP_LEN 19
 #define IMEI_LEN 15
-#define CLIENT_ID_LEN (IMEI_LEN + sizeof("nrf-"))
+#define CLIENT_ID_LEN (sizeof(CONFIG_NRF_CLOUD_CLIENT_ID_PREFIX) + IMEI_LEN)
 #else
 #define CLIENT_ID_LEN sizeof(CONFIG_CLOUD_CLIENT_ID)
 #endif
@@ -382,9 +382,10 @@ static int client_id_get(char *id_buf, size_t len)
 	if (err) {
 		printk("Error when trying to do at_cmd_write: %d, at_state: %d",
 			err, at_state);
+		return err;
 	}
-
-	snprintf(id_buf, len, "nrf-%.*s", IMEI_LEN, imei_buf);
+	snprintf(id_buf, len, "%s%.*s", CONFIG_NRF_CLOUD_CLIENT_ID_PREFIX,
+		 IMEI_LEN, imei_buf);
 #else
 	memcpy(id_buf, CONFIG_CLOUD_CLIENT_ID, len);
 #endif /* !defined(NRF_CLOUD_CLIENT_ID) */
@@ -398,10 +399,10 @@ static int client_init(struct mqtt_client *client, char *hostname)
 	broker_init(hostname);
 	int ret = client_id_get(client_id_buf, sizeof(client_id_buf));
 
-	printk("client_id: %s\n", client_id_buf);
 	if (ret != 0) {
 		return ret;
 	}
+	printk("client_id: %s\n", client_id_buf);
 
 	/* MQTT client configuration */
 	client->broker = &broker_storage;

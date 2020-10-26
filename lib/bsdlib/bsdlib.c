@@ -12,6 +12,10 @@
 #include <bsd.h>
 #include <bsd_platform.h>
 
+#ifdef CONFIG_LTE_LINK_CONTROL
+#include <modem/lte_lc.h>
+#endif
+
 #ifndef CONFIG_TRUSTED_EXECUTION_NONSECURE
 #error  bsdlib must be run as non-secure firmware.\
 	Are you building for the correct board ?
@@ -30,7 +34,7 @@ extern void ipc_proxy_irq_handler(void);
 
 static int init_ret;
 
-static int _bsdlib_init(struct device *unused)
+static int _bsdlib_init(const struct device *unused)
 {
 	if (!first_time_init) {
 		sys_slist_init(&shutdown_threads);
@@ -105,6 +109,9 @@ int bsdlib_get_init_ret(void)
 
 int bsdlib_shutdown(void)
 {
+#ifdef CONFIG_LTE_LINK_CONTROL
+	lte_lc_deinit();
+#endif
 	bsd_shutdown();
 
 	return 0;

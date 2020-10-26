@@ -28,6 +28,12 @@ static int thingy91_magpio_configure(void)
 	int buffer;
 	uint8_t read_buffer[AT_CMD_MAX_READ_LENGTH];
 
+	if (!IS_ENABLED(CONFIG_BSD_LIBRARY_SYS_INIT)) {
+		LOG_INF("BSDlib is not yet initialized, AT commands not sent");
+		LOG_INF("Configuration of MAGPIO and COEX0 is left to drivers");
+		return 0;
+	}
+
 	at_socket_fd = socket(AF_LTE, SOCK_DGRAM, NPROTO_AT);
 	if (at_socket_fd == -1) {
 		LOG_ERR("AT socket could not be opened");
@@ -87,7 +93,7 @@ static int thingy91_magpio_configure(void)
 	return 0;
 }
 
-static int thingy91_board_init(struct device *dev)
+static int thingy91_board_init(const struct device *dev)
 {
 	int err;
 

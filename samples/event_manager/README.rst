@@ -3,6 +3,10 @@
 Event Manager
 #############
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Event Manager sample demonstrates the functionality of the :ref:`event_manager` subsystem.
 It uses an event-driven architecture, where different modules communicate through sending and processing events.
 
@@ -24,7 +28,7 @@ Controller (``controller.c``):
 
 Statistics (``stats.c``):
   This module waits for measurement events from the sensor.
-  Every time a measurement event is received, the module calculates simple statistics about one of the measurement values that are transmitted as part of the event and logs them.
+  The module calculates and logs basic statistics about one of the measurement values that are transmitted as part of the event.
 
 
 Requirements

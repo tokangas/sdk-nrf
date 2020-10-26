@@ -3,6 +3,10 @@
 Bluetooth: Mesh sensor client
 #############################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Bluetooth Mesh sensor client sample demonstrates how to set up a basic Bluetooth Mesh :ref:`sensor client <bt_mesh_sensor_cli_readme>` model application that gets sensor data from one :ref:`sensor server <bt_mesh_sensor_srv_readme>` model.
 Four different sensor types are used to showcase different ways for the server to publish data.
 In addition, the samples demonstrate usage of both :ref:`single-channel sensor types and sensor series types <bt_mesh_sensor_types_channels>`.
@@ -21,10 +25,10 @@ This sample is split into the following source files:
 
 The following Mesh sensor types are used in this sample:
 
-* :cpp:var:`bt_mesh_sensor_present_dev_op_temp` - Published by the server according to its publishing period.
-* :cpp:var:`bt_mesh_sensor_rel_runtime_in_a_dev_op_temp_range` - Periodically requested by the client.
-* :cpp:var:`bt_mesh_sensor_presence_detected` - Published when a button is pressed on the server board.
-* :cpp:var:`bt_mesh_sensor_time_since_presence_detected` - Periodically requested by the client and published by the server according to its publishing period.
+* :c:var:`bt_mesh_sensor_present_dev_op_temp` - Published by the server according to its publishing period.
+* :c:var:`bt_mesh_sensor_rel_runtime_in_a_dev_op_temp_range` - Periodically requested by the client.
+* :c:var:`bt_mesh_sensor_presence_detected` - Published when a button is pressed on the server board.
+* :c:var:`bt_mesh_sensor_time_since_presence_detected` - Periodically requested by the client and published by the server according to its publishing period.
 
 
 Provisioning
@@ -56,16 +60,16 @@ The models are used for the following purposes:
 * Mesh sensor client gets sensor data from one or more :ref:`Mesh sensor server(s) <bt_mesh_sensor_srv_readme>`.
 
 The model handling is implemented in :file:`src/model_handler.c`.
-A :cpp:class:`k_delayed_work` item is submitted recursively to periodically request sensor data.
+A :c:struct:`k_delayed_work` item is submitted recursively to periodically request sensor data.
 
 Requirements
 ************
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set2_start
-   :end-before: set2_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :sample-yaml-rows:
 
 The sample also requires a smartphone with Nordic Semiconductor's nRF Mesh mobile app installed in one of the following versions:
 

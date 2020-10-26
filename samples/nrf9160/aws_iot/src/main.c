@@ -27,10 +27,17 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT),
 
 #define APP_TOPICS_COUNT CONFIG_AWS_IOT_APP_SUBSCRIPTION_LIST_COUNT
 
+/* Timeout in seconds in which the application will wait for an initial event
+ * from the date time library.
+ */
+#define DATE_TIME_TIMEOUT_S 15
+
 static struct k_delayed_work shadow_update_work;
+static struct k_delayed_work connect_work;
 static struct k_delayed_work shadow_update_version_work;
 
 K_SEM_DEFINE(lte_connected, 0, 1);
+K_SEM_DEFINE(date_time_obtained, 0, 1);
 
 static int json_add_obj(cJSON *parent, const char *str, cJSON *item)
 {
@@ -135,13 +142,29 @@ static int shadow_update(bool version_number_include)
 		printk("aws_iot_send, error: %d\n", err);
 	}
 
-	k_free(message);
+	cJSON_FreeString(message);
 
 cleanup:
 
 	cJSON_Delete(root_obj);
 
 	return err;
+}
+
+static void connect_work_fn(struct k_work *work)
+{
+	int err;
+
+	err = aws_iot_connect(NULL);
+	if (err) {
+		printk("aws_iot_connect, error: %d\n", err);
+	}
+
+	printk("Next connection retry in %d seconds\n",
+	       CONFIG_CONNECTION_RETRY_TIMEOUT_SECONDS);
+
+	k_delayed_work_submit(&connect_work,
+			K_SECONDS(CONFIG_CONNECTION_RETRY_TIMEOUT_SECONDS));
 }
 
 static void shadow_update_work_fn(struct k_work *work)
@@ -170,6 +193,33 @@ static void shadow_update_version_work_fn(struct k_work *work)
 	}
 }
 
+static void print_received_data(const char *buf, const char *topic,
+				size_t topic_len)
+{
+	char *str = NULL;
+	cJSON *root_obj = NULL;
+
+	root_obj = cJSON_Parse(buf);
+	if (root_obj == NULL) {
+		printk("cJSON Parse failure");
+		return;
+	}
+
+	str = cJSON_Print(root_obj);
+	if (str == NULL) {
+		printk("Failed to print JSON object");
+		goto clean_exit;
+	}
+
+	printf("Data received from AWS IoT console:\nTopic: %.*s\nMessage: %s\n",
+	       topic_len, topic, str);
+
+	cJSON_FreeString(str);
+
+clean_exit:
+	cJSON_Delete(root_obj);
+}
+
 void aws_iot_event_handler(const struct aws_iot_evt *const evt)
 {
 	switch (evt->type) {
@@ -178,6 +228,8 @@ void aws_iot_event_handler(const struct aws_iot_evt *const evt)
 		break;
 	case AWS_IOT_EVT_CONNECTED:
 		printk("AWS_IOT_EVT_CONNECTED\n");
+
+		k_delayed_work_cancel(&connect_work);
 
 		if (evt->data.persistent_session) {
 			printk("Persistent session enabled\n");
@@ -213,9 +265,17 @@ void aws_iot_event_handler(const struct aws_iot_evt *const evt)
 	case AWS_IOT_EVT_DISCONNECTED:
 		printk("AWS_IOT_EVT_DISCONNECTED\n");
 		k_delayed_work_cancel(&shadow_update_work);
+
+		if (k_delayed_work_pending(&connect_work)) {
+			break;
+		}
+
+		k_delayed_work_submit(&connect_work, K_NO_WAIT);
 		break;
 	case AWS_IOT_EVT_DATA_RECEIVED:
 		printk("AWS_IOT_EVT_DATA_RECEIVED\n");
+		print_received_data(evt->data.msg.ptr, evt->data.msg.topic.str,
+				    evt->data.msg.topic.len);
 		break;
 	case AWS_IOT_EVT_FOTA_START:
 		printk("AWS_IOT_EVT_FOTA_START\n");
@@ -261,6 +321,7 @@ void aws_iot_event_handler(const struct aws_iot_evt *const evt)
 static void work_init(void)
 {
 	k_delayed_work_init(&shadow_update_work, shadow_update_work_fn);
+	k_delayed_work_init(&connect_work, connect_work_fn);
 	k_delayed_work_init(&shadow_update_version_work,
 			    shadow_update_version_work_fn);
 }
@@ -377,7 +438,7 @@ static int app_topics_subscribe(void)
 		[0].str = custom_topic,
 		[0].len = strlen(custom_topic),
 		[1].str = custom_topic_2,
-		[1].len = strlen(custom_topic)
+		[1].len = strlen(custom_topic_2)
 	};
 
 	err = aws_iot_subscription_topics_add(topics_list,
@@ -387,6 +448,31 @@ static int app_topics_subscribe(void)
 	}
 
 	return err;
+}
+
+static void date_time_event_handler(const struct date_time_evt *evt)
+{
+	switch (evt->type) {
+	case DATE_TIME_OBTAINED_MODEM:
+		printk("DATE_TIME_OBTAINED_MODEM\n");
+		break;
+	case DATE_TIME_OBTAINED_NTP:
+		printk("DATE_TIME_OBTAINED_NTP\n");
+		break;
+	case DATE_TIME_OBTAINED_EXT:
+		printk("DATE_TIME_OBTAINED_EXT\n");
+		break;
+	case DATE_TIME_NOT_OBTAINED:
+		printk("DATE_TIME_NOT_OBTAINED\n");
+		break;
+	default:
+		break;
+	}
+
+	/** Do not depend on obtained time, continue upon any event from the
+	 *  date time library.
+	 */
+	k_sem_give(&date_time_obtained);
 }
 
 void main(void)
@@ -430,15 +516,13 @@ void main(void)
 #endif
 
 
-	date_time_update_async();
+	date_time_update_async(date_time_event_handler);
 
-	/** Sleep to ensure that time has been obtained before
-	 *  communication with AWS IoT.
-	 */
-	k_sleep(K_SECONDS(15));
-
-	err = aws_iot_connect(NULL);
+	err = k_sem_take(&date_time_obtained, K_SECONDS(DATE_TIME_TIMEOUT_S));
 	if (err) {
-		printk("aws_iot_connect failed: %d\n", err);
+		printk("Date time, no callback event within %d seconds\n",
+			DATE_TIME_TIMEOUT_S);
 	}
+
+	k_delayed_work_submit(&connect_work, K_NO_WAIT);
 }

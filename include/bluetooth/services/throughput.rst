@@ -3,6 +3,10 @@
 GATT Throughput Service
 #######################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The GATT Throughput Service is a custom service that receives and writes data and returns metrics about these operations.
 
 To test GATT throughput, the client (central) writes without response to the characteristic on the server (peripheral).
@@ -41,6 +45,6 @@ API documentation
 | Header file: :file:`include/throughput.h`
 | Source file: :file:`subsys/bluetooth/services/throughput.c`
 
-.. doxygengroup::  bt_gatt_throughput
+.. doxygengroup::  bt_throughput
    :project: nrf
    :members:

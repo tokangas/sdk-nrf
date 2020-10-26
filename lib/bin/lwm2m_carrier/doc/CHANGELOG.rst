@@ -3,7 +3,66 @@
 Changelog
 #########
 
+.. contents::
+   :local:
+   :depth: 2
+
 All notable changes to this project are documented in this file.
+
+liblwm2m_carrier 0.10.0
+***********************
+
+Snapshot release for modem firmware version 1.2.2 and the upcoming version 1.1.4, and |NCS| 1.4.0.
+
+This release is intended to let users begin integration towards the AT&T and Verizon device management platforms.
+Modem firmware version 1.1.4 must be used for Verizon, and the modem firmware version 1.2.2 must be used for AT&T.
+
+The snapshot can be used for development and testing only.
+It is not ready for certification.
+
+Certification status
+====================
+
+The library is not certified with any carrier.
+
+Changes
+=======
+
+* Reduced the required amount of stack and heap allocated by the library.
+* Reduced the power consumption of the library.
+* Renamed the event :c:macro:`LWM2M_CARRIER_EVENT_READY` to :c:macro:`LWM2M_CARRIER_EVENT_REGISTERED`.
+* Introduced a new event :c:macro:`LWM2M_CARRIER_EVENT_LTE_READY`, to indicate that the LTE link can be used by the application.
+* The Modem DFU socket can now be used by the application when it is not needed by the library.
+
+liblwm2m_carrier 0.9.1
+**********************
+
+Release with AT&T support, intended for modem firmware version 1.2.1 and |NCS| version 1.3.1.
+
+Certification status
+====================
+
+The library is certified with AT&T.
+
+Size
+====
+
+See :ref:`lwm2m_lib_size` for an explanation of the library size in different scenarios.
+
++-------------------------+---------------+------------+
+|                         | Flash (Bytes) | RAM (Bytes)|
++-------------------------+---------------+------------+
+| Library size            | 61450         | 9541       |
+| (binary)                |               |            |
++-------------------------+---------------+------------+
+| Library size            | 92750         | 30992      |
+| (reference application) |               |            |
++-------------------------+---------------+------------+
+
+Changes
+=======
+
+* Minor fixes and improvements.
 
 liblwm2m_carrier 0.9.0
 **********************
@@ -36,9 +95,37 @@ Changes
   * Previous format: Byte array. For example, ``static const char bootstrap_psk[] = {0x01, 0x02, 0xab, 0xcd, 0xef};``.
   * Current format: A null-terminated string that must be composed of hexadecimal numbers. For example "0102abcdef".
 
+liblwm2m_carrier 0.8.2
+**********************
+
+Release for modem firmware version 1.1.2, with support for Verizon Wireless.
+
+Certification status
+====================
+
+The library is certified with Verizon Wireless.
+
+Changes
+=======
+
+* Fixed a memory leak.
 * Added lwm2m_carrier_event_deferred_t to retrieve the event reason and timeout.
 * Added FOTA errors to LWM2M_CARRIER_EVENT_ERROR event.
 
+Size
+====
+
+See :ref:`lwm2m_lib_size` for an explanation of the library size in different scenarios.
+
++-------------------------+---------------+------------+
+|                         | Flash (Bytes) | RAM (Bytes)|
++-------------------------+---------------+------------+
+| Library size            | 45152         | 7547       |
+| (binary)                |               |            |
++-------------------------+---------------+------------+
+| Library size            | 65572         | 28128      |
+| (reference application) |               |            |
++-------------------------+---------------+------------+
 
 liblwm2m_carrier 0.8.1+build1
 *****************************
@@ -55,6 +142,20 @@ Changes
 
 * Fixed a memory leak.
 
+Size
+====
+
+See :ref:`lwm2m_lib_size` for an explanation of the library size in different scenarios.
+
++-------------------------+---------------+------------+
+|                         | Flash (Bytes) | RAM (Bytes)|
++-------------------------+---------------+------------+
+| Library size            | 44856         | 7546       |
+| (binary)                |               |            |
++-------------------------+---------------+------------+
+| Library size            | 64680         | 28128      |
+| (reference application) |               |            |
++-------------------------+---------------+------------+
 
 liblwm2m_carrier 0.8.1
 **********************

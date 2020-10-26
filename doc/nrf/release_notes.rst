@@ -1,7 +1,7 @@
 .. _release_notes:
 
-|NCS| Release Notes
-###################
+Release Notes
+#############
 
 See the release notes for information about specific |NCS| releases.
 
@@ -15,8 +15,11 @@ Important issues that are discovered after a release is tagged are listed in the
 
 .. toctree::
    :maxdepth: 1
+   :caption: Subpages:
 
    releases/release-notes-latest
+   releases/release-notes-1.3.2
+   releases/release-notes-1.3.1
    releases/release-notes-1.3.0
    releases/release-notes-1.2.1
    releases/release-notes-1.2.0
