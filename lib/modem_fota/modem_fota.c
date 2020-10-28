@@ -275,6 +275,8 @@ static void parse_xtime_time(const char *time_str)
 	temp[0] = time_str[3];
 	temp[1] = time_str[2];
 	date_time.tm_mon = atoi(temp);
+	/* Month is presented by months since January (0-11) */
+	date_time.tm_mon--;
 
 	/* Day */
 	temp[0] = time_str[5];
@@ -297,7 +299,7 @@ static void parse_xtime_time(const char *time_str)
 	date_time.tm_sec = atoi(temp);
 
 	LOG_DBG("Time: %d.%d.%d %02d:%02d:%02d UTC",
-		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
+		date_time.tm_mday, date_time.tm_mon + 1, date_time.tm_year + 1900,
 		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
 	modem_time = (int64_t)timeutil_timegm64(&date_time) * 1000;
@@ -318,6 +320,8 @@ static void parse_cclk_time(const char *time_str)
 	temp[0] = time_str[3];
 	temp[1] = time_str[4];
 	date_time.tm_mon = atoi(temp);
+	/* Month is presented by months since January (0-11) */
+	date_time.tm_mon--;
 
 	/* Day */
 	temp[0] = time_str[6];
@@ -340,7 +344,7 @@ static void parse_cclk_time(const char *time_str)
 	date_time.tm_sec = atoi(temp);
 
 	LOG_DBG("Time: %d.%d.%d %02d:%02d:%02d UTC",
-		date_time.tm_mday, date_time.tm_mon, date_time.tm_year + 1900,
+		date_time.tm_mday, date_time.tm_mon + 1, date_time.tm_year + 1900,
 		date_time.tm_hour, date_time.tm_min, date_time.tm_sec);
 
 	modem_time = (int64_t)timeutil_timegm64(&date_time) * 1000;
