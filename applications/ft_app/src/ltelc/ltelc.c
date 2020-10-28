@@ -246,8 +246,11 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
 	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
 		/* print current value right away: */
+		shell_print(uart_shell, "RSRP subscribed");
 		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
-	}		
+	} else {
+		shell_print(uart_shell, "RSRP unsubscribed");
+	}
 }
 
 int ltelc_pdn_init_and_connect(const char *apn_name)
