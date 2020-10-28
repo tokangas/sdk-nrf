@@ -116,7 +116,7 @@
 #undef CURL_WITH_MULTI_SSL
 
 /* enable debug build options */
-#define DEBUGBUILD 1
+#undef DEBUGBUILD
 
 /* your Entropy Gathering Daemon socket pathname */
 #undef EGD_SOCKET
@@ -205,6 +205,8 @@
 
 /* Define to 1 if you have a working fcntl O_NONBLOCK function. */
 #define HAVE_FCNTL_O_NONBLOCK 1
+
+//#define USE_BLOCKING_SOCKETS 1 //jani: non-blocking connect seems to be causing problems
 
 /* Define to 1 if you have the `fnmatch' function. */
 #undef HAVE_FNMATCH
@@ -632,7 +634,7 @@
 #define HAVE_SOCKET 1
 
 /* Define to 1 if you have the socketpair function. */
-#define HAVE_SOCKETPAIR 1
+#undef HAVE_SOCKETPAIR
 
 /* Define to 1 if you have the <socket.h> header file. */
 /* #undef HAVE_SOCKET_H */
@@ -863,7 +865,7 @@
 #undef NTLM_WB_FILE
 
 /* cpu-machine-OS */
-#define OS "zephyr"
+#define OS "FTA on top of Zephyr"
 
 /* Name of package */
 //#define PACKAGE "curl"

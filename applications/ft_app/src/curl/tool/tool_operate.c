@@ -168,7 +168,6 @@ static curl_off_t vms_realfilesize(const char *name,
   FILE * file;
 
   /* !checksrc! disable FOPENMODE 1 */
-#erroro "why here??"  
   file = fopen(name, "r"); /* VMS */
   if(file == NULL) {
     return 0;
@@ -400,6 +399,10 @@ static CURLcode post_per_transfer(struct GlobalConfig *global,
 
   if(!outs->s_isreg && outs->stream) {
     /* Dump standard stream buffered data */
+    
+    /* FTA_CURL_INTEGRATION_CHANGE: dump with newline */
+    //fputc('\n', outs->stream); //FTA_CURL_INTEGRATION_CHANGE
+
     int rc = fflush(outs->stream);
     if(!result && rc) {
       /* something went wrong in the writing process */
@@ -815,7 +818,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
             if(result == CURLE_OUT_OF_MEMORY)
               errorf(global, "out of memory\n");
           }
-          else if(!state->up) {
+          else if(!state->up && infiles) {
             state->uploadfile = strdup(infiles);
             if(!state->uploadfile) {
               errorf(global, "out of memory\n");

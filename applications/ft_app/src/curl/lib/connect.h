@@ -40,7 +40,12 @@ timediff_t Curl_timeleft(struct Curl_easy *data,
                          struct curltime *nowp,
                          bool duringconnect);
 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #define DEFAULT_CONNECT_TIMEOUT 300000 /* milliseconds == five minutes */
+#else
+//we want this much smaller because not currently have possibility to signal the interupt/cancel: */
+#define DEFAULT_CONNECT_TIMEOUT 30000 /* milliseconds == 30 seconds */
+#endif
 
 /*
  * Used to extract socket and connectdata struct for the most recent
