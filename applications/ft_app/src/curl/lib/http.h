@@ -88,7 +88,11 @@ CURLcode Curl_http_auth_act(struct connectdata *conn);
    It must not be greater than 64K to work on VMS.
 */
 #ifndef MAX_INITIAL_POST_SIZE
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 #define MAX_INITIAL_POST_SIZE (64*1024)
+#else
+#define MAX_INITIAL_POST_SIZE (4*708)
+#endif
 #endif
 
 /* EXPECT_100_THRESHOLD is the request body size limit for when libcurl will
@@ -113,6 +117,7 @@ struct HTTP {
   curl_mimepart *sendit;
   curl_off_t postsize; /* off_t to handle large file sizes */
   const char *postdata;
+  bool generate_data; //jani
 
   const char *p_pragma;      /* Pragma: string */
   const char *p_accept;      /* Accept: string */

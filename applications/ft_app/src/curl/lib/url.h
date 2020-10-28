@@ -42,7 +42,7 @@
 #define UPLOADBUFFER_MIN CURL_MAX_WRITE_SIZE
 #else
 /* In embedded this needs to be a lot of smaller */
-#define UPLOADBUFFER_DEFAULT 2048
+#define UPLOADBUFFER_DEFAULT (5 * 708)
 #define UPLOADBUFFER_MAX (2 * CURL_MAX_WRITE_SIZE)
 #define UPLOADBUFFER_MIN CURL_MAX_WRITE_SIZE
 #endif
