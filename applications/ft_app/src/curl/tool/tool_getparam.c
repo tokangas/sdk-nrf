@@ -1492,7 +1492,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             return PARAM_NO_MEM;
           size = 0;
         }
-      }
+      } /* FTA_CURL_INTEGRATION_CHANGE: end */
       else {
         GetStr(&postdata, nextarg);
         if(postdata)
