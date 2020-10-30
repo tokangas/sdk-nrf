@@ -83,6 +83,8 @@ static int fta_shell_init(struct device *unused)
 	printk("\nThe FT app sample started\n\n");
 
 #if defined(CONFIG_BSD_LIBRARY)
+	ltelc_init();
+
 	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
 #endif
 	return 0;
@@ -93,7 +95,6 @@ void main(void)
 	int err;
 
 #if defined(CONFIG_BSD_LIBRARY)
-    ltelc_init();
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
@@ -108,7 +109,6 @@ void main(void)
 		 * lte_async_connect_handler() to determine when the LTE link is up.
 		 */
 	}
-	lte_lc_register_handler(ltelc_ind_handler);
 #endif
 
 	modem_trace_enable();
