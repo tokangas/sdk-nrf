@@ -182,14 +182,49 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		return -EINVAL;
 	}
 
+	// GET ADDRESS
+	if ((address == NULL) || (strlen(address) == 0)) {
+		shell_error(shell_global, "Address not given");
+		sock_info_clear(socket_info);
+		return -EINVAL;
+	}
+
+	struct addrinfo hints = {
+		.ai_family = family,
+		.ai_socktype = type,
+	};
+	err = getaddrinfo(address, NULL, &hints, &socket_info->addrinfo);
+	if (err) {
+		shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
+		sock_info_clear(socket_info);
+		return errno;
+	}
+
+	// Set port to address info
+	if (family == AF_INET) {
+		((struct sockaddr_in *)socket_info->addrinfo->ai_addr)->sin_port = htons(port);
+	} else if (family == AF_INET6) {
+		((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
+	} else {
+		assert(0);
+	}
+
 	// CREATE SOCKET
 	// If proto is set to zero to let lower stack select it,
 	// socket creation fails with errno=43 (PROTONOSUPPORT)
 	int fd = socket(family, type, proto);
 	if (fd < 0) {
-		shell_error(shell_global, "Socket create failed, err %d", errno);
+		if (errno == ENFILE || errno == EMFILE) {
+			shell_error(shell_global,
+				"Socket creation failed due to maximum number of sockets in the system exceeded (%d). "
+				"Notice that all file descriptors in the system are taken into account and "
+				"not just sockets created through this application.", CONFIG_POSIX_MAX_FDS);
+		} else {
+			shell_error(shell_global, "Socket create failed, err %d", errno);
+		}
 		return errno;
 	}
+
 	// Socket has been created so populate its structure with information
 	socket_info->in_use = true;
 	socket_info->fd = fd;
@@ -241,29 +276,6 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 			free(pdp_context_info_tbl.array);
 	}
 
-	// GET ADDRESS
-	struct addrinfo hints = {
-		.ai_family = family,
-		.ai_socktype = type,
-	};
-	err = getaddrinfo(address, NULL, &hints, &socket_info->addrinfo);
-	if (err) {
-		shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
-		sock_info_clear(socket_info);
-		return errno;
-	}
-
-	// Set port to address info
-	if (family == AF_INET) {
-		((struct sockaddr_in *)socket_info->addrinfo->ai_addr)->sin_port = htons(port);
-	} else if (family == AF_INET6) {
-		((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
-	} else {
-		assert(0);
-	}
-
-	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
-
 	// BIND SOCKET
 	if (bind_port > 0) {
 		struct sockaddr_in sa_local;
@@ -310,6 +322,9 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 
 	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
 	set_sock_mode(socket_info->fd, SOCK_MODE_NONBLOCKING);
+
+	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
+
 	return 0;
 }
 

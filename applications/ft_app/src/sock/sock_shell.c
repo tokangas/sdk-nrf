@@ -171,6 +171,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_receive_start = false;
 	bool arg_verbose = false;
 
+	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
+
 	// Parse command line
 	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
 		int addr_len = 0;
@@ -194,7 +196,6 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 					addr_len, SOCK_MAX_ADDR_LEN);
 				return -EINVAL;
 			}
-			memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
 			memcpy(arg_address, optarg, addr_len);
 			break;
 		case 'p': // Port
