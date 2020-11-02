@@ -35,23 +35,36 @@ const char ltelc_usage_str[] =
 	"Usage: ltelc <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
-	"  help:             Show this message\n"
-	"  status:           Show status of the current connection\n"
-	"  rsrp -s | -u:     Subscribe/unsubscribe for RSRP signal info\n"
-	"  connect -a <apn>: Connect to given apn\n"
-	"  disconnect -a <apn> | -I <cid>: Disconnect from given apn\n"
+	"  help:                  Show this message\n"
+	"  status:                Show status of the current connection\n"
+	"  rsrp [rsrp options]:   Subscribe/unsubscribe for RSRP signal info\n"
+	"  connect -a <apn> | --apn <apn>: Connect to given apn\n"
+	"  disconnect [<apn> | <cid>]:     Disconnect from given apn\n"
+//	"  funmode -0 (power off)| -1 | -4: Set functional mode\n"
 	"\n"
 	"General options:\n"
-	"  -a <apn>, [str]   Access Point Name\n"
+	"  -a <apn> | --apn <apn>, [str] Access Point Name\n"
 	"\n"
 	"Options for 'rsrp' command:\n"
-	"  -s,       [bool]  Subscribe for RSRP info\n"
-	"  -u,       [bool]  Unsubscribe for RSRP info\n"
+	"  -s | --subscribe   [bool]  Subscribe for RSRP info\n"
+	"  -u | --unsubscribe [bool]  Unsubscribe for RSRP info\n"
 	"\n"
 	"Options for 'disconnect' command:\n"
-	"  -I <cid>, [int]   Use this option to disconnect specific PDN CID\n"
+	"  -I <cid> | --cid <cid>, [int]   Use this option to disconnect specific PDN CID\n"
 	"\n"
 	;
+
+ /* Specifying the expected options (both long and short): */
+static struct option long_options[] = {
+    {"apn",         required_argument, 0,  'a' },
+    {"cid",         required_argument, 0,  'I' },
+    {"subscribe",   no_argument,       0,  's' },
+    {"unsubscribe", no_argument,       0,  'u' },
+//    {"pwroff",      no_argument,       0,  '0' },
+//    {"normal",      no_argument,       0,  '1' },
+//    {"offline",     no_argument,       0,  '4' },
+    {0,             0,                 0,   0  }
+    };
 
 static void ltelc_shell_print_usage(const struct shell *shell)
 {
@@ -103,13 +116,15 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	
 	//We start from subcmd arguments
 	optind = 2;
+    
+	int long_index = 0;
+	int opt;
 
-	int flag;
-	while ((flag = getopt(argc, argv, "a:I:su")) != -1) {
+	while ((opt = getopt_long(argc, argv, "a:I:su", long_options, &long_index)) != -1) {
 		int apn_len = 0;
-		switch (flag) {
+
+		switch (opt) {
 		//TODO: setting family for connect and print connections after connect and disconnect
-		//TODO: cmd signal -u / -s (rsrp indication subscribe/unsubscribe)
 		case 's': // subscribe for RSRP
 			ltelc_cmd_args.rsrp_option = LTELC_RSRP_SUBSCRIBE;
 			break;
@@ -142,7 +157,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 	/* Check that all mandatory args were given: */
 	if (require_apn && apn == NULL) {
-		shell_error(shell, "Option -a MUST be given. See usage:");
+		shell_error(shell, "Option -a | -apn MUST be given. See usage:");
 		goto show_usage;
 	} else if (require_apn_or_pdn_cid && apn == NULL && pdn_cid == 0) {
 		shell_error(shell, "Either -a or -I MUST be given. See usage:");

@@ -1190,6 +1190,7 @@ static CURLcode singleipconnect(struct connectdata *conn,
      || addr.family == AF_INET6
 #endif
     ) {
+    //TODO jani: multi context support
     result = bindlocal(conn, sockfd, addr.family,
                        Curl_ipv6_scope((struct sockaddr*)&addr.sa_addr));
     if(result) {

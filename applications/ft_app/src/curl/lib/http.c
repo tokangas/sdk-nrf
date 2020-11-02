@@ -1100,6 +1100,25 @@ static int http_should_fail(struct connectdata *conn)
   return data->state.authproblem;
 }
 
+/* FTA_CURL_INTEGRATION_CHANGE: */
+static void fill_with_repeating_ascii_pattern(void *out, size_t length)
+{
+    char *buf = (char *)out;
+    size_t i;
+    int counter = 0;
+
+    if (!length) return;
+
+    /* To have visible repeating pattern: thus from '@' to '[' */
+    for (i = 0; i < length; i++) {
+        buf[i] = (char)('@' + counter);
+        if (counter >= 27)
+            counter = 0;
+        else
+            counter++;
+    }
+}
+
 /*
  * readmoredata() is a "fread() emulation" to provide POST and/or request
  * data. It is used when a huge POST is to be made and the entire chunk wasn't
@@ -1125,7 +1144,14 @@ static size_t readmoredata(char *buffer,
   conn->data->req.forbidchunk = (http->sending == HTTPSEND_REQUEST)?TRUE:FALSE;
 
   if(http->postsize <= (curl_off_t)fullsize) {
-    memcpy(buffer, http->postdata, (size_t)http->postsize);
+    /* FTA_CURL_INTEGRATION_CHANGE: */
+	  if (http->generate_data) {
+      fill_with_repeating_ascii_pattern(buffer, (size_t)http->postsize);
+	  }
+    else {
+      memcpy(buffer, http->postdata, (size_t)http->postsize);
+    }
+
     fullsize = (size_t)http->postsize;
 
     if(http->backup.postsize) {
@@ -1142,10 +1168,16 @@ static size_t readmoredata(char *buffer,
     else
       http->postsize = 0;
 
-    return fullsize;
-  }
+    return fullsize;    
+  } 
+    /* FTA_CURL_INTEGRATION_CHANGE: */
+	  if (http->generate_data) {
+      fill_with_repeating_ascii_pattern(buffer, fullsize);
+	  }
+    else {
+      memcpy(buffer, http->postdata, fullsize);      
+    }
 
-  memcpy(buffer, http->postdata, fullsize);
   http->postdata += fullsize;
   http->postsize -= fullsize;
 
@@ -2866,6 +2898,17 @@ CURLcode Curl_http(struct connectdata *conn, bool *done)
         result = Curl_dyn_add(&req, "\r\n");
         if(result)
           return result;
+       
+        /* FTA_CURL_INTEGRATION_CHANGE: */
+       if (strstr(data->set.postfields, "#")) {
+          free(data->set.postfields);
+          data->set.postfields = malloc(postsize + 1);
+
+          if (data->set.postfields == NULL) {
+            return CURLE_OUT_OF_MEMORY;
+          }
+          fill_with_repeating_ascii_pattern(data->set.postfields, postsize);
+       }
 
         if(!data->req.upload_chunky) {
           /* We're not sending it 'chunked', append it to the request
@@ -2900,6 +2943,10 @@ CURLcode Curl_http(struct connectdata *conn, bool *done)
         /* A huge POST coming up, do data separate from the request */
         http->postsize = postsize;
         http->postdata = data->set.postfields;
+        
+        if (strstr(http->postdata, "#")) {
+          http->generate_data = true;
+        }
 
         http->sending = HTTPSEND_BODY;
 

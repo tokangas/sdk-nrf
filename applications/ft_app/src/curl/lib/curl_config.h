@@ -302,7 +302,7 @@
 #undef HAVE_GETSOCKNAME
 
 /* Define to 1 if you have the `gettimeofday' function. */
-#undef HAVE_GETTIMEOFDAY
+#define HAVE_GETTIMEOFDAY 1
 
 /* Define to 1 if you have a working glibc-style strerror_r function. */
 #undef HAVE_GLIBC_STRERROR_R

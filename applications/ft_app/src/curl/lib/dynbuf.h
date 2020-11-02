@@ -70,6 +70,8 @@ size_t Curl_dyn_len(const struct dynbuf *s);
 int Curl_dyn_vprintf(struct dynbuf *dyn, const char *format, va_list ap_save);
 
 /* Dynamic buffer max sizes */
+//jani: TODO?
+
 #define DYN_DOH_RESPONSE    3000
 #define DYN_DOH_CNAME       256
 #define DYN_PAUSE_BUFFER    (64 * 1024 * 1024)

@@ -58,12 +58,11 @@ struct option {
 	/* if flag not NULL, value to set *flag to; else return value */
 	int val;
 };
-/* mod_tr: long version not needed
-__BEGIN_DECLS
+//__BEGIN_DECLS
 int	getopt_long(int, char * const *, const char *,
 	const struct option *, int *);
 int	getopt_long_only(int, char * const *, const char *,
-	const struct option *, int *);*/
+	const struct option *, int *);
 #ifndef _GETOPT_DECLARED
 #define	_GETOPT_DECLARED
 int	 getopt(int, char * const [], const char *);

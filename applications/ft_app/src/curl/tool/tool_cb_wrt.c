@@ -101,6 +101,7 @@ bool tool_create_output_file(struct OutStruct *outs,
   return TRUE;
 #else
   if (strcmp(outs->filename, "/dev/null") == 0) {
+    //FTA specific --output /dev/null -hook:
     outs->s_isreg = FALSE;
     outs->stream = stdout;
     outs->bytes = 0;
@@ -238,6 +239,14 @@ size_t tool_write_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
   }
   else
 #endif
+
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+    rc = fwrite(buffer, sz, nmemb, outs->stream);
+
+  if(bytes == rc)
+    /* we added this amount of data to the output */
+    outs->bytes += bytes;
+#else
   if(outs->s_isreg) {
     rc = fwrite(buffer, sz, nmemb, outs->stream);
     if(bytes == rc)
@@ -245,11 +254,11 @@ size_t tool_write_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
       outs->bytes += bytes;
   }
   else {
-    /* To "/dev/null" eveyr write is succesful */
+    /* For "/dev/null" every write is succesful: */
     outs->bytes += bytes;
     rc = bytes;
   }
-
+#endif
   if(config->readbusy) {
     config->readbusy = FALSE;
     curl_easy_pause(per->curl, CURLPAUSE_CONT);
