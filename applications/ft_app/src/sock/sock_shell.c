@@ -208,7 +208,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else if (!strcmp(optarg, "packet")) {
 				arg_family = AF_PACKET;
 			} else {
-				shell_error(shell, "Unsupported family=%s", optarg);
+				shell_error(shell, "Unsupported address family=%s", optarg);
 				return -EINVAL;
 			}
 			break;
@@ -218,7 +218,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else if (!strcmp(optarg, "dgram")) {
 				arg_type = SOCK_DGRAM;
 			} else {
-				shell_error(shell, "Unsupported type=%s", optarg);
+				shell_error(shell, "Unsupported address type=%s", optarg);
 				return -EINVAL;
 			}
 			break;
