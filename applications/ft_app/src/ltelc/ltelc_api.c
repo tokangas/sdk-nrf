@@ -94,7 +94,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 					AT_CMD_PDP_CONTEXT_READ_CID_INDEX,
 					&populated_info[iterator].cid);
 		if (ret) {
-			printf("Could not parse CID, err: %d", ret);
+			printf("Could not parse CID, err: %d\n", ret);
 			goto clean_exit;
 		}
 

@@ -17,6 +17,7 @@ typedef enum {
 	LTELC_CMD_CONNECT,
 	LTELC_CMD_DISCONNECT,
 	LTELC_CMD_FUNMODE,
+	LTELC_CMD_SYSMODE,
 	LTELC_CMD_HELP
 } ltelc_shell_command;
 
@@ -26,10 +27,17 @@ typedef enum {
 	LTELC_RSRP_UNSUBSCRIBE
 } ltelc_shell_rsrp_options;
 
+typedef enum {
+	LTELC_COMMON_NONE = 0,
+	LTELC_COMMON_READ
+} ltelc_shell_common_options;
+
 typedef struct {
 	ltelc_shell_command command;
 	ltelc_shell_rsrp_options rsrp_option;
 	ltelc_shell_funmode_options funmode_option;
+	ltelc_shell_common_options common_option;
+	int sysmode_option;
 } ltelc_shell_cmd_args_t;
 
 static ltelc_shell_cmd_args_t ltelc_cmd_args;
@@ -44,7 +52,8 @@ const char ltelc_usage_str[] =
 	"  rsrp [rsrp options]:   Subscribe/unsubscribe for RSRP signal info\n"
 	"  connect -a <apn> | --apn <apn>: Connect to given apn\n"
 	"  disconnect [<apn> | <cid>]:     Disconnect from given apn\n"
-	"  funmode [funmode options]:      Set functional mode of the modem\n"
+	"  funmode [funmode options]:      Set/read functional modes of the modem\n"
+	"  sysmode [sysmode options]:      Set/read system modes of the modem\n"
 	"\n"
 	"General options:\n"
 	"  -a <apn> | --apn <apn>, [str] Access Point Name\n"
@@ -62,6 +71,14 @@ const char ltelc_usage_str[] =
 	"  -1 | --normal,     [bool]  Set modem normal mode\n"
 	"  -4 | --flightmode, [bool]  Set modem offline\n"
 	"\n"
+	"Options for 'sysmode' command:\n"
+	"  -r | --read,       [bool]  Read modem functional mode\n"
+	"  -m | --ltem,       [bool]  LTE-M (LTE Cat-M1) system mode\n"
+	"  -n | --nbiot,      [bool]  NB-IoT (LTE Cat-NB1) system mode\n"
+	"  -g | --gps,        [bool]  GPS system mode\n"
+	"  -M | --ltem_gps,   [bool]  LTE-M + GPS system mode\n"
+	"  -N | --nbiot_gps,  [bool]  NB-IoT + GPS system mode\n"
+	"\n"
 	;
 
  /* Specifying the expected options (both long and short): */
@@ -74,6 +91,11 @@ static struct option long_options[] = {
     {"pwroff",      no_argument,       0,  '0' },
     {"normal",      no_argument,       0,  '1' },
     {"flightmode",  no_argument,       0,  '4' },
+    {"ltem",        no_argument,       0,  'm' },
+    {"nbiot",       no_argument,       0,  'n' },
+    {"gps",         no_argument,       0,  'g' },
+    {"ltem_gps",    no_argument,       0,  'M' },
+    {"nbiot_gps",   no_argument,       0,  'N' },
     {0,             0,                 0,   0  }
     };
 
@@ -86,37 +108,60 @@ static void ltelc_shell_cmd_defaults_set(ltelc_shell_cmd_args_t *ltelc_cmd_args)
 {
     memset(ltelc_cmd_args, 0, sizeof(ltelc_shell_cmd_args_t));
 	ltelc_cmd_args->funmode_option = LTELC_FUNMODE_NONE;
+	ltelc_cmd_args->sysmode_option = LTE_LC_SYSTEM_MODE_NONE;
 }
 
-static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff){
+/* *************************************************************************** */
+struct mapping_tbl_item {
+	int key;
+	char *value_str;
+};
+
+static const char *ltelc_shell_map_to_string(struct mapping_tbl_item const *mapping_table, int mode, char *out_str_buff)
+{
 	bool found = false;
 	int i;
-	struct item {
-		int key;
-		char *value_str;
-	};
-    struct item const mapping_table[] = {
-		{LTELC_FUNMODE_PWROFF, "power off"},
-		{LTELC_FUNMODE_NORMAL, "normal"},
-		{LTELC_FUNMODE_FLIGHTMODE, "flightmode"},
-		{LTELC_FUNMODE_NONE, "unknown"},
-		{-1, NULL}
-	};
 	
 	for (i = 0; mapping_table[i].key != -1; i++) {
-		if (mapping_table[i].key == funmode) {
+		if (mapping_table[i].key == mode) {
 			found = true;
 			break;
 		}
 	}
 
 	if (!found) {
-		sprintf(out_str_buff, "%d", funmode);
+		sprintf(out_str_buff, "%d", mode);
 	} else {
 		strcpy(out_str_buff, mapping_table[i].value_str);
 	}
 	return out_str_buff;
 }
+
+static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff) 
+{
+    struct mapping_tbl_item const mapping_table[] = {
+		{LTELC_FUNMODE_PWROFF,     "power off"},
+		{LTELC_FUNMODE_NORMAL,     "normal"},
+		{LTELC_FUNMODE_FLIGHTMODE, "flightmode"},
+		{LTELC_FUNMODE_NONE,       "unknown"},
+		{-1, NULL}
+	};
+	return ltelc_shell_map_to_string(mapping_table, funmode, out_str_buff);
+}
+
+static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff){
+    struct mapping_tbl_item const mapping_table[] = {
+		{LTE_LC_SYSTEM_MODE_LTEM,      "LTE-M"},
+		{LTE_LC_SYSTEM_MODE_NBIOT,     "NB-IoT"},
+		{LTE_LC_SYSTEM_MODE_GPS,       "GPS"},
+		{LTE_LC_SYSTEM_MODE_LTEM_GPS,  "LTE-M - GPS"},
+		{LTE_LC_SYSTEM_MODE_NBIOT_GPS, "NB-IoT - GPS"},
+		{-1, NULL}
+	};
+	
+	return ltelc_shell_map_to_string(mapping_table, sysmode, out_str_buff);
+}
+
 //**************************************************************************
 
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
@@ -143,6 +188,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		require_rsrp_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_RSRP;
 	} else if (strcmp(argv[1], "connect") == 0) {
+		//TODO: setting family for connect and print connections after connect and disconnect
 		require_apn = true;
 		ltelc_cmd_args.command = LTELC_CMD_CONNECT;
 	} else if (strcmp(argv[1], "disconnect") == 0) {
@@ -151,6 +197,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "funmode") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_FUNMODE;
+	} else if (strcmp(argv[1], "sysmode") == 0) {
+		require_option = true;
+		ltelc_cmd_args.command = LTELC_CMD_SYSMODE;
 	} else if (strcmp(argv[1], "help") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_HELP;
         	goto show_usage;
@@ -166,20 +215,19 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	int long_index = 0;
 	int opt;
 
-	while ((opt = getopt_long(argc, argv, "a:I:su014r", long_options, &long_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "a:I:su014rmngMN", long_options, &long_index)) != -1) {
 		int apn_len = 0;
 
 		switch (opt) {
-		//TODO: setting family for connect and print connections after connect and disconnect
-		case 's': // subscribe for RSRP
+		/* RSRP: */
+		case 's':
 			ltelc_cmd_args.rsrp_option = LTELC_RSRP_SUBSCRIBE;
 			break;
-		case 'u': // unsubscribe for RSRP
+		case 'u':
 			ltelc_cmd_args.rsrp_option = LTELC_RSRP_UNSUBSCRIBE;
 			break;
-		case 'r':
-			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_READ;
-			break;
+
+		/* Modem functional modes: */
 		case '0':
 			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_PWROFF;
 			break;
@@ -188,6 +236,28 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case '4':
 			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_FLIGHTMODE;
+			break;
+
+		/* Modem system modes: */
+		case 'm':
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_LTEM;
+			break;
+		case 'n':
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_NBIOT;
+			break;
+		case 'g':
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_GPS;
+			break;
+		case 'M':
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_LTEM_GPS;
+			break;
+		case 'N':
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_NBIOT_GPS;
+			break;
+
+        /* Common options: */
+		case 'r':
+			ltelc_cmd_args.common_option = LTELC_COMMON_READ;
 			break;
 		case 'I': // PDN CID
 			pdn_cid = atoi(optarg);
@@ -227,20 +297,45 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (require_rsrp_subscribe && ltelc_cmd_args.rsrp_option == LTELC_RSRP_NONE) {
 		shell_error(shell, "Either -s or -u MUST be given. See usage:");
 		goto show_usage;
-	} else if (require_option && ltelc_cmd_args.funmode_option == LTELC_FUNMODE_NONE) {
+	} else if (require_option && ltelc_cmd_args.funmode_option == LTELC_FUNMODE_NONE && 
+			   ltelc_cmd_args.sysmode_option == LTE_LC_SYSTEM_MODE_NONE &&
+	           ltelc_cmd_args.common_option == LTELC_COMMON_NONE) {
 		shell_error(shell, "Command needs option to be given. See usage:");
 		goto show_usage;
 	}
 
 	char* apn_print;
-	char snum[5];
+	char snum[64];
 
 	switch (ltelc_cmd_args.command) {
 		case LTELC_CMD_STATUS:
 			ltelc_api_modem_info_get_for_shell(shell);
 			break;
+		case LTELC_CMD_SYSMODE:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				enum lte_lc_system_mode sys_mode_current = LTE_LC_SYSTEM_MODE_NONE;
+
+				ret = lte_lc_system_mode_get(&sys_mode_current);
+				if (ret < 0) {
+					shell_error(shell, "cannot read system mode of the modem: %d", ret);
+				} else {
+					shell_print(shell, "System mode read successfully: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
+				}
+			} else {
+				ret = lte_lc_system_mode_set(ltelc_cmd_args.sysmode_option);
+				if (ret < 0) {
+					shell_error(shell, "Cannot set system mode: %d", ret);
+					ret = ltelc_func_mode_get();
+					if (ret != LTELC_FUNMODE_FLIGHTMODE || ret != LTELC_FUNMODE_PWROFF) {
+						shell_info(shell, "Setting 1st to flighmode might help by using: \"ltelc funmode --flighmode\"");
+					}
+				} else {
+					shell_print(shell, "System mode set successfully: %s", ltelc_shell_sysmode_to_string(ltelc_cmd_args.sysmode_option, snum));
+				}
+			}
+			break;
 		case LTELC_CMD_FUNMODE:
-			if (ltelc_cmd_args.funmode_option == LTELC_FUNMODE_READ) {
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ret = ltelc_func_mode_get();
 				if (ret < 0) {
 					shell_error(shell, "cannot get functional mode: %d", ret);
