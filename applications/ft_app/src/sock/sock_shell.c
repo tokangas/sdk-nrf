@@ -172,6 +172,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
+	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
 
 	// Parse command line
 	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
@@ -233,7 +234,6 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 					send_data_len, SOCK_MAX_SEND_DATA_LEN, optarg);
 				return -EINVAL;
 			}
-			memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
 			strcpy(arg_send_data, optarg);
 			break;
 		case 'l': // Length of undefined data to be sent
