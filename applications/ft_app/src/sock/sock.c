@@ -178,7 +178,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 
 	// Validate bind port. Zero means that binding is not done.
 	if (bind_port > 65535) {
-		shell_error(shell_global, "Bind port (%d) must be smaller than 65536", port);
+		shell_error(shell_global, "Bind port (%d) must be smaller than 65536", bind_port);
 		return -EINVAL;
 	}
 
