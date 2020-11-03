@@ -3,6 +3,10 @@
 |NCS| v0.4.0 Release Notes
 ##########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 This project is hosted by Nordic Semiconductor to demonstrate the integration of Nordic SoC support in open source projects, like MCUBoot and the Zephyr RTOS, with libraries and source code for low-power wireless applications.
 
 nRF Connect SDK v0.4.0 supports development with nRF9160 Cellular IoT devices.
@@ -96,7 +100,7 @@ nRF9160
 
   * Updated the :ref:`nrfxlib:bsdlib` (in nrfxlib) library to version 0.3.0 (see the :ref:`nrfxlib:bsdlib_changelog` for details)
   * Added support for GNSS supporting GPS as a socket (in nrfxlib)
-  * Implemented :cpp:func:`bsd_os_timedwait` (in ``lib/bsdlib/bsd_os.c`` in sdk-nrf), allowing a proper poll operation and blocking sockets
+  * Implemented :c:func:`bsd_os_timedwait` (in ``lib/bsdlib/bsd_os.c`` in sdk-nrf), allowing a proper poll operation and blocking sockets
   * Minor fixes to the nRF91 sockets offloading layer (in ``lib/bsdlib/nrf91_sockets.c`` in sdk-nrf)
 
 
@@ -131,8 +135,8 @@ Bluetooth Low Energy
 
 * Added the following libraries:
 
-  * :ref:`dfu_smp_c_readme` - GATT Client implementation compatible with the GATT SMP Service, which is used as DFU transport
-  * :ref:`hids_c_readme` - GATT Client implementation compatible with the HID Service
+  * :ref:`dfu_smp_readme` - GATT Client implementation compatible with the GATT SMP Service, which is used as DFU transport
+  * :ref:`hogp_readme` - GATT Client implementation compatible with the HID Service
 
 
 NFC
@@ -186,7 +190,7 @@ Documentation
   * :ref:`lib_download_client`
   * :ref:`lib_spm`
   * :ref:`st25r3911b_nfc_readme`
-  * :ref:`dfu_smp_c_readme` and :ref:`lbs_readme`
+  * :ref:`dfu_smp_readme` and :ref:`lbs_readme`
 
 * Added or updated the following documentation:
 

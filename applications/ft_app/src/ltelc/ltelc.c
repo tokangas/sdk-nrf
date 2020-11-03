@@ -246,29 +246,61 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
 	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
 		/* print current value right away: */
+		shell_print(uart_shell, "RSRP subscribed");
 		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
-	}		
+	} else {
+		shell_print(uart_shell, "RSRP unsubscribed");
+	}
+}
+
+int ltelc_func_mode_set(int fun)
+{
+	int return_value = 0;
+
+	switch (fun) {
+	case LTELC_FUNMODE_PWROFF:
+		return_value = lte_lc_power_off();
+		break;
+	case LTELC_FUNMODE_FLIGHTMODE:
+		return_value = lte_lc_offline();
+		break;
+	case LTELC_FUNMODE_NORMAL:
+	default:
+		return_value = lte_lc_normal();
+		break;
+	}
+	return return_value;
+}
+
+int ltelc_func_mode_get(void)
+{
+    enum lte_lc_func_mode functional_mode;	
+	int err = lte_lc_func_mode_get(&functional_mode);
+	int lte_lc_shell_fun_mode = 0;
+    
+	if (err >= 0) {
+		switch (functional_mode) {
+		case LTE_LC_FUNC_MODE_POWER_OFF:
+			lte_lc_shell_fun_mode = LTELC_FUNMODE_PWROFF;
+			break;
+		case LTE_LC_FUNC_MODE_NORMAL:
+			lte_lc_shell_fun_mode = LTELC_FUNMODE_NORMAL;
+			break;
+		case LTE_LC_FUNC_MODE_OFFLINE:
+			lte_lc_shell_fun_mode = LTELC_FUNMODE_FLIGHTMODE;
+			break;
+		default:
+			lte_lc_shell_fun_mode = functional_mode;
+			break;
+		}
+		return lte_lc_shell_fun_mode;
+	} else {
+		return err;
+	}
 }
 
 int ltelc_pdn_init_and_connect(const char *apn_name)
 {
-#if 0	
-	//couldn't get these working
-	int pdn_fd = socket(AF_LTE, SOCK_MGMT, NPROTO_PDN);
-
-	if (pdn_fd >= 0) {
-		/* Connect to the APN. */
-		int err = connect(pdn_fd,
-				  (struct sockaddr *)apn_name,
-				  strlen(apn_name));
-
-		if (err != 0) {
-			close(pdn_fd);
-			return -1;
-		}
-	}
-#endif
-
 	if (apn_name != NULL) {
 		ltelc_pdn_socket_info_t* pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_name);
 		if (pdn_socket_info == NULL) {
@@ -279,7 +311,7 @@ int ltelc_pdn_init_and_connect(const char *apn_name)
 				/* Connect to the APN. */
 				int err = nrf_connect(pdn_fd, apn_name, strlen(apn_name));
 				if (err) {
-					//TODO: log error
+					printk("ltelc_pdn_init_and_connect: could not connect pdn socket: %d", err);
 					(void)nrf_close(pdn_fd);
 					return -EINVAL;
 				}

@@ -149,7 +149,7 @@ static CURLcode main_init(struct GlobalConfig *config)
   config->showerror = -1;             /* Will show errors */
   config->errors = stderr;            /* Default errors to stderr */
   config->styled_output = TRUE;       /* enable detection */
-  config->parallel_max = 1; ////FTA_CURL_INTEGRATION_CHANGE:: was: PARALLEL_DEFAULT;
+  config->parallel_max = PARALLEL_DEFAULT;
 
   /* Allocate the initial operate config */
   config->first = config->last = malloc(sizeof(struct OperationConfig));

@@ -106,7 +106,7 @@ BUILD_ASSERT(THREAD_PRIORITY >= CONFIG_BT_HCI_TX_PRIO);
 
 static void ble_qos_thread_fn(void);
 
-static struct device *cdc_dev;
+static const struct device *cdc_dev;
 static uint32_t cdc_dtr;
 
 enum ble_qos_opt {
@@ -249,7 +249,7 @@ static int settings_set(const char *key, size_t len_rd,
 SETTINGS_STATIC_HANDLER_DEFINE(ble_qos, MODULE_NAME, NULL, settings_set, NULL,
 			       NULL);
 
-static void send_uart_data(struct device *cdc_dev, const uint8_t *str, int str_len)
+static void send_uart_data(const struct device *cdc_dev, const uint8_t *str, int str_len)
 {
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	int sent = uart_fifo_fill(cdc_dev, str, str_len);
@@ -408,14 +408,14 @@ static void hid_pkt_stats_print(uint32_t ble_recv)
 static bool on_vs_evt(struct net_buf_simple *buf)
 {
 	uint8_t *subevent_code;
-	sdc_hci_vs_subevent_qos_conn_event_report_t *evt;
+	sdc_hci_subevent_vs_qos_conn_event_report_t *evt;
 
 	subevent_code = net_buf_simple_pull_mem(
 		buf,
 		sizeof(*subevent_code));
 
 	switch (*subevent_code) {
-	case SDC_HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT:
+	case SDC_HCI_SUBEVENT_VS_QOS_CONN_EVENT_REPORT:
 		if (atomic_get(&processing)) {
 			/* Cheaper to skip this update */
 			/* instead of using locks */
@@ -446,9 +446,9 @@ static void enable_qos_reporting(void)
 		return;
 	}
 
-	sdc_hci_vs_cmd_qos_conn_event_report_enable_t *cmd_enable;
+	sdc_hci_cmd_vs_qos_conn_event_report_enable_t *cmd_enable;
 
-	buf = bt_hci_cmd_create(SDC_HCI_VS_OPCODE_CMD_QOS_CONN_EVENT_REPORT_ENABLE,
+	buf = bt_hci_cmd_create(SDC_HCI_OPCODE_CMD_VS_QOS_CONN_EVENT_REPORT_ENABLE,
 				sizeof(*cmd_enable));
 	if (!buf) {
 		LOG_ERR("Failed to enable HCI VS QoS");
@@ -459,7 +459,7 @@ static void enable_qos_reporting(void)
 	cmd_enable->enable = 1;
 
 	err = bt_hci_cmd_send_sync(
-		SDC_HCI_VS_OPCODE_CMD_QOS_CONN_EVENT_REPORT_ENABLE, buf, NULL);
+		SDC_HCI_OPCODE_CMD_VS_QOS_CONN_EVENT_REPORT_ENABLE, buf, NULL);
 	if (err) {
 		LOG_ERR("Failed to enable HCI VS QoS");
 		return;
@@ -714,7 +714,7 @@ static bool event_handler(const struct event_header *eh)
 		return false;
 	}
 
-	GEN_CONFIG_EVENT_HANDLERS("qos", opt_descr, update_config,
+	GEN_CONFIG_EVENT_HANDLERS(STRINGIFY(MODULE), opt_descr, update_config,
 				  fetch_config);
 
 	/* If event is unhandled, unsubscribe. */

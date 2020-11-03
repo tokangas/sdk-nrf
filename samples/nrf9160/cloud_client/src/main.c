@@ -17,11 +17,39 @@ LOG_MODULE_REGISTER(cloud_client, CONFIG_CLOUD_CLIENT_LOG_LEVEL);
 
 static struct cloud_backend *cloud_backend;
 static struct k_delayed_work cloud_update_work;
+static struct k_delayed_work connect_work;
+
 static K_SEM_DEFINE(lte_connected, 0, 1);
+
+/* Flag to signify if the cloud client is connected or not connected to cloud,
+ * used to abort/allow cloud publications.
+ */
+static bool cloud_connected;
+
+static void connect_work_fn(struct k_work *work)
+{
+	int err;
+
+	err = cloud_connect(cloud_backend);
+	if (err) {
+		LOG_ERR("cloud_connect, error: %d", err);
+	}
+
+	LOG_INF("Next connection retry in %d seconds",
+	       CONFIG_CLOUD_CONNECTION_RETRY_TIMEOUT_SECONDS);
+
+	k_delayed_work_submit(&connect_work,
+		K_SECONDS(CONFIG_CLOUD_CONNECTION_RETRY_TIMEOUT_SECONDS));
+}
 
 static void cloud_update_work_fn(struct k_work *work)
 {
 	int err;
+
+	if (!cloud_connected) {
+		LOG_INF("Not connected to cloud, abort cloud publication");
+		return;
+	}
 
 	LOG_INF("Publishing message: %s", log_strdup(CONFIG_CLOUD_MESSAGE));
 
@@ -57,15 +85,27 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 		break;
 	case CLOUD_EVT_CONNECTED:
 		LOG_INF("CLOUD_EVT_CONNECTED");
+		cloud_connected = true;
 		break;
 	case CLOUD_EVT_READY:
 		LOG_INF("CLOUD_EVT_READY");
+
+		k_delayed_work_cancel(&connect_work);
+
 #if defined(CONFIG_CLOUD_PUBLICATION_SEQUENTIAL)
 		k_delayed_work_submit(&cloud_update_work, K_NO_WAIT);
 #endif
 		break;
 	case CLOUD_EVT_DISCONNECTED:
 		LOG_INF("CLOUD_EVT_DISCONNECTED");
+
+		cloud_connected = false;
+
+		if (k_delayed_work_pending(&connect_work)) {
+			break;
+		}
+
+		k_delayed_work_submit(&connect_work, K_NO_WAIT);
 		break;
 	case CLOUD_EVT_ERROR:
 		LOG_INF("CLOUD_EVT_ERROR");
@@ -76,8 +116,7 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 	case CLOUD_EVT_DATA_RECEIVED:
 		LOG_INF("CLOUD_EVT_DATA_RECEIVED");
 		LOG_INF("Data received from cloud: %s",
-			log_strdup(evt->data.msg.buf))
-	;
+			log_strdup(evt->data.msg.buf));
 		break;
 	case CLOUD_EVT_PAIR_REQUEST:
 		LOG_INF("CLOUD_EVT_PAIR_REQUEST");
@@ -97,6 +136,7 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 static void work_init(void)
 {
 	k_delayed_work_init(&cloud_update_work, cloud_update_work_fn);
+	k_delayed_work_init(&connect_work, connect_work_fn);
 }
 
 static void lte_handler(const struct lte_lc_evt *const evt)
@@ -221,51 +261,5 @@ void main(void)
 	LOG_INF("Connected to LTE network");
 	LOG_INF("Connecting to cloud");
 
-	err = cloud_connect(cloud_backend);
-	if (err) {
-		LOG_ERR("Failed to connect to cloud, error: %d", err);
-	}
-
-	struct pollfd fds[] = {
-		{
-			.fd = cloud_backend->config->socket,
-			.events = POLLIN
-		}
-	};
-
-	while (true) {
-		err = poll(fds, ARRAY_SIZE(fds),
-			   cloud_keepalive_time_left(cloud_backend));
-		if (err < 0) {
-			LOG_ERR("poll() returned an error: %d", err);
-			continue;
-		}
-
-		if (err == 0) {
-			cloud_ping(cloud_backend);
-			continue;
-		}
-
-		if ((fds[0].revents & POLLIN) == POLLIN) {
-			cloud_input(cloud_backend);
-		}
-
-		if ((fds[0].revents & POLLNVAL) == POLLNVAL) {
-			LOG_ERR("Socket error: POLLNVAL");
-			LOG_INF("The cloud socket was unexpectedly closed");
-			return;
-		}
-
-		if ((fds[0].revents & POLLHUP) == POLLHUP) {
-			LOG_ERR("Socket error: POLLHUP");
-			LOG_INF("Connection was closed by the cloud");
-			return;
-		}
-
-		if ((fds[0].revents & POLLERR) == POLLERR) {
-			LOG_ERR("Socket error: POLLERR");
-			LOG_INF("Cloud connection was unexpectedly closed");
-			return;
-		}
-	}
+	k_delayed_work_submit(&connect_work, K_NO_WAIT);
 }

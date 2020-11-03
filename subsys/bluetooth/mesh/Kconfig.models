@@ -321,7 +321,7 @@ comment "Target Illuminance"
 config BT_MESH_LIGHT_CTRL_SRV_REG_LUX_ON
 	int "Default target illuminance in the On state"
 	range 0 167772
-	default 167772
+	default 500
 	help
 	  Target ambient illuminance for the On state (in lux). May be
 	  reconfigured at runtime by other models in the mesh network.
@@ -329,7 +329,7 @@ config BT_MESH_LIGHT_CTRL_SRV_REG_LUX_ON
 config BT_MESH_LIGHT_CTRL_SRV_REG_LUX_PROLONG
 	int "Default target illuminance in the Prolong state"
 	range 0 167772
-	default 83886
+	default 80
 	help
 	  Target ambient illuminance for the Prolong state (in lux). May be
 	  reconfigured at runtime by other models in the mesh network.
@@ -476,6 +476,27 @@ config BT_MESH_LIGHT_CTRL_CLI
 	help
 	  Enable Mesh Light Lightness Control Client model.
 
+config BT_MESH_LIGHT_CTL_CLI
+	bool "Color Tunable Light (CTL) Client"
+	select BT_MESH_NRF_MODELS
+	help
+	  Enable Mesh Light CTL Client model.
+
+config BT_MESH_LIGHT_CTL_SRV
+	bool "Color Tunable Light (CTL) Server"
+	select BT_MESH_NRF_MODELS
+	select BT_MESH_LIGHTNESS_SRV
+	select BT_MESH_LIGHT_TEMP_SRV
+	help
+	  Enable Mesh Light CTL Server model.
+
+config BT_MESH_LIGHT_TEMP_SRV
+	bool "Color Tunable Light (CTL) Temperature Server"
+	select BT_MESH_NRF_MODELS
+	select BT_MESH_LVL_SRV
+	help
+	  Enable Mesh Light CTL Temperature Server model.
+
 menuconfig BT_MESH_SENSOR_SRV
 	bool "Sensor Server"
 	select BT_MESH_NRF_MODELS
@@ -512,5 +533,26 @@ config BT_MESH_SENSOR_CLI
 	  Enable Mesh Sensor Client model.
 
 rsource "Kconfig.sensor"
+
+menuconfig BT_MESH_SCENE_SRV
+	bool "Scene Server"
+	select BT_MESH_NRF_MODELS
+	depends on BT_SETTINGS
+	help
+	  Enable Mesh Scene Server model.
+
+config BT_MESH_SCENES_MAX
+	int "Max number of scenes"
+	default 4
+	range 1 65535
+	depends on BT_MESH_SCENE_SRV
+	help
+	  Max number of scenes that can be stored by a single Scene Server.
+
+config BT_MESH_SCENE_CLI
+	bool "Scene Client"
+	select BT_MESH_NRF_MODELS
+	help
+	  Enable Mesh Scene Client model.
 
 endmenu

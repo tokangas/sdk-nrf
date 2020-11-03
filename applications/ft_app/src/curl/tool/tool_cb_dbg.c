@@ -53,7 +53,7 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
 
   (void)handle; /* not used */
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //time () && localtime() not supported
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //time () && localtime() not supported, jani: TODO
   time_t secs;
   struct timeval tv;
   if(config->tracetime) {

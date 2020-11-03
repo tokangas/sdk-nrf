@@ -3,6 +3,10 @@
 |NCS| v1.0.0 Release Notes
 ##########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 nRF Connect SDK delivers reference software and supporting libraries for developing low-power wireless applications with Nordic Semiconductor products. It includes the MCUboot and the Zephyr RTOS open source projects which are continuously integrated and re-distributed with the SDK.
 
 nRF Connect SDK v1.0.0 supports product development with the nRF9160 Cellular IoT device.
@@ -172,12 +176,12 @@ Bluetooth Low Energy
 
 * Added the following samples:
 
-  * :ref:`central_bas` - demonstrates how do use the :ref:`bas_c_readme` to receive battery level information from a compatible device.
+  * :ref:`central_bas` - demonstrates how do use the :ref:`bas_client_readme` to receive battery level information from a compatible device.
   * :ref:`shell_bt_nus` - demonstrates how to use the :ref:`shell_bt_nus_readme` to receive shell commands from a remote device.
 
 * Added the following libraries:
 
-  * :ref:`bas_c_readme` - used to retrieve information about the battery level from a device.
+  * :ref:`bas_client_readme` - used to retrieve information about the battery level from a device.
   * :ref:`shell_bt_nus_readme` - allows for sending shell commands from a host to the application.
 
 * Added :ref:`ble_console_readme` - a desktop application that can be used to communicate with an nRF device over *Bluetooth* Low Energy using the :ref:`shell_bt_nus_readme`.
@@ -235,7 +239,7 @@ Documentation
 
   * Bluetooth Low Energy:
 
-    * :ref:`bas_c_readme`
+    * :ref:`bas_client_readme`
 
   * Other:
 

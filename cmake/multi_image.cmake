@@ -27,6 +27,11 @@ if(IMAGE_NAME)
   share("set(${IMAGE_NAME}KERNEL_ELF_NAME ${KERNEL_ELF_NAME})")
   share("list(APPEND ${IMAGE_NAME}BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/${KERNEL_HEX_NAME})")
   share("list(APPEND ${IMAGE_NAME}BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/${KERNEL_ELF_NAME})")
+  # Share the signing key file so that the parent image can use it to
+  # generate signed update candidates.
+  if(CONFIG_BOOT_SIGNATURE_KEY_FILE)
+   share("set(${IMAGE_NAME}SIGNATURE_KEY_FILE ${CONFIG_BOOT_SIGNATURE_KEY_FILE})")
+  endif()
 
   file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/shared_vars.cmake
     CONTENT $<TARGET_PROPERTY:zephyr_property_target,shared_vars>
@@ -34,6 +39,20 @@ if(IMAGE_NAME)
 endif(IMAGE_NAME)
 
 function(add_child_image)
+  # Adds a child image to the build.
+  #
+  # Required arguments are:
+  # NAME - The name of the child image
+  # SOURCE_DIR - The source dir of the child image
+  #
+  # Optional arguments are:
+  # DOMAIN - The domain to place the child image in.
+  #
+  # Depending on the value of CONFIG_${NAME}_BUILD_STRATEGY the child image
+  # is either built from source, included as a hex file, or ignored.
+  #
+  # See chapter "Multi-image builds" in the documentation for more details.
+
   set(oneValueArgs NAME SOURCE_DIR DOMAIN)
   cmake_parse_arguments(ACI "" "${oneValueArgs}" "" ${ARGN})
 
@@ -57,8 +76,8 @@ function(add_child_image)
   endif()
 endfunction()
 
-# See 'add_child_image'
 function(add_child_image_from_source)
+  # See 'add_child_image'
   set(oneValueArgs NAME SOURCE_DIR DOMAIN BOARD)
   cmake_parse_arguments(ACI "" "${oneValueArgs}" "" ${ARGN})
 
@@ -84,7 +103,6 @@ function(add_child_image_from_source)
 
     # This needs to be made globally available as it is used in other files.
     set(${ACI_DOMAIN}_PM_DOMAIN_DYNAMIC_PARTITION ${ACI_NAME} CACHE INTERNAL "")
-    set(${ACI_NAME}_DOMAIN ${ACI_DOMAIN})
 
     if (NOT (${ACI_DOMAIN} IN_LIST PM_DOMAINS))
       list(APPEND PM_DOMAINS ${ACI_DOMAIN})
@@ -96,10 +114,17 @@ function(add_child_image_from_source)
     get_board_without_ns_suffix(${BOARD} ACI_BOARD)
   endif()
 
+  if (NOT ACI_DOMAIN AND DOMAIN)
+    # If no domain is specified, a child image will inherit the domain of
+    # its parent.
+    set(ACI_DOMAIN ${DOMAIN})
+    set(inherited " (inherited)")
+  endif()
+
+  set(${ACI_NAME}_DOMAIN ${ACI_DOMAIN})
   set(${ACI_NAME}_BOARD ${ACI_BOARD})
 
-
-  message("\n=== child image ${ACI_NAME} - ${ACI_DOMAIN} begin ===")
+  message("\n=== child image ${ACI_NAME} - ${ACI_DOMAIN}${inherited} begin ===")
   # Construct a list of variables that, when present in the root
   # image, should be passed on to all child images as well.
   list(APPEND
@@ -189,7 +214,7 @@ function(add_child_image_from_source)
     message(FATAL_ERROR "CMake generation for ${ACI_NAME} failed, aborting. Command: ${ret}")
   endif()
 
-  message("=== child image ${ACI_NAME} - ${ACI_DOMAIN} end ===\n")
+  message("=== child image ${ACI_NAME} - ${ACI_DOMAIN}${inherited} end ===\n")
 
   # Include some variables from the child image into the parent image
   # namespace
@@ -241,17 +266,23 @@ function(add_child_image_from_source)
 
   if (ACI_DOMAIN)
     add_custom_target(${ACI_NAME}_flash
-                      COMMAND
-                      ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/${ACI_NAME}
-                      --target flash
-                      DEPENDS
-                      ${ACI_NAME}_subimage
-    )
+      COMMAND
+      ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/${ACI_NAME}
+      --target flash
+      DEPENDS
+      ${ACI_NAME}_subimage
+      )
 
-    set_property(TARGET zephyr_property_target
-                 APPEND PROPERTY FLASH_DEPENDENCIES
-                 ${ACI_NAME}_flash
-  )
+    # If the dynamic partition has child images, their hex files will be
+    # included in the 'merged_{DOMAIN_NAME}.hex' file which is flashed
+    # by the flash target of the dynamic partition. Hence, we only add a
+    # dependency to the flash target of the dynamic partition in the domain.
+    if ("${ACI_NAME}" STREQUAL "${${ACI_DOMAIN}_PM_DOMAIN_DYNAMIC_PARTITION}")
+      set_property(TARGET zephyr_property_target
+        APPEND PROPERTY FLASH_DEPENDENCIES
+        ${ACI_NAME}_flash
+        )
+    endif()
   endif()
 
 endfunction()

@@ -3,13 +3,13 @@
 OpenThread architectures
 ########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 This page describes the OpenThread stack architecture and platform designs that are possible with the OpenThread network stack on Nordic Semiconductor devices in |NCS|.
 
 The designs are described from the least to the most complex, that is from simple applications that consist of a single chip running single or multiple protocols to scenarios in which the nRF SoC acts as a network co-processor when the application is running on a much more powerful host processor.
-
-.. contents::
-    :local:
-    :depth: 1
 
 .. _openthread_stack_architecture:
 
@@ -99,6 +99,8 @@ It also has the following disadvantages:
 
    Multiprotocol Thread and |BLE| architecture
 
+For more information about the multiprotocol feature, see :ref:`ug_multiprotocol_support`.
+
 This platform design is suitable for the following development kits:
 
 +--------------------------------+-----------+------------------------------------------------+-------------------------------+
@@ -123,10 +125,6 @@ Co-processor designs
 
 In the co-processor designs, with either network co-processor (NCP) or radio co-processor (RCP), the application layer runs on a host processor and communicates with OpenThread through a serial connection using a standardized host-controller protocol (Spinel).
 OpenThread can run on either the radio or the host processor.
-
-.. contents::
-    :local:
-    :depth: 1
 
 .. _thread_architectures_designs_cp_ncp:
 
@@ -386,6 +384,11 @@ This allows for using only one interface for frame and log transmission.
 However, when using NCP with Zephyr, there is still a possibility that NCP will transmit raw data, without encoding it into Spinel frames.
 This happens when some critical errors occur in Zephyr and the system wants to provide as much information about the failure as possible without using interrupts.
 This exception applies mainly to log messages and is done by turning off UART interrupts and flushing everything from the TX buffer without encoding it.
+
+----
+
+|Google_CCLicense|
+The source page is available `here <https://openthread.io/platforms#system_architecture>`_.
 
 .. |connection_options_limited| replace:: Spinel connections through SPI and USB are not currently available.
 .. |5340_not_supported| replace:: :ref:`nRF5340 PDK <ug_nrf5340>` is not yet supported by Thread in |NCS|.

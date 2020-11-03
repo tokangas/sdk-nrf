@@ -3,6 +3,10 @@
 Secure Partition Manager
 ########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Secure Partition Manager sample provides a reference use of the System Protection Unit peripheral.
 This firmware is required to set up an nRF device with Trusted Execution (|trusted_execution|) so that it can run user applications in the non-secure domain.
 
@@ -54,9 +58,9 @@ Requirements
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set19_start
-   :end-before: set19_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340pdk_nrf5340_cpuapp, nrf9160dk_nrf9160
 
 Building and running
 ********************

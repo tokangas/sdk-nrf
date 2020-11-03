@@ -3,6 +3,10 @@
 |NCS| v0.3.0 Release Notes
 ##########################
 
+.. contents::
+   :local:
+   :depth: 2
+
 This project is hosted by Nordic Semiconductor to demonstrate the integration of Nordic SoC support in open source projects, like MCUBoot and the Zephyr RTOS, with libraries and source code for low-power wireless applications.
 
 nRF Connect SDK v0.3.0 supports development with nRF9160 Cellular IoT devices.
@@ -155,7 +159,7 @@ Bluetooth Low Energy
   * :ref:`bluetooth_central_hids`:
     This sample connects to HID devices and uses the :ref:`gatt_dm_readme` library to perform HID service discovery.
   * :ref:`central_uart`:
-    This sample connects to NUS Servers and uses the :ref:`nus_c_readme` library to interact with them.
+    This sample connects to NUS Servers and uses the :ref:`nus_client_readme` library to interact with them.
     The sample can be tested with the :ref:`peripheral_uart` sample.
 
 * Added the following libraries:
@@ -164,7 +168,7 @@ Bluetooth Low Energy
     This library handles BLE scanning for your application.
   * :ref:`gatt_dm_readme`:
     This library handles service discovery on BLE GATT servers.
-  * :ref:`nus_c_readme`:
+  * :ref:`nus_client_readme`:
     This library can be used to act as a NUS Client.
 
 Bootloader

@@ -171,6 +171,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_receive_start = false;
 	bool arg_verbose = false;
 
+	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
+
 	// Parse command line
 	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
 		int addr_len = 0;
@@ -194,7 +196,6 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 					addr_len, SOCK_MAX_ADDR_LEN);
 				return -EINVAL;
 			}
-			memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
 			memcpy(arg_address, optarg, addr_len);
 			break;
 		case 'p': // Port
@@ -208,7 +209,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else if (!strcmp(optarg, "packet")) {
 				arg_family = AF_PACKET;
 			} else {
-				shell_error(shell, "Unsupported family=%s", optarg);
+				shell_error(shell, "Unsupported address family=%s", optarg);
 				return -EINVAL;
 			}
 			break;
@@ -218,7 +219,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else if (!strcmp(optarg, "dgram")) {
 				arg_type = SOCK_DGRAM;
 			} else {
-				shell_error(shell, "Unsupported type=%s", optarg);
+				shell_error(shell, "Unsupported address type=%s", optarg);
 				return -EINVAL;
 			}
 			break;

@@ -88,7 +88,7 @@ config DOWNLOAD_CLIENT_COAP_BLOCK_SIZE_128
 
 endchoice
 
-comment "Stack and stack buffers"
+comment "Thread and stack buffers"
 
 config DOWNLOAD_CLIENT_STACK_SIZE
 	int "Thread stack size"
@@ -114,6 +114,15 @@ config DOWNLOAD_CLIENT_SOCK_TIMEOUT_MS
 	  When using CoAP, set a timeout to be able to detect
 	  when a retrasmission is necessary.
 	  Set to -1 disable.
+
+config DOWNLOAD_CLIENT_RANGE_REQUESTS
+	bool "Always use HTTP Range requests"
+	help
+	  Always use HTTP Range requests when downloading (RFC 7233).
+	  This option can be useful to limit the amount of incoming data from the server
+	  by downloading only one fragment at a time. It increases the protocol overhead
+	  but also gives time to the application to process the fragments as they are
+	  downloaded, instead of having to keep up to speed while downloading the whole file.
 
 config DOWNLOAD_CLIENT_IPV6
 	bool "Use IPv6 when possible"

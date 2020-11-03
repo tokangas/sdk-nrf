@@ -3,7 +3,14 @@
 Device Firmware Upgrade module
 ##############################
 
-The DFU module is used for obtaining the update image from a transport and storing it in the appropriate partition on the flash memory.
+.. contents::
+   :local:
+   :depth: 2
+
+Use the DFU module to:
+
+* Obtain the update image from :ref:`nrf_desktop_config_channel` and store it in the appropriate flash memory partition.
+* Erase the flash memory partition in the background before storing the update image.
 
 Module events
 *************
@@ -18,22 +25,44 @@ Module events
 Configuration
 *************
 
-To perform the firmware upgrade, the bootloader must be enabled.
-More on how to enabled the bootloader can be found at :ref:`nrf_desktop_bootloader`.
+To perform the firmware upgrade, you must enable the bootloader.
+The DFU module can be used with either MCUboot or B0 bootloader.
+For more information on how to enable the bootloader, see the :ref:`nrf_desktop_bootloader` documentation.
 
-The DFU module is selected using ``CONFIG_DESKTOP_CONFIG_CHANNEL_DFU_ENABLE``.
-Because it uses the :ref:`nrf_desktop_config_channel` for the transmission of the update image, it requires the transport option ``CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE`` to be selected.
+.. note::
+   If the MCUboot bootloader is selected, the DFU module:
 
-When the update image is being received, it is stored in the dedicated partition on the flash memory.
-For more information about configuring the memory layout in the application, see :ref:`nrf_desktop_flash_memory_layout`.
+   * Requests the image upgrade after the whole image is transferred over the :ref:`nrf_desktop_config_channel`.
+   * Confirms the running image after device reboot.
+
+Enable the DFU module using the :option:`CONFIG_DESKTOP_CONFIG_CHANNEL_DFU_ENABLE` option.
+It requires the transport option :option:`CONFIG_DESKTOP_CONFIG_CHANNEL_ENABLE` to be selected, as it uses :ref:`nrf_desktop_config_channel` for the transmission of the update image.
+
+You can set the value of :option:`CONFIG_DESKTOP_CONFIG_CHANNEL_DFU_SYNC_BUFFER_SIZE` to specify the size of the sync buffer (in words).
+During the DFU, the data is initially stored in the buffer and then it is moved to flash.
+The buffer is located in RAM, so increasing the buffer size increases the RAM usage.
+If the buffer is small, the host must perform the DFU progress synchronization more often.
+
+.. important::
+   The received update image chunks are stored on the dedicated flash memory partition when the current version of the device firmware is running.
+   For this reason, make sure that you use configuration with two image partitions.
+   For more information on configuring the memory layout in the application, see the :ref:`nrf_desktop_flash_memory_layout` documentation.
 
 Implementation details
 **********************
 
-The DFU module implementation is centered around transmission and storage of the update image, and it can be broken down into the following stages:
+The DFU module implementation is centered around the transmission and the storage of the update image, and it can be broken down into the following stages:
 
 * `Protocol operations`_ - How the module exchanges information with the host.
 * `Partition preparation`_ - How the module prepares for receiving an image.
+
+The firmware transfer operation can also be carried out by :ref:`nrf_desktop_smp`.
+The application module must call the :c:func:`dfu_lock` function before the transfer operation, as well as before erasing the flash area.
+This is done to make sure that only one application module could modify the secondary image flash partition.
+The modification of the data by multiple application modules would result in a broken image that would be rejected by the bootloader.
+After the operation is finished, the application module can call the :c:func:`dfu_unlock` to let other modules modify the secondary image flash partition.
+
+You can find the header file of the :c:func:`dfu_lock` and :c:func:`dfu_unlock` at the following path: :file:`src/util/dfu_lock.h`.
 
 Protocol operations
 ===================
@@ -41,78 +70,100 @@ Protocol operations
 The DFU module depends on the :ref:`nrf_desktop_config_channel` for the correct and secure data transmission between the host and the device.
 The module provides a simple protocol that allows the update tool on the host to pass the update image to the device.
 
-The following commands are available for controlling the module operation:
+.. note::
+   All the described :ref:`nrf_desktop_config_channel` options are used by the :ref:`nrf_desktop_config_channel_script` during the DFU.
+   You can trigger DFU using a single command in CLI.
 
-* `fwinfo`_ - Pass the information about currently executed image from the device to the host.
-* `reboot`_ - Reboot the device.
-* `start`_ - Start the new update image transmission.
-* `data`_ - Pass a chunk of the update image data from the host to the device.
-* `sync`_ - Check the progress of the update image transmission.
+The following :ref:`nrf_desktop_config_channel` options are available to perform the firmware update:
+
+* :ref:`fwinfo <dfu_fwinfo>` - Passes the information about the currently executed image from the device to the host.
+* :ref:`reboot <dfu_reboot>` - Reboots the device.
+* :ref:`start <dfu_start>` - Starts the new update image transmission.
+* :ref:`data <dfu_data>` - Passes a chunk of the update image data from the host to the device.
+* :ref:`sync <dfu_sync>` - Checks the progress of the update image transmission.
+
+.. _dfu_fwinfo:
 
 fwinfo
-------
+   Perform the fetch operation on this option to get the following information about the currently executed image:
 
-The ``fwinfo`` command is issued by sending a ``config_fetch_request_event`` from the host tool through the DFU module, with the ``fwinfo`` option for identification.
+   * Version and length of the image.
+   * Partition ID of the image, used to specify the image placement on the flash.
 
-The return data from the DFU module contains the following information about the currently executed image:
-
-* Version and length of the image.
-* Partition ID of the image, used to specify the image placement on the flash.
+.. _dfu_reboot:
 
 reboot
-------
+   Perform the fetch operation on this option to trigger an instant reboot of the device.
 
-This command is issued by sending a ``config_fetch_request_event`` from the host tool through the DFU module, with the ``reboot`` option used for identification.
-When received, it triggers an instant reboot of the device.
+.. _dfu_start:
 
 start
------
+   Perform the set operation on this option to start the DFU.
+   The operation contains the following data:
 
-The ``start`` command is issued by sending a ``config_event`` from the host tool through the DFU module, with the ``start`` option used for identification.
-The command contains the following data:
+   * Size of the image being transmitted.
+   * Checksum of the update image.
+   * Offset at which the host tool is going to start the image update.
+     If the image transfer is performed for the first time, the offset must be set to zero.
 
-* Update image checksum.
-* Size of the image.
-* Offset at which the host tool is to start an image update.
-  If the image transfer is performed for the first time, the offset must be set to zero.
+   When the host tool performs the set operation, the checksum and the size are recorded and the update process is started.
 
-When the command is issued, the checksum and the size are recorded and the update process is started.
+   If the transmission is interrupted, the current offset position is stored along with the image checksum and size until the device is rebooted.
+   The host tool can restart the update image transfer after the interruption, but the checksum, the requested offset, and the size of the image must match the information stored by the device.
 
-If for some reason the transmission is interrupted, the current offset position is stored along with the image checksum and size until the device is rebooted.
-The host tool can restart the update image transfer after interruption.
-In such case, the checksum and the size of the image (as well as the requested offset) must match the information stored by the device.
+.. _dfu_data:
 
 data
-----
+   Perform the set operation on this option to pass the chunk of the update image that should be stored at the current offset.
+   The data is initially buffered in RAM, and then it is written to the flash partition after a fetch operation is performed on the ``sync`` option.
 
-This command is issued by sending a ``config_event`` from the host tool through the DFU module, with the ``data`` option used for identification.
-The command passes the chunk of the update image that should be stored at the current offset.
+   If the set operation on the ``data`` option is successful, the offset in buffer is increased.
+   If the operation fails to be completed, the update process is interrupted.
 
-If the operation is successful, the offset is increased.
-In case of failure the update process is interrupted.
+   For performance reasons, the :ref:`nrf_desktop_config_channel` set operation does not return any information back to the host.
+   To check that the update process is correct, the host tool must perform fetch operation on the ``sync`` option at regular intervals.
 
-For performance reasons, this command does not return any information back to the host.
-To check that the update process is correct, the host tool must issue a ``sync`` command in regular intervals.
+   .. note::
+       The DFU module does not check if the update image contains any valid data.
+       It also does not check if it is correctly signed.
+       When the update image is received, the host tool requests a reboot.
+       Then, the bootloader will check the image for validity and ensure that the signature is correct.
+       If the verification of the new images is successful, the new version of the application will boot.
 
-.. note::
-    The DFU module does not check if the update image contains any valid data.
-    It also does not check if it is correctly signed.
-    When the update image is received, the host tool should request a reboot.
-    Then the bootloader will check the image for validity and ensure the signature is correct.
-    If verification of the new images is successful, the new version of the application will boot.
+.. _dfu_sync:
 
 sync
-----
+   Perform the fetch operation on this option to read the following data:
 
-The ``sync`` command is issued by sending a ``config_fetch_request_event`` from the host tool with the DFU module and the ``sync`` option used for identification.
-The command confirms to the tool that the update process is ongoing.
-It also sends back the following data:
+   * Information regarding the status of the update process.
+     The module can report one of the following states:
 
-* Checksum.
-* Size of the update image being transmitted.
-* Offset at which the update process currently is.
+     * :c:macro:`DFU_STATE_CLEANING` - The module is erasing the secondary image flash area.
+     * :c:macro:`DFU_STATE_STORING` - The module is writing data to the secondary image flash area.
+     * :c:macro:`DFU_STATE_ACTIVE` - The DFU is ongoing and the module is receiving the new image from the host.
+     * :c:macro:`DFU_STATE_INACTIVE` - The module is not performing any operation, and the DFU can be started.
 
-The update tool can issue the ``sync`` command before starting the update process to see at which offset the update is to be restarted.
+   * Size of the update image being transmitted.
+   * Checksum of the update image.
+   * Offset at which the update process currently is.
+   * Size of the RAM buffer used to store the data.
+     The host must perform the synchronization of the firmware image transfer progress at least on every synchronization buffer byte count.
+
+   The update tool can fetch the ``sync`` option before starting the update process to see at which offset the update is to be restarted.
+
+   Fetching the ``sync`` option also triggers moving the image data from the RAM buffer to flash.
+
+Writing data to flash
+=====================
+
+The image data that is received from the host is initially buffered in RAM.
+Writing the data to flash is triggered when the host performs the fetch operation on the ``sync`` option.
+At that point, the :ref:`nrf_desktop_config_channel_script` waits until the data is written to flash before providing more image data chunks.
+
+The data is stored in a secondary image flash partition using a dedicated work (:c:struct:`k_delayed_work`).
+The work stores a single chunk of data and resubmits itself.
+
+To ensure that the flash write will not interfere with the device usability, the stored data is split into small chunks and written only if there are no HID reports transmitted and the Bluetooth connection state does not change.
 
 Partition preparation
 =====================
@@ -120,8 +171,9 @@ Partition preparation
 The DFU module must prepare the partition before the update image can be stored.
 This operation is done in the background.
 
-To ensure that the memory erase will not interfere with the device usability, the memory pages are erased only if there are no HID reports transmitted and the Bluetooth connection state does not change (for example, memory is not erased right after the Bluetooth connection is established).
+To ensure that the memory erase will not interfere with the device usability, the memory pages are erased only if there are no HID reports transmitted and the Bluetooth connection state does not change.
+For example, the memory is not erased right after the Bluetooth connection is established.
 
 .. warning::
     The DFU process cannot be started before the entire partition used for storing the update image is erased.
-    If the start command is rejected, you must wait until all erase operations are completed.
+    If the DFU command is rejected, you must wait until the flash area used for the update image is erased.

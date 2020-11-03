@@ -30,6 +30,9 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_BRIDGE_BLE_LOG_LEVEL);
 
 #define BLE_TX_BUF_SIZE (CONFIG_BRIDGE_BUF_SIZE * 2)
 
+#define BLE_AD_IDX_FLAGS 0
+#define BLE_AD_IDX_NAME 1
+
 #define ATT_MIN_PAYLOAD 20 /* Minimum L2CAP MTU minus ATT header */
 
 static void bt_send_work_handler(struct k_work *work);
@@ -47,20 +50,22 @@ static uint32_t nus_max_send_len;
 static atomic_t ready;
 static atomic_t active;
 
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, (sizeof(CONFIG_BT_DEVICE_NAME) - 1)),
+static char bt_device_name[CONFIG_BT_DEVICE_NAME_MAX + 1] = CONFIG_BT_DEVICE_NAME;
+
+static struct bt_data ad[] = {
+	[BLE_AD_IDX_FLAGS] = BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+	[BLE_AD_IDX_NAME] = BT_DATA(BT_DATA_NAME_COMPLETE, bt_device_name, (sizeof(CONFIG_BT_DEVICE_NAME) - 1)),
 };
 
 static const struct bt_data sd[] = {
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, NUS_UUID_SERVICE),
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_NUS_VAL),
 };
 
 static void exchange_func(struct bt_conn *conn, uint8_t err,
 			  struct bt_gatt_exchange_params *params)
 {
 	if (!err) {
-		nus_max_send_len = bt_gatt_nus_max_send(conn);
+		nus_max_send_len = bt_nus_get_mtu(conn);
 	}
 }
 
@@ -131,7 +136,7 @@ static void bt_send_work_handler(struct k_work *work)
 	do {
 		len = ring_buf_get_claim(&ble_tx_ring_buf, &buf, nus_max_send_len);
 
-		err = bt_gatt_nus_send(current_conn, buf, len);
+		err = bt_nus_send(current_conn, buf, len);
 		if (err == -EINVAL) {
 			notif_disabled = true;
 			len = 0;
@@ -192,9 +197,9 @@ static void bt_sent_cb(struct bt_conn *conn)
 	k_work_submit(&bt_send_work);
 }
 
-static struct bt_gatt_nus_cb nus_cb = {
-	.received_cb = bt_receive_cb,
-	.sent_cb = bt_sent_cb,
+static struct bt_nus_cb nus_cb = {
+	.received = bt_receive_cb,
+	.sent = bt_sent_cb,
 };
 
 static void adv_start(void)
@@ -232,6 +237,27 @@ static void adv_stop(void)
 	}
 }
 
+static void name_update(const char *name)
+{
+	int err;
+
+	err = bt_set_name(name);
+	if (err) {
+		LOG_WRN("bt_set_name: %d", err);
+		return;
+	}
+
+	strcpy(bt_device_name, name);
+	ad[BLE_AD_IDX_NAME].data_len = strlen(name);
+
+	err = bt_le_adv_update_data(ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	if (err && err != -EAGAIN) {
+		/* Ignore error return when advertising is not running */
+		LOG_WRN("bt_le_adv_update_data: %d", err);
+		return;
+	}
+}
+
 static void bt_ready(int err)
 {
 	if (err) {
@@ -239,9 +265,9 @@ static void bt_ready(int err)
 		return;
 	}
 
-	err = bt_gatt_nus_init(&nus_cb);
+	err = bt_nus_init(&nus_cb);
 	if (err) {
-		LOG_ERR("bt_gatt_nus_init: %d", err);
+		LOG_ERR("bt_nus_init: %d", err);
 		return;
 	}
 
@@ -316,6 +342,9 @@ static bool event_handler(const struct event_header *eh)
 			if (atomic_set(&active, false)) {
 				adv_stop();
 			}
+			break;
+		case BLE_CTRL_NAME_UPDATE:
+			name_update(event->param.name_update);
 			break;
 		default:
 			/* Unhandled control message */

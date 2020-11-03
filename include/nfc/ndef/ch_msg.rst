@@ -3,6 +3,10 @@
 Connection Handover messages and records
 ########################################
 
+.. contents::
+   :local:
+   :depth: 2
+
 Connection Handover records and the corresponding messages are used to negotiate and activate an alternative communication carrier.
 The negotiated communication carrier can then be used to perform certain activities between the two devices, such as Bluetooth pairing.
 
@@ -33,11 +37,11 @@ The Connection Handover message library provides functions for encoding the foll
 * Handover Mediation message
 * Handover Initiate message
 
-This library is used in the :ref:`nfc_pairing` sample.
+This library is used in the :ref:`peripheral_nfc_pairing` sample.
 
 The following code sample demonstrates how to create a Handover Select message with one Alternative Carrier record that has a reference to the :ref:`Bluetooth LE OOB record <nfc_ndef_le_oob>`:
 
-.. literalinclude:: ../../../samples/bluetooth/nfc_pairing/src/main.c
+.. literalinclude:: ../../../samples/bluetooth/peripheral_nfc_pairing/src/main.c
     :language: c
     :start-after: include_startingpoint_pair_msg_rst
     :end-before: include_endpoint_pair_msg_rst

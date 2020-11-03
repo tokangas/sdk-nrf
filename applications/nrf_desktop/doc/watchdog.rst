@@ -3,6 +3,10 @@
 Watchdog module
 ###############
 
+.. contents::
+   :local:
+   :depth: 2
+
 The watchdog module is responsible for controlling the watchdog timer.
 
 The watchdog timer is used to prevent hangs caused by software or hardware faults.
@@ -24,9 +28,9 @@ Configuration
 The module uses Zephyr's :ref:`zephyr:watchdog_api` driver.
 For this reason, set the :option:`CONFIG_WATCHDOG` option.
 
-The module is enabled by the ``CONFIG_DESKTOP_WATCHDOG_ENABLE`` option.
+The module is enabled by the :option:`CONFIG_DESKTOP_WATCHDOG_ENABLE` option.
 
-You must define ``CONFIG_DESKTOP_WATCHDOG_TIMEOUT``.
+You must define :option:`CONFIG_DESKTOP_WATCHDOG_TIMEOUT`.
 After this amount of time (in ms), the device will be restarted if the watchdog timer was not reset.
 
 .. note::
@@ -37,6 +41,6 @@ Implementation details
 **********************
 
 The watchdog timer is started when the :ref:`nrf_desktop_main` is ready (which is reported using ``module_state_event``).
-The module periodically resets the watchdog timer using :cpp:class:`k_delayed_work`.
+The module periodically resets the watchdog timer using :c:struct:`k_delayed_work`.
 The work resubmits itself with delay equal to ``CONFIG_DESKTOP_WATCHDOG_TIMEOUT / 3``.
 In case of the system hang, the work will not be processed, the watchdog timer will not be reset on time, and the system will be restarted.

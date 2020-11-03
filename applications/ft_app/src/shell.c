@@ -63,6 +63,7 @@ static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 static int cmd_curl(const struct shell *shell, size_t argc, char **argv)
 {
 	(void)curl_tool_main(argc, argv);
+	shell_print(shell, "\nDONE");
 	return 0;
 }
 SHELL_CMD_REGISTER(curl, NULL, NULL, cmd_curl);

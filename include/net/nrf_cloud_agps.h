@@ -24,12 +24,11 @@ extern "C" {
 
 /**@brief Requests specified A-GPS data from nRF Cloud.
  *
- * @param types Array of assistance data types to request.
- * @param type_count Number of types to request.
+ * @param request Structure containing specified A-GPS data to be requested.
  *
  * @return 0 if successful, otherwise a (negative) error code.
  */
-int nrf_cloud_agps_request(enum gps_agps_type *types, size_t type_count);
+int nrf_cloud_agps_request(const struct gps_agps_request request);
 
 /**@brief Requests all available A-GPS data from nRF Cloud.
  *

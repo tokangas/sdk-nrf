@@ -83,6 +83,8 @@ sys.path.append(os.path.join(NRF_BASE, 'scripts', 'sphinx_extensions'))
 extensions = ['sphinx.ext.intersphinx',
               'breathe',
               'interbreathe',
+              'table_from_rows',
+              'options_from_kconfig',
               'sphinx.ext.ifconfig',
               'sphinxcontrib.mscgen',
               'sphinx_tabs.tabs',
@@ -128,6 +130,11 @@ exclude_patterns = ['_build']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
+
+# Additional lexer for Pygments (syntax highlighting)
+from lexer.DtsLexer import DtsLexer
+from sphinx.highlighting import lexers
+lexers['DTS'] = DtsLexer()
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -192,6 +199,11 @@ breathe_projects = {
     "nrf": "{}/doxygen/xml".format(NRF_BUILD),
 }
 breathe_default_project = "nrf"
+breathe_domain_by_extension = {
+    "h": "c",
+    "c": "c",
+}
+breathe_separate_member_pages = True
 
 # Qualifiers to a function are causing Sphinx/Breathe to warn about
 # Error when parsing function declaration and more.  This is a list
@@ -200,6 +212,7 @@ breathe_default_project = "nrf"
 cpp_id_attributes = ['__syscall', '__syscall_inline', '__deprecated',
     '__may_alias', '__used', '__unused', '__weak',
     '__DEPRECATED_MACRO', 'FUNC_NORETURN' ]
+c_id_attributes = cpp_id_attributes
 
 
 # Custom added feature to allow redirecting old URLs (caused by
@@ -218,9 +231,10 @@ html_redirect_pages = [
 rst_epilog = """
 .. include:: /links.txt
 .. include:: /shortcuts.txt
+.. include:: /versions.txt
 """
 
 def setup(app):
-    app.add_stylesheet("css/common.css")
-    app.add_stylesheet("css/nrf.css")
+    app.add_css_file("css/common.css")
+    app.add_css_file("css/nrf.css")
     app.add_js_file("js/ncs.js")

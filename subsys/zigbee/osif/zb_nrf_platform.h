@@ -37,6 +37,12 @@ void zigbee_debug_resume_zboss_thread(void);
 bool zigbee_is_zboss_thread_suspended(void);
 #endif /* defined(CONFIG_ZIGBEE_DEBUG_FUNCTIONS) */
 
+/**@brief Function for Zigbee stack initialization
+ *
+ * @return    0 if success
+ */
+int zigbee_init(void);
+
 /**@brief Function for checking if the Zigbee stack has been started.
  *
  * @retval true   Zigbee stack has been started.
@@ -56,12 +62,12 @@ void zigbee_event_notify(zigbee_event_t event);
 /**@brief Function which waits for event in case
  *        of empty Zigbee stack scheduler queue.
  *
- * @param[in] timeout_ms  Maximum amount of time, in milliseconds
+ * @param[in] timeout_us  Maximum amount of time, in microseconds
  *                        for which the ZBOSS task processing may be blocked.
  *
- * @returns The amount of milliseconds that the ZBOSS task was blocked.
+ * @returns The amount of microseconds that the ZBOSS task was blocked.
  */
-uint32_t zigbee_event_poll(uint32_t timeout_ms);
+uint32_t zigbee_event_poll(uint32_t timeout_us);
 
 /**@brief Schedule single-param callback execution.
  *

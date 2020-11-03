@@ -5,10 +5,12 @@
 #
 cmake_minimum_required(VERSION 3.13.1)
 
-list(PREPEND OVERLAY_CONFIG ../common/overlay-ot-defaults.conf)
+list(INSERT OVERLAY_CONFIG 0 ../common/overlay-ot-defaults.conf)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
 project(openthread_cli)
 
 target_sources(app PRIVATE src/main.c)
+
+target_sources_ifdef(CONFIG_BT app PRIVATE src/ble.c)

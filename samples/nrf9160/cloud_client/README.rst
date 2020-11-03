@@ -3,6 +3,10 @@
 nRF9160: Cloud client
 #####################
 
+.. contents::
+   :local:
+   :depth: 2
+
 This sample connects to, and communicates with a compatible cloud service using the respective cloud backend firmware library.
 The sample connects via cellular network (LTE) and publishes a custom string in intervals or upon a button trigger, to the cloud service.
 
@@ -14,6 +18,7 @@ The current version of the sample supports the following libraries as cloud back
 
 *  :ref:`lib_nrf_cloud`
 *  :ref:`lib_aws_iot`
+*  :ref:`lib_azure_iot_hub`
 
 To swap between the supported libraries, change the option :option:`CONFIG_CLOUD_BACKEND` to match the configuration string of a compatible cloud backend.
 The identification strings for the different cloud backends are listed in the following table:
@@ -24,28 +29,30 @@ The identification strings for the different cloud backends are listed in the fo
 
    * - Cloud Backend
      - Configuration String
-   * - NRF Cloud
-     - NRF_CLOUD
+   * - nRF Cloud
+     - "NRF_CLOUD"
    * - AWS IoT
-     - AWS_IOT
+     - "AWS_IOT"
+   * - Azure IoT Hub
+     - "AZURE_IOT_HUB"
 
 Requirements
 ************
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set6_start
-   :end-before: set6_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :sample-yaml-rows:
 
 Setup
 *****
 
-For configuring the different cloud backends, refer to the documentation on :ref:`lib_nrf_cloud` and :ref:`lib_aws_iot`.
+For configuring the different cloud backends, refer to the documentation on :ref:`lib_nrf_cloud`, :ref:`lib_aws_iot`, and :ref:`lib_azure_iot_hub`.
 Each cloud backend has specific setup steps that must be executed before it can be used.
 
 .. note::
-   The nRF9160 DK and Thingy:91 come pre-flashed with the certificates required for a connection to `nRF Cloud`_.
+   The nRF9160 DK and Thingy:91 come preprogrammed with the certificates required for a connection to `nRF Cloud`_.
    No extra steps are required to use the Cloud client sample with nRF Cloud.
 
 
@@ -54,26 +61,11 @@ Configurations
 
 The configurations used in the sample are listed below. They can be added to ``cloud_client/prj.conf``.
 
-
-.. option:: CONFIG_CLOUD_BACKEND
-
-Decides the cloud backend to be used.
-
-.. option:: CONFIG_CLOUD_PUBLICATION_SEQUENTIAL
-
-Publishes a message to cloud sequentially.
-
-.. option:: CONFIG_CLOUD_PUBLICATION_BUTTON_PRESS
-
-Publishes a message to cloud upon a button press.
-
-.. option:: CONFIG_CLOUD_MESSAGE
-
-Modifies the message published to the cloud service.
-
-.. option:: CONFIG_CLOUD_MESSAGE_PUBLICATION_INTERVAL
-
-Modifies the interval within which the message is published to the cloud service.
+.. options-from-kconfig::
+   :prefix: "This option "
+   :suffix: .
+   :show-type:
+   :only-visible:
 
 .. note::
    To output data in the terminal window located in the `nRF Cloud`_ web interface, the data format must be in JSON format.
@@ -87,38 +79,38 @@ Functions
 =========
 The sample uses the following functions:
 
-* :cpp:func:`cloud_get_binding()` : Binds to a desired cloud backend using an identifiable string.
+* :c:func:`cloud_get_binding` : Binds to a desired cloud backend using an identifiable string.
 
 
-* :cpp:func:`cloud_init()` : Sets up the cloud connection.
+* :c:func:`cloud_init` : Sets up the cloud connection.
 
 
-* :cpp:func:`cloud_connect()` : Connects to the cloud service.
+* :c:func:`cloud_connect` : Connects to the cloud service.
 
 
-* :cpp:func:`cloud_ping()` : Pings the cloud service.
+* :c:func:`cloud_ping` : Pings the cloud service.
 
 
-* :cpp:func:`cloud_input()` : Retrieves data from the cloud service.
+* :c:func:`cloud_input` : Retrieves data from the cloud service.
 
 
-* :cpp:func:`cloud_send()` : Sends data to the cloud service.
+* :c:func:`cloud_send` : Sends data to the cloud service.
 
 
 Cloud events used in the sample
 ===============================
 The sample uses the following cloud events:
 
-* :cpp:enumerator:`CLOUD_EVT_CONNECTED <cloud_api::CLOUD_EVT_CONNECTED>` : Connected to the cloud service.
+* :c:enumerator:`CLOUD_EVT_CONNECTED` : Connected to the cloud service.
 
 
-* :cpp:enumerator:`CLOUD_EVT_READY<cloud_api::CLOUD_EVT_READY>` : Ready for cloud communication.
+* :c:enumerator:`CLOUD_EVT_READY` : Ready for cloud communication.
 
 
-* :cpp:enumerator:`CLOUD_EVT_DISCONNECTED<cloud_api::CLOUD_EVT_DISCONNECTED>` : Disconnected from the cloud service.
+* :c:enumerator:`CLOUD_EVT_DISCONNECTED` : Disconnected from the cloud service.
 
 
-* :cpp:enumerator:`CLOUD_EVT_DATA_RECEIVED<cloud_api::CLOUD_EVT_DATA_RECEIVED>` : Data received from the cloud service.
+* :c:enumerator:`CLOUD_EVT_DATA_RECEIVED` : Data received from the cloud service.
 
 .. note::
    Not all functionalities present in the generic cloud API are used by the different cloud backends.

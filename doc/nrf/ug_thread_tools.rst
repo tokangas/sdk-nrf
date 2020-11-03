@@ -1,21 +1,44 @@
 .. _ug_thread_tools:
 
 Thread tools
-************
+############
+
+.. contents::
+   :local:
+   :depth: 2
 
 When working with Thread in |NCS|, you can use the following tools during Thread application development:
 
-* `nRF Thread Topology Monitor`_ - This desktop application helps to visualize the current network topology.
 * `nRF Sniffer for 802.15.4 based on nRF52840 with Wireshark`_ - Tool for analyzing network traffic during development.
-* :ref:`ug_thread_tools_wpantund`
+* `nRF Thread Topology Monitor`_ - This desktop application helps to visualize the current network topology.
 * `PySpinel`_ - Tool for controlling OpenThread Network Co-Processor instances through command line interface.
+* :ref:`ug_thread_tools_tbr`
+* :ref:`ug_thread_tools_wpantund`
 
 Using Thread tools is optional.
+
+.. _ug_thread_tools_tbr:
+
+Thread Border Router
+********************
+
+Thread Border Router is a specific type of Border Router device that provides connectivity from the IEEE 802.15.4 network to adjacent networks on other physical layers (such as Wi-Fi or Ethernet).
+Border Routers provide services for devices within the IEEE 802.15.4 network, including routing services for off-network operations.
+
+Typically, a Border Router solution consists of the following parts:
+
+* Application based on the :ref:`thread_architectures_designs_cp_ncp` design or its :ref:`thread_architectures_designs_cp_rcp` variant compatible with the IEEE 802.15.4 standard.
+  This application can be implemented for example on an nRF52 device.
+* Host-side application, usually implemented on a more powerful device with incorporated Linux-based operating system.
+
+|NCS| does not provide the complete Thread Border Router solution.
+For development purposes, you can use `OpenThread Border Router`_ , an open-source Border Router implementation that you can set up either on your PC using Docker or on Raspberry Pi.
+OpenThread Border Router is compatible with Nordic Semiconductor devices.
 
 .. _ug_thread_tools_wpantund:
 
 wpantund
-========
+********
 
 `wpantund`_ is a utility for providing a native IPv6 interface to a Network Co-Processor.
 When working with Thread, it is used for the interaction with the application by the following samples:
@@ -28,14 +51,14 @@ The interaction is possible using commands proper to wpanctl, a module installed
     The tool is available for Linux and macOS and is not supported on Windows.
 
 Installing wpantund
--------------------
+===================
 
 For installation and initial configuration, see `wpantund Installation Guide`_.
 
 .. _ug_thread_tools_wpantund_configuring:
 
 Configuring wpantund
---------------------
+====================
 
 When working with samples that support wpantund, complete the following steps to start the wpantund processes:
 
@@ -48,26 +71,26 @@ When working with samples that support wpantund, complete the following steps to
    For ``baudrate``, use value ``1000000``.
    For ``serial_port_name``, use the value that is valid for the sample.
    For ``network_interface_name``, use a name of your choice.
-   For example, `leader_interface`.
+   For example, `leader_if`.
 #. Open another shell and run the wpanctl process by using the following command:
 
    .. code-block:: console
 
-      wpanctl -I leader_interface
+      wpanctl -I leader_if
 
    This process can be used to control the connected NCP board.
 
 Once wpantund and wpanctl are started, you can start running wpanctl commands to interact with the board.
 
 Using wpanctl commands
-----------------------
+======================
 
 To issue a wpanctl command, run it in the wpanctl shell.
 For example, the following command checks the the NCP board state:
 
 .. code-block:: console
 
-   wpanctl:leader_interface> status
+   wpanctl:leader_if> status
 
 The output will be different depending on the board and the sample.
 

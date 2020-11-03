@@ -3,6 +3,10 @@
 nRF9160: AWS FOTA
 #################
 
+.. contents::
+   :local:
+   :depth: 2
+
 The Amazon Web Services firmware over-the-air (AWS FOTA) sample shows how to perform an over-the-air firmware update of an nRF9160 device via MQTT and HTTP. It is similar to the :ref:`http_application_update_sample`, except that the firmware download is triggered through an AWS IoT job.
 
 Overview
@@ -35,9 +39,9 @@ See `AWS IoT Developer Guide: Basic Policy Variables`_ and `AWS IoT Developer Gu
 To create a thing for your board:
 
 1. Log on to the `AWS IoT console`_.
-#. Go to **Secure** > **Policies** and select **Create a policy**.
+#. Go to :guilabel:`Secure` -> :guilabel:`Policies` and select :guilabel:`Create a policy`.
 #. Enter a name and define your policy.
-   For testing purposes, you can use the following policy (switch to **Advanced mode** to copy and paste it):
+   For testing purposes, you can use the following policy (switch to :guilabel:`Advanced mode` to copy and paste it):
 
    .. code-block:: javascript
 
@@ -51,20 +55,20 @@ To create a thing for your board:
              }
           ]
        }
-#. Go to **Manage** > **Things** and select **Register a thing** or **Create** (depending on whether you already have a thing registered).
-#. Select **Create a single thing**.
+#. Go to :guilabel:`Manage` -> :guilabel:`Things` and select :guilabel:`Register a thing` or :guilabel:`Create` (depending on whether you already have a thing registered).
+#. Select :guilabel:`Create a single thing`.
 #. Enter a name.
    The default name used by the sample is ``nrf-IMEI``, where *IMEI* is the IMEI number of your board.
    If you choose a different name, make sure to :ref:`configure a custom client ID <configuring>` in the sample before you build it.
 #. Accept the defaults and continue to the next step.
-#. Select **Create certificate** to generate new certificates.
+#. Select :guilabel:`Create certificate` to generate new certificates.
    Alternatively, you can use existing certificates.
    In this case, follow the instructions in AWS IoT.
 #. Download the certificates for later use.
-   You need the thing certificate (``*-certificate.pem.crt``), the private key (``*.private.pem.key``), and the root CA (choose the Amazon Root CA 1, ``AmazonRootCA1.pem``).
-#. Click **Activate** to activate the certificates.
-#. Click **Attach a policy** to continue to the next step.
-#. Select the policy that you created in step 3 and click **Register Thing**.
+   You need the thing certificate (:file:`*-certificate.pem.crt`), the private key (:file:`*.private.pem.key`), and the root CA (choose the Amazon Root CA 1, :file:`AmazonRootCA1.pem`).
+#. Click :guilabel:`Activate` to activate the certificates.
+#. Click :guilabel:`Attach a policy` to continue to the next step.
+#. Select the policy that you created in step 3 and click :guilabel:`Register Thing`.
 
 Updating the certificates
 =========================
@@ -84,10 +88,10 @@ Add the certificates to the sample code:
 
    .. warning_end
 
-   1. Open the ``certificates.h`` file in the ``src`` folder of the sample.
+   1. Open the :file:`certificates.h` file in the :file:`src` folder of the sample.
    #. Add the three certificates in the given format.
       Make sure to not add whitespace except for the ``\n`` line breaks.
-   #. Before programming the sample, configure it to provision the certificates from the certificates.h file (:option:`PROVISION_CERTIFICATES`) and to use a different security tag (:option:`CLOUD_CERT_SEC_TAG`).
+   #. Before programming the sample, configure it to provision the certificates from the :file:`certificates.h` file (:option:`PROVISION_CERTIFICATES`) and to use a different security tag (:option:`CLOUD_CERT_SEC_TAG`).
 
 Use LTE Link Monitor to write the certificates to the board:
    The nRF Connect `LTE Link Monitor`_ provides a certificate manager that you can use to store the certificates on your board:
@@ -96,7 +100,7 @@ Use LTE Link Monitor to write the certificates to the board:
    #. Put the modem in offline state.
    #. Paste the three certificates into the respective fields.
    #. Choose a security tag.
-   #. Click **Update certificates**.
+   #. Click :guilabel:`Update certificates`.
    #. Before programming the sample, make sure to configure the :option:`security tag <CLOUD_CERT_SEC_TAG>` to the one that you chose.
 
 .. include:: /includes/aws_s3_bucket.txt
@@ -106,9 +110,9 @@ Requirements
 
 The sample supports the following development kit:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set5_start
-   :end-before: set5_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :sample-yaml-rows:
 
 The sample requires an `AWS account`_ with access to Simple Storage Service (S3) and the IoT Core service.
 
@@ -144,7 +148,7 @@ Before you build the sample, check and update the following configuration option
 
    By default, the sample uses nRF Cloud's MQTT broker.
    Change this value to AWS IoT's MQTT broker.
-   To find the address of the AWS IoT MQTT broker, open the AWS IoT console, go to **Test** and select **View endpoint** from the **Connected as XXX** drop-down menu.
+   To find the address of the AWS IoT MQTT broker, open the AWS IoT console, go to :guilabel:`Test` and select :guilabel:`View endpoint` from the :guilabel:`Connected as XXX` drop-down menu.
 
 .. option:: USE_CLOUD_CLIENT_ID - Custom MQTT client ID
 
@@ -156,11 +160,11 @@ Before you build the sample, check and update the following configuration option
 
    If this option is checked, the sample uses the certificates that are stored in the modem with the nRF Cloud security tag.
 
-   Uncheck this option if you want to use the certificates added to the ``certificates.h`` file.
+   Uncheck this option if you want to use the certificates added to the :file:`certificates.h` file.
 
 .. option:: PROVISION_CERTIFICATES - Provision certificates from the certificates.h file
 
-   If this option is checked, the sample stores the certificates from the ``certificates.h`` file with the security tag that is defined as :option:`Security tag for TLS credentials <CLOUD_CERT_SEC_TAG>`.
+   If this option is checked, the sample stores the certificates from the :file:`certificates.h` file with the security tag that is defined as :option:`Security tag for TLS credentials <CLOUD_CERT_SEC_TAG>`.
 
    .. include:: README.rst
       :start-after: warning_start
@@ -194,15 +198,15 @@ After programming the sample to the board, test it by performing the following s
       [mqtt_evt_handler:129] MQTT client connected!
       [00:00:14.106,140] <inf> aws_jobs: Subscribe: $aws/things/nrf-aws-fota/jobs/notify-next
 
-#. Log on to the `AWS IoT console`_, go to **Manage** > **Things**, and select your thing.
-#. Go to **Shadow** and confirm that the application version (``nrfcloud__dfu_v1__app_v``) is the one that you configured for the sample.
+#. Log on to the `AWS IoT console`_, go to :guilabel:`Manage` -> :guilabel:`Things`, and select your thing.
+#. Go to :guilabel:`Shadow` and confirm that the application version (``nrfcloud__dfu_v1__app_v``) is the one that you configured for the sample.
 #. In the :ref:`configuring`, change the application version.
    Then rebuild the application, but do not program it.
 #. Go to `AWS S3 console`_ and sign in.
 #. Go to the bucket you have created.
-#. Click **Upload** and select the file ``app_update.bin`` (located in the ``zephyr`` subfolder of your build directory).
-#. Click the file you uploaded in the bucket and check the **Object URL** field to find the download URL for the file.
-#. Create a job document (a text file) with the following content, replacing *host_url* with the server part of the URL that you created (for example, ``s3.amazonaws.com``) and *file_path* with the path and file name (for example, ``nordic-firmware-files/app_update.bin``):
+#. Click :guilabel:`Upload` and select the file :file:`app_update.bin` (located in the :file:`zephyr` subfolder of your build directory).
+#. Click the file you uploaded in the bucket and check the :guilabel:`Object URL` field to find the download URL for the file.
+#. Create a job document (a text file) with the following content, replacing *host_url* with the server part of the URL that you created (for example, ``s3.amazonaws.com``) and *file_path* with the path and file name (for example, :file:`nordic-firmware-files/app_update.bin`):
 
    .. parsed-literal::
       :class: highlight
@@ -220,10 +224,10 @@ After programming the sample to the board, test it by performing the following s
 
    See `AWS IoT Developer Guide: Jobs`_ for more information about AWS jobs.
 #. Log on to the `AWS S3 console`_.
-#. Select the bucket, click **Upload**, and select your job document.
+#. Select the bucket, click :guilabel:`Upload`, and select your job document.
    Use the default settings when uploading the file.
-#. Log on to the `AWS IoT console`_, go to **Manage** > **Jobs**, and select **Create a job**.
-#. Click **Create custom job** and enter a unique job ID.
+#. Log on to the `AWS IoT console`_, go to :guilabel:`Manage` -> :guilabel:`Jobs`, and select :guilabel:`Create a job`.
+#. Click :guilabel:`Create custom job` and enter a unique job ID.
    Select your device and the job file that you uploaded to AWS S3.
    Use the default settings for all other options.
 #. Since the sample is configured to subscribe to the ``app_fw_update`` job topic, it picks up the job automatically.
@@ -245,8 +249,8 @@ After programming the sample to the board, test it by performing the following s
 
 
 #. When the board resets, observe that the sample prints the new application version.
-#. Log on to the `AWS IoT console`_, go to **Manage** > **Things**, and select your thing.
-#. Go to **Shadow** and confirm that the application version has updated.
+#. Log on to the `AWS IoT console`_, go to :guilabel:`Manage` -> :guilabel:`Things`, and select your thing.
+#. Go to :guilabel:`Shadow` and confirm that the application version has updated.
 
 
 Troubleshooting
@@ -254,7 +258,7 @@ Troubleshooting
 
 ERROR: mqtt_connect -45:
    Error -45 ("operation is not supported on socket") indicates an error with the configured certificates.
-   Check that you added the certificates correctly in ``certificates.h`` and that you did not mix up the different certificates.
+   Check that you added the certificates correctly in :file:`certificates.h` and that you did not mix up the different certificates.
    Certificates must be formatted correctly, without extra whitespace.
 
 Content range is not defined:

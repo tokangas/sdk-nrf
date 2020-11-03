@@ -136,6 +136,9 @@ static void radio_config(nrf_radio_mode_t mode, enum transmit_pattern pattern)
 		 */
 		packet_conf.plen = NRF_RADIO_PREAMBLE_LENGTH_32BIT_ZERO;
 		packet_conf.maxlen = IEEE_MAX_PAYLOAD_LEN;
+		packet_conf.balen = 0;
+		packet_conf.big_endian = false;
+		packet_conf.whiteen = false;
 
 		/* Set fast ramp-up time. */
 		nrf_radio_modecnf0_set(NRF_RADIO, true,
@@ -527,7 +530,7 @@ static void timer_init(const struct radio_test_config *config)
 	}
 }
 
-void radio_handler(void *context)
+void radio_handler(const void *context)
 {
 	const struct radio_test_config *config =
 		(const struct radio_test_config *) context;

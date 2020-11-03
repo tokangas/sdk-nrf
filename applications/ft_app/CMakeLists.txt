@@ -18,29 +18,17 @@ target_include_directories(app PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/ping
   ${CMAKE_CURRENT_SOURCE_DIR}/utils
   ${CMAKE_CURRENT_SOURCE_DIR}/utils/freebsd-getopt)
-#TODO: flag iperf: add_subdirectory_ifdef(CONFIG_FTA_IPERF src/iperf)
 
-#zephyr_include_directories(${ZEPHYR_BASE}/include/posix)
-#zephyr_include_directories_ifdef(CONFIG_POSIX_API
-#  ${ZEPHYR_BASE}/include/posix)
-#zephyr_compile_definitions(_POSIX_C_SOURCE=200809L)
-# target_compile_definitions(app INTERFACE REENTRANT_SYSCALLS_PROVIDED
-#   MISSING_SYSCALL_NAMES)
-# add_link_options(-specs=nosys.specs)
-# target_link_options(app
-#     INTERFACE
-#       -specs=nosys.specs
-# )
-# NORDIC SDK APP START
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/utils/fta_net_utils.c)
 target_sources(app PRIVATE src/utils/fta_time_utils.c)
 target_sources(app PRIVATE src/utils/freebsd-getopt/getopt.c)
+target_sources(app PRIVATE src/utils/freebsd-getopt/getopt_long.c)
+
 add_subdirectory_ifdef(CONFIG_FTA_SOCK src/sock)
 add_subdirectory_ifdef(CONFIG_FTA_LTELC src/ltelc)
 add_subdirectory_ifdef(CONFIG_FTA_PING src/ping)
 add_subdirectory_ifdef(CONFIG_FTA_CURL src/curl)
 add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
 add_subdirectory_ifdef(CONFIG_FTA_GNSS src/gnss)
-# NORDIC SDK APP END

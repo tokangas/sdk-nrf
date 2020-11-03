@@ -3,7 +3,11 @@
 Bluetooth: LLPM
 ###############
 
-The Bluetooth Low Latency Packet Mode (LLPM) sample uses the :ref:`latency_readme` and the :ref:`latency_c_readme` to showcase the LLPM proprietary Bluetooth extension from Nordic Semiconductor.
+.. contents::
+   :local:
+   :depth: 2
+
+The Bluetooth Low Latency Packet Mode (LLPM) sample uses the :ref:`latency_readme` and the :ref:`latency_client_readme` to showcase the LLPM proprietary Bluetooth extension from Nordic Semiconductor.
 You can use it to determine the transmission latency of LLPM-enabled connections, or to compare with different connection parameters and check their influence on the results.
 
 
@@ -17,7 +21,7 @@ See the following subsections for a description of the key LLPM elements.
 
 LLPM connection interval (1 ms)
    The connection interval defines how often the devices must listen on the radio.
-   The LLPM introduces the possibility to reduce the connection interval below what is supported in BLE.
+   The LLPM introduces the possibility to reduce the connection interval below what is supported in Bluetooth LE.
    The lowest supported connection interval is 1 ms for one link.
 
 Physical layer (PHY)
@@ -29,7 +33,7 @@ QoS connection event reports
    When reports are enabled, one report will be generated on every connection event.
    The report gives information about the quality of service of the connection event.
    The values in the report are used to describe the quality of links.
-   For parameter descriptions, see :cpp:enum:`sdc_hci_vs_subevent_qos_conn_event_report_t` (in :file:`sdc_hci_vs.h`).
+   For parameter descriptions, see :c:type:`sdc_hci_vs_subevent_qos_conn_event_report_t` (in :file:`sdc_hci_vs.h`).
 
 Transmission latency
    The definition of the latency used in this example counts the time interval from the sender's application to the GATT service of the receiver.
@@ -261,7 +265,7 @@ Dependencies
 This sample uses the following |NCS| libraries:
 
 * :ref:`latency_readme`
-* :ref:`latency_c_readme`
+* :ref:`latency_client_readme`
 
 This sample uses the following `nrfxlib`_ libraries:
 

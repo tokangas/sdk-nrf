@@ -15,6 +15,7 @@
 #include <net/cloud.h>
 #include <logging/log.h>
 #include <sys/util.h>
+#include <settings/settings.h>
 
 #if defined(CONFIG_BSD_LIBRARY)
 #include <nrf_socket.h>
@@ -35,7 +36,7 @@ LOG_MODULE_REGISTER(nrf_cloud_transport, CONFIG_NRF_CLOUD_LOG_LEVEL);
 
 #if !defined(NRF_CLOUD_CLIENT_ID)
 #define NRF_IMEI_LEN 15
-#define NRF_CLOUD_CLIENT_ID_LEN (NRF_IMEI_LEN + 4)
+#define NRF_CLOUD_CLIENT_ID_LEN (sizeof(CONFIG_NRF_CLOUD_CLIENT_ID_PREFIX) - 1 + NRF_IMEI_LEN)
 #else
 #define NRF_CLOUD_CLIENT_ID_LEN (sizeof(NRF_CLOUD_CLIENT_ID) - 1)
 #endif
@@ -102,12 +103,25 @@ static int last_sent_fota_progress;
 #endif
 
 static bool initialized;
+static bool persistent_session;
 
 #define NCT_CC_SUBSCRIBE_ID 1234
 #define NCT_DC_SUBSCRIBE_ID 8765
 
 #define NCT_RX_LIST 0
 #define NCT_TX_LIST 1
+
+static int nct_settings_set(const char *key, size_t len_rd,
+			    settings_read_cb read_cb, void *cb_arg);
+
+#define SETTINGS_NAME "nrf_cloud"
+#define SETTINGS_KEY_PERSISTENT_SESSION "p_sesh"
+#define SETTINGS_FULL_PERSISTENT_SESSION SETTINGS_NAME \
+					 "/" \
+					 SETTINGS_KEY_PERSISTENT_SESSION
+
+SETTINGS_STATIC_HANDLER_DEFINE(nrf_cloud, SETTINGS_NAME, NULL, nct_settings_set,
+			       NULL, NULL);
 
 /* Forward declaration of the event handler registered with MQTT. */
 static void nct_mqtt_evt_handler(struct mqtt_client *client,
@@ -313,7 +327,7 @@ static int nct_client_id_get(char *id)
 	__ASSERT_NO_MSG(bytes_read == NRF_IMEI_LEN);
 	imei_buf[NRF_IMEI_LEN] = 0;
 
-	snprintf(id, NRF_CLOUD_CLIENT_ID_LEN + 1, "nrf-%s", imei_buf);
+	snprintf(id, NRF_CLOUD_CLIENT_ID_LEN + 1, "%s%s", CONFIG_NRF_CLOUD_CLIENT_ID_PREFIX, imei_buf);
 
 	ret = nrf_close(at_socket_fd);
 	__ASSERT_NO_MSG(ret == 0);
@@ -403,7 +417,7 @@ static int nct_provision(void)
 		/* Delete certificates */
 		nrf_sec_tag_t sec_tag = CONFIG_NRF_CLOUD_SEC_TAG;
 
-		for (enum modem_key_mgnt_cred_type_t type = 0; type < 5;
+		for (enum modem_key_mgnt_cred_type type = 0; type < 5;
 		     type++) {
 			err = modem_key_mgmt_delete(sec_tag, type);
 			LOG_DBG("modem_key_mgmt_delete(%u, %d) => result = %d",
@@ -608,6 +622,66 @@ static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
 }
 #endif /* defined(CONFIG_AWS_FOTA) */
 
+static int nct_settings_set(const char *key, size_t len_rd,
+			    settings_read_cb read_cb, void *cb_arg)
+{
+	if (!key) {
+		return -EINVAL;
+	}
+
+	int read_val;
+
+	LOG_DBG("Settings key: %s, size: %d", log_strdup(key), len_rd);
+
+	if (!strncmp(key, SETTINGS_KEY_PERSISTENT_SESSION,
+		     strlen(SETTINGS_KEY_PERSISTENT_SESSION)) &&
+	    (len_rd == sizeof(read_val))) {
+		if (read_cb(cb_arg, (void *)&read_val, len_rd) == len_rd) {
+#if !IS_ENABLED(CONFIG_MQTT_CLEAN_SESSION)
+			persistent_session = (bool)read_val;
+#endif
+			LOG_DBG("Read setting val: %d", read_val);
+			return 0;
+		}
+	}
+	return -ENOTSUP;
+}
+
+int save_session_state(const int session_valid)
+{
+	int ret = 0;
+
+#if !IS_ENABLED(CONFIG_MQTT_CLEAN_SESSION)
+	LOG_DBG("Setting session state: %d", session_valid);
+	persistent_session = (bool)session_valid;
+	ret = settings_save_one(SETTINGS_FULL_PERSISTENT_SESSION,
+				&session_valid, sizeof(session_valid));
+#endif
+	return ret;
+}
+
+static int nct_settings_init(void)
+{
+	int ret = 0;
+
+#if !IS_ENABLED(CONFIG_MQTT_CLEAN_SESSION)
+	ret = settings_subsys_init();
+	if (ret) {
+		LOG_ERR("Settings init failed: %d", ret);
+		return ret;
+	}
+
+	ret = settings_load_subtree(settings_handler_nrf_cloud.name);
+	if (ret) {
+		LOG_ERR("Cannot load settings: %d", ret);
+	}
+#else
+	ARG_UNUSED(settings_handler_nrf_cloud);
+#endif
+
+	return ret;
+}
+
 /* Connect to MQTT broker. */
 int nct_mqtt_connect(void)
 {
@@ -623,10 +697,10 @@ int nct_mqtt_connect(void)
 		nct.client.protocol_version = MQTT_VERSION_3_1_1;
 		nct.client.password = NULL;
 		nct.client.user_name = NULL;
-#if defined(CONFIG_CLOUD_PERSISTENT_SESSIONS)
-		nct.client.clean_session = 0U;
-		LOG_DBG("mqtt_connect requesting persistent session");
-#endif
+		nct.client.clean_session = persistent_session ? 0U : 1U;
+		LOG_DBG("MQTT clean session flag: %u",
+			nct.client.clean_session);
+
 #if defined(CONFIG_MQTT_LIB_TLS)
 		nct.client.transport.type = MQTT_TRANSPORT_SECURE;
 		nct.client.rx_buf = nct.rx_buf;
@@ -658,7 +732,7 @@ int nct_mqtt_connect(void)
 		return err;
 	}
 
-	if (IS_ENABLED(CONFIG_NRF_CLOUD_NONBLOCKING_SEND)) {
+	if (IS_ENABLED(CONFIG_NRF_CLOUD_SEND_NONBLOCKING)) {
 		err = fcntl(nct_socket_get(), F_SETFL, O_NONBLOCK);
 		if (err == -1) {
 			LOG_ERR("Failed to set socket as non-blocking, err: %d",
@@ -667,6 +741,20 @@ int nct_mqtt_connect(void)
 			err = 0;
 		} else {
 			LOG_INF("Using non-blocking socket");
+		}
+	}  else if (IS_ENABLED(CONFIG_NRF_CLOUD_SEND_TIMEOUT)) {
+		struct timeval timeout = {
+			.tv_sec = CONFIG_NRF_CLOUD_SEND_TIMEOUT_SEC
+		};
+
+		err = setsockopt(nct_socket_get(), SOL_SOCKET, SO_SNDTIMEO,
+				 &timeout, sizeof(timeout));
+		if (err == -1) {
+			LOG_ERR("Failed to set timeout, errno: %d", errno);
+			err = 0;
+		} else {
+			LOG_INF("Using socket send timeout of %d seconds",
+				CONFIG_NRF_CLOUD_SEND_TIMEOUT_SEC);
 		}
 	}
 
@@ -714,8 +802,15 @@ static void nct_mqtt_evt_handler(struct mqtt_client *const mqtt_client,
 
 		LOG_DBG("MQTT_EVT_CONNACK: result %d", _mqtt_evt->result);
 
+		evt.param.flag = (p->session_present_flag != 0) &&
+				 persistent_session;
+
+		if (persistent_session && (p->session_present_flag == 0)) {
+			/* Session not present, clear saved state */
+			save_session_state(0);
+		}
+
 		evt.type = NCT_EVT_CONNECTED;
-		evt.param.flag = (p->session_present_flag != 0);
 		event_notify = true;
 		break;
 	}
@@ -784,6 +879,13 @@ static void nct_mqtt_evt_handler(struct mqtt_client *const mqtt_client,
 		if (_mqtt_evt->param.suback.message_id == NCT_DC_SUBSCRIBE_ID) {
 			evt.type = NCT_EVT_DC_CONNECTED;
 			event_notify = true;
+
+			/* Subscribing complete, session is now valid */
+			err = save_session_state(1);
+			if (err) {
+				LOG_ERR("Failed to save session state: %d",
+					err);
+			}
 		}
 		break;
 	}
@@ -832,6 +934,11 @@ int nct_init(void)
 	dc_endpoint_reset();
 
 	err = nct_topics_populate();
+	if (err) {
+		return err;
+	}
+
+	err = nct_settings_init();
 	if (err) {
 		return err;
 	}
