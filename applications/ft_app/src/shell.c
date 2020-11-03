@@ -30,6 +30,9 @@
 #if defined (CONFIG_FTA_CURL)	
 #include "fta_curl.h"
 #endif
+#if defined (CONFIG_FTA_GNSS)
+#include "gnss/gnss_shell.h"
+#endif
 
 static int app_cmd_at(const struct shell *shell, size_t argc, char **argv)
 {
@@ -85,4 +88,10 @@ SHELL_CMD_REGISTER(ltelc, NULL,
 
 #if defined (CONFIG_FTA_IPERF3)
 SHELL_CMD_REGISTER(iperf3, NULL, NULL, cmd_iperf3);
+#endif
+
+#if defined (CONFIG_FTA_GNSS)
+SHELL_CMD_REGISTER(gnss, NULL,
+	"Commands for controlling GNSS.",
+	gnss_shell);
 #endif

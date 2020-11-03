@@ -42,4 +42,5 @@ add_subdirectory_ifdef(CONFIG_FTA_LTELC src/ltelc)
 add_subdirectory_ifdef(CONFIG_FTA_PING src/ping)
 add_subdirectory_ifdef(CONFIG_FTA_CURL src/curl)
 add_subdirectory_ifdef(CONFIG_FTA_IPERF3 src/iperf)
+add_subdirectory_ifdef(CONFIG_FTA_GNSS src/gnss)
 # NORDIC SDK APP END

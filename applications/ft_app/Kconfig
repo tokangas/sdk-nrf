@@ -28,6 +28,10 @@ config FTA_CURL
 	bool  "Enable CURL"
     default n
 
+config FTA_GNSS
+	bool  "Enable GNSS support"
+	default y
+
 if FTA_IPERF3
 menu "FTA iperf3 selections"
 
