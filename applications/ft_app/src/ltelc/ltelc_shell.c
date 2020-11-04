@@ -10,6 +10,8 @@
 #include "ltelc_api.h"
 #include "ltelc_shell.h"
 
+#define LTELC_SHELL_EDRX_VALUE_STR_LENGTH 4
+#define LTELC_SHELL_EDRX_PTW_STR_LENGTH 4
 
 typedef enum {
 	LTELC_CMD_STATUS = 0,
@@ -18,19 +20,22 @@ typedef enum {
 	LTELC_CMD_DISCONNECT,
 	LTELC_CMD_FUNMODE,
 	LTELC_CMD_SYSMODE,
+	LTELC_CMD_EDRX,
 	LTELC_CMD_HELP
 } ltelc_shell_command;
 
 typedef enum {
-	LTELC_RSRP_NONE = 0,
-	LTELC_RSRP_SUBSCRIBE,
-	LTELC_RSRP_UNSUBSCRIBE
-} ltelc_shell_rsrp_options;
+	LTELC_COMMON_NONE = 0,
+	LTELC_COMMON_READ,
+	LTELC_COMMON_ENABLE,
+	LTELC_COMMON_DISABLE
+} ltelc_shell_common_options;
 
 typedef enum {
-	LTELC_COMMON_NONE = 0,
-	LTELC_COMMON_READ
-} ltelc_shell_common_options;
+	LTELC_RSRP_NONE = 0,
+	LTELC_RSRP_SUBSCRIBE, //TODO: replace with common enable
+	LTELC_RSRP_UNSUBSCRIBE  //TODO: replace with common disable
+} ltelc_shell_rsrp_options;
 
 typedef struct {
 	ltelc_shell_command command;
@@ -54,6 +59,7 @@ const char ltelc_usage_str[] =
 	"  disconnect [<apn> | <cid>]:     Disconnect from given apn\n"
 	"  funmode [funmode options]:      Set/read functional modes of the modem\n"
 	"  sysmode [sysmode options]:      Set/read system modes of the modem\n"
+	"  edrx [eDRX options]:            Enable/disable eDRX with default or with custom parameters\n"
 	"\n"
 	"General options:\n"
 	"  -a <apn> | --apn <apn>, [str] Access Point Name\n"
@@ -79,25 +85,35 @@ const char ltelc_usage_str[] =
 	"  -M | --ltem_gps,   [bool]  LTE-M + GPS system mode\n"
 	"  -N | --nbiot_gps,  [bool]  NB-IoT + GPS system mode\n"
 	"\n"
+	"Options for 'edrx' command:\n"
+	"  -e | --enable,             [bool]   Enable eDRX\n"
+	"  -d | --disable,            [bool]   Disable eDRX\n"
+	"  -E | --edrx_value <value>, [string] Sets custom eDRX value to be requested when enabling eDRX.\n"
+	"  -P | --ptw <value>,        [string] Sets custom Paging Time Window value to be requested when enabling eDRX.\n"
+	"\n"
 	;
 
  /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
-    {"apn",         required_argument, 0,  'a' },
-    {"cid",         required_argument, 0,  'I' },
-    {"subscribe",   no_argument,       0,  's' },
-    {"unsubscribe", no_argument,       0,  'u' },
-    {"read",        no_argument,       0,  'r' },
-    {"pwroff",      no_argument,       0,  '0' },
-    {"normal",      no_argument,       0,  '1' },
-    {"flightmode",  no_argument,       0,  '4' },
-    {"ltem",        no_argument,       0,  'm' },
-    {"nbiot",       no_argument,       0,  'n' },
-    {"gps",         no_argument,       0,  'g' },
-    {"ltem_gps",    no_argument,       0,  'M' },
-    {"nbiot_gps",   no_argument,       0,  'N' },
-    {0,             0,                 0,   0  }
-    };
+    {"apn",                     required_argument, 0,  'a' },
+    {"cid",                     required_argument, 0,  'I' },
+    {"subscribe",               no_argument,       0,  's' },
+    {"unsubscribe",             no_argument,       0,  'u' },
+    {"read",                    no_argument,       0,  'r' },
+    {"pwroff",                  no_argument,       0,  '0' },
+    {"normal",                  no_argument,       0,  '1' },
+    {"flightmode",              no_argument,       0,  '4' },
+    {"ltem",                    no_argument,       0,  'm' },
+    {"nbiot",                   no_argument,       0,  'n' },
+    {"gps",                     no_argument,       0,  'g' },
+    {"ltem_gps",                no_argument,       0,  'M' },
+    {"nbiot_gps",               no_argument,       0,  'N' },
+    {"enable",                  no_argument,       0,  'e' },
+    {"disable",                 no_argument,       0,  'd' },
+    {"edrx_value",              required_argument, 0,  'E' },
+    {"ptw",                 required_argument, 0,  'P' },
+    {0,                         0,                 0,   0  }
+};
 
 static void ltelc_shell_print_usage(const struct shell *shell)
 {
@@ -200,9 +216,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "sysmode") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_SYSMODE;
+	} else if (strcmp(argv[1], "edrx") == 0) {
+		require_option = true;
+		ltelc_cmd_args.command = LTELC_CMD_EDRX;
 	} else if (strcmp(argv[1], "help") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_HELP;
-        	goto show_usage;
+        goto show_usage;
 	} else {
 		shell_error(shell, "Unsupported command=%s\n", argv[1]);
 		ret = -EINVAL;
@@ -215,7 +234,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	int long_index = 0;
 	int opt;
 
-	while ((opt = getopt_long(argc, argv, "a:I:su014rmngMN", long_options, &long_index)) != -1) {
+	char edrx_value_str[LTELC_SHELL_EDRX_VALUE_STR_LENGTH + 1];
+	bool edrx_value_set = false;
+	char ptw_bit_str[LTELC_SHELL_EDRX_PTW_STR_LENGTH + 1];
+	bool edrx_ptw_set = false;
+
+	while ((opt = getopt_long(argc, argv, "a:I:E:P:su014rmngMNed", long_options, &long_index)) != -1) {
 		int apn_len = 0;
 
 		switch (opt) {
@@ -238,6 +262,28 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_FLIGHTMODE;
 			break;
 
+		/* eDRX specifics: */
+		case 'E': //edrx_value
+			if (strlen(optarg) == 4) {
+				strcpy(edrx_value_str, optarg);
+				edrx_value_set = true;
+			}
+			else {
+				shell_error(shell, "eDRX value string length must be %d.", LTELC_SHELL_EDRX_VALUE_STR_LENGTH);
+				return -EINVAL;
+			}
+			break;
+		case 'P': //Paging Time Window
+			if (strlen(optarg) == 4) {
+				strcpy(ptw_bit_str, optarg);
+				edrx_ptw_set = true;
+			}
+			else {
+				shell_error(shell, "PTW string length must be %d.", LTELC_SHELL_EDRX_PTW_STR_LENGTH);
+				return -EINVAL;
+			}
+			break;
+
 		/* Modem system modes: */
 		case 'm':
 			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_LTEM;
@@ -256,6 +302,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 
         /* Common options: */
+		case 'e':
+			ltelc_cmd_args.common_option = LTELC_COMMON_ENABLE;
+			break;
+		case 'd':
+			ltelc_cmd_args.common_option = LTELC_COMMON_DISABLE;
+			break;
 		case 'r':
 			ltelc_cmd_args.common_option = LTELC_COMMON_READ;
 			break;
@@ -351,6 +403,44 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				}
 			}
 			break;
+		case LTELC_CMD_EDRX:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+				if (edrx_value_set) {
+					ret = lte_lc_edrx_param_set(edrx_value_str);
+					if (ret < 0) {
+						shell_error(shell, "cannot set eDRX value: %d", ret);
+						return -EINVAL;
+					}
+				}
+				if (edrx_ptw_set) {
+					ret = lte_lc_ptw_set(ptw_bit_str);
+					if (ret < 0) {
+						shell_error(shell, "cannot set PTW value: %d", ret);
+						return -EINVAL;
+					}
+				}
+
+				ret = lte_lc_edrx_req(true);
+				if (ret < 0) {
+					shell_error(shell, "cannot enable eDRX: %d", ret);
+				} else {
+					shell_print(shell, "eDRX enabled");
+				}
+			}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+				ret = lte_lc_edrx_req(false);
+				if (ret < 0) {
+					shell_error(shell, "cannot disable eDRX: %d", ret);
+				} else {
+					shell_print(shell, "eDRX disabled");
+				}
+			}
+			else {
+				shell_error(shell, "Unknown option for edrx command. See usage:");
+				goto show_usage;
+			}
+			break;
+
 		case LTELC_CMD_RSRP:
 			(ltelc_cmd_args.rsrp_option == LTELC_RSRP_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false); 
 			break;
