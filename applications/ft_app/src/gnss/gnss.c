@@ -16,7 +16,7 @@
 
 extern const struct shell *gnss_shell_global;
 
-static struct device *gps_dev;
+static const struct device *gps_dev;
 static bool gnss_initialized = false;
 
 /* Default GNSS configuration */
@@ -127,7 +127,7 @@ static void print_nmea(const struct gps_nmea *nmea)
 }
 
 static void gps_event_handler(
-		struct device *dev,
+		const struct device *dev,
 		struct gps_event *evt)
 {
 	switch (evt->type) {
