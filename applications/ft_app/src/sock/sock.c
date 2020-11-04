@@ -484,10 +484,11 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval)
 
 			// Data to be sent must also be specified
 			if (strlen(data) < 1) {
-				shell_error(shell_global, "Data sending interval is specified without data to be send.");
+				shell_error(shell_global, "Data sending interval is specified without data to be send");
 				return -EINVAL;
 			}
 
+			memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
 			memcpy(send_buffer, data, strlen(data));
 			shell_print(shell_global, "Socket data send periodic with interval=%d", interval);
 			k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
