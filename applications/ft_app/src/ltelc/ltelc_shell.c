@@ -393,14 +393,26 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 	char* apn_print;
 	char snum[64];
+	enum lte_lc_system_mode sys_mode_current = LTE_LC_SYSTEM_MODE_NONE;
+	bool online = false;
 
 	switch (ltelc_cmd_args.command) {
 		case LTELC_CMD_STATUS:
-			ltelc_api_modem_info_get_for_shell(shell);
+			ret = lte_lc_system_mode_get(&sys_mode_current);
+			if (ret >= 0)
+				shell_print(shell, "Modem system mode: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
+
+			ret = ltelc_func_mode_get();
+			if (ret >= 0)
+				shell_print(shell, "Modem functional mode: %s", ltelc_shell_funmode_to_string(ret, snum));
+
+			if (ret == LTELC_FUNMODE_NORMAL)
+				online = true;
+
+			ltelc_api_modem_info_get_for_shell(shell, online);
 			break;
 		case LTELC_CMD_SYSMODE:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
-				enum lte_lc_system_mode sys_mode_current = LTE_LC_SYSTEM_MODE_NONE;
 
 				ret = lte_lc_system_mode_get(&sys_mode_current);
 				if (ret < 0) {

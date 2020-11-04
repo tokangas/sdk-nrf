@@ -64,7 +64,7 @@ static void ltelc_modem_info_work(struct k_work *unused)
 
     k_sleep(K_MSEC(1500)); /* Seems that 1st info read fails without this. Thus, let modem have some time */
 
-	ltelc_api_modem_info_get_for_shell(uart_shell);
+	ltelc_api_modem_info_get_for_shell(uart_shell, true);
 }
 //**************************************************************************
 

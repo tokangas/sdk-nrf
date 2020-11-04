@@ -66,7 +66,7 @@ static int cmd_curl(const struct shell *shell, size_t argc, char **argv)
 	shell_print(shell, "\nDONE");
 	return 0;
 }
-SHELL_CMD_REGISTER(curl, NULL, NULL, cmd_curl);
+SHELL_CMD_REGISTER(curl, NULL, "For curl usage, just type \"curl\"", cmd_curl);
 #endif
 
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
@@ -78,7 +78,7 @@ SHELL_CMD_REGISTER(sock, NULL,
 #endif
 
 #if defined (CONFIG_FTA_PING)
-SHELL_CMD_REGISTER(ping, NULL, NULL, icmp_ping_shell);
+SHELL_CMD_REGISTER(ping, NULL, "For ping usage, just type \"ping\"", icmp_ping_shell);
 #endif
 
 #if defined (CONFIG_FTA_LTELC)
@@ -88,7 +88,7 @@ SHELL_CMD_REGISTER(ltelc, NULL,
 #endif
 
 #if defined (CONFIG_FTA_IPERF3)
-SHELL_CMD_REGISTER(iperf3, NULL, NULL, cmd_iperf3);
+SHELL_CMD_REGISTER(iperf3, NULL, "For iperf3 usage, just type \"iperf3\"", cmd_iperf3);
 #endif
 
 #if defined (CONFIG_FTA_GNSS)

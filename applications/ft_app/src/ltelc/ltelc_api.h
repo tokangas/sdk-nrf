@@ -32,7 +32,7 @@ typedef struct
 } pdp_context_info_array_t;
 
 #if defined(CONFIG_MODEM_INFO)
-void ltelc_api_modem_info_get_for_shell(const struct shell *shell);
+void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #endif
 #if defined(CONFIG_AT_CMD)
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);

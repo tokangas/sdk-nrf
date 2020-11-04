@@ -225,21 +225,11 @@ clean_exit:
 #endif /* CONFIG_AT_CMD */
 /* *****************************************************************************/
 #if defined(CONFIG_MODEM_INFO)
-void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
+void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 {
 	pdp_context_info_array_t pdp_context_info_tbl;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE + 1];
 	int ret;
-
-	ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
-				    sizeof(info_str));
-	if (ret >= 0) {
-		shell_print(shell, "Operator: %s", info_str);
-	} else {
-		shell_error(shell,
-			    "\nUnable to obtain modem operator parameters (%d)",
-			    ret);
-	}
 
 	ret = modem_info_string_get(MODEM_INFO_FW_VERSION, info_str,
 				    sizeof(info_str));
@@ -247,52 +237,64 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 		shell_print(shell, "Modem FW version: %s", info_str);
 	} else {
 		shell_error(shell,
-			    "\nUnable to obtain modem ip parameters (%d)", ret);
-	}
-	
-	ret = modem_info_string_get(MODEM_INFO_DATE_TIME, info_str,
-				    sizeof(info_str));
-	if (ret >= 0) {
-		shell_print(shell, "Mobile network time and date: %s", info_str);
-	} else {
-		shell_error(shell,
-			    "\nUnable to obtain modem time (%d)", ret);
+			    "Unable to obtain modem ip parameters (%d)", ret);
 	}
 
-#if defined(CONFIG_AT_CMD)
-	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
-	if (ret >= 0) {
-		char ipv4_addr[NET_IPV4_ADDR_LEN];
-		char ipv6_addr[NET_IPV6_ADDR_LEN];
-		int i = 0;
-		pdp_context_info_t *info_tbl = pdp_context_info_tbl.array;
-
-		for (i = 0; i < pdp_context_info_tbl.size; i++) {
-			inet_ntop(AF_INET, &(info_tbl[i].sin4.sin_addr),
-				  ipv4_addr, sizeof(ipv4_addr));
-			inet_ntop(AF_INET6, &(info_tbl[i].sin6.sin6_addr),
-				  ipv6_addr, sizeof(ipv6_addr));
-
-			/* Parsed PDP context info: */
-			shell_print(
-				shell,
-				"PDP context info %d:\n"
-				"  CID:                    %d\n"
-				"  PDP type:               %s\n"
-				"  APN:                    %s\n"
-				"  IPv4 address:           %s\n"
-				"  IPv6 address:           %s",
-				(i + 1),
-				info_tbl[i].cid, info_tbl[i].pdp_type_str,
-				info_tbl[i].apn_str,
-				ipv4_addr, ipv6_addr);
+	if (online) {
+		ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
+						sizeof(info_str));
+		if (ret >= 0) {
+			shell_print(shell, "Operator: %s", info_str);
+		} else {
+			shell_error(shell,
+					"Unable to obtain modem operator parameters (%d)",
+					ret);
 		}
-	} else {
-		shell_error(shell, "\nUnable to obtain pdp context info (%d)",
-			    ret);
+		
+		ret = modem_info_string_get(MODEM_INFO_DATE_TIME, info_str,
+						sizeof(info_str));
+		if (ret >= 0) {
+			shell_print(shell, "Mobile network time and date: %s", info_str);
+		} else {
+			shell_error(shell,
+					"Unable to obtain modem time (%d)", ret);
+		}
+
+	#if defined(CONFIG_AT_CMD)
+		ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+		if (ret >= 0) {
+			char ipv4_addr[NET_IPV4_ADDR_LEN];
+			char ipv6_addr[NET_IPV6_ADDR_LEN];
+			int i = 0;
+			pdp_context_info_t *info_tbl = pdp_context_info_tbl.array;
+
+			for (i = 0; i < pdp_context_info_tbl.size; i++) {
+				inet_ntop(AF_INET, &(info_tbl[i].sin4.sin_addr),
+					ipv4_addr, sizeof(ipv4_addr));
+				inet_ntop(AF_INET6, &(info_tbl[i].sin6.sin6_addr),
+					ipv6_addr, sizeof(ipv6_addr));
+
+				/* Parsed PDP context info: */
+				shell_print(
+					shell,
+					"PDP context info %d:\n"
+					"  CID:                    %d\n"
+					"  PDP type:               %s\n"
+					"  APN:                    %s\n"
+					"  IPv4 address:           %s\n"
+					"  IPv6 address:           %s",
+					(i + 1),
+					info_tbl[i].cid, info_tbl[i].pdp_type_str,
+					info_tbl[i].apn_str,
+					ipv4_addr, ipv6_addr);
+			}
+		} else {
+			shell_error(shell, "Unable to obtain pdp context info (%d)",
+					ret);
+		}
+		if (pdp_context_info_tbl.array != NULL)
+			free(pdp_context_info_tbl.array);
+	#endif /* CONFIG_AT_CMD */
 	}
-    if (pdp_context_info_tbl.array != NULL)
-        free(pdp_context_info_tbl.array);
-#endif /* CONFIG_AT_CMD */
 }
 #endif /* CONFIG_MODEM_INFO */
