@@ -12,6 +12,7 @@
 
 #define LTELC_SHELL_EDRX_VALUE_STR_LENGTH 4
 #define LTELC_SHELL_EDRX_PTW_STR_LENGTH 4
+#define LTELC_SHELL_PSM_PARAM_STR_LENGTH 8
 
 typedef enum {
 	LTELC_CMD_STATUS = 0,
@@ -21,6 +22,7 @@ typedef enum {
 	LTELC_CMD_FUNMODE,
 	LTELC_CMD_SYSMODE,
 	LTELC_CMD_EDRX,
+	LTELC_CMD_PSM,
 	LTELC_CMD_HELP
 } ltelc_shell_command;
 
@@ -60,23 +62,20 @@ const char ltelc_usage_str[] =
 	"  funmode [funmode options]:      Set/read functional modes of the modem\n"
 	"  sysmode [sysmode options]:      Set/read system modes of the modem\n"
 	"  edrx [eDRX options]:            Enable/disable eDRX with default or with custom parameters\n"
+	"  psm [psm options]:              Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
 	"General options:\n"
 	"  -a <apn> | --apn <apn>, [str] Access Point Name\n"
-	"\n"
 	"Options for 'rsrp' command:\n"
 	"  -s | --subscribe,   [bool]  Subscribe for RSRP info\n"
 	"  -u | --unsubscribe, [bool]  Unsubscribe for RSRP info\n"
-	"\n"
 	"Options for 'disconnect' command:\n"
 	"  -I <cid> | --cid <cid>, [int]   Use this option to disconnect specific PDN CID\n"
-	"\n"
 	"Options for 'funmode' command:\n"
 	"  -r | --read,       [bool]  Read modem functional mode\n"
 	"  -0 | --pwroff,     [bool]  Set modem power off\n"
 	"  -1 | --normal,     [bool]  Set modem normal mode\n"
 	"  -4 | --flightmode, [bool]  Set modem offline\n"
-	"\n"
 	"Options for 'sysmode' command:\n"
 	"  -r | --read,       [bool]  Read modem functional mode\n"
 	"  -m | --ltem,       [bool]  LTE-M (LTE Cat-M1) system mode\n"
@@ -84,12 +83,16 @@ const char ltelc_usage_str[] =
 	"  -g | --gps,        [bool]  GPS system mode\n"
 	"  -M | --ltem_gps,   [bool]  LTE-M + GPS system mode\n"
 	"  -N | --nbiot_gps,  [bool]  NB-IoT + GPS system mode\n"
-	"\n"
 	"Options for 'edrx' command:\n"
-	"  -e | --enable,             [bool]   Enable eDRX\n"
-	"  -d | --disable,            [bool]   Disable eDRX\n"
-	"  -E | --edrx_value <value>, [string] Sets custom eDRX value to be requested when enabling eDRX.\n"
-	"  -P | --ptw <value>,        [string] Sets custom Paging Time Window value to be requested when enabling eDRX.\n"
+	"  -e | --enable [--edrx_value <value> [--ptw <value>]], [bool]   Enable eDRX\n"
+	"  -d | --disable,                                       [bool]   Disable eDRX\n"
+	"  -x | --edrx_value <value>, [string] Sets custom eDRX value to be requested when enabling eDRX.\n"
+	"  -w | --ptw <value>,        [string] Sets custom Paging Time Window value to be requested when enabling eDRX.\n"
+	"Options for 'psm' command:\n"
+	"  -e | --enable [--rptau <value> --rat <value>], [bool]   Enable PSM\n"
+	"  -d | --disable,                                [bool]   Disable PSM\n"
+	"  -p | --rptau <value>, [string] Sets custom requested periodic TAU value to be requested when enabling PSM.\n"
+	"  -t | --rat <value>,   [string] Sets custom requested active time (RAT) value to be requested when enabling PSM.\n"
 	"\n"
 	;
 
@@ -110,8 +113,10 @@ static struct option long_options[] = {
     {"nbiot_gps",               no_argument,       0,  'N' },
     {"enable",                  no_argument,       0,  'e' },
     {"disable",                 no_argument,       0,  'd' },
-    {"edrx_value",              required_argument, 0,  'E' },
-    {"ptw",                 required_argument, 0,  'P' },
+    {"edrx_value",              required_argument, 0,  'x' },
+    {"ptw",                     required_argument, 0,  'w' },
+    {"rptau",                   required_argument, 0,  'p' },
+    {"rat",                     required_argument, 0,  't' },
     {0,                         0,                 0,   0  }
 };
 
@@ -219,6 +224,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "edrx") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_EDRX;
+	} else if (strcmp(argv[1], "psm") == 0) {
+		require_option = true;
+		ltelc_cmd_args.command = LTELC_CMD_PSM;
 	} else if (strcmp(argv[1], "help") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_HELP;
         goto show_usage;
@@ -236,10 +244,15 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 	char edrx_value_str[LTELC_SHELL_EDRX_VALUE_STR_LENGTH + 1];
 	bool edrx_value_set = false;
-	char ptw_bit_str[LTELC_SHELL_EDRX_PTW_STR_LENGTH + 1];
+	char edrx_ptw_bit_str[LTELC_SHELL_EDRX_PTW_STR_LENGTH + 1];
 	bool edrx_ptw_set = false;
 
-	while ((opt = getopt_long(argc, argv, "a:I:E:P:su014rmngMNed", long_options, &long_index)) != -1) {
+	char psm_rptau_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
+	bool psm_rptau_set = false;
+	char psm_rat_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
+	bool psm_rat_set = false;
+
+	while ((opt = getopt_long(argc, argv, "a:I:x:w:p:t:su014rmngMNed", long_options, &long_index)) != -1) {
 		int apn_len = 0;
 
 		switch (opt) {
@@ -263,8 +276,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 
 		/* eDRX specifics: */
-		case 'E': //edrx_value
-			if (strlen(optarg) == 4) {
+		case 'x': //edrx_value
+			if (strlen(optarg) == LTELC_SHELL_EDRX_VALUE_STR_LENGTH) {
 				strcpy(edrx_value_str, optarg);
 				edrx_value_set = true;
 			}
@@ -273,13 +286,35 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				return -EINVAL;
 			}
 			break;
-		case 'P': //Paging Time Window
-			if (strlen(optarg) == 4) {
-				strcpy(ptw_bit_str, optarg);
+		case 'w': //Paging Time Window
+			if (strlen(optarg) == LTELC_SHELL_EDRX_PTW_STR_LENGTH) {
+				strcpy(edrx_ptw_bit_str, optarg);
 				edrx_ptw_set = true;
 			}
 			else {
 				shell_error(shell, "PTW string length must be %d.", LTELC_SHELL_EDRX_PTW_STR_LENGTH);
+				return -EINVAL;
+			}
+			break;
+
+		/* PSM specifics: */
+		case 'p': //rptau
+			if (strlen(optarg) == LTELC_SHELL_PSM_PARAM_STR_LENGTH) {
+				strcpy(psm_rptau_bit_str, optarg);
+				psm_rptau_set = true;
+			}
+			else {
+				shell_error(shell, "RPTAU bit string length must be %d.", LTELC_SHELL_PSM_PARAM_STR_LENGTH);
+				return -EINVAL;
+			}
+			break;
+		case 't': //rat
+			if (strlen(optarg) == LTELC_SHELL_PSM_PARAM_STR_LENGTH) {
+				strcpy(psm_rat_bit_str, optarg);
+				psm_rat_set = true;
+			}
+			else {
+				shell_error(shell, "RAT bit string length must be %d.", LTELC_SHELL_PSM_PARAM_STR_LENGTH);
 				return -EINVAL;
 			}
 			break;
@@ -413,7 +448,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					}
 				}
 				if (edrx_ptw_set) {
-					ret = lte_lc_ptw_set(ptw_bit_str);
+					ret = lte_lc_ptw_set(edrx_ptw_bit_str);
 					if (ret < 0) {
 						shell_error(shell, "cannot set PTW value: %d", ret);
 						return -EINVAL;
@@ -437,6 +472,43 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			else {
 				shell_error(shell, "Unknown option for edrx command. See usage:");
+				goto show_usage;
+			}
+			break;
+		case LTELC_CMD_PSM:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+				if (psm_rptau_set && psm_rat_set) {
+					ret = lte_lc_psm_param_set(psm_rptau_bit_str, psm_rat_bit_str);
+					if (ret < 0) {
+						shell_error(shell, "cannot set PSM parameters: %d", ret);
+						return -EINVAL;
+					}
+				} 
+				else {
+					if ((psm_rptau_set && !psm_rat_set) ||
+					    (!psm_rptau_set && psm_rat_set)) {
+							shell_error(shell, "Both PSM parameters needs to be set");
+							return -EINVAL;
+						}
+				}
+
+				ret = lte_lc_psm_req(true);
+				if (ret < 0) {
+					shell_error(shell, "cannot enable PSM: %d", ret);
+				} else {
+					shell_print(shell, "PSM enabled");
+				}
+			}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+				ret = lte_lc_psm_req(false);
+				if (ret < 0) {
+					shell_error(shell, "cannot disable PSM: %d", ret);
+				} else {
+					shell_print(shell, "PSM disabled");
+				}
+			}
+			else {
+				shell_error(shell, "Unknown option for psm command. See usage:");
 				goto show_usage;
 			}
 			break;
