@@ -50,6 +50,8 @@
 
 .. _`nRF Connect SDK latest documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/index.html
 
+.. _`known issues for nRF Connect SDK v1.4.0`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html?v=v1-4-0
+
 .. _`Nordic Semiconductor Infocenter`: https://infocenter.nordicsemi.com/
 
 .. _`LTE Link Monitor`: https://infocenter.nordicsemi.com/topic/ug_link_monitor/UG/link_monitor/lm_intro.html
@@ -154,6 +156,7 @@
 .. _`nrfx`: https://github.com/NordicSemiconductor/nrfx/
 
 .. _`Changelog for nrfx 2.2.0`: https://github.com/NordicSemiconductor/nrfx/blob/master/CHANGELOG.md#220---2020-04-28
+.. _`Changelog for nrfx 2.3.0`: https://github.com/NordicSemiconductor/nrfx/blob/master/CHANGELOG.md#230---2020-08-19
 
 .. _`nRF Thread Topology Monitor`: https://infocenter.nordicsemi.com/topic/sdk_tz_v4.1.0/thread_topology_monitor.html
 
@@ -166,7 +169,6 @@
 .. _`nRF Mesh mobile app`: https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Mesh
 .. _`nRF Mesh mobile app for iOS`: https://itunes.apple.com/us/app/nrf-mesh/id1380726771?mt=8
 .. _`nRF Mesh mobile app for Android`: https://play.google.com/store/apps/details?id=no.nordicsemi.android.nrfmeshprovisioner
-
 
 .. ### Links to other websites and software
 
@@ -186,11 +188,11 @@
 
 .. _`J-Link Software and Documentation Pack`: https://www.segger.com/downloads/jlink
 
-.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x86`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_win_x86
-.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x64`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_win_x64
-.. _`SEGGER Embedded Studio (Nordic Edition) - Mac OS x64`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_macos
-.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x86`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_linux_x86
-.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x64`: https://segger.com/downloads/embedded-studio/embeddedstudio_arm_nordic_linux_x64
+.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x86`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v510d_win_x86.zip
+.. _`SEGGER Embedded Studio (Nordic Edition) - Windows x64`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v510d_win_x64.zip
+.. _`SEGGER Embedded Studio (Nordic Edition) - Mac OS x64`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v510d_macos_x64.dmg
+.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x86`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v510d_linux_x86.tar.gz
+.. _`SEGGER Embedded Studio (Nordic Edition) - Linux x64`: https://www.segger.com/downloads/embedded-studio/EmbeddedStudio_ARM_Nordic_v510d_linux_x64.tar.gz
 
 .. _`HID usage tables`: https://www.usb.org/hid
 
@@ -219,8 +221,6 @@
 .. _`TLS`: https://www.ietf.org/rfc/rfc5246.txt
 
 .. _`OpenAMP`: https://github.com/OpenAMP/open-amp/
-
-.. _`RPMsg`: https://github.com/OpenAMP/open-amp/wiki/RPMsg-Messaging-Protocol
 
 .. _`SSL Labs`: https://www.ssllabs.com/ssltest/
 
@@ -349,8 +349,6 @@
 .. _`Zigbee Alliance`: https://www.zigbeealliance.org
 
 .. _`Zigbee Specification`: https://zigbeealliance.org/developer_resources/
-
-.. _`Zigbee Cluster Library specification`: https://zigbeealliance.org/developer_resources/zigbee-cluster-library
 
 .. _`Stack commissioning start sequence`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss_api_doc/using_zigbee__z_c_l.html#stack_start_initiation
 
