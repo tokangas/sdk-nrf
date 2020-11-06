@@ -341,8 +341,6 @@ static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 {
 	char output_buffer[100];
 
-	// 8 for bits in one byte, and 1000 for ms->s conversion.
-	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
 	double throughput = calculate_throughput(data_len, time_ms);
 
 	sprintf(output_buffer,

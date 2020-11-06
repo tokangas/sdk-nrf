@@ -426,7 +426,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					shell_error(shell, "Cannot set system mode: %d", ret);
 					ret = ltelc_func_mode_get();
 					if (ret != LTELC_FUNMODE_FLIGHTMODE || ret != LTELC_FUNMODE_PWROFF) {
-						shell_info(shell, "Setting 1st to flighmode might help by using: \"ltelc funmode --flighmode\"");
+						shell_info(shell, "Setting 1st to flightmode might help by using: \"ltelc funmode --flightmode\"");
 					}
 				} else {
 					shell_print(shell, "System mode set successfully: %s", ltelc_shell_sysmode_to_string(ltelc_cmd_args.sysmode_option, snum));
