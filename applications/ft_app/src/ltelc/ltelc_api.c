@@ -237,7 +237,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 		shell_print(shell, "Modem FW version: %s", info_str);
 	} else {
 		shell_error(shell,
-			    "Unable to obtain modem ip parameters (%d)", ret);
+			    "Unable to obtain modem FW version (%d)", ret);
 	}
 
 	if (online) {
