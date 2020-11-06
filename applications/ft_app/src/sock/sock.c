@@ -344,10 +344,10 @@ static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 	double throughput = calculate_throughput(data_len, time_ms);
 
 	sprintf(output_buffer,
-		"\nSummary:\n"
+		"Summary:\n"
 		"Data length: %7u bytes\n"
 		"Time:        %7.2f s\n"
-		"Throughput:  %7.0f bit/s\n",
+		"Throughput:  %7.0f bit/s",
 		data_len,
 		(float)time_ms / 1000,
 		throughput);
