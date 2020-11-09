@@ -76,7 +76,7 @@ iperf_tcp_recv(struct iperf_stream *sp)
     }
     else {
 	if (sp->test->debug)
-	    printf("Early/Late receive, state = %d, read %d\n", sp->test->state, r);
+	    printf("TCP Early/Late receive, state = %d, read %d\n", sp->test->state, r);
 
     //FTA_IPERF3_INTEGRATION_TODO: should we count these still?
 	//sp->result->bytes_received += r;
@@ -109,8 +109,13 @@ iperf_tcp_send(struct iperf_stream *sp)
     sp->result->bytes_sent += r;
     sp->result->bytes_sent_this_interval += r;
 
-    if (sp->test->debug) {
+    if (sp->test->debug && r > 0) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 	    printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
+
+#else
+	    printf("sent %d bytes of %d, total %d\n", r, sp->settings->blksize, (uint32_t)sp->result->bytes_sent); //64bit variable printing is not working
+#endif        
     }
     return r;
 }

@@ -126,7 +126,7 @@ static void print_interval_results(struct iperf_test *test,
 static cJSON *JSON_read(int fd);
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinline));
 static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
 #endif
@@ -2203,7 +2203,7 @@ static int send_results(struct iperf_test *test)
 	if (j == NULL) {
 		i_errno = IEPACKAGERESULTS;
 		r = -1;
-	} else {
+	} else {		
 		cJSON_AddNumberToObject(j, "cpu_util_total", test->cpu_util[0]);
 		cJSON_AddNumberToObject(j, "cpu_util_user", test->cpu_util[1]);
 		cJSON_AddNumberToObject(j, "cpu_util_system",
@@ -2320,7 +2320,7 @@ static int send_results(struct iperf_test *test)
 				printf("send_results\n%s\n", str);
 				cJSON_free(str);
 			}
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)			
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
 			//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
 			if (test->role == 's') {
 				if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
@@ -2377,7 +2377,7 @@ static int get_results(struct iperf_test *test)
 	int retransmits;
 	struct iperf_stream *sp;
 
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)			
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
 	//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
 	if (test->role == 's')
 		j = JSON_read(test->ctrl_sck);
@@ -2606,10 +2606,16 @@ static int get_results(struct iperf_test *test)
 }
 /*************************************************************/
 
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 static int
 JSON_write_nonblock(struct iperf_test *test, cJSON *json)
 {
+    /* Seems that select is not returning as expected in case when other end initiated the close.
+	   It is not returning write set as would be expected and then next send() would tell that direction is closed. */
+	struct iperf_time start_time;
+	struct iperf_time now;
+	struct iperf_time temp_time;
+
     uint32_t hsize, nsize;
     char *str;
     int r = -1;
@@ -2633,9 +2639,11 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
     }
 
     /* wait for max 10 sec */
-    struct timeval tout = { .tv_sec = 10, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = CONFIG_FTA_IPERF3_RESULTS_WAIT_TIME, .tv_usec = 0 };
     int err;
     //bool wait_for_send = false;
+
+	iperf_time_now(&start_time); //store starting time
 
     do {
         int ret = 0;
@@ -2649,6 +2657,15 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
         SLIST_FOREACH(sp, &test->streams, streams) {
             FD_SET(sp->socket, &read_set);
         }
+
+		iperf_time_now(&now);
+		iperf_time_diff(&start_time, &now, &temp_time);
+		if (iperf_time_in_secs(&temp_time) > tout.tv_sec) {
+			i_errno = IESENDRESULTS;
+			if (test->debug)
+				printf("JSON_write_nonblock: breaking the select send loop due to timeout\n");
+			break;
+		}
 
 #if defined (CONFIG_POSIX_API)
         if ((sel_ret = select(test->max_fd + 1, &read_set, &write_set, NULL, &tout)) > 0)
@@ -2692,7 +2709,12 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
         /* timeout or error */
         else if (sel_ret <= 0)
         {
-            break;
+			if (sel_ret < 0) { //seems that select is timeoutting before the set time limit (i.e. = =0)? thus, let it timeout and don't care
+		        i_errno = IESENDRESULTS;
+				if (test->debug)
+					printf("JSON_write_nonblock: IERECVRESULTS %d\n", ret);
+				break;
+			}
         }
     } while (1);
 
@@ -2775,7 +2797,7 @@ static cJSON *JSON_read(int fd)
 	return json;
 }
 
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 /*************************************************************/
 //for a deadlock situation (one socket filled the modem-app buffer)
 /**
@@ -2785,8 +2807,8 @@ static cJSON *JSON_read(int fd)
 static cJSON
 *JSON_read_nonblock(struct iperf_test *test)
 {
-    /*b_jh: seems that select is not returning as expected in case when other end initiated the close.
-	        It is not returning read set as would be expected and then next recv() would tell that direction is closed. */
+    /* Seems that select is not returning as expected in case when other end initiated the close.
+	   It is not returning read set as would be expected and then next recv() would tell that direction is closed. */
 	struct iperf_time start_time;
 	struct iperf_time now;
 	struct iperf_time temp_time;
@@ -2801,7 +2823,7 @@ static cJSON
     int rc;
 
     /* wait for max 10 sec */
-    struct timeval tout = { .tv_sec = 10, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = CONFIG_FTA_IPERF3_RESULTS_WAIT_TIME, .tv_usec = 0 };
     int err;
 
 	iperf_time_now(&start_time); //store starting time
@@ -2886,11 +2908,7 @@ static cJSON
         /* timeout or error */
         else if (ret <= 0)
         {
-			if (ret == 0) {
-				//b_jh: seems that select is timeoutting before the set time limit? thus, let it timeout and don't care
-				if (test->debug)
-					printf("JSON_read_nonblock: IERECVRESULTS timeout\n");
-			} else {
+			if (ret != 0) { //seems that select is timeoutting before the set time limit (i.e. = =0)? thus, let it timeout and don't care
 		        i_errno = IERECVRESULTS;
 				if (test->debug)
 					printf("JSON_read_nonblock: IERECVRESULTS %d\n", ret);
@@ -3680,9 +3698,14 @@ static void iperf_print_intermediate(struct iperf_test *test)
 					&irp->interval_end_time, &temp_time);
 			double interval_len = iperf_time_in_secs(&temp_time);
 			if (test->debug) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 				printf("interval_len %f bytes_transferred %" PRIu64
 				       "\n",
 				       interval_len, irp->bytes_transferred);
+#else
+				printf("interval_len %f bytes_transferred %d\n",
+				       interval_len, (uint32_t)irp->bytes_transferred);//64bit printing is not working
+#endif
 			}
 
 			/*

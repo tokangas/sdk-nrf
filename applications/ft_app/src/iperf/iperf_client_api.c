@@ -263,7 +263,7 @@ iperf_handle_message_client(struct iperf_test *test)
             }
             else if (iperf_create_streams(test, test->mode) < 0)
                 return -1;
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
             if (test->protocol->id != Pudp) {
                 SLIST_FOREACH(sp, &test->streams, streams) {
                 setnonblocking(sp->socket, 1);
@@ -282,7 +282,7 @@ iperf_handle_message_client(struct iperf_test *test)
 #endif
             break;
         case TEST_START:
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
             if (test->debug) {
                 printf("TEST_START: ctrl sckt %d\n", test->ctrl_sck);
             }
@@ -495,7 +495,7 @@ iperf_run_client(struct iperf_test * test)
     fd_set read_set, write_set;
     struct iperf_time now;
     struct timeval* timeout = NULL;
-#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
     struct iperf_stream *sp;
 #endif
 
@@ -574,7 +574,7 @@ iperf_run_client(struct iperf_test * test)
 	    if (startup) {
 	        startup = 0;
 
-#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 		// Set non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
@@ -611,7 +611,7 @@ iperf_run_client(struct iperf_test * test)
 	         (test->settings->bytes != 0 && test->bytes_sent >= test->settings->bytes) ||
 	         (test->settings->blocks != 0 && test->blocks_sent >= test->settings->blocks))) {
 
-#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT)
+#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 		// Unset non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
