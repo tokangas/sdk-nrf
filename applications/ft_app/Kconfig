@@ -26,7 +26,7 @@ config FTA_LTELC
 
 config FTA_CURL
 	bool  "Enable CURL"
-    default n
+    default y
 
 config FTA_GNSS
 	bool  "Enable GNSS support"
