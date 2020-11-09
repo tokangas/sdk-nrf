@@ -1928,9 +1928,21 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
 #ifdef USE_MANUAL
         return PARAM_MANUAL_REQUESTED;
 #else
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
         warnf(global,
               "built-in manual was disabled at build-time!\n");
         return PARAM_OPTION_UNKNOWN;
+#else
+      /* -M and --manual are used instead of help because zephyr shell is "stoling" the help: */
+      if(toggle) {
+        if(nextarg) {
+          global->help_category = strdup(nextarg);
+          if(!global->help_category)
+            return PARAM_NO_MEM;
+        }
+        return PARAM_HELP_REQUESTED;
+      }
+#endif
 #endif
       }
       break;

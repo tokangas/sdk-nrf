@@ -912,10 +912,17 @@ void tool_help(char *category)
   puts("Usage: curl [options...] <url>");
   /* If no category was provided */
   if(!category) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
     const char *category_note = "\nThis is not the full help, this "
       "menu is stripped into categories.\nUse \"--help category\" to get "
       "an overview of all categories.\nFor all options use the manual"
       " or \"--help all\".";
+#else
+    const char *category_note = "\nThis is not the full help, this "
+      "menu is stripped into categories.\nUse \"--manual category\" to get "
+      "an overview of all categories.\nFor all options use the manual"
+      " or \"--manual all\".";
+#endif
     print_category(CURLHELP_IMPORTANT);
     puts(category_note);
   }

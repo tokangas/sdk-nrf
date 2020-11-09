@@ -117,9 +117,13 @@ void helpf(FILE *errors, const char *fmt, ...)
     vfprintf(errors, fmt, ap);
     va_end(ap);
   }
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
   fprintf(errors, "curl: try 'curl --help' "
 #ifdef USE_MANUAL
           "or 'curl --manual' "
+#endif
+#else
+  fprintf(errors, "curl: try 'curl --manual' "
 #endif
           "for more information\n");
 }

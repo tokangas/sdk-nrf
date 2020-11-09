@@ -66,7 +66,7 @@ static int cmd_curl(const struct shell *shell, size_t argc, char **argv)
 	shell_print(shell, "\nDONE");
 	return 0;
 }
-SHELL_CMD_REGISTER(curl, NULL, "For curl usage, just type \"curl\"", cmd_curl);
+SHELL_CMD_REGISTER(curl, NULL, "For curl usage, just type \"curl --manual\"", cmd_curl);
 #endif
 
 SHELL_CMD_ARG_REGISTER(at, NULL, "Execute an AT command.", app_cmd_at, 2, 0);
