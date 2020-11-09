@@ -78,23 +78,35 @@ static void modem_trace_enable(void)
 }
 static int fta_shell_init(const struct device *unused)
 {
+	int err = 0;
+
 	ARG_UNUSED(unused);
 
 	printk("\nThe FT app sample started\n\n");
+
+	modem_trace_enable();
 
 #if defined(CONFIG_BSD_LIBRARY)
 	ltelc_init();
 
 	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
 #endif
-	return 0;
+
+#if defined(CONFIG_MODEM_INFO)
+	err = modem_info_init();
+	if (err) {
+		printk("\nModem info could not be established: %d", err);
+		return err;
+	}
+	modem_info_params_init(&modem_param);
+#endif
+	return err;
 }
 
 void main(void)
 {
-	int err;
-
 #if defined(CONFIG_BSD_LIBRARY)
+	int err;
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
@@ -111,16 +123,7 @@ void main(void)
 	}
 #endif
 
-	modem_trace_enable();
 
-#if defined(CONFIG_MODEM_INFO)
-	err = modem_info_init();
-	if (err) {
-		printk("\nModem info could not be established: %d", err);
-		return;
-	}
-	modem_info_params_init(&modem_param);
-#endif
 }
 
 SYS_INIT(fta_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
