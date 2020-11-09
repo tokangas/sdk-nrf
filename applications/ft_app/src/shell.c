@@ -88,7 +88,7 @@ SHELL_CMD_REGISTER(ltelc, NULL,
 #endif
 
 #if defined (CONFIG_FTA_IPERF3)
-SHELL_CMD_REGISTER(iperf3, NULL, "For iperf3 usage, just type \"iperf3\"", cmd_iperf3);
+SHELL_CMD_REGISTER(iperf3, NULL, "For iperf3 usage, just type \"iperf3 --manual\"", cmd_iperf3);
 #endif
 
 #if defined (CONFIG_FTA_GNSS)

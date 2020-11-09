@@ -923,7 +923,6 @@ void iperf_on_test_finish(struct iperf_test *test)
 
 int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 {
-#if NOT_IN_FTA_IPERF3_INTEGRATION //Long options not supported
 	static struct option longopts[] = {
 		{ "port", required_argument, NULL, 'p' },
 		{ "format", required_argument, NULL, 'f' },
@@ -946,7 +945,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "length", required_argument, NULL, 'l' },
 		{ "parallel", required_argument, NULL, 'P' },
 		{ "reverse", no_argument, NULL, 'R' },
-		{ "bidir", no_argument, NULL, OPT_BIDIRECTIONAL },
+		{ "bidir", no_argument, NULL, '2' }, //FTA_IPERF3_INTEGRATION_CHANGE: short option -2
 		{ "window", required_argument, NULL, 'w' },
 		{ "bind", required_argument, NULL, 'B' },
 		{ "cport", required_argument, NULL, OPT_CLIENT_PORT },
@@ -1002,10 +1001,9 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "connect-timeout", required_argument, NULL,
 		  OPT_CONNECT_TIMEOUT },
 		{ "debug", no_argument, NULL, 'd' },
-		{ "help", no_argument, NULL, 'h' },
+		{ "manual", no_argument, NULL, 'm' },//FTA_IPERF3_INTEGRATION_CHANGE: -m or --manual instead of help, because shell is stoling -h and --help
 		{ NULL, 0, NULL, 0 }
 	};
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
 	int flag;
 	int portno;
 	int blksize;
@@ -1027,12 +1025,14 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	     *server_rsa_private_key = NULL;
 #endif /* HAVE_SSL */
 
-	//FTA_IPERF3_INTEGRATION_CHANGE: long options not supported
-	//    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
+	//FTA_IPERF3_INTEGRATION_CHANGE: different supported options
+	    while ((flag = getopt_long(argc, argv, "p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:I:dm", longopts, NULL)) != -1) {
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
 	while ((flag = getopt(
 			argc, argv,
-			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:E:I:dh")) !=
+			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:I:dm")) !=
 	       -1) {
+#endif			   
 		switch (flag) {
 		case 'p':
 			portno = atoi(optarg);
@@ -1437,11 +1437,11 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->settings->pacing_timer = unit_atoi(optarg);
 			client_flag = 1;
 			break;
-		case 'E': //FTA_IPERF3_INTEGRATION_CHANGE: was: OPT_CONNECT_TIMEOUT
+		case OPT_CONNECT_TIMEOUT:
 			test->settings->connect_timeout = unit_atoi(optarg);
 			client_flag = 1;
 			break;
-		case 'h':
+		case 'm':
 			//usage_long(stdout);
 			fta_iperf3_usage();
 			return -2; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported and help is special case
