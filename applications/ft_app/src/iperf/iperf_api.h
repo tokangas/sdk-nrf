@@ -57,7 +57,7 @@ typedef uint64_t iperf_size_t;
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 #define DEFAULT_UDP_BLKSIZE 1200 /* default is dynamically set, else this */
-#define DEFAULT_TCP_BLKSIZE (4 * 708)  /* default read/write block size */
+#define DEFAULT_TCP_BLKSIZE (5 * 708)  /* default read/write block size */
 #else
 #define DEFAULT_UDP_BLKSIZE 1460 /* default is dynamically set, else this */
 #define DEFAULT_TCP_BLKSIZE (128 * 1024)  /* default read/write block size */
