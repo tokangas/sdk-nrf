@@ -1379,6 +1379,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->cid = atoi(optarg);
 			if (test->cid == 0) {
 				printf("CID not an integer (> 0), default context used\n");
+                test->cid = FTA_ARG_NOT_SET;
             }
 			break;
 #else
