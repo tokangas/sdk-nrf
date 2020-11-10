@@ -542,11 +542,15 @@ iperf_run_client(struct iperf_test * test)
   	    i_errno = IESELECT;
 	    goto cleanup_and_fail;
 	}
+
 	if (result > 0) {
 	    if (FD_ISSET(test->ctrl_sck, &read_set)) {
  	        if (iperf_handle_message_client(test) < 0) {
+                if (test->debug) {
+                    printf("iperf_run_client: iperf_handle_message_clientiperf_handle_message_client failed\n");
+                }
 		    goto cleanup_and_fail;
-		}
+		    }
 		FD_CLR(test->ctrl_sck, &read_set);
 	    }
 	}
@@ -564,7 +568,7 @@ iperf_run_client(struct iperf_test * test)
             if (retval < 0) {
                 /* let's ignore errors from stream/testing sockets */
                 if (test->debug)
-                	printf("iperf_recv for stream socket in EXCHANGE_RESULTS failed %d but ignored", retval);
+                	printf("iperf_recv for stream socket in EXCHANGE_RESULTS failed %d but ignored\n", retval);
             }
         } else
 #endif
@@ -586,20 +590,35 @@ iperf_run_client(struct iperf_test * test)
 
 	    if (test->mode == BIDIRECTIONAL)
 	    {
-                if (iperf_send(test, &write_set) < 0)
+                if (iperf_send(test, &write_set) < 0) {
+                    if (test->debug) {
+                        printf("iperf_run_client: BIDIRECTIONAL iperf_send failed\n");
+                    }                    
                     goto cleanup_and_fail;
-                if (iperf_recv(test, &read_set) < 0)
+                }
+                if (iperf_recv(test, &read_set) < 0) {
+                    if (test->debug) {
+                        printf("iperf_run_client: BIDIRECTIONAL iperf_recv failed\n");
+                    }                    
                     goto cleanup_and_fail;
+                }
 	    } else if (test->mode == SENDER) {
                 // Regular mode. Client sends.
-                if (iperf_send(test, &write_set) < 0)
+                if (iperf_send(test, &write_set) < 0) {
+                    if (test->debug) {
+                        printf("iperf_run_client: SENDER iperf_send failed\n");
+                    }                    
                     goto cleanup_and_fail;
+                }
 	    } else {
                 // Reverse mode. Client receives.
-                if (iperf_recv(test, &read_set) < 0)
+                if (iperf_recv(test, &read_set) < 0) {
+                    if (test->debug) {
+                        printf("iperf_run_client: REVERSE mode iperf_recv failed\n");
+                    }                    
                     goto cleanup_and_fail;
+                }
 	    }
-
 
             /* Run the timers. */
             iperf_time_now(&now);
@@ -621,6 +640,9 @@ iperf_run_client(struct iperf_test * test)
 #endif
 		/* Yes, done!  Send TEST_END. */
 		test->done = 1;
+        if (test->debug) {
+            printf("iperf_run_client: Yes, done! Send TEST_END\n");
+        }               
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
 #endif
@@ -632,10 +654,14 @@ iperf_run_client(struct iperf_test * test)
         //             (int)FD_ISSET(sp->socket, &test->read_set),
         //             (int)FD_ISSET(sp->socket, &test->write_set));
 
-		if (iperf_set_send_state(test, TEST_END) != 0)
-                    goto cleanup_and_fail;
-	    }
+		if (iperf_set_send_state(test, TEST_END) != 0) {
+            if (test->debug) {
+                printf("iperf_run_client: TEST_END SENDING FAILED\n");
+            }               
+            goto cleanup_and_fail;
+        }                    
 	}
+	} /* test->state == TEST_RUNNING */
 	// If we're in reverse mode, continue draining the data
 	// connection(s) even if test is over.  This prevents a
 	// deadlock where the server side fills up its pipe(s)
@@ -643,6 +669,9 @@ iperf_run_client(struct iperf_test * test)
 	// from the client side.
 	else if (test->mode == RECEIVER && test->state == TEST_END) {
 	    if (iperf_recv(test, &read_set) < 0) {
+            if (test->debug) {
+                printf("iperf_run_client: RECEIVER TEST_END iperf_recv failed\n");
+            }            
     		goto cleanup_and_fail;
         }
 	}
@@ -663,6 +692,9 @@ iperf_run_client(struct iperf_test * test)
     return 0;
 
   cleanup_and_fail:
+    if (test->debug) {
+        printf("iperf_run_client: cleanup_and_fail");
+    }
     iperf_client_end(test);
     if (test->json_output)
 	iperf_json_finish(test);

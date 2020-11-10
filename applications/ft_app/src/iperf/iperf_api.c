@@ -2716,6 +2716,14 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
 					printf("JSON_write_nonblock: IERECVRESULTS %d\n", ret);
 				break;
 			}
+			else {
+				/* Data  might be still coming from server, read it to avoid deadlock due to buffering.
+				 ignore errors */
+				if (test->debug)
+					printf("JSON_write_nonblock: iperf_recv from select timeout\n");
+
+				(void)iperf_recv(test, &read_set);
+			}
         }
     } while (1);
 
@@ -2914,6 +2922,14 @@ static cJSON
 				if (test->debug)
 					printf("JSON_read_nonblock: IERECVRESULTS %d\n", ret);
 				break;
+			}
+			else {
+				/* Data  might be still coming from server, read it to avoid deadlock due to buffering.
+				 ignore errors */
+				if (test->debug)
+					printf("JSON_read_nonblock: iperf_recv from select timeout\n");
+						
+				(void)iperf_recv(test, &read_set);
 			}
         }
     } while (!json);
