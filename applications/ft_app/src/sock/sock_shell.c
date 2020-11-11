@@ -65,9 +65,13 @@ const char usage_str[] =
 	"  -l, [int]  Length of undefined data in bytes. This can be used when testing\n"
 	"             with bigger data amounts. Cannot be used with -d or -e option.\n"
 	"  -e, [int]  Data sending interval in milliseconds. You must also specify -d.\n"
+	"  -B, [bool] Blocking (1) or non-blocking (0) mode.\n"
+	"             This is only valid when -l is given. Default value is 1.\n"
 	"\n"
 	"Options for 'recv' command:\n"
 	"  -r, [bool] Initialize variables for receive throughput calculation\n"
+	"  -B, [bool] Blocking (1) or non-blocking (0) mode.\n"
+	"             This only accounts when -r is given. Default value is 0.\n"
 	"\n"
 	"Options for 'help' command:\n"
 	"  -v, [bool] Show examples\n"
@@ -169,13 +173,16 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_data_length = 0;
 	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
 	bool arg_receive_start = false;
+	bool arg_blocking_send = true;
+	bool arg_blocking_recv = false;
+	int blocking = 0;
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
 	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
 
 	// Parse command line
-	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rv")) != -1) {
+	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rB:v")) != -1) {
 		int addr_len = 0;
 		int send_data_len = 0;
 
@@ -245,6 +252,15 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'r': // Start monitoring received data
 			arg_receive_start = true;
 			break;
+		case 'B': // Blocking/non-blocking send or receive
+			blocking = atoi(optarg);
+			if (blocking != 0 && blocking != 1) {
+				shell_error(shell, "Blocking (%d) must be either '0' (false) or '1' (true)", optarg);
+				return -EINVAL;
+			}
+			arg_blocking_recv = blocking;
+			arg_blocking_send = blocking;
+			break;
 		case 'v': // Start monitoring received data
 			arg_verbose = true;
 			break;
@@ -257,10 +273,10 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sock_open_and_connect(arg_family, arg_type, arg_address, arg_port, arg_bind_port, arg_pdn_cid);
 			break;
 		case SOCK_CMD_SEND:
-			err = sock_send_data(arg_socket_id, arg_send_data, arg_data_length, arg_data_interval);
+			err = sock_send_data(arg_socket_id, arg_send_data, arg_data_length, arg_data_interval, arg_blocking_send);
 			break;
 		case SOCK_CMD_RECV:
-			err = sock_recv(arg_socket_id, arg_receive_start);
+			err = sock_recv(arg_socket_id, arg_receive_start, arg_blocking_recv);
 			break;
 		case SOCK_CMD_CLOSE:
 			err = sock_close(arg_socket_id);

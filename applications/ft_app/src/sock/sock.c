@@ -24,14 +24,11 @@
 #define SOCK_RECEIVE_BUFFER_SIZE 1536
 #define SOCK_RECEIVE_STACK_SIZE 2048
 #define SOCK_RECEIVE_PRIORITY 5
-// Timeout for polling socket receive data. This limits how quickly data can be received after socket creation.
-#define SOCK_RECEIVE_POLL_TIMEOUT_MS 1000 // Milliseconds
+// Timeout for polling socket events such as receive data, permission to send more, disconnected socket etc.
+// This limits how quickly data can be received after socket creation.
+#define SOCK_POLL_TIMEOUT_MS 1000 // Milliseconds
 #define SOCK_FD_NONE -1
 
-enum sock_mode {
-	SOCK_MODE_BLOCKING = 0,
-	SOCK_MODE_NONBLOCKING
-};
 
 struct data_transfer_info {
 	struct k_work work;
@@ -48,8 +45,12 @@ typedef struct {
 	int bind_port;
 	int pdn_cid;
 	bool in_use;
+	bool send_poll;
+	uint32_t send_bytes_sent;
+	int32_t send_bytes_left;
+	int send_print_interval;
 	bool log_receive_data;
-	int64_t recv_start_time_ms;
+	int64_t start_time_ms;
 	int64_t recv_end_time_ms;
 	uint32_t recv_data_len;
 	bool recv_start_throughput;
@@ -123,15 +124,24 @@ static sock_info_t* reserve_socket_id()
 	return socket_info;
 }
 
-static void set_sock_mode(int fd, enum sock_mode mode)
+static void set_sock_blocking_mode(int fd, bool blocking)
 {
     int flags = fcntl(fd, F_GETFL, 0);
 
-    if (mode == SOCK_MODE_NONBLOCKING) {
+    if (!blocking) {
         fcntl(fd, F_SETFL, flags | (int) O_NONBLOCK);
-    } else if (mode == SOCK_MODE_BLOCKING) {
+    } else {
         fcntl(fd, F_SETFL, flags & ~(int) O_NONBLOCK);
     }
+}
+
+static void sock_all_set_nonblocking()
+{
+	for (int i = 0; i < MAX_SOCKETS; i++) {
+		if (sockets[i].in_use) {
+			set_sock_blocking_mode(sockets[i].fd, false);
+		}
+	}
 }
 
 int sock_open_and_connect(int family, int type, char* address, int port, int bind_port, int pdn_cid)
@@ -321,7 +331,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	}
 
 	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
-	set_sock_mode(socket_info->fd, SOCK_MODE_NONBLOCKING);
+	set_sock_blocking_mode(socket_info->fd, false);
 
 	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
 
@@ -412,8 +422,43 @@ static void data_send_timer_handler(struct k_timer *dummy)
 	k_work_submit(&socket_info->send_info.work);
 }
 
-int sock_send_data(int socket_id, char* data, int data_length, int interval)
+static void sock_send_data_length(sock_info_t* socket_info) {
+		char output_buffer[50];
+		while (socket_info->send_bytes_left > 0) {
+			if (socket_info->send_bytes_left < SOCK_SEND_BUFFER_SIZE-1) {
+				memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE-1);
+				memset(send_buffer, 'l', socket_info->send_bytes_left);
+			}
+			int bytes = sock_send(socket_info, send_buffer, false);
+			if (bytes < 0) { // && errno == EAGAIN) {
+				//shell_error(shell_global, "Send flow control when send_bytes_sent=%d, bytes_left=%d, errno=%d", socket_info->send_bytes_sent, socket_info->send_bytes_left, errno);
+				socket_info->send_poll = true;
+				return;
+			}
+			socket_info->send_bytes_sent += bytes;
+			socket_info->send_bytes_left -= strlen(send_buffer);
+
+			// Print throughput stats every 10 seconds
+			int64_t time_intermediate = k_uptime_get();
+			int64_t ul_time_intermediate_ms = time_intermediate - socket_info->start_time_ms;
+
+			if ((ul_time_intermediate_ms / (double)1000) > socket_info->send_print_interval) {
+				double throughput = calculate_throughput(socket_info->send_bytes_sent, ul_time_intermediate_ms);
+				sprintf(output_buffer, "%7u bytes, %6.2fs, %6.0f bit/s",
+					socket_info->send_bytes_sent, (float)ul_time_intermediate_ms / 1000, throughput);
+				shell_print(shell_global, "%s", output_buffer);
+				socket_info->send_print_interval += 10;
+			}
+		}
+		socket_info->send_poll = false;
+		int64_t ul_time_ms = k_uptime_delta(&socket_info->start_time_ms);
+		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
+		print_throughput_summary(socket_info->send_bytes_sent, ul_time_ms);
+}
+
+int sock_send_data(int socket_id, char* data, int data_length, int interval, bool blocking)
 {
+	sock_all_set_nonblocking();
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
 		return -EINVAL;
@@ -426,45 +471,26 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval)
 
 		// Interval is not supported with data length
 		if (interval != SOCK_SEND_DATA_INTERVAL_NONE) {
-			shell_error(shell_global, "Data lenght and interval cannot be specified at the same time");
+			shell_error(shell_global, "Data length and interval cannot be specified at the same time");
 			return -EINVAL;
 		}
 
-		uint32_t bytes_sent = 0;
-		int data_left = data_length;
+		socket_info->send_bytes_sent = 0;
+		socket_info->send_bytes_left = data_length;
 		socket_info->log_receive_data = false;
-		set_sock_mode(socket_info->fd, SOCK_MODE_BLOCKING);
+		socket_info->send_print_interval = 10;
+		// Set requested blocking mode for the duration of data sending
+		set_sock_blocking_mode(socket_info->fd, blocking);
 
 		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
 		memset(send_buffer, 'd', SOCK_SEND_BUFFER_SIZE-1);
 
-		int64_t time_stamp = k_uptime_get();
-		int print_interval = 10;
-		char output_buffer[50];
-		while (data_left > 0) {
-			if (data_left < SOCK_SEND_BUFFER_SIZE-1) {
-				memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE-1);
-				memset(send_buffer, 'l', data_left);
-			}
-			bytes_sent += sock_send(socket_info, send_buffer, false);
-			data_left -= strlen(send_buffer);
+		socket_info->start_time_ms = k_uptime_get();
 
-			// Print throughput stats every 10 seconds
-			int64_t time_intermediate = k_uptime_get();
-			int64_t ul_time_intermediate_ms = time_intermediate - time_stamp;
+		sock_send_data_length(socket_info);
 
-			if ((ul_time_intermediate_ms / (double)1000) > print_interval) {
-				double throughput = calculate_throughput(bytes_sent, ul_time_intermediate_ms);
-				sprintf(output_buffer, "%7u bytes, %6.2fs, %6.0f bit/s",
-					bytes_sent, (float)ul_time_intermediate_ms / 1000, throughput);
-				shell_print(shell_global, "%s", output_buffer);
-				print_interval += 10;
-			}
-		}
-		int64_t ul_time_ms = k_uptime_delta(&time_stamp);
-		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
-		set_sock_mode(socket_info->fd, SOCK_MODE_NONBLOCKING);
-		print_throughput_summary(bytes_sent, ul_time_ms);
+		// Keep default mode of the socket in non-blocking mode
+		set_sock_blocking_mode(socket_info->fd, false);
 
 	} else if (interval != SOCK_SEND_DATA_INTERVAL_NONE) {
 
@@ -515,12 +541,15 @@ static void sock_receive_handler()
 			if (sockets[i].in_use) {
 				fds[count].fd = sockets[i].fd;
 				fds[count].events = POLLIN;
+				if (sockets[i].send_poll) {
+					fds[count].events |= POLLOUT;
+				}
 				fds[count].revents = 0;
 				count++;
 			}
 		}
 
-		int ret = poll(fds, count, SOCK_RECEIVE_POLL_TIMEOUT_MS);
+		int ret = poll(fds, count, SOCK_POLL_TIMEOUT_MS);
 
 		if (ret > 0) {
 			for (int i = 0; i < count; i++) {
@@ -537,16 +566,19 @@ static void sock_receive_handler()
 					int buffer_size;
 
 					if (socket_info->recv_start_throughput) {
-						socket_info->recv_start_time_ms = k_uptime_get();
+						socket_info->start_time_ms = k_uptime_get();
 						socket_info->recv_start_throughput = false;
 					}
 
-					while ((buffer_size = recv(
+					if ((buffer_size = recv(
 							fds[i].fd,
 							receive_buffer,
 							SOCK_RECEIVE_BUFFER_SIZE,
 							0)) > 0) {
-						
+
+						socket_info->recv_end_time_ms = k_uptime_get();
+						socket_info->recv_data_len += buffer_size;
+
 						if (socket_info->log_receive_data) {
 							shell_print(shell_global,
 								"Received data for socket socket_id=%d, buffer_size=%d:\n\t%s",
@@ -554,11 +586,11 @@ static void sock_receive_handler()
 								buffer_size,
 								receive_buffer);
 						}
-						socket_info->recv_data_len += buffer_size;
-						memset(receive_buffer, '\0',
-							SOCK_RECEIVE_BUFFER_SIZE);
+						memset(receive_buffer, '\0', SOCK_RECEIVE_BUFFER_SIZE);
 					}
-					socket_info->recv_end_time_ms = k_uptime_get();
+				}
+				if (fds[i].revents & POLLOUT) {
+					sock_send_data_length(socket_info);
 				}
 				if (fds[i].revents & POLLHUP) {
 					shell_print(shell_global, "Socket id=%d (fd=%d) disconnected so closing.", socket_id, fds[i].fd);
@@ -578,7 +610,7 @@ K_THREAD_DEFINE(sock_receive_thread, SOCK_RECEIVE_STACK_SIZE,
                 sock_receive_handler, NULL, NULL, NULL,
                 SOCK_RECEIVE_PRIORITY, 0, 0);
 
-int sock_recv(int socket_id, bool receive_start)
+int sock_recv(int socket_id, bool receive_start, bool blocking)
 {
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
@@ -587,15 +619,18 @@ int sock_recv(int socket_id, bool receive_start)
 
 	if (receive_start) {
 		shell_print(shell_global, "Receive data calculation start socket id=%d", socket_info->id);
+		// Set any leftover blocking sockets to non-blocking
+		sock_all_set_nonblocking();
 		socket_info->recv_start_throughput = true;
 		socket_info->recv_data_len = 0;
 		socket_info->log_receive_data = false;
-		socket_info->recv_start_time_ms = 0;
+		socket_info->start_time_ms = 0;
 		socket_info->recv_end_time_ms = 0;
+		set_sock_blocking_mode(socket_info->fd, blocking);
 	} else {
 		print_throughput_summary(
 			socket_info->recv_data_len,
-			socket_info->recv_end_time_ms - socket_info->recv_start_time_ms);
+			socket_info->recv_end_time_ms - socket_info->start_time_ms);
 	}
 	return 0;
 }
