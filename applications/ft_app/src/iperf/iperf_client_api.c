@@ -547,7 +547,6 @@ iperf_run_client(struct iperf_test * test)
 	}
 
 	if (result > 0) {
-        printf("iperf_run_client: select > 0\n");
 	    if (FD_ISSET(test->ctrl_sck, &read_set)) {
  	        if (iperf_handle_message_client(test) < 0) {
                 if (test->debug) {
