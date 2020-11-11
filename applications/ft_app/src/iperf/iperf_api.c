@@ -1614,7 +1614,50 @@ int iperf_open_logfile(struct iperf_test *test)
 
 int iperf_set_send_state(struct iperf_test *test, signed char state)
 {
+
 	test->state = state;
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    fd_set flush_read_set;
+	int ret = 0;
+
+	do {
+		if (test->mode == RECEIVER) {
+			struct timeval timeout = { .tv_sec = 0, .tv_usec = 0 }; /* timeout immediately */
+
+			/* Read data to avoid deadlock and enable sending: ignore errors */
+			memcpy(&flush_read_set, &test->read_set, sizeof(fd_set));
+            
+			(void)select(test->max_fd + 1, &flush_read_set, NULL, NULL, &timeout);
+
+			if (iperf_recv(test, &flush_read_set) < 0) {
+				if (test->debug) {
+					printf("iperf_set_send_state: iperf_recv flushing failed, ignored\n");
+				}
+			}
+		}
+
+        ret = Nwrite(test->ctrl_sck, (char*) &state, sizeof(state), Ptcp);
+        if (ret < 0) {
+            i_errno = IESENDMESSAGE;
+			if (test->debug)
+				printf("iperf_set_send_state failed of sending state: %d, ret: %d\n", state, ret);
+			
+			ret = -1;
+            break;
+        }
+        if (ret > 0) {
+			if (test->debug)
+				printf("iperf_set_send_state succesfully sent the state: %d\n", state);
+
+            ret = 0;
+            break;
+        }
+
+	} while (1);
+
+	return ret;
+#else
 	if (Nwrite(test->ctrl_sck, (char *)&state, sizeof(state), Ptcp) < 0) {
 		if (test->debug)
 			printf("iperf_set_send_state failed of sending char: %c\n", state);
@@ -1622,6 +1665,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 		return -1;
 	}
 	return 0;
+#endif
 }
 
 void iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP)
@@ -2633,7 +2677,10 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
     str = cJSON_PrintUnformatted(json);
     if (str == NULL)
     {
-        goto exit;
+		if (test->debug)
+			printf("JSON_write_nonblock: cJSON_PrintUnformatted failed\n");
+        
+		goto exit;
     }
     else
     {
