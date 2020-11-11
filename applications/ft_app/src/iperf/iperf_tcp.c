@@ -64,6 +64,7 @@ iperf_tcp_recv(struct iperf_stream *sp)
 {
     int r;
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    int total_received = 0;
     /* In embedded world, we need to read all from rcv buffer: 
        an another option would be to separate send and receive 
        buffer in order to read more more that blksize */
@@ -72,22 +73,24 @@ iperf_tcp_recv(struct iperf_stream *sp)
         if (r < 0)
             return r;
 
+        total_received += r;
+
         /* Only count bytes received while we're in the correct state. */
         if (sp->test->state == TEST_RUNNING) {
-        sp->result->bytes_received += r;
-        sp->result->bytes_received_this_interval += r;
+            sp->result->bytes_received += r;
+            sp->result->bytes_received_this_interval += r;
         }
         else {
-        if (sp->test->debug)
-            printf("TCP Early/Late receive, state = %d, read %d\n", sp->test->state, r);
+            if (sp->test->debug)
+                printf("TCP Early/Late receive, state = %d, read %d\n", sp->test->state, r);
 
-        //FTA_IPERF3_INTEGRATION_TODO: should we count these still?
-        //sp->result->bytes_received += r;
-        //sp->result->bytes_received_this_interval += r;
+            //FTA_IPERF3_INTEGRATION_TODO: should we count these still?
+            //sp->result->bytes_received += r;
+            //sp->result->bytes_received_this_interval += r;
         }
     } while (r > 0);
 
-    return r;
+    return total_received;
 
 #else
     r = Nread(sp->socket, sp->buffer, sp->settings->blksize, Ptcp);
