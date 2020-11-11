@@ -493,10 +493,6 @@ iperf_run_client(struct iperf_test * test)
     int startup;
     int result = 0;
     fd_set read_set, write_set;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)    
-    fd_set flush_read_set;
-#endif
-
     struct iperf_time now;
     struct timeval* timeout = NULL;
 #if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
@@ -555,10 +551,6 @@ iperf_run_client(struct iperf_test * test)
                 }
 		    goto cleanup_and_fail;
 		    }
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    	memcpy(&flush_read_set, &read_set, sizeof(fd_set));
-#endif
-
 		FD_CLR(test->ctrl_sck, &read_set);    
 	    }
 	}    
@@ -652,26 +644,10 @@ iperf_run_client(struct iperf_test * test)
             printf("iperf_run_client: Yes, done! Send TEST_END\n");
         }
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-        /* FTA_IPERF3_INTEGRATION_CHANGE: make sure that we can send, read from the buffers 1st */
-        if (iperf_recv(test, &flush_read_set) < 0) {
-            if (test->debug) {
-                printf("iperf_run_client: iperf_recv flushing failed, ignored\n");
-            }                    
-        }
-#endif
-
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
 #endif
 		test->stats_callback(test);
-
-		//FTA_IPERF3_INTEGRATION_CHANGE: added
-        // iperf_printf(test, "ctrl socket: %d read: %d write: %d",
-        //             test->ctrl_sck,
-        //             (int)FD_ISSET(sp->socket, &test->read_set),
-        //             (int)FD_ISSET(sp->socket, &test->write_set));
-
 
 		if (iperf_set_send_state(test, TEST_END) != 0) {
             if (test->debug) {
