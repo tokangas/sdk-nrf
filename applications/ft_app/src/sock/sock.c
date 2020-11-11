@@ -124,6 +124,17 @@ static sock_info_t* reserve_socket_id()
 	return socket_info;
 }
 
+static bool sock_get_blocking_mode(int fd)
+{
+    int blocking = true;
+	int flags = fcntl(fd, F_GETFL, 0);
+
+    if (flags | (int) O_NONBLOCK) {
+	    blocking = false;
+    }
+	return blocking;
+}
+
 static void set_sock_blocking_mode(int fd, bool blocking)
 {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -388,7 +399,13 @@ static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 			socket_info->addrinfo->ai_addr, dest_addr_len);
 	}
 	if (bytes < 0) {
-		shell_print(shell_global, "socket send failed, err %d", errno);
+		// Ideally we'd like to log the failure here but non-blocking socket causes huge number of failures
+		// due to incorrectly set POLLOUT flag:
+		// https://devzone.nordicsemi.com/f/nordic-q-a/65392/bug-nrf9160-tcp-send-flow-control-seems-entirely-broken
+		// Hence, we'll log only if we have blocking socket
+		if (sock_get_blocking_mode(socket_info->fd)) {
+			shell_print(shell_global, "socket send failed, err %d", errno);
+		}
 		return -1;
 	}
 	return bytes;
