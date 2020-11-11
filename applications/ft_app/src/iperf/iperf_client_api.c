@@ -493,6 +493,9 @@ iperf_run_client(struct iperf_test * test)
     int startup;
     int result = 0;
     fd_set read_set, write_set;
+    
+    fd_set flush_read_set;
+
     struct iperf_time now;
     struct timeval* timeout = NULL;
 #if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
@@ -551,9 +554,11 @@ iperf_run_client(struct iperf_test * test)
                 }
 		    goto cleanup_and_fail;
 		    }
-		FD_CLR(test->ctrl_sck, &read_set);
+    	memcpy(&flush_read_set, &read_set, sizeof(fd_set));
+
+		FD_CLR(test->ctrl_sck, &read_set);    
 	    }
-	}
+	}    
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)//added due to early test jamn where rx buffer was full between modem and app
         if (test->state == TEST_START ||
@@ -646,6 +651,17 @@ iperf_run_client(struct iperf_test * test)
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
 #endif
+        if (test->mode == RECEIVER) {
+            int i;
+
+            for (i = 0; i < 1; i++) {
+                if (test->debug) {
+                    printf("iperf_run_client: RECEIVER mode, recv before TEST_END SENDING\n");
+                }
+                (void)iperf_recv_flush(test, &flush_read_set);   
+            }
+        }
+
 		test->stats_callback(test);
 
 		//FTA_IPERF3_INTEGRATION_CHANGE: added
@@ -653,6 +669,8 @@ iperf_run_client(struct iperf_test * test)
         //             test->ctrl_sck,
         //             (int)FD_ISSET(sp->socket, &test->read_set),
         //             (int)FD_ISSET(sp->socket, &test->write_set));
+
+		//FTA_IPERF3_INTEGRATION_CHANGE: make sure that we can send, read from the buffers 1st
 
 		if (iperf_set_send_state(test, TEST_END) != 0) {
             if (test->debug) {
@@ -668,6 +686,10 @@ iperf_run_client(struct iperf_test * test)
 	// and gets blocked, so it can't receive state changes
 	// from the client side.
 	else if (test->mode == RECEIVER && test->state == TEST_END) {
+                if (test->debug) {
+                    printf("iperf_run_client: REVERSE mode TEST_END iperf_recv calling\n");
+                }                    
+
 	    if (iperf_recv(test, &read_set) < 0) {
             if (test->debug) {
                 printf("iperf_run_client: RECEIVER TEST_END iperf_recv failed\n");
