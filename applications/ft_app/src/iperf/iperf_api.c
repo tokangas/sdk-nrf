@@ -1638,7 +1638,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 
 			ret = select(test->max_fd + 1, &flush_read_set, NULL, NULL, &timeout);
 			if (test->debug) {
-				printf("select return %d\n", ret);
+				printf("iperf_set_send_state: select return %d\n", ret);
 
 				SLIST_FOREACH(sp, &test->streams, streams) {
 					iperf_printf(test, "before recv: stream [%d]: socket: %d read: %d write: %d\n",
