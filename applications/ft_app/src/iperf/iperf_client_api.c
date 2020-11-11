@@ -550,7 +550,7 @@ iperf_run_client(struct iperf_test * test)
 	    if (FD_ISSET(test->ctrl_sck, &read_set)) {
  	        if (iperf_handle_message_client(test) < 0) {
                 if (test->debug) {
-                    printf("iperf_run_client: iperf_handle_message_clientiperf_handle_message_client failed\n");
+                    printf("iperf_run_client: iperf_handle_message_client failed\n");
                 }
 		    goto cleanup_and_fail;
 		    }

@@ -174,8 +174,15 @@ iperf_udp_recv(struct iperf_stream *sp)
 		sp->cnt_error--;
 	
 	    /* Log the out-of-order packet */
+		
+#if NOT_IN_FTA_IPERF3_INTEGRATION
 	    if (sp->test->debug) 
 		fprintf(stderr, "OUT OF ORDER - incoming packet sequence %" PRIu64 " but expected sequence %d on stream %d", pcount, sp->packet_count + 1, sp->socket);
+#else
+		/* 64bit varaiable printing not working */
+	    if (sp->test->debug) 
+			fprintf(stderr, "OUT OF ORDER - incoming packet sequence %d but expected sequence %d on stream %d", (uint32_t)pcount, sp->packet_count + 1, sp->socket);
+#endif
 	}
 
 	/*
