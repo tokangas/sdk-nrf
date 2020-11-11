@@ -1843,9 +1843,6 @@ int iperf_recv(struct iperf_test *test, fd_set *read_setP)
             }
             test->bytes_received += r;
             ++test->blocks_received;
-			if (test->debug) {
-				printf("iperf_recv: received %d\n", r);
-			}
             FD_CLR(sp->socket, read_setP);
         }
     }
