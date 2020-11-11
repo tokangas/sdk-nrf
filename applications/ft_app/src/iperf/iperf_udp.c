@@ -125,9 +125,15 @@ iperf_udp_recv(struct iperf_stream *sp)
 	    sent_time.usecs = usec;
 	}
 
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	/* FTA_IPERF3_INTEGRATION_CHANGE: because 64bit printing ain't working */
+	if (sp->test->debug)
+	    fprintf(stderr, "pcount %d packet_count %d\n", (uint32_t)pcount, sp->packet_count);
+
+#else
 	if (sp->test->debug)
 	    fprintf(stderr, "pcount %" PRIu64 " packet_count %d\n", pcount, sp->packet_count);
-
+#endif
 	/*
 	 * Try to handle out of order packets.  The way we do this
 	 * uses a constant amount of storage but might not be
