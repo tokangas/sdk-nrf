@@ -1759,44 +1759,27 @@ int iperf_send(struct iperf_test *test, fd_set *write_setP)
 	return 0;
 }
 
-int iperf_recv_flush(struct iperf_test *test, fd_set *read_setP)
-{
-	int r;
-	struct iperf_stream *sp;
-    printf("iperf_recv_flush entry\n");
-
-	SLIST_FOREACH(sp, &test->streams, streams)
-	{
-		while ((r = sp->rcv(sp)) > 0) {
-			printf("iperf_recv_flush %d\n", r);
-			test->bytes_received += r;
-			++test->blocks_received;
-		}
-	}
-	return 0;
-}
-
 int iperf_recv(struct iperf_test *test, fd_set *read_setP)
 {
-	int r;
-	struct iperf_stream *sp;
+    int r;
+    struct iperf_stream *sp;
 
-	SLIST_FOREACH(sp, &test->streams, streams)
-	{
-		if (FD_ISSET(sp->socket, read_setP) && !sp->sender) {
-			do {
-				if ((r = sp->rcv(sp)) < 0) {
-					i_errno = IESTREAMREAD;
-					return r;
-				}
-				test->bytes_received += r;
-				++test->blocks_received;
-			} while (r > 0);
-			FD_CLR(sp->socket, read_setP);
-		}
-	}
+    SLIST_FOREACH(sp, &test->streams, streams)
+    {
+        if (FD_ISSET(sp->socket, read_setP) && !sp->sender)
+        {
+            if ((r = sp->rcv(sp)) < 0)
+            {
+                i_errno = IESTREAMREAD;
+                return r;
+            }
+            test->bytes_received += r;
+            ++test->blocks_received;
+            FD_CLR(sp->socket, read_setP);
+        }
+    }
 
-	return 0;
+    return 0;
 }
 
 int iperf_init_test(struct iperf_test *test)
