@@ -1619,16 +1619,36 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
     fd_set flush_read_set;
+    struct iperf_stream *sp;
+
 	int ret = 0;
+	int i = 0;
 
 	do {
+		printf("iperf_set_send_state 1\n");
 		if (test->mode == RECEIVER) {
+			int ret;
 			struct timeval timeout = { .tv_sec = 0, .tv_usec = 0 }; /* timeout immediately */
 
+			printf("iperf_set_send_state 2\n");
+
 			/* Read data to avoid deadlock and enable sending: ignore errors */
-			memcpy(&flush_read_set, &test->read_set, sizeof(fd_set));
-            
-			(void)select(test->max_fd + 1, &flush_read_set, NULL, NULL, &timeout);
+			FD_ZERO(&flush_read_set);
+			SLIST_FOREACH(sp, &test->streams, streams) {
+				FD_SET(sp->socket, &flush_read_set);
+			}
+
+			ret = select(test->max_fd + 1, &flush_read_set, NULL, NULL, &timeout);
+			printf("select return %d\n", ret);
+
+            SLIST_FOREACH(sp, &test->streams, streams) {
+                iperf_printf(test, "stream [%d]: socket: %d read: %d write: %d\n",
+                        i,
+                        sp->socket,
+                        (int)FD_ISSET(sp->socket, &test->read_set),
+                        (int)FD_ISSET(sp->socket, &test->write_set));
+                i++;
+            }
 
 			if (iperf_recv(test, &flush_read_set) < 0) {
 				if (test->debug) {
@@ -1646,13 +1666,17 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 			ret = -1;
             break;
         }
-        if (ret > 0) {
+        else if (ret > 0) {
 			if (test->debug)
 				printf("iperf_set_send_state succesfully sent the state: %d\n", state);
 
             ret = 0;
             break;
         }
+		else {
+			if (test->debug)
+				printf("iperf_set_send_state: Nwrite returned 0, retrying for state: %d\n", state);
+		}
 
 	} while (1);
 

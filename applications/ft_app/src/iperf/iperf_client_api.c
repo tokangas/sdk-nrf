@@ -498,6 +498,9 @@ iperf_run_client(struct iperf_test * test)
 #if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
     struct iperf_stream *sp;
 #endif
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)    
+    fd_set flush_read_set;
+#endif
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -544,6 +547,7 @@ iperf_run_client(struct iperf_test * test)
 	}
 
 	if (result > 0) {
+        printf("iperf_run_client: select > 0\n");
 	    if (FD_ISSET(test->ctrl_sck, &read_set)) {
  	        if (iperf_handle_message_client(test) < 0) {
                 if (test->debug) {
@@ -551,6 +555,9 @@ iperf_run_client(struct iperf_test * test)
                 }
 		    goto cleanup_and_fail;
 		    }
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    	memcpy(&flush_read_set, &read_set, sizeof(fd_set));
+#endif            
 		FD_CLR(test->ctrl_sck, &read_set);    
 	    }
 	}    
@@ -643,7 +650,14 @@ iperf_run_client(struct iperf_test * test)
         if (test->debug) {
             printf("iperf_run_client: Yes, done! Send TEST_END\n");
         }
-
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+        /* FTA_IPERF3_INTEGRATION_CHANGE: make sure that we can send, read from the buffers 1st */
+        if (iperf_recv(test, &flush_read_set) < 0) {
+            if (test->debug) {
+                printf("iperf_run_client: iperf_recv flushing failed, ignored\n");
+            }                    
+        }
+#endif        
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
 #endif
