@@ -20,8 +20,8 @@
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
-#define SOCK_SEND_BUFFER_SIZE_UDP 1200+1
-#define SOCK_SEND_BUFFER_SIZE_TCP 4096+1
+#define SOCK_SEND_BUFFER_SIZE_UDP 1200
+#define SOCK_SEND_BUFFER_SIZE_TCP 3540 // This should be multiple of TCP window size (708) to make it more efficient
 #define SOCK_RECEIVE_BUFFER_SIZE 1536
 #define SOCK_RECEIVE_STACK_SIZE 2048
 #define SOCK_RECEIVE_PRIORITY 5
@@ -472,7 +472,7 @@ static void data_send_timer_handler(struct k_timer *dummy)
 static void sock_send_data_length(sock_info_t* socket_info) {
 		char output_buffer[50];
 		while (socket_info->send_bytes_left > 0) {
-			if (socket_info->send_bytes_left < socket_info->send_buffer_size-1) {
+			if (socket_info->send_bytes_left < socket_info->send_buffer_size) {
 				memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
 				memset(socket_info->send_buffer, 'l', socket_info->send_bytes_left);
 			}
@@ -503,7 +503,7 @@ static void sock_send_data_length(sock_info_t* socket_info) {
 		print_throughput_summary(socket_info->send_bytes_sent, ul_time_ms);
 }
 
-int sock_send_data(int socket_id, char* data, int data_length, int interval, bool blocking)
+int sock_send_data(int socket_id, char* data, int data_length, int interval, bool blocking, int buffer_size)
 {
 	sock_all_set_nonblocking();
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
@@ -523,11 +523,24 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 		}
 
 		uint32_t send_buffer_size = SOCK_SEND_BUFFER_SIZE_TCP;
-		if (socket_info->type == SOCK_DGRAM) {
+		if (buffer_size != SOCK_BUFFER_SIZE_NONE) {
+			send_buffer_size = buffer_size;
+		} else if (socket_info->type == SOCK_DGRAM) {
 			send_buffer_size = SOCK_SEND_BUFFER_SIZE_UDP;
 		}
 		if (!sock_send_buffer_calloc(socket_info, send_buffer_size)) {
 			return -ENOMEM;
+		}
+
+		shell_print(shell_global, "Sending %d bytes of data with buffer_size=%d, blocking=%d",
+			data_length, send_buffer_size, blocking);
+		
+		// Warn about big buffer sizes as lower levels gets stuck when buffer size increases.
+		// Not necessarily right above these values you cannot use much bigger send buffer.
+		if ((socket_info->type == SOCK_STREAM && send_buffer_size > 4096) ||
+			(socket_info->type == SOCK_DGRAM && send_buffer_size > 1200)) {
+			shell_warn(shell_global, "Sending %d bytes of data with buffer_size=%d, blocking=%d",
+				data_length, send_buffer_size, blocking);
 		}
 
 		socket_info->send_bytes_sent = 0;
@@ -537,7 +550,7 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 		// Set requested blocking mode for the duration of data sending
 		set_sock_blocking_mode(socket_info->fd, blocking);
 
-		memset(socket_info->send_buffer, 'd', socket_info->send_buffer_size-1);
+		memset(socket_info->send_buffer, 'd', socket_info->send_buffer_size);
 
 		socket_info->start_time_ms = k_uptime_get();
 

@@ -67,6 +67,8 @@ const char usage_str[] =
 	"  -e, [int]  Data sending interval in milliseconds. You must also specify -d.\n"
 	"  -B, [bool] Blocking (1) or non-blocking (0) mode.\n"
 	"             This is only valid when -l is given. Default value is 1.\n"
+	"  -s, [int]  Send buffer size. This is only valid when -l is given.\n"
+	"             Default value for 'stream' socket is 3540 and for 'dgram' socket 1200.\n"
 	"\n"
 	"Options for 'recv' command:\n"
 	"  -r, [bool] Initialize variables for receive throughput calculation\n"
@@ -172,17 +174,17 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	char arg_send_data[SOCK_MAX_SEND_DATA_LEN+1];
 	int arg_data_length = 0;
 	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
+	int arg_buffer_size = SOCK_BUFFER_SIZE_NONE;
 	bool arg_receive_start = false;
 	bool arg_blocking_send = true;
 	bool arg_blocking_recv = false;
-	int blocking = 0;
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
 	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
 
 	// Parse command line
-	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:rB:v")) != -1) {
+	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:s:rB:v")) != -1) {
 		int addr_len = 0;
 		int send_data_len = 0;
 
@@ -249,11 +251,20 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'e': // Interval in which data will be sent
 			arg_data_interval = atoi(optarg);
 			break;
+		case 's': // Buffer size
+			arg_buffer_size = atoi(optarg);
+			if (arg_buffer_size <= 0) {
+				shell_error(shell, "Buffer size %d must be a positive number",
+					arg_buffer_size);
+				return -EINVAL;
+			}
+			break;
 		case 'r': // Start monitoring received data
 			arg_receive_start = true;
 			break;
 		case 'B': // Blocking/non-blocking send or receive
-			blocking = atoi(optarg);
+		{
+			int blocking = atoi(optarg);
 			if (blocking != 0 && blocking != 1) {
 				shell_error(shell, "Blocking (%d) must be either '0' (false) or '1' (true)", optarg);
 				return -EINVAL;
@@ -261,6 +272,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			arg_blocking_recv = blocking;
 			arg_blocking_send = blocking;
 			break;
+		}
 		case 'v': // Start monitoring received data
 			arg_verbose = true;
 			break;
@@ -273,7 +285,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sock_open_and_connect(arg_family, arg_type, arg_address, arg_port, arg_bind_port, arg_pdn_cid);
 			break;
 		case SOCK_CMD_SEND:
-			err = sock_send_data(arg_socket_id, arg_send_data, arg_data_length, arg_data_interval, arg_blocking_send);
+			err = sock_send_data(arg_socket_id, arg_send_data, arg_data_length, arg_data_interval, arg_blocking_send, arg_buffer_size);
 			break;
 		case SOCK_CMD_RECV:
 			err = sock_recv(arg_socket_id, arg_receive_start, arg_blocking_recv);
