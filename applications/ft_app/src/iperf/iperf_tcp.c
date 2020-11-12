@@ -79,6 +79,9 @@ iperf_tcp_recv(struct iperf_stream *sp)
         if (sp->test->state == TEST_RUNNING) {
             sp->result->bytes_received += r;
             sp->result->bytes_received_this_interval += r;
+            if (sp->test->debug)
+                printf("TCP receive, state = %d, read %d\n", sp->test->state, r);
+
         }
         else {
             if (sp->test->debug)
@@ -140,7 +143,8 @@ iperf_tcp_send(struct iperf_stream *sp)
 	    printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
 
 #else
-	    printf("sent %d bytes of %d, total %d\n", r, sp->settings->blksize, (uint32_t)sp->result->bytes_sent); //64bit variable printing is not working
+	    /* 64bit variable printing is not working */
+        printf("sent %d bytes of %d, total %d\n", r, sp->settings->blksize, (uint32_t)sp->result->bytes_sent);
 #endif        
     }
     return r;
