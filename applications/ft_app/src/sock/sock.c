@@ -20,7 +20,8 @@
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
-#define SOCK_SEND_BUFFER_SIZE 4096+1
+#define SOCK_SEND_BUFFER_SIZE_UDP 1200+1
+#define SOCK_SEND_BUFFER_SIZE_TCP 4096+1
 #define SOCK_RECEIVE_BUFFER_SIZE 1536
 #define SOCK_RECEIVE_STACK_SIZE 2048
 #define SOCK_RECEIVE_PRIORITY 5
@@ -33,7 +34,7 @@
 struct data_transfer_info {
 	struct k_work work;
 	struct k_timer timer;
-	int socket_id;
+	void* parent; /* type is sock_info_t */
 };
 
 typedef struct {
@@ -45,6 +46,8 @@ typedef struct {
 	int bind_port;
 	int pdn_cid;
 	bool in_use;
+	char* send_buffer;
+	uint32_t send_buffer_size;
 	bool send_poll;
 	uint32_t send_bytes_sent;
 	int32_t send_bytes_left;
@@ -59,12 +62,14 @@ typedef struct {
 } sock_info_t;
 
 sock_info_t sockets[MAX_SOCKETS] = {0};
-char send_buffer[SOCK_SEND_BUFFER_SIZE];
 char receive_buffer[SOCK_RECEIVE_BUFFER_SIZE];
 extern const struct shell* shell_global; // TODO: Get rid of this variable here
 
 
 static void sock_info_clear(sock_info_t* socket_info) {
+	if (socket_info->send_buffer != NULL) {
+		free(socket_info->send_buffer);
+	}
 	if (socket_info->in_use) {
 		close(socket_info->fd);
 	}
@@ -117,6 +122,7 @@ static sock_info_t* reserve_socket_id()
 			socket_info = &(sockets[socket_id]);
 			sock_info_clear(socket_info);
 			socket_info->id = socket_id;
+			socket_info->send_info.parent = socket_info;
 			break;
 		}
 		socket_id++;
@@ -152,6 +158,32 @@ static void sock_all_set_nonblocking()
 		if (sockets[i].in_use) {
 			set_sock_blocking_mode(sockets[i].fd, false);
 		}
+	}
+}
+
+static bool sock_send_buffer_calloc(sock_info_t* socket_info, uint32_t size)
+{
+	if (socket_info->send_buffer != NULL) {
+		if (socket_info->send_buffer_size == size) {
+			memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
+		} else {
+			free(socket_info->send_buffer);
+		}
+	}
+	socket_info->send_buffer_size = size;
+	socket_info->send_buffer = calloc(size + 1, 1);
+	if (socket_info->send_buffer == NULL) {
+		shell_error(shell_global, "Out of memory while reserving send buffer of size %d bytes", socket_info->send_buffer_size);
+		return false;
+	}
+	return true;
+}
+
+static void sock_send_buffer_free(sock_info_t* socket_info)
+{
+	if (socket_info->send_buffer != NULL) {
+		free(socket_info->send_buffer);
+		socket_info->send_buffer_size = 0;
 	}
 }
 
@@ -415,26 +447,24 @@ static void data_send_work_handler(struct k_work *item)
 {
 	struct data_transfer_info* data_send_info_ptr =
 		CONTAINER_OF(item, struct data_transfer_info, work);
-	int socket_id = data_send_info_ptr->socket_id;
-	sock_info_t* socket_info = &sockets[socket_id];
+	sock_info_t* socket_info = data_send_info_ptr->parent;
 
-	if (!sockets[socket_id].in_use) {
+	if (!socket_info->in_use) {
 		shell_print(shell_global,
 			"Socket id=%d not in use. Fatal error and sending won't work.",
-			socket_id);
+			socket_info->id);
 			// TODO: stop timer
 		return;
 	}
 
-	sock_send(socket_info, send_buffer, true);
+	sock_send(socket_info, socket_info->send_buffer, true);
 }
 
 static void data_send_timer_handler(struct k_timer *dummy)
 {
 	struct data_transfer_info* data_send_info_ptr =
 		CONTAINER_OF(dummy, struct data_transfer_info, timer);
-	int socket_id = data_send_info_ptr->socket_id;
-	sock_info_t* socket_info = &sockets[socket_id];
+	sock_info_t* socket_info = data_send_info_ptr->parent;
 
 	k_work_submit(&socket_info->send_info.work);
 }
@@ -442,18 +472,18 @@ static void data_send_timer_handler(struct k_timer *dummy)
 static void sock_send_data_length(sock_info_t* socket_info) {
 		char output_buffer[50];
 		while (socket_info->send_bytes_left > 0) {
-			if (socket_info->send_bytes_left < SOCK_SEND_BUFFER_SIZE-1) {
-				memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE-1);
-				memset(send_buffer, 'l', socket_info->send_bytes_left);
+			if (socket_info->send_bytes_left < socket_info->send_buffer_size-1) {
+				memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
+				memset(socket_info->send_buffer, 'l', socket_info->send_bytes_left);
 			}
-			int bytes = sock_send(socket_info, send_buffer, false);
+			int bytes = sock_send(socket_info, socket_info->send_buffer, false);
 			if (bytes < 0) { // && errno == EAGAIN) {
 				//shell_error(shell_global, "Send flow control when send_bytes_sent=%d, bytes_left=%d, errno=%d", socket_info->send_bytes_sent, socket_info->send_bytes_left, errno);
 				socket_info->send_poll = true;
 				return;
 			}
 			socket_info->send_bytes_sent += bytes;
-			socket_info->send_bytes_left -= strlen(send_buffer);
+			socket_info->send_bytes_left -= strlen(socket_info->send_buffer);
 
 			// Print throughput stats every 10 seconds
 			int64_t time_intermediate = k_uptime_get();
@@ -469,7 +499,7 @@ static void sock_send_data_length(sock_info_t* socket_info) {
 		}
 		socket_info->send_poll = false;
 		int64_t ul_time_ms = k_uptime_delta(&socket_info->start_time_ms);
-		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
+		sock_send_buffer_free(socket_info);
 		print_throughput_summary(socket_info->send_bytes_sent, ul_time_ms);
 }
 
@@ -492,6 +522,14 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 			return -EINVAL;
 		}
 
+		uint32_t send_buffer_size = SOCK_SEND_BUFFER_SIZE_TCP;
+		if (socket_info->type == SOCK_DGRAM) {
+			send_buffer_size = SOCK_SEND_BUFFER_SIZE_UDP;
+		}
+		if (!sock_send_buffer_calloc(socket_info, send_buffer_size)) {
+			return -ENOMEM;
+		}
+
 		socket_info->send_bytes_sent = 0;
 		socket_info->send_bytes_left = data_length;
 		socket_info->log_receive_data = false;
@@ -499,8 +537,7 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 		// Set requested blocking mode for the duration of data sending
 		set_sock_blocking_mode(socket_info->fd, blocking);
 
-		memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
-		memset(send_buffer, 'd', SOCK_SEND_BUFFER_SIZE-1);
+		memset(socket_info->send_buffer, 'd', socket_info->send_buffer_size-1);
 
 		socket_info->start_time_ms = k_uptime_get();
 
@@ -529,8 +566,11 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 				return -EINVAL;
 			}
 
-			memset(send_buffer, 0, SOCK_SEND_BUFFER_SIZE);
-			memcpy(send_buffer, data, strlen(data));
+			if (!sock_send_buffer_calloc(socket_info, strlen(data))) {
+				return -ENOMEM;
+			}
+			memcpy(socket_info->send_buffer, data, strlen(data));
+
 			shell_print(shell_global, "Socket data send periodic with interval=%d", interval);
 			k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
 			k_work_init(&socket_info->send_info.work, data_send_work_handler);
