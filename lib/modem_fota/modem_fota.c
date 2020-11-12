@@ -22,6 +22,9 @@
 #include <nrf_socket.h>
 #include <dfu/dfu_target.h>
 #include "modem_fota_internal.h"
+#if defined CONFIG_MODEM_FOTA_CARRIER_LIB
+#include "modem_fota_carrier.h"
+#endif
 #include "fota_client_mgmt.h"
 
 /* TODO: +CEREG=5 and +CSCON=1 are enabled by LTE link control. The
@@ -159,7 +162,7 @@ static char *previous_modem_uuid;
 static char *update_job_id;
 
 /* FOTA APN or NULL if default APN is used */
-static const char *fota_apn;
+const char *fota_apn;
 /* PDN socket file descriptor for FOTA PDN activation */
 static int pdn_fd = -1;
 
@@ -581,8 +584,39 @@ static int activate_fota_pdn(void)
 #if defined(CONFIG_MODEM_FOTA_APN_AUTH_PAP) || defined(CONFIG_MODEM_FOTA_APN_AUTH_CHAP)
 	nrf_pdn_auth_t auth_params;
 
-	strcpy(auth_params.username, CONFIG_MODEM_FOTA_APN_AUTH_USERNAME);
-	strcpy(auth_params.password, CONFIG_MODEM_FOTA_APN_AUTH_PASSWORD);
+#if !defined CONFIG_MODEM_FOTA_CARRIER_LIB
+	strncpy(auth_params.username,
+		CONFIG_MODEM_FOTA_APN_AUTH_USERNAME,
+		NRF_PDN_MAX_USERNAME_LEN);
+	strncpy(auth_params.password,
+		CONFIG_MODEM_FOTA_APN_AUTH_PASSWORD,
+		NRF_PDN_MAX_PASSWORD_LEN);
+#else
+	char *temp_str;
+
+	temp_str = modem_fota_carrier_get_apn_username();
+	if (temp_str == NULL) {
+		LOG_ERR("Failed to get APN username");
+		return -1;
+	}
+	strncpy(auth_params.username,
+		temp_str,
+		NRF_PDN_MAX_USERNAME_LEN);
+	k_free(temp_str);
+
+	temp_str = modem_fota_carrier_get_apn_password();
+	if (temp_str == NULL) {
+		LOG_ERR("Failed to get APN password");
+		return -1;
+	}
+	strncpy(auth_params.password,
+		temp_str,
+		NRF_PDN_MAX_PASSWORD_LEN);
+	k_free(temp_str);
+#endif
+	auth_params.username[NRF_PDN_MAX_USERNAME_LEN - 1] = '\0';
+	auth_params.password[NRF_PDN_MAX_PASSWORD_LEN - 1] = '\0';
+
 	if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_AUTH_PAP)) {
 		auth_params.authentication_type = NRF_PDN_AUTH_TYPE_PAP;
 	} else if (IS_ENABLED(CONFIG_MODEM_FOTA_APN_AUTH_CHAP)) {
@@ -1995,8 +2029,15 @@ int modem_fota_init(modem_fota_callback_t callback)
 
 	event_callback = callback;
 
-	if (strlen(CONFIG_MODEM_FOTA_APN) > 0)
+#if !defined CONFIG_MODEM_FOTA_CARRIER_LIB
+	if (strlen(CONFIG_MODEM_FOTA_APN) > 0) {
 		fota_apn = CONFIG_MODEM_FOTA_APN;
+	} else {
+		fota_apn = NULL;
+	}
+#else
+	fota_apn = modem_fota_carrier_get_apn();
+#endif
 
 	k_sem_init(&attach_sem, 0, 1);
 	k_sem_init(&detach_sem, 0, 1);

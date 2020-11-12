@@ -188,6 +188,8 @@ static uint16_t api_port;
 /* FW API hostname (if != NULL overrides the default) */
 static char *fw_api_hostname;
 
+extern const char *fota_apn;
+
 static int socket_apn_set(int fd, const char *apn)
 {
 	int err;
@@ -216,11 +218,11 @@ static int do_connect(int * const fd, const char * const hostname,
 		      const uint16_t port_num, bool use_fota_apn)
 {
 	int ret;
-	char *apn = NULL;
+	const char *apn = NULL;
 	struct addrinfo *addr_info;
 
-	if (use_fota_apn && strlen(CONFIG_MODEM_FOTA_APN) > 0) {
-		apn = CONFIG_MODEM_FOTA_APN;
+	if (use_fota_apn && fota_apn != NULL && strlen(fota_apn) > 0) {
+		apn = fota_apn;
 	}
 
 	struct addrinfo hints = {
