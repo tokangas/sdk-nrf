@@ -498,9 +498,6 @@ iperf_run_client(struct iperf_test * test)
 #if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
     struct iperf_stream *sp;
 #endif
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)    
-    fd_set flush_read_set;
-#endif
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -556,10 +553,7 @@ iperf_run_client(struct iperf_test * test)
                     printf("iperf_run_client: iperf_handle_message_client failed\n");
                 }
 		    goto cleanup_and_fail;
-		    }
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    	memcpy(&flush_read_set, &read_set, sizeof(fd_set));
-#endif            
+		    }          
 		FD_CLR(test->ctrl_sck, &read_set);    
 	    }
 	}    
@@ -653,6 +647,24 @@ iperf_run_client(struct iperf_test * test)
             printf("iperf_run_client: Yes, done! Send TEST_END\n");
         }
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+        struct iperf_stream *sp;
+        
+        FD_ZERO(&flush_read_set);
+		SLIST_FOREACH(sp, &test->streams, streams) {
+			FD_SET(sp->socket, &flush_read_set);
+		}
+		if (test->debug) {
+            int i = 0;
+
+			SLIST_FOREACH(sp, &test->streams, streams) {
+			    iperf_printf(test, "iperf_run_client: flush_read_set stream [%d]: socket: %d read: %d\n",
+					i,
+					sp->socket,
+					(int)FD_ISSET(sp->socket, &flush_read_set));
+				i++;
+			}
+		}
+
         /* FTA_IPERF3_INTEGRATION_CHANGE: make sure that we can send, read from the buffers 1st */
         if (iperf_recv(test, &flush_read_set) < 0) {
             if (test->debug) {

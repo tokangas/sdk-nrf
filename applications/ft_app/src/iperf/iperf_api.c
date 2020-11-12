@@ -1631,22 +1631,22 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 
 
 			/* Read data to avoid deadlock and enable sending: ignore errors */
+			/*
 			FD_ZERO(&flush_read_set);
 			SLIST_FOREACH(sp, &test->streams, streams) {
 				FD_SET(sp->socket, &flush_read_set);
-			}
-            /* memcpy(&flush_read_set, &test->read_set, sizeof(fd_set)); */
+			}*/
+            memcpy(&flush_read_set, &test->read_set, sizeof(fd_set));
 
 			ret = select(test->max_fd + 1, &flush_read_set, NULL, NULL, &timeout);
 			if (test->debug) {
 				printf("iperf_set_send_state: select return %d\n", ret);
 
 				SLIST_FOREACH(sp, &test->streams, streams) {
-					iperf_printf(test, "before recv: stream [%d]: socket: %d read: %d write: %d\n",
+					iperf_printf(test, "before recv: stream [%d]: socket: %d read: %d\n",
 							i,
 							sp->socket,
-							(int)FD_ISSET(sp->socket, &test->read_set),
-							(int)FD_ISSET(sp->socket, &test->write_set));
+							(int)FD_ISSET(sp->socket, &flush_read_set));
 					i++;
 				}
 			}
