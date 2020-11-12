@@ -1635,6 +1635,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 			SLIST_FOREACH(sp, &test->streams, streams) {
 				FD_SET(sp->socket, &flush_read_set);
 			}
+            /* memcpy(&flush_read_set, &test->read_set, sizeof(fd_set)); */
 
 			ret = select(test->max_fd + 1, &flush_read_set, NULL, NULL, &timeout);
 			if (test->debug) {
@@ -1650,9 +1651,11 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 				}
 			}
 
-			if (iperf_recv(test, &flush_read_set) < 0) {
-				if (test->debug) {
-					printf("iperf_set_send_state: iperf_recv flushing failed, ignored\n");
+			if (ret > 0) {
+				if (iperf_recv(test, &flush_read_set) < 0) {
+					if (test->debug) {
+						printf("iperf_set_send_state: iperf_recv flushing failed, ignored\n");
+					}
 				}
 			}
 		}

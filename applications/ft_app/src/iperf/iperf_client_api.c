@@ -284,7 +284,7 @@ iperf_handle_message_client(struct iperf_test *test)
         case TEST_START:
 #if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
             if (test->debug) {
-                printf("TEST_START: ctrl sckt %d\n", test->ctrl_sck);
+                printf("TEST_START: non-blocking ctrl sckt %d\n", test->ctrl_sck);
             }
             setnonblocking(test->ctrl_sck, 1);
 #endif
@@ -543,6 +543,9 @@ iperf_run_client(struct iperf_test * test)
 	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
 	if (result < 0 && errno != EINTR) {
   	    i_errno = IESELECT;
+        if (test->debug) {
+            printf("iperf_run_client: select failed: %d\n", result);
+        }
 	    goto cleanup_and_fail;
 	}
 

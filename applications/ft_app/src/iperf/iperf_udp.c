@@ -272,9 +272,14 @@ iperf_udp_send(struct iperf_stream *sp)
     sp->result->bytes_sent += r;
     sp->result->bytes_sent_this_interval += r;
 
+#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
     if (sp->test->debug)
 	printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
-
+#else
+	/* 64bit variable printing is not working */
+    if (sp->test->debug)
+		printf("sent %d bytes of %d, total %d\n", r, sp->settings->blksize, (uint32_t)sp->result->bytes_sent);
+#endif
     return r;
 }
 
