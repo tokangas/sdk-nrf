@@ -648,6 +648,7 @@ iperf_run_client(struct iperf_test * test)
         }
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
         struct iperf_stream *sp;
+        fd_set flush_read_set;
         
         FD_ZERO(&flush_read_set);
 		SLIST_FOREACH(sp, &test->streams, streams) {
