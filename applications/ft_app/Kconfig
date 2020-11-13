@@ -43,6 +43,10 @@ config FTA_IPERF3_RESULTS_WAIT_TIME
 	int "Configure the time to be waited to send and recv results"
 	default 15
 
+config FTA_IPERF3_CLIENT_TEST_START_TIME
+	int "Configure the time to be waited after ctrl socket has been created to actual test start"
+	default 15
+
 #invisible configs:
 config FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES
 	bool

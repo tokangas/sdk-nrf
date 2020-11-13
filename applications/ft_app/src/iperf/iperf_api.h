@@ -446,6 +446,7 @@ enum {
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
     IENOMEMORY = 302,       // no dynamic memory from heap
     IEPDN = 303,            // Invalid PDN: FTA_IPERF3_INTEGRATION_TODO
+    IETESTSTARTTIMEOUT = 304, // testing start timeout
 #endif
 };
 
