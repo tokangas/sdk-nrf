@@ -498,6 +498,11 @@ iperf_run_client(struct iperf_test * test)
 #if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
     struct iperf_stream *sp;
 #endif
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	struct iperf_time connected_time;
+    /* wait testing start for max xx sec */
+    struct timeval test_start_tout = { .tv_sec = CONFIG_FTA_IPERF3_CLIENT_TEST_START_TIME, .tv_usec = 0 };    
+#endif
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -525,6 +530,13 @@ iperf_run_client(struct iperf_test * test)
     if (iperf_connect(test) < 0) {
         goto cleanup_and_fail;
     }
+    else {
+        /* save time when we got connected */
+		iperf_time_now(&connected_time);
+        if (test->debug) {
+            printf("iperf_run_client: ctrl socket connected: %d, state %d\n", test->ctrl_sck, test->state);
+        }
+    }
 
     /* Begin calculating CPU utilization */
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION
@@ -538,6 +550,27 @@ iperf_run_client(struct iperf_test * test)
 	iperf_time_now(&now);
 	timeout = tmr_timeout(&now);
 	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    if (test->debug && result == 0) {
+        printf("iperf_run_client: select timeout secs: %d, state %d\n", (uint32_t)timeout->tv_sec, test->state);
+    }
+    if (!test->state) {
+        /* ctrl socket connected but test not yet started: */
+        struct iperf_time now;
+    	struct iperf_time temp_time;
+
+		iperf_time_now(&now);
+		iperf_time_diff(&connected_time, &now, &temp_time);
+		if (iperf_time_in_secs(&temp_time) > test_start_tout.tv_sec) {
+			i_errno = IETESTSTARTTIMEOUT;
+			if (test->debug)
+				printf("iperf_run_client: timeout to wait to actual test start, config timeout value %d\n", (uint32_t)test_start_tout.tv_sec);
+
+			goto cleanup_and_fail;
+		}
+    }
+
+#endif
 	if (result < 0 && errno != EINTR) {
   	    i_errno = IESELECT;
         if (test->debug) {
@@ -717,7 +750,7 @@ iperf_run_client(struct iperf_test * test)
 
   cleanup_and_fail:
     if (test->debug) {
-        printf("iperf_run_client: cleanup_and_fail");
+        printf("iperf_run_client: cleanup_and_fail\n");
     }
     iperf_client_end(test);
     if (test->json_output)

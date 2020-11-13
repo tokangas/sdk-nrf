@@ -231,6 +231,10 @@ iperf_strerror(int int_errno)
             snprintf(errstr, len, "unable to create a new test - no memory");
             perr = 1;
             break;
+        case IETESTSTARTTIMEOUT:
+            snprintf(errstr, len, "timeout for waiting actual test to be started");
+            perr = 1;
+            break;
 #endif
         case IEINITTEST:
             snprintf(errstr, len, "test initialization failed");
