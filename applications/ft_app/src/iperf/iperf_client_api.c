@@ -551,9 +551,6 @@ iperf_run_client(struct iperf_test * test)
 	timeout = tmr_timeout(&now);
 	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    if (test->debug && result == 0) {
-        printf("iperf_run_client: select timeout secs: %d, state %d\n", (uint32_t)timeout->tv_sec, test->state);
-    }
     if (!test->state) {
         /* ctrl socket connected but test not yet started: */
         struct iperf_time now;
