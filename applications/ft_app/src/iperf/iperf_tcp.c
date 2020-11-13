@@ -64,6 +64,9 @@ iperf_tcp_recv(struct iperf_stream *sp)
 {
     int r;
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+    #define MAX_READ_COUNT 4 /* in case of very small buffers, 
+                                let's not stuck here more that count */
+    int count = 0;
     int total_received = 0;
     /* In embedded world, we need to read all from rcv buffer: 
        an another option would be to separate send and receive 
@@ -74,14 +77,12 @@ iperf_tcp_recv(struct iperf_stream *sp)
             return r;
 
         total_received += r;
+        count++;
 
         /* Only count bytes received while we're in the correct state. */
         if (sp->test->state == TEST_RUNNING) {
             sp->result->bytes_received += r;
             sp->result->bytes_received_this_interval += r;
-            if (sp->test->debug)
-                printf("TCP receive, state = %d, read %d\n", sp->test->state, r);
-
         }
         else {
             if (sp->test->debug)
@@ -91,7 +92,7 @@ iperf_tcp_recv(struct iperf_stream *sp)
             //sp->result->bytes_received += r;
             //sp->result->bytes_received_this_interval += r;
         }
-    } while (r > 0);
+    } while (r > 0 && count < MAX_READ_COUNT);
 
     return total_received;
 
