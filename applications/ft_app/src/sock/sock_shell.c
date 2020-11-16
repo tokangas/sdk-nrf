@@ -49,34 +49,34 @@ const char usage_str[] =
 	"  help:    Show this usage. No mandatory options.\n"
 	"\n"
 	"General options:\n"
-	"  -i, [int]  Socket id. Use 'list' command to see open sockets.\n"
+	"  -i, --id, [int]            Socket id. Use 'list' command to see open sockets.\n"
 	"\n"
 	"Options for 'connect' command:\n"
-	"  -a, [str]  Address as ip address or hostname\n"
-	"  -p, [int]  Port\n"
-	"  -f, [str]  Address family: 'inet' (ipv4, default) or 'inet6' (ipv6)\n"
-	"  -t, [str]  Address type: 'stream' (tcp, default) or 'dgram' (udp)\n"
-	"  -b, [int]  Local port to bind the socket to\n"
-	"  -I, [int]  Use this option to bind socket to specific PDN CID.\n"
-	"             See ltelc command for available interfaces.\n"
+	"  -a, --address, [str]      Address as ip address or hostname\n"
+	"  -p, --port,  [int]        Port\n"
+	"  -f, --family, [str]       Address family: 'inet' (ipv4, default) or 'inet6' (ipv6)\n"
+	"  -t, --type, [str]         Address type: 'stream' (tcp, default) or 'dgram' (udp)\n"
+	"  -b, --bind_port, [int]    Local port to bind the socket to\n"
+	"  -I, --cid, [int]          Use this option to bind socket to specific PDN CID.\n"
+	"                            See ltelc command for available interfaces.\n"
 	"\n"
 	"Options for 'send' command:\n"
-	"  -d, [str]  Data to be sent. Cannot be used with -l option.\n"
-	"  -l, [int]  Length of undefined data in bytes. This can be used when testing\n"
-	"             with bigger data amounts. Cannot be used with -d or -e option.\n"
-	"  -e, [int]  Data sending interval in milliseconds. You must also specify -d.\n"
-	"  -B, [bool] Blocking (1) or non-blocking (0) mode.\n"
-	"             This is only valid when -l is given. Default value is 1.\n"
-	"  -s, [int]  Send buffer size. This is only valid when -l is given.\n"
-	"             Default value for 'stream' socket is 3540 and for 'dgram' socket 1200.\n"
+	"  -d, --data [str]          Data to be sent. Cannot be used with -l option.\n"
+	"  -l, --length, [int]       Length of undefined data in bytes. This can be used when testing\n"
+	"                            with bigger data amounts. Cannot be used with -d or -e option.\n"
+	"  -e, --period, [int]       Data sending interval in milliseconds. You must also specify -d.\n"
+	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
+	"                            This is only valid when -l is given. Default value is 1.\n"
+	"  -s, --buffer_size, [int]  Send buffer size. This is only valid when -l is given.\n"
+	"                            Default value for 'stream' socket is 3540 and for 'dgram' socket 1200.\n"
 	"\n"
 	"Options for 'recv' command:\n"
-	"  -r, [bool] Initialize variables for receive throughput calculation\n"
-	"  -B, [bool] Blocking (1) or non-blocking (0) mode.\n"
-	"             This only accounts when -r is given. Default value is 0.\n"
+	"  -r, --start, [bool]       Initialize variables for receive throughput calculation\n"
+	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
+	"                            This only accounts when -r is given. Default value is 0.\n"
 	"\n"
 	"Options for 'help' command:\n"
-	"  -v, [bool] Show examples\n"
+	"  -v, --verbose, [bool]     Show examples\n"
 	;
 
 const char usage_example_str[] =
@@ -115,6 +115,25 @@ const char usage_example_str[] =
 	"List open sockets:\n"
 	"  sock list\n"
 	;
+
+/* Specifying the expected options (both long and short): */
+static struct option long_options[] = {
+    {"id",             required_argument, 0,  'i' },
+    {"cid",            required_argument, 0,  'I' },
+    {"address",        required_argument, 0,  'a' },
+    {"port",           required_argument, 0,  'p' },
+    {"family",         required_argument, 0,  'f' },
+    {"type",           required_argument, 0,  't' },
+    {"bind_port",      required_argument, 0,  'b' },
+    {"data",           required_argument, 0,  'd' },
+    {"length",         required_argument, 0,  'l' },
+    {"period",         required_argument, 0,  'e' },
+    {"buffer_size",    required_argument, 0,  's' },
+    {"start",          no_argument,       0,  'r' },
+    {"blocking",       required_argument, 0,  'B' },
+    {"verbose",        no_argument,       0,  'v' },
+    {0,                0,                 0,   0  }
+};
 
 static void sock_print_usage()
 {
@@ -163,7 +182,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	// Increase getopt command line parsing index not to handle command
 	optind++;
 
-	int flag = 0;
+	// Variables for command line arguments
 	int arg_socket_id = SOCK_ID_NONE;
 	int arg_family = AF_INET;
 	int arg_type = SOCK_STREAM;
@@ -184,7 +203,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
 
 	// Parse command line
-	while ((flag = getopt(argc, argv, "i:I:a:p:f:t:b:d:l:e:s:rB:v")) != -1) {
+	int flag = 0;
+	while ((flag = getopt_long(argc, argv, "i:I:a:p:f:t:b:d:l:e:s:rB:v", long_options, NULL)) != -1) {
 		int addr_len = 0;
 		int send_data_len = 0;
 
