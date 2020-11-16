@@ -49,7 +49,7 @@ const char usage_str[] =
 	"  help:    Show this usage. No mandatory options.\n"
 	"\n"
 	"General options:\n"
-	"  -i, --id, [int]            Socket id. Use 'list' command to see open sockets.\n"
+	"  -i, --id, [int]           Socket id. Use 'list' command to see open sockets.\n"
 	"\n"
 	"Options for 'connect' command:\n"
 	"  -a, --address, [str]      Address as ip address or hostname\n"

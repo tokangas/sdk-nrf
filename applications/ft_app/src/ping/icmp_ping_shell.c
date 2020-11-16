@@ -20,16 +20,29 @@ static const char icmp_ping_shell_cmd_usage_str[] =
 	"Usage: ping [optional options] -d destination\n"
 	"\n"
 	"mandatory options:\n"
-	"  -d destination, [str]   name or ip address\n"
+	"  -d, --destination, [str]   Name or ip address\n"
 	"optional options:\n"
-	"  -t timeout,       [int]   ping timeout in msecs\n"
-	"  -c count,         [int]   the number of times to send the ping request\n"
-	"  -i interval,      [int]   an interval between successive packet transmissions.\n"
-	"  -l length,        [int]   payload length to be sent\n"
-	"  -I interface CID, [int]   use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
-	"  -6,               [bool]  force IPv6 usage with the dual stack interfaces\n"
-	"  -h,               [bool]  shows this information.\n"
+	"  -t, --timeout,     [int]   Ping timeout in milliseconds\n"
+	"  -c, --count,       [int]   The number of times to send the ping request\n"
+	"  -i, --interval,    [int]   Interval between successive packet transmissions in milliseconds\n"
+	"  -l, --length,      [int]   Payload length to be sent\n"
+	"  -I, --cid,         [int]   Use this option to bind pinging to specific CID, see ltelc cmd for interfaces\n"
+	"  -6, --ipv6,        [bool]  Force IPv6 usage with the dual stack interfaces\n"
+	"  -h, --help,        [bool]  Shows this help information\n"
 	;
+
+ /* Specifying the expected options (both long and short): */
+static struct option long_options[] = {
+    {"destination",     required_argument, 0,  'd' },
+    {"timeout",         required_argument, 0,  't' },
+    {"count",           required_argument, 0,  'c' },
+    {"interval",        required_argument, 0,  'i' },
+    {"length",          required_argument, 0,  'l' },
+    {"cid",             required_argument, 0,  'I' },
+    {"ipv6",            no_argument,       0,  '6' },
+    {"help",            no_argument,       0,  'h' },
+    {0,                 0,                 0,   0  }
+};
 
 static void icmp_ping_shell_usage_print(const struct shell *shell)
 {
@@ -60,7 +73,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 	//start from the 1st argument
 	optind = 1;
 
-	while ((flag = getopt(argc, argv, "d:t:c:i:I:l:h6")) != -1) {
+	while ((flag = getopt_long(argc, argv, "d:t:c:i:I:l:h6", long_options, NULL)) != -1) {
 		switch (flag) {
 		case 'd': //destination
             dest_len = strlen(optarg);
