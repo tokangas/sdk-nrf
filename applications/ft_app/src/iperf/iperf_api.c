@@ -2213,8 +2213,19 @@ static int get_parameters(struct iperf_test *test)
 			iperf_set_test_bidirectional(test, 1);
 		if ((j_p = cJSON_GetObjectItem(j, "window")) != NULL)
 			test->settings->socket_bufsize = j_p->valueint;
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+		if ((j_p = cJSON_GetObjectItem(j, "len")) != NULL) {
+			if (j_p->valueint > test->settings->blksize) {
+				if (test->debug)
+					printf("get_parameters: len %d ignored, using default %d\n", (uint32_t)j_p->valueint, test->settings->blksize);
+				}
+			} else {
+				test->settings->blksize = j_p->valueint;
+			}
+#else
 		if ((j_p = cJSON_GetObjectItem(j, "len")) != NULL)
 			test->settings->blksize = j_p->valueint;
+#endif
 		if ((j_p = cJSON_GetObjectItem(j, "bandwidth")) != NULL)
 			test->settings->rate = j_p->valueint;
 		if ((j_p = cJSON_GetObjectItem(j, "fqrate")) != NULL)
