@@ -34,7 +34,7 @@ typedef enum {
 
 const struct shell* shell_global;
 
-const char usage_str[] =
+const char sock_usage_str[] =
 	"Usage: sock <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
@@ -79,7 +79,7 @@ const char usage_str[] =
 	"  -v, --verbose, [bool]     Show examples\n"
 	;
 
-const char usage_example_str[] =
+const char sock_usage_example_str[] =
 	"Examples:\n"
 	"\n"
 	"Open and connect to an ip address and port (IPv4 TCP socket):\n"
@@ -137,13 +137,13 @@ static struct option long_options[] = {
 
 static void sock_print_usage()
 {
-	shell_print(shell_global, "%s", usage_str);
+	shell_print(shell_global, "%s", sock_usage_str);
 }
 
 static int sock_help(bool verbose) {
 	sock_print_usage();
 	if (verbose) {
-		shell_print(shell_global, "%s", usage_example_str);
+		shell_print(shell_global, "%s", sock_usage_example_str);
 	}
 	return 0;
 }
