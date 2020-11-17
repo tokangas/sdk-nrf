@@ -101,6 +101,9 @@ K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 #define AT_XMONITOR_RESPONSE_MAX_LEN	128
 #define AT_CCLK_TIME_LEN		20
 #define AT_XMODEMUUID_UUID_LEN		36
+#define AT_XAPNSTATUS_RESPONSE_MAX_LEN	256
+#define AT_XAPNSTATUS_PARAMS_COUNT      4
+#define AT_XAPNSTATUS_COMMAND_MAX_LEN   128
 
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_MASK	0xe0
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_2S		0x00
@@ -121,6 +124,8 @@ static const char at_xsystemmode_template[] = "AT%%XSYSTEMMODE=%d,%d,%d,%d";
 static const char at_xsystemmode_m1_only[] = "AT\%XSYSTEMMODE=1,0,0,0";
 static const char at_xmonitor[] = "AT\%XMONITOR";
 static const char at_xmodemuuid[] = "AT\%XMODEMUUID";
+static const char at_xapnstatus_read[] = "AT\%XAPNSTATUS?";
+static const char at_xapnstatus_template[] = "AT%%XAPNSTATUS=%d,\"%s\"";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
 static const char aws_jobs_succeeded[] = "SUCCEEDED";
@@ -169,6 +174,8 @@ static int pdn_fd = -1;
 /* Information for restoring the system mode */
 static bool restore_system_mode_needed = false;
 static uint32_t prev_system_mode_bitmask = 0;
+
+static bool restore_apn_status_needed = false;
 
 static bool reboot_pending = false;
 
@@ -564,6 +571,88 @@ static int64_t get_current_time_in_s(void)
 	return (k_uptime_get() - modem_time_timestamp + modem_time) / 1000;
 }
 
+static bool is_fota_apn_disabled(void)
+{
+	int err;
+	char response[AT_XAPNSTATUS_RESPONSE_MAX_LEN];
+	char apn[AT_XAPNSTATUS_COMMAND_MAX_LEN];
+	size_t apn_len;
+	struct at_param_list param_list = {0};
+	bool apn_disabled = false;
+	int param_count;
+
+	err = at_cmd_write(at_xapnstatus_read,
+			   response,
+			   AT_XAPNSTATUS_RESPONSE_MAX_LEN,
+			   NULL);
+	if (err) {
+		LOG_ERR("Failed to read APN status, error: %d", err);
+		return false;
+	}
+
+	err = at_params_list_init(&param_list, AT_XAPNSTATUS_PARAMS_COUNT);
+	if (err) {
+		LOG_ERR("Could not init AT params list, error: %d", err);
+		return false;
+	}
+
+	err = at_parser_max_params_from_str(response, NULL, &param_list,
+					    AT_XAPNSTATUS_PARAMS_COUNT);
+	if (err && err != -EAGAIN) {
+		LOG_ERR("Could not parse AT response, error: %d", err);
+		goto clean_exit;
+	}
+
+	/* Check if the list of disabled APNs contains the FOTA APN */
+	param_count = at_params_valid_count_get(&param_list);
+	for (int i = 1; i < param_count; i++) {
+		apn_len = sizeof(apn);
+		err = at_params_string_get(&param_list, i,
+					   apn, &apn_len);
+		if (err) {
+			LOG_ERR("Failed to get string, error: %d", err);
+			goto clean_exit;
+		}
+		if (strlen(fota_apn) == apn_len &&
+		    strncmp(fota_apn, apn, apn_len) == 0) {
+			apn_disabled = true;
+			break;
+		}
+	}
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	return apn_disabled;
+}
+
+static void send_xapnstatus_command(bool enable)
+{
+	int err;
+	char command[AT_XAPNSTATUS_COMMAND_MAX_LEN];
+
+	snprintk(command,
+		 sizeof(command),
+		 at_xapnstatus_template,
+		 enable ? 1 : 0,
+		 fota_apn);
+	command[AT_XAPNSTATUS_COMMAND_MAX_LEN - 1] = '\0';
+	err = at_cmd_write(command, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to set APN status, error: %d", err);
+	}
+}
+
+static void enable_fota_apn(void)
+{
+	send_xapnstatus_command(true);
+}
+
+static void disable_fota_apn(void)
+{
+	send_xapnstatus_command(false);
+}
+
 static int activate_fota_pdn(void)
 {
 	int err;
@@ -574,6 +663,15 @@ static int activate_fota_pdn(void)
 		return 0;
 
 	LOG_INF("Activating FOTA PDN if necessary");
+
+	/* Check if FOTA APN usage has been disabled and temporarily enable
+	 * APN usage if necessary.
+	 */
+	if (is_fota_apn_disabled()) {
+		LOG_INF("FOTA APN usage disabled, enabling APN temporarily");
+		enable_fota_apn();
+		restore_apn_status_needed = true;
+	}
 
 	pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
 	if (pdn_fd < 0) {
@@ -671,6 +769,13 @@ static void deactivate_fota_pdn(void)
 
 		nrf_close(pdn_fd);
 		pdn_fd = -1;
+	}
+
+	/* Disable FOTA APN usage if it was temporarily enabled */
+	if (restore_apn_status_needed) {
+		LOG_INF("Disabling FOTA APN usage");
+		disable_fota_apn();
+		restore_apn_status_needed = false;
 	}
 }
 
@@ -1109,7 +1214,7 @@ static bool switch_system_mode_to_lte_m(void)
 
 	err = at_params_list_init(&param_list, AT_XSYSTEMMODE_PARAMS_COUNT);
 	if (err) {
-		LOG_ERR("Could init AT params list, error: %d", err);
+		LOG_ERR("Could not init AT params list, error: %d", err);
 		return false;
 	}
 
@@ -1558,7 +1663,7 @@ static void read_lte_active_time_work_fn(struct k_work *item)
 
 	err = at_params_list_init(&param_list, AT_XMONITOR_PARAMS_COUNT_MAX);
 	if (err) {
-		LOG_ERR("Could init AT params list, error: %d", err);
+		LOG_ERR("Could not init AT params list, error: %d", err);
 
 		/* In this case the handler is called immediately */
 		k_timer_start(&active_time_timer, K_NO_WAIT, K_NO_WAIT);
