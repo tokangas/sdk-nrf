@@ -32,7 +32,7 @@ typedef enum {
 	SOCK_CMD_HELP
 } sock_command;
 
-const struct shell* shell_global;
+extern const struct shell* shell_global;
 
 const char sock_usage_str[] =
 	"Usage: sock <command> [options]\n"

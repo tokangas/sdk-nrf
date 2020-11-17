@@ -45,7 +45,6 @@ static icmp_ping_shell_cmd_argv_t ping_argv;
 
 /* global variable defined in different files */
 extern struct modem_param_info modem_param;
-extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 
 /*****************************************************************************/
 static inline void setip(uint8_t *buffer, uint32_t ipaddr)
@@ -346,6 +345,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	}
 
 	/* Result */
+	char rsp_buf[220];
 	sprintf(rsp_buf,
 		"Pinging %s results: time=%d.%03dsecs, payload sent: %d, payload received %d\r\n",
 		ping_argv.target_name, (uint32_t)(delta_t) / 1000,
@@ -376,6 +376,7 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 		k_sleep(K_MSEC(ping_argv.interval));
 	}
 
+	char rsp_buf[20];
 #ifdef NOT_IN_FTA
 	if (count > 1) {
 		uint32_t avg = (sum + count / 2) / count;

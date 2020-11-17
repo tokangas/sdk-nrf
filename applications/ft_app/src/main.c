@@ -21,7 +21,6 @@
 
 /* global variables */
 struct modem_param_info modem_param;
-char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 
 #if !defined (CONFIG_RESET_ON_FATAL_ERROR)
 void k_sys_fatal_error_handler(unsigned int reason,
