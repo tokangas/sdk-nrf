@@ -104,6 +104,9 @@ K_TIMER_DEFINE(active_time_timer, active_time_timer_handler, NULL);
 #define AT_XAPNSTATUS_RESPONSE_MAX_LEN	256
 #define AT_XAPNSTATUS_PARAMS_COUNT      4
 #define AT_XAPNSTATUS_COMMAND_MAX_LEN   128
+#define AT_CGDCONT_RESPONSE_MAX_LEN	128
+#define AT_CGDCONT_PARAMS_COUNT		4
+#define AT_CGDCONT_APN_INDEX            3
 
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_MASK	0xe0
 #define AT_XMONITOR_ACTIVE_TIME_UNIT_2S		0x00
@@ -126,6 +129,7 @@ static const char at_xmonitor[] = "AT\%XMONITOR";
 static const char at_xmodemuuid[] = "AT\%XMODEMUUID";
 static const char at_xapnstatus_read[] = "AT\%XAPNSTATUS?";
 static const char at_xapnstatus_template[] = "AT%%XAPNSTATUS=%d,\"%s\"";
+static const char at_cgdcont_read[] = "AT+CGDCONT?";
 static const char aws_jobs_queued[] = "QUEUED";
 static const char aws_jobs_in_progress[] = "IN PROGRESS";
 static const char aws_jobs_succeeded[] = "SUCCEEDED";
@@ -170,6 +174,7 @@ static char *update_job_id;
 const char *fota_apn;
 /* PDN socket file descriptor for FOTA PDN activation */
 static int pdn_fd = -1;
+static char *default_apn;
 
 /* Information for restoring the system mode */
 static bool restore_system_mode_needed = false;
@@ -571,12 +576,76 @@ static int64_t get_current_time_in_s(void)
 	return (k_uptime_get() - modem_time_timestamp + modem_time) / 1000;
 }
 
-static bool is_fota_apn_disabled(void)
+static void free_default_apn_name(void)
+{
+	k_free(default_apn);
+	default_apn = NULL;
+}
+
+static int read_default_apn_name(void)
+{
+	int err = 0;
+	char response[AT_CGDCONT_RESPONSE_MAX_LEN];
+	char apn[AT_CGDCONT_RESPONSE_MAX_LEN];
+	size_t apn_len = AT_CGDCONT_RESPONSE_MAX_LEN;
+	struct at_param_list param_list = {0};
+
+	/* Clear the previous APN */
+	free_default_apn_name();
+
+	/* Read the default APN and store it */
+
+	err = at_cmd_write(at_cgdcont_read,
+			   response,
+			   AT_CGDCONT_RESPONSE_MAX_LEN,
+			   NULL);
+	if (err) {
+		LOG_ERR("Failed to read context status, error: %d", err);
+		return false;
+	}
+
+	err = at_params_list_init(&param_list, AT_CGDCONT_PARAMS_COUNT);
+	if (err) {
+		LOG_ERR("Could not init AT params list, error: %d", err);
+		return false;
+	}
+
+	err = at_parser_max_params_from_str(response, NULL, &param_list,
+					    AT_CGDCONT_PARAMS_COUNT);
+	if (err && err != -E2BIG && err != -EAGAIN) {
+		LOG_ERR("Could not parse AT response, error: %d", err);
+		goto clean_exit;
+	}
+
+	err = at_params_string_get(&param_list, AT_CGDCONT_APN_INDEX,
+				   apn, &apn_len);
+	if (err) {
+		LOG_ERR("Failed to get string, error: %d", err);
+		goto clean_exit;
+	}
+
+	if (apn_len > 0) {
+		default_apn = k_malloc(apn_len + 1);
+		if (default_apn == NULL) {
+			err = -ENOMEM;
+			goto clean_exit;
+		}
+		strncpy(default_apn, apn, apn_len);
+		default_apn[apn_len] = '\0';
+	}
+
+clean_exit:
+	at_params_list_free(&param_list);
+
+	return err;
+}
+
+static bool is_apn_disabled(const char *apn)
 {
 	int err;
 	char response[AT_XAPNSTATUS_RESPONSE_MAX_LEN];
-	char apn[AT_XAPNSTATUS_COMMAND_MAX_LEN];
-	size_t apn_len;
+	char current_apn[AT_XAPNSTATUS_COMMAND_MAX_LEN];
+	size_t current_apn_len;
 	struct at_param_list param_list = {0};
 	bool apn_disabled = false;
 	int param_count;
@@ -606,15 +675,15 @@ static bool is_fota_apn_disabled(void)
 	/* Check if the list of disabled APNs contains the FOTA APN */
 	param_count = at_params_valid_count_get(&param_list);
 	for (int i = 1; i < param_count; i++) {
-		apn_len = sizeof(apn);
+		current_apn_len = sizeof(current_apn);
 		err = at_params_string_get(&param_list, i,
-					   apn, &apn_len);
+					   current_apn, &current_apn_len);
 		if (err) {
 			LOG_ERR("Failed to get string, error: %d", err);
 			goto clean_exit;
 		}
-		if (strlen(fota_apn) == apn_len &&
-		    strncmp(fota_apn, apn, apn_len) == 0) {
+		if (strlen(apn) == current_apn_len &&
+		    strncmp(apn, current_apn, current_apn_len) == 0) {
 			apn_disabled = true;
 			break;
 		}
@@ -626,7 +695,7 @@ clean_exit:
 	return apn_disabled;
 }
 
-static void send_xapnstatus_command(bool enable)
+static void send_xapnstatus_command(bool enable, const char *apn)
 {
 	int err;
 	char command[AT_XAPNSTATUS_COMMAND_MAX_LEN];
@@ -635,7 +704,7 @@ static void send_xapnstatus_command(bool enable)
 		 sizeof(command),
 		 at_xapnstatus_template,
 		 enable ? 1 : 0,
-		 fota_apn);
+		 apn);
 	command[AT_XAPNSTATUS_COMMAND_MAX_LEN - 1] = '\0';
 	err = at_cmd_write(command, NULL, 0, NULL);
 	if (err) {
@@ -643,14 +712,14 @@ static void send_xapnstatus_command(bool enable)
 	}
 }
 
-static void enable_fota_apn(void)
+static void enable_apn(const char *apn)
 {
-	send_xapnstatus_command(true);
+	send_xapnstatus_command(true, apn);
 }
 
-static void disable_fota_apn(void)
+static void disable_apn(const char *apn)
 {
-	send_xapnstatus_command(false);
+	send_xapnstatus_command(false, apn);
 }
 
 static int activate_fota_pdn(void)
@@ -659,17 +728,34 @@ static int activate_fota_pdn(void)
 	nrf_sa_family_t af[2];
 	int af_count;
 
-	if (fota_apn == NULL)
+	if (fota_apn == NULL) {
+		/* No separate FOTA APN is configured, check if default APN
+		 * usage has been disabled and temporarily enable APN usage if
+		 * necessary.
+		 */
+		err = read_default_apn_name();
+		if (err == 0 && default_apn != NULL) {
+			if (is_apn_disabled(default_apn)) {
+				LOG_INF("Default APN usage disabled, enabling "
+					"APN temporarily");
+				enable_apn(default_apn);
+				restore_apn_status_needed = true;
+			} else {
+				free_default_apn_name();
+			}
+		}
+
 		return 0;
+	}
 
 	LOG_INF("Activating FOTA PDN if necessary");
 
 	/* Check if FOTA APN usage has been disabled and temporarily enable
 	 * APN usage if necessary.
 	 */
-	if (is_fota_apn_disabled()) {
+	if (is_apn_disabled(fota_apn)) {
 		LOG_INF("FOTA APN usage disabled, enabling APN temporarily");
-		enable_fota_apn();
+		enable_apn(fota_apn);
 		restore_apn_status_needed = true;
 	}
 
@@ -771,10 +857,16 @@ static void deactivate_fota_pdn(void)
 		pdn_fd = -1;
 	}
 
-	/* Disable FOTA APN usage if it was temporarily enabled */
+	/* Disable APN usage if it was temporarily enabled */
 	if (restore_apn_status_needed) {
-		LOG_INF("Disabling FOTA APN usage");
-		disable_fota_apn();
+		if (fota_apn != NULL) {
+			LOG_INF("Disabling FOTA APN usage");
+			disable_apn(fota_apn);
+		} else if (default_apn != NULL) {
+			LOG_INF("Disabling default APN usage");
+			disable_apn(default_apn);
+			free_default_apn_name();
+		}
 		restore_apn_status_needed = false;
 	}
 }
@@ -1881,6 +1973,16 @@ static void provision_device_work_fn(struct k_work *item)
 
 	/* TODO: Wait until device is connected to network (forever?) */
 
+	ret = read_default_apn_name();
+	if (ret == 0 && default_apn != NULL) {
+		if (is_apn_disabled(default_apn)) {
+			LOG_INF("Default APN usage disabled, enabling APN "
+				"temporarily");
+			enable_apn(default_apn);
+			restore_apn_status_needed = true;
+		}
+	}
+
 	retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 	while (true) {
 		LOG_INF("Provisioning device for FOTA...");
@@ -1902,6 +2004,13 @@ static void provision_device_work_fn(struct k_work *item)
 			k_sleep(K_MSEC(wait_time));
 		}
 	}
+
+	if (restore_apn_status_needed) {
+		LOG_INF("Disabling default APN usage");
+		disable_apn(default_apn);
+		restore_apn_status_needed = false;
+	}
+	free_default_apn_name();
 
 	if (ret == 0) {
 		LOG_INF("Device provisioned, waiting 30s before using API");
