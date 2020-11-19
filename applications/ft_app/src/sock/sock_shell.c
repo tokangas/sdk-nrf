@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2020 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ */
+
 #include <shell/shell.h>
 #include <assert.h>
 #include <strings.h>
@@ -248,6 +254,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				arg_type = SOCK_STREAM;
 			} else if (!strcmp(optarg, "dgram")) {
 				arg_type = SOCK_DGRAM;
+			} else if (!strcmp(optarg, "raw")) {
+				arg_type = SOCK_RAW;
 			} else {
 				shell_error(shell, "Unsupported address type=%s", optarg);
 				return -EINVAL;

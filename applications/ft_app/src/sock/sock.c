@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2020 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ */
+
 #include <shell/shell.h>
 #include <assert.h>
 #include <strings.h>
@@ -207,7 +213,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	// VALIDATE PARAMETERS
 
 	// Validate family parameter
-	if (family != AF_INET && family != AF_INET6) {
+	if (family != AF_INET && family != AF_INET6 && family != AF_PACKET) {
 		shell_error(shell_global, "Unsupported address family=%d", family);
 		return -EINVAL;
 	}
@@ -218,14 +224,16 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		proto = IPPROTO_TCP;
 	} else if (type == SOCK_DGRAM) {
 		proto = IPPROTO_UDP;
+	} else if (type == SOCK_RAW) {
+		proto = 0;		
 	} else {
 		shell_error(shell_global, "Unsupported address type=%d", type);
 		return -EINVAL;
 	}
 
 	// Validate port
-	if (port < 1 || port > 65535) {
-		shell_error(shell_global, "Port (%d) must be bigger than 0 and smaller than 65536", port);
+	if (port > 65535) {
+		shell_error(shell_global, "Port (%d) must be smaller than 65536", port);
 		return -EINVAL;
 	}
 
@@ -237,9 +245,28 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 
 	// GET ADDRESS
 	if ((address == NULL) || (strlen(address) == 0)) {
+		if (type == SOCK_RAW) {
+			int fd = socket(family, type, proto);
+			if (fd < 0) {
+				shell_error(shell_global, "SOCK_RAW create failed");
+				return errno;
+			}
+
+			// Socket has been created so populate its structure with information
+			socket_info->in_use = true;
+			socket_info->fd = fd;
+			socket_info->family = family;
+			socket_info->type = type;
+			socket_info->port = port;
+			socket_info->bind_port = bind_port;
+			socket_info->pdn_cid = pdn_cid;
+
+			return 0;	
+		} else {
 		shell_error(shell_global, "Address not given");
 		sock_info_clear(socket_info);
 		return -EINVAL;
+		}
 	}
 
 	struct addrinfo hints = {

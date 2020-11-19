@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2020 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ */
+
 #ifndef LTE_CONNECTION_H
 #define LTE_CONNECTION_H
 #include <modem/lte_lc.h>

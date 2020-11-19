@@ -1,11 +1,11 @@
-#ifndef FTA_TIME_UTILS_H
-#define FTA_TIME_UTILS_H
-
 /*
- * Copyright (c) 2018 Nordic Semiconductor ASA
+ * Copyright (c) 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
+
+#ifndef FTA_TIME_UTILS_H
+#define FTA_TIME_UTILS_H
 
 time_t fta_time(time_t *t);
 

@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
+
 #ifndef AT_SHELL_H
 #define AT_SHELL_H
 
