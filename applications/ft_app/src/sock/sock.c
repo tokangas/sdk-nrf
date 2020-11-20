@@ -213,7 +213,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	// VALIDATE PARAMETERS
 
 	// Validate family parameter
-	if (family != AF_INET && family != AF_INET6) {
+	if (family != AF_INET && family != AF_INET6 && family != AF_PACKET) {
 		shell_error(shell_global, "Unsupported address family=%d", family);
 		return -EINVAL;
 	}
@@ -224,14 +224,16 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		proto = IPPROTO_TCP;
 	} else if (type == SOCK_DGRAM) {
 		proto = IPPROTO_UDP;
+	} else if (type == SOCK_RAW) {
+		proto = 0;		
 	} else {
 		shell_error(shell_global, "Unsupported address type=%d", type);
 		return -EINVAL;
 	}
 
 	// Validate port
-	if (port < 1 || port > 65535) {
-		shell_error(shell_global, "Port (%d) must be bigger than 0 and smaller than 65536", port);
+	if (port > 65535) {
+		shell_error(shell_global, "Port (%d) must be smaller than 65536", port);
 		return -EINVAL;
 	}
 
@@ -243,9 +245,35 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 
 	// GET ADDRESS
 	if ((address == NULL) || (strlen(address) == 0)) {
+		// TODO: This code should be refactored as there is copy paste.
+		if (type == SOCK_RAW) {
+			shell_warn(shell_global, "NOTE: Raw socket implementation is not complete yet and there are bugs");
+			int fd = socket(family, type, proto);
+			if (fd < 0) {
+				shell_error(shell_global, "Raw socket create failed");
+				return errno;
+			}
+
+			// Socket has been created so populate its structure with information
+			socket_info->in_use = true;
+			socket_info->fd = fd;
+			socket_info->family = family;
+			socket_info->type = type;
+			socket_info->port = port;
+			socket_info->bind_port = bind_port;
+			socket_info->pdn_cid = pdn_cid;
+
+			// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
+			set_sock_blocking_mode(socket_info->fd, false);
+
+			shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
+
+			return 0;
+		} else {
 		shell_error(shell_global, "Address not given");
 		sock_info_clear(socket_info);
 		return -EINVAL;
+		}
 	}
 
 	struct addrinfo hints = {
@@ -422,10 +450,7 @@ static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 		shell_print(shell_global, "Socket data send:\n\t%s", data);
 	}
 
-	if (socket_info->type == SOCK_STREAM) {
-		// TCP
-		bytes = send(socket_info->fd, data, strlen(data), 0);
-	} else {
+	if (socket_info->type == SOCK_DGRAM) {
 		// UDP
 		int dest_addr_len = 0;
 		if (socket_info->family == AF_INET) {
@@ -435,6 +460,9 @@ static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 		}
 		bytes = sendto(socket_info->fd, data, strlen(data), 0,
 			socket_info->addrinfo->ai_addr, dest_addr_len);
+	} else {
+		// TCP and raw socket
+		bytes = send(socket_info->fd, data, strlen(data), 0);
 	}
 	if (bytes < 0) {
 		// Ideally we'd like to log the failure here but non-blocking socket causes huge number of failures
