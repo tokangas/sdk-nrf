@@ -677,6 +677,7 @@ iperf_run_client(struct iperf_test * test)
             printf("iperf_run_client: Yes, done! Send TEST_END\n");
         }
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if 0 /* removed for now, we are flushing iniperf_set_send_state() */
         struct iperf_stream *sp;
         fd_set flush_read_set;
         
@@ -702,6 +703,7 @@ iperf_run_client(struct iperf_test * test)
                 printf("iperf_run_client: iperf_recv flushing failed, ignored\n");
             }                    
         }
+#endif
 #endif        
 #ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
