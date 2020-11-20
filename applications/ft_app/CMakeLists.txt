@@ -6,6 +6,14 @@
 
 cmake_minimum_required(VERSION 3.8.2)
 
+#configuration for secure side
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/spm.conf")
+  set(spm_CONF_FILE
+    prj.conf
+    ${CMAKE_CURRENT_LIST_DIR}/spm.conf
+  )
+endif()
+
 #if(CONFIG_POSIX_API)
 #  target_include_directories(posix_subsys INTERFACE ${ZEPHYR_BASE}/include/posix)
 #endif()
