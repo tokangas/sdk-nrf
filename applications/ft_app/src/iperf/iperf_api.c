@@ -1643,7 +1643,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 				printf("iperf_set_send_state: select return %d\n", ret);
 
 				SLIST_FOREACH(sp, &test->streams, streams) {
-					iperf_printf(test, "before recv: stream [%d]: socket: %d read: %d\n",
+					iperf_printf(test, "iperf_set_send_state before recv: stream [%d]: socket: %d read: %d\n",
 							i,
 							sp->socket,
 							(int)FD_ISSET(sp->socket, &flush_read_set));
@@ -3038,8 +3038,38 @@ void add_to_interval_list(struct iperf_stream_result *rp,
 
 	irp = (struct iperf_interval_results *)malloc(
 		sizeof(struct iperf_interval_results));
+
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+	if (irp == NULL) {
+		struct iperf_interval_results *nirp;
+
+		printf("add_to_interval_list: OUT OF MEMORY: cannot add an interval to list: flushing all intervals\n");
+		while (!TAILQ_EMPTY(&rp->interval_results)) {
+			nirp = TAILQ_FIRST(&rp->interval_results);
+			TAILQ_REMOVE(&rp->interval_results, nirp, irlistentries);
+			free(nirp);
+		}
+
+		/* ...and then retry: */
+		irp = (struct iperf_interval_results *)malloc(sizeof(struct iperf_interval_results));
+		
+		if (irp == NULL) {
+			printf("add_to_interval_list 2nd try: out of heap mem: still cannot add interval to list\n");
+		}
+		else {
+			memcpy(irp, new, sizeof(struct iperf_interval_results));
+			TAILQ_INSERT_TAIL(&rp->interval_results, irp, irlistentries);
+			printf("add_to_interval_list: interval added now to list\n");
+		}
+	}
+	else {
+		memcpy(irp, new, sizeof(struct iperf_interval_results));
+		TAILQ_INSERT_TAIL(&rp->interval_results, irp, irlistentries);
+	}
+#else
 	memcpy(irp, new, sizeof(struct iperf_interval_results));
 	TAILQ_INSERT_TAIL(&rp->interval_results, irp, irlistentries);
+#endif
 }
 
 /************************************************************/
@@ -5293,7 +5323,6 @@ void iperf_free_stream(struct iperf_stream *sp)
 {
 	struct iperf_interval_results *irp, *nirp;
 
-	/* XXX: need to free interval list too! */
 	//munmap(sp->buffer, sp->test->settings->blksize); //FTA_IPERF3_INTEGRATION_CHANGE: not supported
 	//close(sp->buffer_fd); //FTA_IPERF3_INTEGRATION_CHANGE
 
@@ -5364,6 +5393,13 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 	sp->buffer = (char *)malloc(test->settings->blksize);
+	if (sp->buffer == NULL) {
+		printf("iperf_new_stream: no memory for buffer\n");
+		i_errno = IENOMEMORY;
+		free(sp->result);
+		free(sp);
+		return NULL;
+	}	
 #else //mmap not supported
 	/* Create and randomize the buffer */
 	sp->buffer_fd = mkstemp(template);
