@@ -48,14 +48,17 @@ static const char at_usage_str[] =
 	"\n"
 	"Examples:\n"
 	"\n"
-	"Send AT command to query network status with:\n"
-	"  at at+cereg?\n"
+	"  Send AT command to query network status with:\n"
+	"    at at+cereg?\n"
 	"\n"
-	"Send AT command to query neightbour cells:\n"
-	"  at at%NBRGRSRP\n"
+	"  Send AT command to query neightbour cells:\n"
+	"    at at%NBRGRSRP\n"
 	"\n"
-	"AT command:\n"
-	"  at events_enable\n"
+	"  Enable AT command events:\n"
+	"    at events_enable\n"
+	"\n"
+	"  Disable AT command events:\n"
+	"    at events_disable\n"
 	;
 
 static void at_cmd_handler(void *context, const char *response)
@@ -73,6 +76,7 @@ int at_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
 	char response[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
+	shell_global = shell;
 
 	if (argc < 2) {
 		at_print_usage();
