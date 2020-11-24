@@ -36,6 +36,34 @@
 
 #define AT_CMD_PDP_CONTEXT_READ_RSP_DELIM "\r\n"
 
+int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char* apn_str)
+{
+	int ret;
+	pdp_context_info_array_t pdp_context_info_tbl;
+
+	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+	if (ret) {
+		printf("cannot read current connection info: %d", ret);
+		return -1;
+	}
+
+	/* Find PDP context info for requested CID */
+	ret = -1;
+	int i;
+	for (i = 0; i < pdp_context_info_tbl.size; i++) {
+		if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
+			memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
+			strcpy(apn_str, pdp_context_info_tbl.array[i].apn_str);
+			ret = 0;
+		}
+	}
+
+	if (pdp_context_info_tbl.array != NULL) {
+		free(pdp_context_info_tbl.array);
+	}
+	return ret;
+}
+
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 {
 	int ret = 0;

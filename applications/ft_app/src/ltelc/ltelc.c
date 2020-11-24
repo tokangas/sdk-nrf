@@ -214,34 +214,6 @@ static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn
 	return found_pdn_socket_info;
 }
 
-static int ltelc_get_apn_by_pdn_cid(int pdn_cid, char* apn_str)
-{
-	int ret;
-	pdp_context_info_array_t pdp_context_info_tbl;
-
-	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
-	if (ret) {
-		shell_error(uart_shell, "cannot read current connection info: %d", ret);
-		return -1;
-	}
-
-	/* Find PDP context info for requested CID */
-	ret = -1;
-	int i;
-	for (i = 0; i < pdp_context_info_tbl.size; i++) {
-		if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
-			memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
-			strcpy(apn_str, pdp_context_info_tbl.array[i].apn_str);
-			ret = 0;
-		}
-	}
-
-	if (pdp_context_info_tbl.array != NULL) {
-		free(pdp_context_info_tbl.array);
-	}
-	return ret;
-}
-
 void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
 	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
@@ -311,7 +283,7 @@ int ltelc_pdn_init_and_connect(const char *apn_name)
 				/* Connect to the APN. */
 				int err = nrf_connect(pdn_fd, apn_name, strlen(apn_name));
 				if (err) {
-					printk("ltelc_pdn_init_and_connect: could not connect pdn socket: %d", err);
+					printk("ltelc_pdn_init_and_connect: could not connect pdn socket: %d\n", err);
 					(void)nrf_close(pdn_fd);
 					return -EINVAL;
 				}
@@ -339,7 +311,7 @@ int ltelc_pdn_disconnect(const char* apn, int pdn_cid)
 	} else if (pdn_cid >= 0) {
 		// TODO: Check if there is more elegant way of handling apn string
 		char apn_str[FTA_APN_STR_MAX_LEN];
-		int ret = ltelc_get_apn_by_pdn_cid(pdn_cid, apn_str);
+		int ret = ltelc_api_get_apn_by_pdn_cid(pdn_cid, apn_str);
 		if (ret != 0) {
 			printk("No APN found for PDN CID %d\n", pdn_cid);
 		} else {

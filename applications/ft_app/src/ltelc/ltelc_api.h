@@ -42,6 +42,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #endif
 #if defined(CONFIG_AT_CMD)
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
+int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char* apn_str);
 #endif
 
 #endif /* LTELC_API_H */
