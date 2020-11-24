@@ -60,45 +60,53 @@ const char ltelc_usage_str[] =
 	"Usage: ltelc <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
-	"  help:                  Show this message\n"
-	"  status:                Show status of the current connection\n"
-	"  rsrp [rsrp options]:   Subscribe/unsubscribe for RSRP signal info\n"
-	"  connect -a <apn> | --apn <apn>: Connect to given apn\n"
-	"  disconnect [<apn> | <cid>]:     Disconnect from given apn\n"
-	"  funmode [funmode options]:      Set/read functional modes of the modem\n"
-	"  sysmode [sysmode options]:      Set/read system modes of the modem\n"
-	"  edrx [eDRX options]:            Enable/disable eDRX with default or with custom parameters\n"
-	"  psm [psm options]:              Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
+	"  help:                    Show this message\n"
+	"  status:                  Show status of the current connection\n"
+	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
+	"  connect:                 Connect to given apn\n"
+	"  disconnect:              Disconnect from given apn\n"
+	"  funmode:                 Set/read functional modes of the modem\n"
+	"  sysmode:                 Set/read system modes of the modem\n"
+	"  edrx:                    Enable/disable eDRX with default or with custom parameters\n"
+	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
-	"General options:\n"
-	"  -a <apn> | --apn <apn>, [str] Access Point Name\n"
 	"Options for 'rsrp' command:\n"
+	"  -a, --apn,        [str]  Access Point Name\n"
 	"  -f, --family,     [str]  Address family: 'ipv4v6', 'ipv4', 'ipv6', 'packet'\n"
 	"\n"
+	"Options for 'rsrp' command:\n"
+	"  -s, --subscribe,  [bool] Subscribe for RSRP info\n"
+	"  -u, --unsubscribe,[bool] Unsubscribe for RSRP info\n"
+	"\n"
 	"Options for 'disconnect' command:\n"
-	"  -I <cid> | --cid <cid>, [int]   Use this option to disconnect specific PDN CID\n"
+	"  -a, --apn,        [str]  Access Point Name\n"
+	"  -I, --cid,        [int]  Use this option to disconnect specific PDN CID\n"
+	"\n"
 	"Options for 'funmode' command:\n"
-	"  -r | --read,       [bool]  Read modem functional mode\n"
-	"  -0 | --pwroff,     [bool]  Set modem power off\n"
-	"  -1 | --normal,     [bool]  Set modem normal mode\n"
-	"  -4 | --flightmode, [bool]  Set modem offline\n"
+	"  -r, --read,       [bool] Read modem functional mode\n"
+	"  -0, --pwroff,     [bool] Set modem power off\n"
+	"  -1, --normal,     [bool] Set modem normal mode\n"
+	"  -4, --flightmode, [bool] Set modem offline\n"
+	"\n"
 	"Options for 'sysmode' command:\n"
-	"  -r | --read,       [bool]  Read modem functional mode\n"
-	"  -m | --ltem,       [bool]  LTE-M (LTE Cat-M1) system mode\n"
-	"  -n | --nbiot,      [bool]  NB-IoT (LTE Cat-NB1) system mode\n"
-	"  -g | --gps,        [bool]  GPS system mode\n"
-	"  -M | --ltem_gps,   [bool]  LTE-M + GPS system mode\n"
-	"  -N | --nbiot_gps,  [bool]  NB-IoT + GPS system mode\n"
+	"  -r, --read,       [bool] Read modem functional mode\n"
+	"  -m, --ltem,       [bool] LTE-M (LTE Cat-M1) system mode\n"
+	"  -n, --nbiot,      [bool] NB-IoT (LTE Cat-NB1) system mode\n"
+	"  -g, --gps,        [bool] GPS system mode\n"
+	"  -M, --ltem_gps,   [bool] LTE-M + GPS system mode\n"
+	"  -N, --nbiot_gps,  [bool] NB-IoT + GPS system mode\n"
+	"\n"
 	"Options for 'edrx' command:\n"
-	"  -e | --enable [--edrx_value <value> [--ptw <value>]], [bool]   Enable eDRX\n"
-	"  -d | --disable,                                       [bool]   Disable eDRX\n"
-	"  -x | --edrx_value <value>, [string] Sets custom eDRX value to be requested when enabling eDRX.\n"
-	"  -w | --ptw <value>,        [string] Sets custom Paging Time Window value to be requested when enabling eDRX.\n"
+	"  -e, --enable,     [bool] Enable eDRX\n"
+	"  -d, --disable,    [bool] Disable eDRX\n"
+	"  -x, --edrx_value, [str]  Sets custom eDRX value to be requested when enabling eDRX.\n"
+	"  -w, --ptw,        [str]  Sets custom Paging Time Window value to be requested when enabling eDRX.\n"
+	"\n"
 	"Options for 'psm' command:\n"
-	"  -e | --enable [--rptau <value> --rat <value>], [bool]   Enable PSM\n"
-	"  -d | --disable,                                [bool]   Disable PSM\n"
-	"  -p | --rptau <value>, [string] Sets custom requested periodic TAU value to be requested when enabling PSM.\n"
-	"  -t | --rat <value>,   [string] Sets custom requested active time (RAT) value to be requested when enabling PSM.\n"
+	"  -e, --enable,     [bool] Enable PSM\n"
+	"  -d, --disable,    [bool] Disable PSM\n"
+	"  -p, --rptau,      [str]  Sets custom requested periodic TAU value to be requested when enabling PSM.\n"
+	"  -t, --rat,        [str]  Sets custom requested active time (RAT) value to be requested when enabling PSM.\n"
 	"\n"
 	;
 
@@ -432,7 +440,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 				ret = lte_lc_system_mode_get(&sys_mode_current);
 				if (ret < 0) {
-					shell_error(shell, "cannot read system mode of the modem: %d", ret);
+					shell_error(shell, "Cannot read system mode of the modem: %d", ret);
 				} else {
 					shell_print(shell, "System mode read successfully: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
 				}
@@ -453,14 +461,14 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ret = ltelc_func_mode_get();
 				if (ret < 0) {
-					shell_error(shell, "cannot get functional mode: %d", ret);
+					shell_error(shell, "Cannot get functional mode: %d", ret);
 				} else {
 					shell_print(shell, "Functional mode read successfully: %s", ltelc_shell_funmode_to_string(ret, snum));
 				}
 			} else {
 				ret = ltelc_func_mode_set(ltelc_cmd_args.funmode_option);
 				if (ret < 0) {
-					shell_error(shell, "cannot set functional mode: %d", ret);
+					shell_error(shell, "Cannot set functional mode: %d", ret);
 				} else {
 					shell_print(shell, "Functional mode set successfully: %s", ltelc_shell_funmode_to_string(ltelc_cmd_args.funmode_option, snum));
 				}
@@ -471,21 +479,21 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				if (edrx_value_set) {
 					ret = lte_lc_edrx_param_set(edrx_value_str);
 					if (ret < 0) {
-						shell_error(shell, "cannot set eDRX value: %d", ret);
+						shell_error(shell, "Cannot set eDRX value: %d", ret);
 						return -EINVAL;
 					}
 				}
 				if (edrx_ptw_set) {
 					ret = lte_lc_ptw_set(edrx_ptw_bit_str);
 					if (ret < 0) {
-						shell_error(shell, "cannot set PTW value: %d", ret);
+						shell_error(shell, "Cannot set PTW value: %d", ret);
 						return -EINVAL;
 					}
 				}
 
 				ret = lte_lc_edrx_req(true);
 				if (ret < 0) {
-					shell_error(shell, "cannot enable eDRX: %d", ret);
+					shell_error(shell, "Cannot enable eDRX: %d", ret);
 				} else {
 					shell_print(shell, "eDRX enabled");
 				}
@@ -493,7 +501,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
 				ret = lte_lc_edrx_req(false);
 				if (ret < 0) {
-					shell_error(shell, "cannot disable eDRX: %d", ret);
+					shell_error(shell, "Cannot disable eDRX: %d", ret);
 				} else {
 					shell_print(shell, "eDRX disabled");
 				}
@@ -508,7 +516,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				if (psm_rptau_set && psm_rat_set) {
 					ret = lte_lc_psm_param_set(psm_rptau_bit_str, psm_rat_bit_str);
 					if (ret < 0) {
-						shell_error(shell, "cannot set PSM parameters: %d", ret);
+						shell_error(shell, "Cannot set PSM parameters: %d", ret);
 						return -EINVAL;
 					}
 				} 
@@ -522,7 +530,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 				ret = lte_lc_psm_req(true);
 				if (ret < 0) {
-					shell_error(shell, "cannot enable PSM: %d", ret);
+					shell_error(shell, "Cannot enable PSM: %d", ret);
 				} else {
 					shell_print(shell, "PSM enabled");
 				}
@@ -530,7 +538,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
 				ret = lte_lc_psm_req(false);
 				if (ret < 0) {
-					shell_error(shell, "cannot disable PSM: %d", ret);
+					shell_error(shell, "Cannot disable PSM: %d", ret);
 				} else {
 					shell_print(shell, "PSM disabled");
 				}
@@ -547,7 +555,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_CMD_CONNECT:
 			ret = ltelc_pdn_init_and_connect(apn, family);
 			if (ret < 0) {
-				shell_error(shell, "cannot connect pdn socket: %d", ret);
+				shell_error(shell, "Cannot connect pdn socket: %d", ret);
 			} else {
 				shell_print(shell, "pdn socket = %d created and connected", ret);
 			}
