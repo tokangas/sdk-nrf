@@ -84,6 +84,9 @@ struct OperationConfig {
   char *headerfile;
   char *ftpport;
   char *iface;
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  char *cid;
+#endif
   long localport;
   long localportrange;
   unsigned short porttouse;

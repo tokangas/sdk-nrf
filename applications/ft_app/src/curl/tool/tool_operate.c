@@ -1801,6 +1801,9 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
         /* three new ones in libcurl 7.3: */
         my_setopt_str(curl, CURLOPT_INTERFACE, config->iface);
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+        my_setopt_str(curl, CURLOPT_INTERFACE_CID, config->cid);
+#endif
         my_setopt_str(curl, CURLOPT_KRBLEVEL, config->krblevel);
         progressbarinit(&per->progressbar, config);
 

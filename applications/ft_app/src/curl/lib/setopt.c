@@ -1789,6 +1789,12 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
     result = Curl_setstropt(&data->set.str[STRING_DEVICE],
                             va_arg(param, char *));
     break;
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  case CURLOPT_INTERFACE_CID:
+    result = Curl_setstropt(&data->set.str[STRING_DEVICE_CID],
+                            va_arg(param, char *));
+    break;
+#endif
   case CURLOPT_LOCALPORT:
     /*
      * Set what local port to bind the socket to when performing an operation.

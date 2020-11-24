@@ -78,6 +78,12 @@
 #include "quic.h"
 #include "socks.h"
 
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#include "fta_defines.h"
+#include "ltelc_api.h"
+#include "utils/fta_net_utils.h"
+#endif
+
 /* The last 3 #include files should be in this order */
 #include "curl_printf.h"
 #include "curl_memory.h"
@@ -258,18 +264,30 @@ static CURLcode bindlocal(struct connectdata *conn,
   /* how many port numbers to try to bind to, increasing one at a time */
   int portnum = data->set.localportrange;
   const char *dev = data->set.str[STRING_DEVICE];
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  const char *dev_cid = data->set.str[STRING_DEVICE_CID];
+#endif
   int error;
 
   /*************************************************************
    * Select device to bind socket to
    *************************************************************/
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  if(!dev && !port && !dev_cid)
+    /* no local kind of binding was requested */
+    return CURLE_OK;
+#else
   if(!dev && !port)
     /* no local kind of binding was requested */
     return CURLE_OK;
-
+#endif
   memset(&sa, 0, sizeof(struct Curl_sockaddr_storage));
 
-  if(dev && (strlen(dev)<255) ) {
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  if((dev && (strlen(dev)<255)) || (dev_cid && (strlen(dev_cid)>0))) {
+#else
+  if(dev && (strlen(dev)<255)) {
+#endif
     char myhost[256] = "";
     int done = 0; /* -1 for error, 1 for address found */
     bool is_interface = FALSE;
@@ -277,18 +295,62 @@ static CURLcode bindlocal(struct connectdata *conn,
     static const char *if_prefix = "if!";
     static const char *host_prefix = "host!";
 
-    if(strncmp(if_prefix, dev, strlen(if_prefix)) == 0) {
-      dev += strlen(if_prefix);
-      is_interface = TRUE;
+    if (dev) {
+      if(strncmp(if_prefix, dev, strlen(if_prefix)) == 0) {
+        dev += strlen(if_prefix);
+        is_interface = TRUE;
+      }
+      else if(strncmp(host_prefix, dev, strlen(host_prefix)) == 0) {
+        dev += strlen(host_prefix);
+        is_host = TRUE;
+      }
     }
-    else if(strncmp(host_prefix, dev, strlen(host_prefix)) == 0) {
-      dev += strlen(host_prefix);
-      is_host = TRUE;
-    }
-
     /* interface */
     if(!is_host) {
 #ifdef SO_BINDTODEVICE
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+      /* FTA_CURL_INTEGRATION_CHANGE:
+         with FTA & Zephyr we need to do that a little bit differently: */
+      struct ifreq ifr = {0};
+      int opt_retvalue = -1;
+      int cid;
+      int len;
+
+      if (dev_cid != NULL) {
+        /* Nordic specific --cid option: */
+        char apn_str[FTA_APN_STR_MAX_LEN];
+  
+        len = strlen(dev_cid);
+        cid = atoi(dev_cid);
+        if (cid > 0) {
+          int ret = ltelc_api_get_apn_by_pdn_cid(cid, apn_str);
+          if (ret >= 0) {
+            len = strlen(apn_str);
+            memcpy(ifr.ifr_name, apn_str, len);
+            printf("Binding PDN CID '%d' to APN %s\n", cid, apn_str);
+            opt_retvalue = setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+          } else {
+            failf(data, "Couldn't find interface with CID '%s'\n", dev_cid);
+            return CURLE_INTERFACE_FAILED;
+          }
+        }
+        else {
+          printf("Default PDN CID is used\n");
+          return CURLE_OK;
+        }
+      }
+      else {
+        /* Normal --interface option: */
+        len = strlen(dev);
+        memcpy(ifr.ifr_name, dev, len);
+        opt_retvalue = setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+      }
+
+      printf("bindlocal: %s, opt_retvalue : %d\n", dev, opt_retvalue);
+      if(opt_retvalue == 0) {
+        return CURLE_OK;
+      }
+#else
       /* I am not sure any other OSs than Linux that provide this feature,
        * and at the least I cannot test. --Ben
        *
@@ -314,6 +376,7 @@ static CURLcode bindlocal(struct connectdata *conn,
          */
         return CURLE_OK;
       }
+#endif
 #endif
 
       switch(Curl_if2ip(af, scope, conn->scope_id, dev,

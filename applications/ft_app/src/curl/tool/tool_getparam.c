@@ -117,6 +117,9 @@ static const struct LongShort aliases[]= {
   {"*u", "crlf",                     ARG_BOOL},
   {"*v", "stderr",                   ARG_FILENAME},
   {"*w", "interface",                ARG_STRING},
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  {"*W", "cid",                      ARG_STRING},
+#endif
   {"*x", "krb",                      ARG_STRING},
   {"*x", "krb4",                     ARG_STRING},
          /* 'krb4' is the previous name */
@@ -820,6 +823,12 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         /* interface */
         GetStr(&config->iface, nextarg);
         break;
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+      case 'W': /* --cid */
+        /* PDN CID */
+        GetStr(&config->cid, nextarg);
+        break;
+#endif
       case 'x': /* --krb */
         /* kerberos level string */
         if(curlinfo->features & CURL_VERSION_SPNEGO)

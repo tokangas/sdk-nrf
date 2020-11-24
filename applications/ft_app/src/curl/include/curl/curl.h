@@ -2052,6 +2052,9 @@ typedef enum {
    */
   CURLOPT(CURLOPT_SSL_EC_CURVES, CURLOPTTYPE_STRINGPOINT, 298),
 
+  /* Set the interface PDN CID as string to use as outgoing network interface */
+  CURLOPT(CURLOPT_INTERFACE_CID, CURLOPTTYPE_STRINGPOINT, 299),
+
   CURLOPT_LASTENTRY /* the last unused */
 } CURLoption;
 

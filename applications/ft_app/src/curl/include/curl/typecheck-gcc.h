@@ -274,6 +274,7 @@ CURLWARNING(_curl_easy_getinfo_err_curl_off_t,
    (option) == CURLOPT_FTP_ACCOUNT ||                                         \
    (option) == CURLOPT_FTP_ALTERNATIVE_TO_USER ||                             \
    (option) == CURLOPT_INTERFACE ||                                           \
+   (option) == CURLOPT_INTERFACE_CID ||                                       \
    (option) == CURLOPT_ISSUERCERT ||                                          \
    (option) == CURLOPT_KEYPASSWD ||                                           \
    (option) == CURLOPT_KRBLEVEL ||                                            \
