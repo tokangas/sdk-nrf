@@ -72,6 +72,10 @@ config FTA_CURL_TOOL
 	bool
     default y
 
+config FTA_CURL_FUNCTIONAL_CHANGES
+	bool
+    default y
+
 endmenu #FTA CURL
 endif #FTA_CURL
 
