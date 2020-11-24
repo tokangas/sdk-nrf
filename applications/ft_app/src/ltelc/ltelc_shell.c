@@ -73,8 +73,8 @@ const char ltelc_usage_str[] =
 	"General options:\n"
 	"  -a <apn> | --apn <apn>, [str] Access Point Name\n"
 	"Options for 'rsrp' command:\n"
-	"  -s | --subscribe,   [bool]  Subscribe for RSRP info\n"
-	"  -u | --unsubscribe, [bool]  Unsubscribe for RSRP info\n"
+	"  -f, --family,     [str]  Address family: 'ipv4v6', 'ipv4', 'ipv6', 'packet'\n"
+	"\n"
 	"Options for 'disconnect' command:\n"
 	"  -I <cid> | --cid <cid>, [int]   Use this option to disconnect specific PDN CID\n"
 	"Options for 'funmode' command:\n"
@@ -106,6 +106,7 @@ const char ltelc_usage_str[] =
 static struct option long_options[] = {
     {"apn",                     required_argument, 0,  'a' },
     {"cid",                     required_argument, 0,  'I' },
+    {"family",                  required_argument, 0,  'f' },
     {"subscribe",               no_argument,       0,  's' },
     {"unsubscribe",             no_argument,       0,  'u' },
     {"read",                    no_argument,       0,  'r' },
@@ -133,7 +134,7 @@ static void ltelc_shell_print_usage(const struct shell *shell)
 
 static void ltelc_shell_cmd_defaults_set(ltelc_shell_cmd_args_t *ltelc_cmd_args)
 {
-    memset(ltelc_cmd_args, 0, sizeof(ltelc_shell_cmd_args_t));
+	memset(ltelc_cmd_args, 0, sizeof(ltelc_shell_cmd_args_t));
 	ltelc_cmd_args->funmode_option = LTELC_FUNMODE_NONE;
 	ltelc_cmd_args->sysmode_option = LTE_LC_SYSTEM_MODE_NONE;
 }
@@ -166,7 +167,7 @@ static const char *ltelc_shell_map_to_string(struct mapping_tbl_item const *mapp
 
 static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff) 
 {
-    struct mapping_tbl_item const mapping_table[] = {
+	struct mapping_tbl_item const mapping_table[] = {
 		{LTELC_FUNMODE_PWROFF,     "power off"},
 		{LTELC_FUNMODE_NORMAL,     "normal"},
 		{LTELC_FUNMODE_FLIGHTMODE, "flightmode"},
@@ -176,8 +177,9 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 	return ltelc_shell_map_to_string(mapping_table, funmode, out_str_buff);
 }
 
-static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff){
-    struct mapping_tbl_item const mapping_table[] = {
+static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
+{
+	struct mapping_tbl_item const mapping_table[] = {
 		{LTE_LC_SYSTEM_MODE_LTEM,      "LTE-M"},
 		{LTE_LC_SYSTEM_MODE_NBIOT,     "NB-IoT"},
 		{LTE_LC_SYSTEM_MODE_GPS,       "GPS"},
@@ -199,6 +201,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	bool require_rsrp_subscribe = false;
 	bool require_option = false;
 	char *apn = NULL;
+	char *family = NULL;
 	int pdn_cid = 0;
 
 	ltelc_shell_cmd_defaults_set(&ltelc_cmd_args);
@@ -258,7 +261,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	char psm_rat_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
 	bool psm_rat_set = false;
 
-	while ((opt = getopt_long(argc, argv, "a:I:x:w:p:t:su014rmngMNed", long_options, &long_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "a:I:f:x:w:p:t:su014rmngMNed", long_options, &long_index)) != -1) {
 		int apn_len = 0;
 
 		switch (opt) {
@@ -372,7 +375,14 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			apn = optarg;
 			break;
+		case 'f': // Address family
+			{
+			family = optarg;
+			break;
+			}
 		case '?':
+			goto show_usage;
+			break;
 		default:
 			shell_error(shell, "Unknown option. See usage:");
 			goto show_usage;
@@ -535,7 +545,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			(ltelc_cmd_args.rsrp_option == LTELC_RSRP_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false); 
 			break;
 		case LTELC_CMD_CONNECT:
-			ret = ltelc_pdn_init_and_connect(apn);
+			ret = ltelc_pdn_init_and_connect(apn, family);
 			if (ret < 0) {
 				shell_error(shell, "cannot connect pdn socket: %d", ret);
 			} else {

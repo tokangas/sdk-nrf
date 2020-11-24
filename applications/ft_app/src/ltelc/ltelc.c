@@ -271,35 +271,75 @@ int ltelc_func_mode_get(void)
 	}
 }
 
-int ltelc_pdn_init_and_connect(const char *apn_name)
+static int ltelc_family_set(int pdn_fd, const char *family)
 {
+	nrf_sa_family_t families[2];
+	int families_len = sizeof(nrf_sa_family_t);
+
+	if (strcmp(family, "ipv4v6") == 0) {
+		families[0] = NRF_AF_INET;
+		families[1] = NRF_AF_INET6;
+		families_len *= 2;
+	} else if (strcmp(family, "ipv4") == 0) {
+		families[0] = NRF_AF_INET;
+	} else if (strcmp(family, "ipv6") == 0) {
+		families[0] = NRF_AF_INET6;
+	} else if (strcmp(family, "packet") == 0) {
+		families[0] = NRF_AF_PACKET;
+	} else {
+		printk("ltelc_pdn_init_and_connect: could not decode PDN address family (%s)\n", family);
+		return -EINVAL;
+	}
+
+	int err = nrf_setsockopt(pdn_fd, NRF_SOL_PDN, NRF_SO_PDN_AF, families, families_len);
+	if (err) {
+		printk("ltelc_pdn_init_and_connect: could not set address family (%s) for PDN: %d\n", family, err);
+	}
+	return err;
+}
+
+int ltelc_pdn_init_and_connect(const char *apn_name, const char *family)
+{
+	int pdn_fd = -1;
 	if (apn_name != NULL) {
 		ltelc_pdn_socket_info_t* pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_name);
 		if (pdn_socket_info == NULL) {
 			ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
-			int pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
+			pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
 
 			if (pdn_fd >= 0) {
-				/* Connect to the APN. */
+				/* Set address family of the PDN context */
+				if (family != NULL) {
+					int err = ltelc_family_set(pdn_fd, family);
+					if (err) {
+						goto error;
+					}
+				}
+
+				/* Connect to the APN */
 				int err = nrf_connect(pdn_fd, apn_name, strlen(apn_name));
 				if (err) {
 					printk("ltelc_pdn_init_and_connect: could not connect pdn socket: %d\n", err);
-					(void)nrf_close(pdn_fd);
-					return -EINVAL;
+					goto error;
 				}
+
+				/* Add to PDN socket list: */
+				new_pdn_socket_info = ltelc_pdn_socket_info_create(apn_name, pdn_fd);
+				if (new_pdn_socket_info == NULL) {
+					printk("ltelc_pdn_init_and_connect: could not add new PDN socket to list\n");
+					goto error;
+				}
+				return pdn_fd;
 			}
-			/* Add to PDN socket list: */
-			new_pdn_socket_info = ltelc_pdn_socket_info_create(apn_name, pdn_fd);
-			if (new_pdn_socket_info == NULL) {
-				printk("ltelc_pdn_init_and_connect: could not add new PDN socket to list!!!");
-			}
-			return pdn_fd;
-		}
-		else {
+		} else {
 			/* PDN socket already created to requested AAPN, let's return that: */
 			return pdn_socket_info->fd;
 		}
 	}
+	return -EINVAL;
+
+error:
+	(void)nrf_close(pdn_fd);
 	return -EINVAL;
 }
 
