@@ -74,7 +74,7 @@ curl_off_t getfiletime(const char *filename, FILE *error_stream)
             (unsigned int)GetLastError());
   }
 #else
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
 //not supported decently by newlibc, if enabled, following linker error:
 //.1/../../../../arm-none-eabi/bin/ld.exe: C:/work/nRFConnectSDK/v1.3.0/toolchain/opt/arm-none-eabi/lib/thumb/v8-m.main+fp/hard\libc_nano.a(lib_a-statr.o): in function `_stat_r':
 //statr.c:(.text._stat_r+0xe): undefined reference to `_stat'

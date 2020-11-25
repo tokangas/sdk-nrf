@@ -1255,7 +1255,7 @@ static CURLMcode Curl_multi_wait(struct Curl_multi *multi,
     ufds[nfds].events = 0;
     if(extra_fds[i].events & CURL_WAIT_POLLIN)
       ufds[nfds].events |= POLLIN;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
     if(extra_fds[i].events & CURL_WAIT_POLLPRI)
       ufds[nfds].events |= POLLPRI;
 #endif //POLLPRI not supported         
@@ -1319,7 +1319,7 @@ static CURLMcode Curl_multi_wait(struct Curl_multi *multi,
           mask |= CURL_WAIT_POLLIN;
         if(r & POLLOUT)
           mask |= CURL_WAIT_POLLOUT;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
         if(r & POLLPRI)
           mask |= CURL_WAIT_POLLPRI;
 #endif //POLLPRI not supported

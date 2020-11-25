@@ -237,11 +237,11 @@ typedef int (*curl_xferinfo_callback)(void *clientp,
 
 #ifndef CURL_MAX_READ_SIZE
   /* The maximum receive buffer size configurable via CURLOPT_BUFFERSIZE. */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
-#define CURL_MAX_READ_SIZE 524288
-#else
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
 /* In embedded this needs to be a lot of smaller */
 #define CURL_MAX_READ_SIZE 4099
+#else
+#define CURL_MAX_READ_SIZE 524288
 #endif
 
 #endif
@@ -253,11 +253,11 @@ typedef int (*curl_xferinfo_callback)(void *clientp,
      time for those who feel adventurous. The practical minimum is about
      400 bytes since libcurl uses a buffer of this size as a scratch area
      (unrelated to network send operations). */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
-#define CURL_MAX_WRITE_SIZE 16384
-#else
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
 /* In embedded this needs to be a lot of smaller */
 #define CURL_MAX_WRITE_SIZE 4096
+#else
+#define CURL_MAX_WRITE_SIZE 16384
 #endif
 
 #endif
@@ -266,12 +266,11 @@ typedef int (*curl_xferinfo_callback)(void *clientp,
 /* The only reason to have a max limit for this is to avoid the risk of a bad
    server feeding libcurl with a never-ending header that will cause reallocs
    infinitely */
-
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
-#define CURL_MAX_HTTP_HEADER (100*1024)
-#else
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
 /* In embedded this needs to be a lot of smaller */
 #define CURL_MAX_HTTP_HEADER 4096
+#else
+#define CURL_MAX_HTTP_HEADER (100*1024)
 #endif
 #endif
 
