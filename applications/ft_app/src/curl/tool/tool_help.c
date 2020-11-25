@@ -479,7 +479,7 @@ static const struct helptxt helptext[] = {
   {"    --oauth2-bearer <token>",
    "OAuth 2 Bearer Token",
    CURLHELP_AUTH},
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION   
+#ifdef NOT_IN_FTA_CURL_INTEGRATION   
   {"-o, --output <file>",
    "Write to file instead of stdout",
    CURLHELP_IMPORTANT | CURLHELP_CURL},
@@ -809,7 +809,7 @@ static const struct helptxt helptext[] = {
   {"    --unix-socket <path>",
    "Connect through this Unix domain socket",
    CURLHELP_CONNECTION},
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION   
+#ifdef NOT_IN_FTA_CURL_INTEGRATION   
   {"-T, --upload-file <file>",
    "Transfer local FILE to destination",
    CURLHELP_IMPORTANT | CURLHELP_UPLOAD},
@@ -915,16 +915,17 @@ void tool_help(char *category)
   puts("Usage: curl [options...] <url>");
   /* If no category was provided */
   if(!category) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
-    const char *category_note = "\nThis is not the full help, this "
-      "menu is stripped into categories.\nUse \"--help category\" to get "
-      "an overview of all categories.\nFor all options use the manual"
-      " or \"--help all\".";
-#else
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+    /* Zephyr shell is "stoling" help hook, thus we are using "manual": */
     const char *category_note = "\nThis is not the full help, this "
       "menu is stripped into categories.\nUse \"--manual category\" to get "
       "an overview of all categories.\nFor all options use the manual"
       " or \"--manual all\".";
+#else
+    const char *category_note = "\nThis is not the full help, this "
+      "menu is stripped into categories.\nUse \"--help category\" to get "
+      "an overview of all categories.\nFor all options use the manual"
+      " or \"--help all\".";
 #endif
     print_category(CURLHELP_IMPORTANT);
     puts(category_note);

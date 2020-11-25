@@ -228,7 +228,7 @@ char *getpass_r(const char *prompt, /* prompt to display */
 {
   ssize_t nread;
   bool disabled;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION  
+#ifdef NOT_IN_FTA_CURL_INTEGRATION  
   int fd = open("/dev/tty", O_RDONLY);
 #else
 int fd = -1;

@@ -803,7 +803,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         break;
 
       case 'v': /* --stderr */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
         if(strcmp(nextarg, "-")) {
           FILE *newfile = fopen(nextarg, FOPEN_WRITETEXT);
           if(!newfile)
@@ -1378,7 +1378,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             set_binmode(stdin);
           }
           else {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION            
+#ifdef NOT_IN_FTA_CURL_INTEGRATION            
             file = fopen(p, "rb");
 #else
             file = NULL;
@@ -1448,7 +1448,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             set_binmode(stdin);
         }
         else {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION          
+#ifdef NOT_IN_FTA_CURL_INTEGRATION          
           file = fopen(nextarg, "rb");
 #else
           file = NULL;
@@ -1838,7 +1838,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         char *string;
         size_t len;
         bool use_stdin = !strcmp(&nextarg[1], "-");
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_FTA_CURL_INTEGRATION        
         FILE *file = use_stdin?stdin:fopen(&nextarg[1], FOPEN_READTEXT);
 #else
         FILE *file = use_stdin?stdin:NULL;
@@ -1937,7 +1937,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
 #ifdef USE_MANUAL
         return PARAM_MANUAL_REQUESTED;
 #else
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
         warnf(global,
               "built-in manual was disabled at build-time!\n");
         return PARAM_OPTION_UNKNOWN;
@@ -2207,7 +2207,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         }
         else {
           fname = nextarg;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION          
+#ifdef NOT_IN_FTA_CURL_INTEGRATION          
           file = fopen(nextarg, FOPEN_READTEXT);
 #else
           file = NULL;

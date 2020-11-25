@@ -88,10 +88,10 @@ CURLcode Curl_http_auth_act(struct connectdata *conn);
    It must not be greater than 64K to work on VMS.
 */
 #ifndef MAX_INITIAL_POST_SIZE
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
-#define MAX_INITIAL_POST_SIZE (64*1024)
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#define MAX_INITIAL_POST_SIZE (5*708)
 #else
-#define MAX_INITIAL_POST_SIZE (4*708)
+#define MAX_INITIAL_POST_SIZE (64*1024)
 #endif
 #endif
 

@@ -53,7 +53,7 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
 
   (void)handle; /* not used */
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //time () && localtime() not supported, jani: TODO
+#ifdef NOT_IN_FTA_CURL_INTEGRATION //time () && localtime() not supported, jani: TODO?
   time_t secs;
   struct timeval tv;
   if(config->tracetime) {
@@ -83,7 +83,7 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
       /* Ok, this is somewhat hackish but we do it undocumented for now */
       config->trace_stream = config->errors;  /* aka stderr */
     else {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
       config->trace_stream = fopen(config->trace_dump, FOPEN_WRITETEXT);
       config->trace_fopened = TRUE;
 #else
