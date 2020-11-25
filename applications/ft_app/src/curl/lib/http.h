@@ -89,7 +89,7 @@ CURLcode Curl_http_auth_act(struct connectdata *conn);
 */
 #ifndef MAX_INITIAL_POST_SIZE
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
-#define MAX_INITIAL_POST_SIZE (4*708)
+#define MAX_INITIAL_POST_SIZE (5*708)
 #else
 #define MAX_INITIAL_POST_SIZE (64*1024)
 #endif
