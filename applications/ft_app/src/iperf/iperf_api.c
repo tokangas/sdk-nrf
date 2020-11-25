@@ -908,10 +908,18 @@ void iperf_on_connect(struct iperf_test *test)
 					     test->ctrl_sck_mss);
 			}
 		}
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+		/* 64bit printing does not work: */
+		if (test->settings->rate)
+			iperf_printf(test,
+				     "      Target Bitrate: %d""\n",
+				     (uint32_t)test->settings->rate);
+#else
 		if (test->settings->rate)
 			iperf_printf(test,
 				     "      Target Bitrate: %" PRIu64 "\n",
 				     test->settings->rate);
+#endif
 	}
 }
 
