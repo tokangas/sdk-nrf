@@ -61,7 +61,7 @@ const char sock_usage_str[] =
 	"  -a, --address, [str]      Address as ip address or hostname\n"
 	"  -p, --port,  [int]        Port\n"
 	"  -f, --family, [str]       Address family: 'inet' (ipv4, default), 'inet6' (ipv6) or 'packet'\n"
-	"  -t, --type, [str]         Address type: 'stream' (tcp, default), 'dgram' (udp) or raw\n"
+	"  -t, --type, [str]         Address type: 'stream' (tcp, default), 'dgram' (udp) or 'raw'\n"
 	"  -b, --bind_port, [int]    Local port to bind the socket to\n"
 	"  -I, --cid, [int]          Use this option to bind socket to specific PDN CID.\n"
 	"                            See ltelc command for available interfaces.\n"
@@ -223,7 +223,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case 'I': // PDN CID
 			arg_pdn_cid = atoi(optarg);
-			if (arg_pdn_cid == 0) {
+			if (arg_pdn_cid <= 0) {
 				shell_error(shell, "PDN CID (%d) must be positive integer.", arg_pdn_cid);
 				return -EINVAL;
 			}
@@ -239,6 +239,10 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case 'p': // Port
 			arg_port = atoi(optarg);
+			if (arg_port <= 0 || arg_port > 65535) {
+				shell_error(shell, "Port (%d) must be bigger than 0 and smaller than 65536.", arg_port);
+				return -EINVAL;
+			}
 			break;
 		case 'f': // Address family
 			if (!strcmp(optarg, "inet")) {
@@ -248,7 +252,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else if (!strcmp(optarg, "packet")) {
 				arg_family = AF_PACKET;
 			} else {
-				shell_error(shell, "Unsupported address family=%s", optarg);
+				shell_error(shell, "Unsupported address family=%s. Supported values are: 'inet' (ipv4, default), 'inet6' (ipv6) or 'packet'", optarg);
 				return -EINVAL;
 			}
 			break;
@@ -260,12 +264,16 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else if (!strcmp(optarg, "raw")) {
 				arg_type = SOCK_RAW;
 			} else {
-				shell_error(shell, "Unsupported address type=%s", optarg);
+				shell_error(shell, "Unsupported address type=%s. Supported values are: 'stream' (tcp, default), 'dgram' (udp) or 'raw'", optarg);
 				return -EINVAL;
 			}
 			break;
 		case 'b': // Bind port
 			arg_bind_port = atoi(optarg);
+			if (arg_bind_port <= 0 || arg_bind_port > 65535) {
+				shell_error(shell, "Bind port (%d) must be bigger than 0 and smaller than 65536.", arg_bind_port);
+				return -EINVAL;
+			}
 			break;
 		case 'd': // Data to be sent is available in send buffer
 			send_data_len = strlen(optarg);

@@ -195,7 +195,7 @@ static void sock_send_buffer_free(sock_info_t* socket_info)
 
 int sock_open_and_connect(int family, int type, char* address, int port, int bind_port, int pdn_cid)
 {
-	int err;
+	int err = -EINVAL;
 
 	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
 		family, type, port, bind_port, pdn_cid, address);
@@ -207,7 +207,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	sock_info_t* socket_info = reserve_socket_id();
 	if (socket_info == NULL) {
 		shell_error(shell_global, "Socket creation failed. MAX_SOCKETS=%d exceeded", MAX_SOCKETS);
-		return -EINVAL;
+		goto connect_error;
 	}
 
 	// VALIDATE PARAMETERS
@@ -215,7 +215,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	// Validate family parameter
 	if (family != AF_INET && family != AF_INET6 && family != AF_PACKET) {
 		shell_error(shell_global, "Unsupported address family=%d", family);
-		return -EINVAL;
+		goto connect_error;
 	}
 
 	// Validate type parameter and map it to protocol
@@ -228,74 +228,48 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		proto = 0;		
 	} else {
 		shell_error(shell_global, "Unsupported address type=%d", type);
-		return -EINVAL;
+		goto connect_error;
 	}
 
 	// Validate port
-	if (port > 65535) {
-		shell_error(shell_global, "Port (%d) must be smaller than 65536", port);
-		return -EINVAL;
+	if (type != SOCK_RAW && (port < 1 || port > 65535)) {
+		shell_error(shell_global, "Port (%d) must be bigger than 0 and smaller than 65536", port);
+		goto connect_error;
 	}
 
 	// Validate bind port. Zero means that binding is not done.
 	if (bind_port > 65535) {
 		shell_error(shell_global, "Bind port (%d) must be smaller than 65536", bind_port);
-		return -EINVAL;
+		goto connect_error;
 	}
 
 	// GET ADDRESS
 	if ((address == NULL) || (strlen(address) == 0)) {
-		// TODO: This code should be refactored as there is copy paste.
-		if (type == SOCK_RAW) {
-			shell_warn(shell_global, "NOTE: Raw socket implementation is not complete yet and there are bugs");
-			int fd = socket(family, type, proto);
-			if (fd < 0) {
-				shell_error(shell_global, "Raw socket create failed");
-				return errno;
-			}
+		if (type != SOCK_RAW) {
+			shell_error(shell_global, "Address not given");
+			goto connect_error;
+		}
+	} else {
+		struct addrinfo hints = {
+			.ai_family = family,
+			.ai_socktype = type,
+		};
+		err = getaddrinfo(address, NULL, &hints, &socket_info->addrinfo);
+		if (err) {
+			shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
+			err = errno;
+			goto connect_error;
+		}
 
-			// Socket has been created so populate its structure with information
-			socket_info->in_use = true;
-			socket_info->fd = fd;
-			socket_info->family = family;
-			socket_info->type = type;
-			socket_info->port = port;
-			socket_info->bind_port = bind_port;
-			socket_info->pdn_cid = pdn_cid;
-
-			// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
-			set_sock_blocking_mode(socket_info->fd, false);
-
-			shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
-
-			return 0;
+		// Set port to address info
+		if (family == AF_INET) {
+			((struct sockaddr_in *)socket_info->addrinfo->ai_addr)->sin_port = htons(port);
+		} else if (family == AF_INET6) {
+			((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
 		} else {
-		shell_error(shell_global, "Address not given");
-		sock_info_clear(socket_info);
-		return -EINVAL;
+			assert(0);
 		}
 	}
-
-	struct addrinfo hints = {
-		.ai_family = family,
-		.ai_socktype = type,
-	};
-	err = getaddrinfo(address, NULL, &hints, &socket_info->addrinfo);
-	if (err) {
-		shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
-		sock_info_clear(socket_info);
-		return errno;
-	}
-
-	// Set port to address info
-	if (family == AF_INET) {
-		((struct sockaddr_in *)socket_info->addrinfo->ai_addr)->sin_port = htons(port);
-	} else if (family == AF_INET6) {
-		((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
-	} else {
-		assert(0);
-	}
-
 	// CREATE SOCKET
 	// If proto is set to zero to let lower stack select it,
 	// socket creation fails with errno=43 (PROTONOSUPPORT)
@@ -309,7 +283,8 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		} else {
 			shell_error(shell_global, "Socket create failed, err %d", errno);
 		}
-		return errno;
+		err = errno;
+		goto connect_error;
 	}
 
 	// Socket has been created so populate its structure with information
@@ -322,15 +297,14 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	socket_info->pdn_cid = pdn_cid;
 
 	if (pdn_cid > 0) {
-		int ret;
 		char apn_str[FTA_APN_STR_MAX_LEN];
 		memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
 		pdp_context_info_array_t pdp_context_info_tbl;
 
-		ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
-		if (ret) {
-			shell_error(shell_global, "cannot read current connection info: %d", ret);
-			return -1;
+		err = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+		if (err) {
+			shell_error(shell_global, "cannot read current connection info: %d", err);
+			goto connect_error;
 		} else {
 			/* Find PDP context info for requested CID */
 			int i;
@@ -343,20 +317,21 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 				}
 			}
 			if (!found) {
-				shell_error(shell_global, "cannot find CID: %d", pdn_cid);
-				return -1;
+				shell_error(shell_global, "PDN context with CID=%d doesn't exist", pdn_cid);
+				goto connect_error;
 			}
 		}
 
 		/* Binding a data socket to an APN: */
-		ret = fta_net_utils_socket_apn_set(fd, apn_str);
-		if (ret != 0) {
-			shell_error(shell_global, "Cannot bind socket to apn %s", apn_str);
+		err = fta_net_utils_socket_apn_set(fd, apn_str);
+		if (err != 0) {
+			shell_error(shell_global, "Cannot bind socket id=%d to apn %s", socket_info->id, apn_str);
 			shell_error(shell_global, "probably due to https://projecttools.nordicsemi.no/jira/browse/NCSDK-6645");
 
 			if (pdp_context_info_tbl.array != NULL)
 				free(pdp_context_info_tbl.array);
-			return -1;
+
+			goto connect_error;
 		}
 
 		if (pdp_context_info_tbl.array != NULL)
@@ -392,18 +367,18 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		err = bind(fd, sa_local_ptr, sa_local_len);
 		if (err) {
 			shell_error(shell_global, "Unable to bind, errno %d", errno);
-			sock_info_clear(socket_info);
-			return errno;
-			}
+			err = errno;
+			goto connect_error;
 		}
+	}
 
 	if (type == SOCK_STREAM) {
 		// Connect TCP socket
 		err = connect(fd, socket_info->addrinfo->ai_addr, socket_info->addrinfo->ai_addrlen);
 		if (err) {
 			shell_error(shell_global, "Unable to connect, errno %d", errno);
-			sock_info_clear(socket_info);
-			return errno;
+			err = errno;
+			goto connect_error;
 		}
 	}
 
@@ -413,6 +388,10 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
 
 	return 0;
+
+connect_error:
+	sock_info_clear(socket_info);
+	return err;
 }
 
 static double calculate_throughput(uint32_t data_len, int64_t time_ms)
