@@ -86,7 +86,7 @@ static int fta_shell_init(const struct device *unused)
 
 	modem_trace_enable();
 
-#if defined(CONFIG_BSD_LIBRARY)
+#if defined(CONFIG_LTE_LINK_CONTROL)
 	ltelc_init();
 
 	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
@@ -105,7 +105,7 @@ static int fta_shell_init(const struct device *unused)
 
 void main(void)
 {
-#if defined(CONFIG_BSD_LIBRARY)
+#if defined(CONFIG_LTE_LINK_CONTROL)
 	int err;
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
@@ -122,8 +122,6 @@ void main(void)
 		 */
 	}
 #endif
-
-
 }
 
 SYS_INIT(fta_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
