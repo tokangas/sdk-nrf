@@ -11,18 +11,11 @@
 
 #include <modem/modem_info.h>
 
-#if defined (CONFIG_POSIX_API)
-#include <netdb.h>
-#include <sys/socket.h>
-#else
-#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#include <posix/unistd.h>
 #include <posix/netdb.h>
+
+#include <posix/poll.h>
 #include <posix/sys/socket.h>
-#else
-#include <net/socket.h>
-#endif
-#endif
-#include <nrf_socket.h>
 
 #include <posix/arpa/inet.h>
 
@@ -120,7 +113,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
     uint8_t header_len = 0;
     struct addrinfo *si = ping_argv.src;
     const int alloc_size = 1280; // MTU
-  	struct nrf_pollfd fds[1];
+  	struct pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
 	int plseqnr;
@@ -240,7 +233,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	delta_t = 0;
 	start_t = k_uptime_get();
 
-	fd = nrf_socket(NRF_AF_PACKET, NRF_SOCK_RAW, 0);
+	fd = socket(AF_PACKET, SOCK_RAW, 0);
 	if (fd < 0) {
 		shell_error(shell, "socket() failed: (%d)", -errno);
 	    free(buf);
@@ -256,31 +249,30 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 		}			
 	}
 
-	ret = nrf_send(fd, buf, total_length, 0);
+	ret = send(fd, buf, total_length, 0);
 	if (ret <= 0) {
-		shell_error(shell, "nrf_send() failed: (%d)", -errno);
+		shell_error(shell, "send() failed: (%d)", -errno);
 		goto close_end;
 	}
 
 	fds[0].fd = fd;
-	fds[0].events = NRF_POLLIN;
-	ret = nrf_poll(fds, 1, ping_argv.timeout);
+	fds[0].events = POLLIN;
+	ret = poll(fds, 1, ping_argv.timeout);
 	if (ret <= 0) {
-		shell_error(shell, "nrf_poll() failed: (%d) (%d)", -errno, ret);
+		shell_error(shell, "poll() failed: (%d) (%d)", -errno, ret);
 		goto close_end;
 	}
 
 	/* receive response */
 	do {
-		len = nrf_recv(fd, buf, alloc_size, 0);
+		len = recv(fd, buf, alloc_size, 0);
 		if (len <= 0) {
-			shell_error(shell, "nrf_recv() failed: (%d) (%d)",
-				    -errno, len);
+			shell_error(shell, "recv() failed: (%d) (%d)", -errno, len);
 			goto close_end;
 		}
 		if (len < header_len) {
 			/* Data length error, ignore "silently" */
-			shell_error(shell, "nrf_recv() wrong data (%d)", len);
+			shell_error(shell, "recv() wrong data (%d)", len);
 			continue;
 		}
 		if ((rep == ICMP_ECHO_REP && buf[IP_PROTOCOL_POS] != ICMP) || 
@@ -355,7 +347,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
 
 close_end:
-	(void)nrf_close(fd);
+	(void)close(fd);
 	free(buf);
 	return (uint32_t)delta_t;
 }
@@ -378,16 +370,7 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 	}
 
 	char rsp_buf[20];
-#ifdef NOT_IN_FTA
-	if (count > 1) {
-		uint32_t avg = (sum + count / 2) / count;
-		int avg_s = avg / 1000;
-		int avg_f = avg % 1000;
 
-		sprintf("Pinging average %d.%03d\r\n", avg_s, avg_f);
-		shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
-	}
-#endif
 	freeaddrinfo(si);
 	freeaddrinfo(di);
 	sprintf(rsp_buf, "Pinging DONE\r\n");
