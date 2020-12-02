@@ -1567,9 +1567,13 @@ static void start_update_work_fn(struct k_work *item)
 		return;
 	}
 
-	if (get_pending_job() == 0 &&
-			current_job.host != NULL &&
-			current_job.path != NULL) {
+	err = get_pending_job();
+	if (err) {
+		finish_update(MODEM_FOTA_EVT_ERROR);
+		return;
+	}
+
+	if (current_job.host != NULL &&	current_job.path != NULL) {
 		/* Initialize retry count before first download attempt */
 		download_retry_count = CONFIG_MODEM_FOTA_SERVER_RETRY_COUNT;
 
