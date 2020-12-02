@@ -214,6 +214,37 @@ static int socket_apn_set(int fd, const char *apn)
 	return 0;
 }
 
+static int socket_timeouts_set(int fd)
+{
+	int err;
+
+	/* Set socket send timeout to 60s (affects also TCP connect) */
+	struct timeval send_timeout = {
+		.tv_sec = 60,
+		.tv_usec = 0
+	};
+	err = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO,
+			 &send_timeout, sizeof(send_timeout));
+	if (err) {
+		LOG_ERR("Failed to set socket send timeout, error: %d", errno);
+		return err;
+	}
+
+	/* Set socket receive timeout to 30s */
+	struct timeval recv_timeout = {
+		.tv_sec = 30,
+		.tv_usec = 0
+	};
+	err = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+			 &recv_timeout, sizeof(recv_timeout));
+	if (err) {
+		LOG_ERR("Failed to set socket recv timeout, error: %d", errno);
+		return err;
+	}
+
+	return 0;
+}
+
 static int do_connect(int * const fd, const char * const hostname,
 		      const uint16_t port_num, bool use_fota_apn)
 {
@@ -272,6 +303,13 @@ static int do_connect(int * const fd, const char * const hostname,
 	ret = tls_setup(*fd, hostname);
 	if (ret) {
 		ret = -EACCES;
+		goto error_clean_up;
+	}
+
+	ret = socket_timeouts_set(*fd);
+	if (ret) {
+		LOG_ERR("Failed to set socket timeouts, error: %d", errno);
+		ret = -EINVAL;
 		goto error_clean_up;
 	}
 
