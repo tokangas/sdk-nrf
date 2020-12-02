@@ -34,6 +34,11 @@
 
 LOG_MODULE_REGISTER(modem_fota, CONFIG_MODEM_FOTA_LOG_LEVEL);
 
+/* HTTP fragment size needs to be limited, otherwise the received TLS record
+ * will be too big for modem buffer.
+ */
+#define MODEM_FOTA_HTTP_FRAGMENT_SIZE 1792
+
 /* Enums */
 enum modem_reg_status {
 	MODEM_REG_STATUS_NOT_REGISTERED,
@@ -1438,7 +1443,8 @@ static int start_firmware_download_with_retry()
 		err = fota_download_start(current_job.host,
 					  current_job.path,
 					  CONFIG_MODEM_FOTA_TLS_SECURITY_TAG,
-					  fota_apn, 0); /* TODO: Make configurable */
+					  fota_apn,
+					  MODEM_FOTA_HTTP_FRAGMENT_SIZE);
 		if (err == 0 || download_retry_count <= 0) {
 			/* Download started successfully or no retries
 			 * left
