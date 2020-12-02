@@ -26,16 +26,22 @@ void modem_fota_callback(enum modem_fota_evt_id event_id)
 {
 	switch (event_id) {
 	case MODEM_FOTA_EVT_CHECKING_FOR_UPDATE:
+		printk("Modem FOTA library: Checking for update\n");
 		break;
 
 	case MODEM_FOTA_EVT_NO_UPDATE_AVAILABLE:
+		printk("Modem FOTA library: No update available\n");
 		break;
 
 	case MODEM_FOTA_EVT_UPDATE_DOWNLOADED:
+		printk("Modem FOTA library: Update downloaded, device will "
+		       "reboot to apply update\n");
 		break;
 
 	case MODEM_FOTA_EVT_ERROR:
 	default:
+		printk("Modem FOTA library: Error during update check or "
+		       "download\n");
 		break;
 	}
 }
