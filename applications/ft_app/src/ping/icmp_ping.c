@@ -231,7 +231,6 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	/* Send the ping */
 	errno = 0;
 	delta_t = 0;
-	start_t = k_uptime_get();
 
 	fd = socket(AF_PACKET, SOCK_RAW, 0);
 	if (fd < 0) {
@@ -254,6 +253,8 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 		shell_error(shell, "send() failed: (%d)", -errno);
 		goto close_end;
 	}
+
+	start_t = k_uptime_get();
 
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
@@ -290,8 +291,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 
 	delta_t = k_uptime_delta(&start_t);
 
-    if (rep == ICMP_ECHO_REP)
-    {
+	if (rep == ICMP_ECHO_REP) {
 		/* Check ICMP HCS */
 		int hcs = check_ics(data, len - header_len);
 		if (hcs != 0) {
@@ -300,29 +300,27 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 			goto close_end;
 		}
 		pllen = (buf[2] << 8) + buf[3]; // Raw socket payload length
-	}
-	else
-	{
-        // Check ICMP6 CRC
-        uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header source + dest
-        hcs += check_ics(buf + 4, 2);           // Pseudo header packet length
-        uint8_t tbuf[2];
-        tbuf[0] = 0; tbuf[1] = buf[6];
-        hcs += check_ics(tbuf, 2);              // Pseudo header Next header
-        hcs += check_ics(data, 2);              // Type & Code
-        hcs += check_ics(data + 4, len - header_len - 4);   // Header data + Data
+	} else {
+	        // Check ICMP6 CRC
+	        uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header source + dest
+	        hcs += check_ics(buf + 4, 2);           // Pseudo header packet length
+	        uint8_t tbuf[2];
+	        tbuf[0] = 0; tbuf[1] = buf[6];
+	        hcs += check_ics(tbuf, 2);              // Pseudo header Next header
+	        hcs += check_ics(data, 2);              // Type & Code
+	        hcs += check_ics(data + 4, len - header_len - 4);   // Header data + Data
 
-        while(hcs > 0xFFFF)
-            hcs = (hcs & 0xFFFF) + (hcs >> 16);
+	        while(hcs > 0xFFFF)
+	            hcs = (hcs & 0xFFFF) + (hcs >> 16);
 
-        int plhcs = data[2] + (data[3] << 8);
+	        int plhcs = data[2] + (data[3] << 8);
 		if (plhcs != hcs) {
 			shell_error(shell, "IPv6 HCS error: 0x%x 0x%x\r\n", plhcs, hcs);
 			delta_t = 0;
 			goto close_end;
 		}
 		/* Raw socket payload length */
-        pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr
+	        pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr
 	}
 	
 	/* Data payload length: */
@@ -331,13 +329,14 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	/* Check seqnr and length */
 	plseqnr = data[7];
 	if (plseqnr != seqnr) {
-		shell_error(shell, "error sequence numbers %d %d", plseqnr,
-			    seqnr);
+		shell_error(shell, "Expected sequence number %d, got %d",
+			    seqnr, plseqnr);
 		delta_t = 0;
 		goto close_end;
 	}
 	if (pllen != len) {
-		shell_error(shell, "error length %d %d", pllen, len);
+		shell_error(shell, "Expected length %d, got %d",
+			    len, pllen);
 		delta_t = 0;
 		goto close_end;
 	}
