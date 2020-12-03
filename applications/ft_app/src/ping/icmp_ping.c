@@ -104,15 +104,17 @@ static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 /*****************************************************************************/
 static uint32_t send_ping_wait_reply(const struct shell *shell)
 {
-	static int64_t start_t, delta_t;
-    static uint8_t seqnr = 0;
-    uint16_t total_length;
-    uint8_t *buf = NULL;
-    uint8_t *data = NULL;
-    uint8_t rep = 0;
-    uint8_t header_len = 0;
-    struct addrinfo *si = ping_argv.src;
-    const int alloc_size = 1280; // MTU
+	static int64_t start_t;
+	int64_t delta_t;
+	int32_t timeout;
+	static uint8_t seqnr = 0;
+	uint16_t total_length;
+	uint8_t *buf = NULL;
+	uint8_t *data = NULL;
+	uint8_t rep = 0;
+	uint8_t header_len = 0;
+	struct addrinfo *si = ping_argv.src;
+	const int alloc_size = 1280; // MTU
   	struct pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
@@ -255,10 +257,12 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	}
 
 	start_t = k_uptime_get();
+	timeout = ping_argv.timeout;
 
+wait_for_data:
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
-	ret = poll(fds, 1, ping_argv.timeout);
+	ret = poll(fds, 1, timeout);
 	if (ret == 0) {
 		shell_print(shell, "Pinging %s results: request timed out",
 			    ping_argv.target_name);
@@ -289,7 +293,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 		break;
 	} while (1);
 
-	delta_t = k_uptime_delta(&start_t);
+	delta_t = k_uptime_get() - start_t;
 
 	if (rep == ICMP_ECHO_REP) {
 		/* Check ICMP HCS */
@@ -329,10 +333,17 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	/* Check seqnr and length */
 	plseqnr = data[7];
 	if (plseqnr != seqnr) {
-		shell_error(shell, "Expected sequence number %d, got %d",
-			    seqnr, plseqnr);
+		/* This is not the reply you are looking for */
+
+		/* Calculate how much there's still time left */
+		timeout = ping_argv.timeout - (int32_t)delta_t;
 		delta_t = 0;
-		goto close_end;
+		/* Wait for next response if there' still time */
+		if (timeout > 0) {
+			goto wait_for_data;
+		} else {
+			goto close_end;
+		}
 	}
 	if (pllen != len) {
 		shell_error(shell, "Expected length %d, got %d",
