@@ -258,10 +258,15 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
 	ret = poll(fds, 1, ping_argv.timeout);
-	if (ret <= 0) {
+	if (ret == 0) {
+		shell_print(shell, "Pinging %s results: request timed out",
+			    ping_argv.target_name);
+		goto close_end;
+	} else if (ret < 0) {
 		shell_error(shell, "poll() failed: (%d) (%d)", -errno, ret);
 		goto close_end;
 	}
+
 
 	/* receive response */
 	do {
@@ -387,7 +392,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 	/* Copy args in local storage here: */
 	memcpy(&ping_argv, ping_args, sizeof(icmp_ping_shell_cmd_argv_t));
 
-	shell_print(shell, "initiating ping to: %s", ping_argv.target_name);
+	shell_print(shell, "Initiating ping to: %s", ping_argv.target_name);
 
 	if (ping_argv.cid != FTA_ARG_NOT_SET) {
 		apn = ping_argv.current_apn_str;
@@ -416,7 +421,6 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 		hints.ai_family = AF_INET6;
 		inet_ntop(AF_INET6,  &(ping_argv.current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
 	}	
-	shell_print(shell, "source: %s", src_ipv_addr);
 	st = getaddrinfo(src_ipv_addr, NULL, &hints, &res);
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(src) error: %d", st);
