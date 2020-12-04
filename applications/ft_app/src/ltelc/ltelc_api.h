@@ -26,7 +26,7 @@ typedef struct {
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
 	char apn_str[FTA_APN_STR_MAX_LEN];
 	char ip_addr_str[AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN];
-    char pdp_type;
+	char pdp_type;
 	struct sockaddr_in sin4;
 	struct sockaddr_in6 sin6;
 } pdp_context_info_t;
@@ -42,7 +42,8 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #endif
 #if defined(CONFIG_AT_CMD)
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
-int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char* apn_str);
+int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char *apn_str);
+int ltelc_api_get_addr_by_pdn_cid(int pdn_cid, struct in_addr *ip_addr);
 #endif
 
 #endif /* LTELC_API_H */
