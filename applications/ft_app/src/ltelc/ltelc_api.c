@@ -119,7 +119,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		printf("at_cmd_write returned err: %d", ret);
 		return ret;
 	}
-	//printf("%s", at_response_str);
+	//printf("\n%s\n", at_response_str);
 
 	/* Check how many rows/context do we have: */
 	while ((tmp_ptr = strstr(tmp_ptr, AT_CMD_PDP_CONTEXT_READ_RSP_DELIM)) !=
@@ -139,7 +139,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		ret = at_params_list_init(&param_list,
 					  AT_CMD_PDP_CONTEXT_READ_PARAM_COUNT);
 		if (ret) {
-			printf("Could init AT params list, error: %d", ret);
+			printf("Could not init AT params list, error: %d\n", ret);
 			return ret;
 		}
 		populated_info = pdp_info->array;
@@ -152,7 +152,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		if (ret == -EAGAIN) {
 			resp_continues = true;
 		} else if (ret != 0 && ret != -EAGAIN) {
-			printf("Could not parse AT response, error: %d", ret);
+			printf("Could not parse AT response, error: %d\n", ret);
 			goto clean_exit;
 		}
 
@@ -170,7 +170,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 			&param_list, AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_INDEX,
 			populated_info[iterator].pdp_type_str, &param_str_len);
 		if (ret) {
-			printf("Could not parse pdp type, err: %d", ret);
+			printf("Could not parse pdp type, err: %d\n", ret);
 			goto clean_exit;
 		} else {
 			populated_info[iterator].pdp_type_str[param_str_len] =
@@ -199,7 +199,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 					   populated_info[iterator].apn_str,
 					   &param_str_len);
 		if (ret) {
-			printf("Could not parse apn str, err: %d", ret);
+			printf("Could not parse apn str, err: %d\n", ret);
 			goto clean_exit;
 		}
 		populated_info[iterator].apn_str[param_str_len] = '\0';
@@ -209,7 +209,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 			&param_list, AT_CMD_PDP_CONTEXT_READ_PDP_ADDR_INDEX,
 			populated_info[iterator].ip_addr_str, &param_str_len);
 		if (ret) {
-			printf("Could not parse apn str, err: %d", ret);
+			printf("Could not parse apn str, err: %d\n", ret);
 			goto clean_exit;
 		}
 		populated_info[iterator].ip_addr_str[param_str_len] = '\0';
