@@ -29,6 +29,10 @@ typedef struct {
 	char pdp_type;
 	struct sockaddr_in sin4;
 	struct sockaddr_in6 sin6;
+	struct in_addr dns_addr4_primary;
+	struct in_addr dns_addr4_secondary;
+	struct in6_addr dns_addr6_primary;
+	struct in6_addr dns_addr6_secondary;
 } pdp_context_info_t;
 
 typedef struct
@@ -43,7 +47,8 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #if defined(CONFIG_AT_CMD)
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
 int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char *apn_str);
-int ltelc_api_get_addr_by_pdn_cid(int pdn_cid, struct in_addr *ip_addr);
+int ltelc_api_get_pdn_net_if_addr_by_pdn_cid(int pdn_cid, struct in_addr *ip_addr);
+int ltelc_api_get_pdn_net_if_dns_addr_by_pdn_cid(int pdn_cid, struct in_addr *dns_addr);
 #endif
 
 #endif /* LTELC_API_H */
