@@ -439,8 +439,8 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 			char ipv4_addr[NET_IPV4_ADDR_LEN];
 			char ipv6_addr[NET_IPV6_ADDR_LEN];
 			char ipv4_dns_addr_primary[NET_IPV4_ADDR_LEN];
-			char ipv4_dns_addr_secondary[NET_IPV6_ADDR_LEN];
-			char ipv6_dns_addr_primary[NET_IPV4_ADDR_LEN];
+			char ipv4_dns_addr_secondary[NET_IPV4_ADDR_LEN];
+			char ipv6_dns_addr_primary[NET_IPV6_ADDR_LEN];
 			char ipv6_dns_addr_secondary[NET_IPV6_ADDR_LEN];
 			int i = 0;
 			pdp_context_info_t *info_tbl = pdp_context_info_tbl.array;
