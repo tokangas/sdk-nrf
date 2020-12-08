@@ -201,38 +201,6 @@ clean_exit:
 	return ret;
 }
 
-int ltelc_api_get_pdn_net_if_dns_addr_by_pdn_cid(int pdn_cid, struct in_addr* dns_addr)
-{
-	int ret;
-	pdp_context_info_array_t pdp_context_info_tbl;
-
-	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
-	if (ret) {
-		printf("cannot read current connection info: %d", ret);
-		return -1;
-	}
-
-	/* Find PDP context info for requested CID */
-	ret = -1;
-	int i;
-	for (i = 0; i < pdp_context_info_tbl.size; i++) {
-		if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
-			if (pdp_context_info_tbl.array[i].pdp_type == PDP_TYPE_IPV4 || pdp_context_info_tbl.array[i].pdp_type == PDP_TYPE_IP4V6) {
-				memcpy(dns_addr, &pdp_context_info_tbl.array[i].dns_addr4_primary, sizeof(struct in_addr));
-				ret = 0;
-			} else {
-				ret = -2;
-			}
-			break;
-		}
-	}
-
-	if (pdp_context_info_tbl.array != NULL) {
-		free(pdp_context_info_tbl.array);
-	}
-	return ret;
-}
-
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 {
 	int ret = 0;
