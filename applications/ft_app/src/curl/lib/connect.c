@@ -318,17 +318,17 @@ static CURLcode bindlocal(struct connectdata *conn,
 
       if (dev_cid != NULL) {
         /* Nordic specific --cid option: */
-        char apn_str[FTA_APN_STR_MAX_LEN];
   
         len = strlen(dev_cid);
         cid = atoi(dev_cid);
         if (cid > 0) {
-          int ret = ltelc_api_get_apn_by_pdn_cid(cid, apn_str);
-          if (ret >= 0) {
-            len = strlen(apn_str);
-            memcpy(ifr.ifr_name, apn_str, len);
-            printf("Binding PDN CID '%d' to APN %s\n", cid, apn_str);
+          pdp_context_info_t* pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(cid);
+          if (pdp_context_info != NULL) {
+            len = strlen(pdp_context_info->apn_str);
+            memcpy(ifr.ifr_name, pdp_context_info->apn_str, len);
+            printf("Binding PDN CID '%d' to APN %s\n", cid, pdp_context_info->apn_str);
             opt_retvalue = setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+            free(pdp_context_info);
           } else {
             failf(data, "Couldn't find interface with CID '%s'\n", dev_cid);
             return CURLE_INTERFACE_FAILED;

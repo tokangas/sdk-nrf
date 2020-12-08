@@ -349,14 +349,13 @@ int ltelc_pdn_disconnect(const char* apn, int pdn_cid)
 	if (apn != NULL) {
 		pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn);
 	} else if (pdn_cid >= 0) {
-		// TODO: Check if there is more elegant way of handling apn string
-		char apn_str[FTA_APN_STR_MAX_LEN];
-		int ret = ltelc_api_get_apn_by_pdn_cid(pdn_cid, apn_str);
-		if (ret != 0) {
+		pdp_context_info_t* pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(pdn_cid);
+		if (pdp_context_info == NULL) {
 			printk("No APN found for PDN CID %d\n", pdn_cid);
 		} else {
-			pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_str);
+			pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(pdp_context_info->apn_str);
 		}
+		free(pdp_context_info);
 	} else {
 		shell_error(uart_shell, "Either APN or PDN CID must be given\n");
 		return -EINVAL;

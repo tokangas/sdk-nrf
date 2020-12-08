@@ -42,56 +42,23 @@
 
 #define AT_CMD_PDP_CONTEXT_READ_RSP_DELIM "\r\n"
 
-int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char* apn_str)
+pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 {
 	int ret;
 	pdp_context_info_array_t pdp_context_info_tbl;
+	pdp_context_info_t* pdp_context_info = NULL;
 
 	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
 	if (ret) {
 		printf("cannot read current connection info: %d", ret);
-		return -1;
+		return NULL;
 	}
 
-	/* Find PDP context info for requested CID */
-	ret = -1;
-	int i;
-	for (i = 0; i < pdp_context_info_tbl.size; i++) {
+	// Find PDP context info for requested CID
+	for (int i = 0; i < pdp_context_info_tbl.size; i++) {
 		if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
-			memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
-			strcpy(apn_str, pdp_context_info_tbl.array[i].apn_str);
-			ret = 0;
-		}
-	}
-
-	if (pdp_context_info_tbl.array != NULL) {
-		free(pdp_context_info_tbl.array);
-	}
-	return ret;
-}
-
-int ltelc_api_get_pdn_net_if_addr_by_pdn_cid(int pdn_cid, struct in_addr* ip_addr)
-{
-	int ret;
-	pdp_context_info_array_t pdp_context_info_tbl;
-
-	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
-	if (ret) {
-		printf("cannot read current connection info: %d", ret);
-		return -1;
-	}
-
-	/* Find PDP context info for requested CID */
-	ret = -1;
-	int i;
-	for (i = 0; i < pdp_context_info_tbl.size; i++) {
-		if (pdp_context_info_tbl.array[i].cid == pdn_cid) {
-			if (pdp_context_info_tbl.array[i].pdp_type == PDP_TYPE_IPV4 || pdp_context_info_tbl.array[i].pdp_type == PDP_TYPE_IP4V6) {
-				memcpy(ip_addr, &pdp_context_info_tbl.array[i].sin4.sin_addr, sizeof(struct in_addr));
-				ret = 0;
-			} else {
-				ret = -2;
-			}
+			pdp_context_info = calloc(1, sizeof(pdp_context_info_t));
+			memcpy(pdp_context_info, &(pdp_context_info_tbl.array[i]), sizeof(pdp_context_info_t));
 			break;
 		}
 	}
@@ -99,7 +66,7 @@ int ltelc_api_get_pdn_net_if_addr_by_pdn_cid(int pdn_cid, struct in_addr* ip_add
 	if (pdp_context_info_tbl.array != NULL) {
 		free(pdp_context_info_tbl.array);
 	}
-	return ret;
+	return pdp_context_info;
 }
 
 int ltelc_api_default_pdp_context_read_info(pdp_context_info_t *populated_info)

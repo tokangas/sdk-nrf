@@ -46,9 +46,16 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #endif
 #if defined(CONFIG_AT_CMD)
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
-int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char *apn_str);
-int ltelc_api_get_pdn_net_if_addr_by_pdn_cid(int pdn_cid, struct in_addr *ip_addr);
-int ltelc_api_get_pdn_net_if_dns_addr_by_pdn_cid(int pdn_cid, struct in_addr *dns_addr);
+
+/**
+ * Return PDP context info for a given PDN CID.
+ * 
+ * @param[in] pdn_cid PDN CID.
+ * 
+ * @retval pdp_context_info_t structure. NULL if context info for given CID not found.
+ *         Client is responsible for deallocating the memory of the returned pdp_context_info_t.
+ */
+pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid);
 #endif
 
 #endif /* LTELC_API_H */
