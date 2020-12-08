@@ -25,7 +25,6 @@ typedef struct {
 	uint32_t cid;
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
 	char apn_str[FTA_APN_STR_MAX_LEN];
-	char ip_addr_str[AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN];
 	char pdp_type;
 	struct sockaddr_in sin4;
 	struct sockaddr_in6 sin6;

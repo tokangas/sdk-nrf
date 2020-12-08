@@ -309,27 +309,25 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		}
 		populated_info[iterator].apn_str[param_str_len] = '\0';
 
-		param_str_len = sizeof(populated_info[iterator].ip_addr_str);
+		char ip_addr_str[AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN];
+
+		param_str_len = sizeof(ip_addr_str);
 		ret = at_params_string_get(
 			&param_list, AT_CMD_PDP_CONTEXT_READ_PDP_ADDR_INDEX,
-			populated_info[iterator].ip_addr_str, &param_str_len);
+			ip_addr_str, &param_str_len);
 		if (ret) {
 			printf("Could not parse apn str, err: %d\n", ret);
 			goto clean_exit;
 		}
-		populated_info[iterator].ip_addr_str[param_str_len] = '\0';
+		ip_addr_str[param_str_len] = '\0';
 
 		/* Parse IP addresses from space delimited string: */
 		{
-			char *tmp = malloc(
-				strlen(populated_info[iterator].ip_addr_str) +
-				1);
 			char *ip_address1, *ip_address2;
 
-			strcpy(tmp, populated_info[iterator].ip_addr_str);
-
-			/* Get 1st 2 IP addresses from a CGDCONT string: */
-			ip_address1 = strtok(tmp, " ");
+			// Get 1st 2 IP addresses from a CGDCONT string.
+			// Notice that ip_addr_str is slightly modified by strtok()
+			ip_address1 = strtok(ip_addr_str, " ");
 			ip_address2 = strtok(NULL, " ");
 
 			if (ip_address1 != NULL) {
@@ -372,9 +370,8 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 					sin6->sin6_family = AF_INET6;
 				}
 			}
-			free(tmp);
 		}
-		// TODO: This may not work for all use cases
+		// TODO: This may not work always if resp_continues is needed in different places of the at command response line
 		ret = ltelc_api_default_pdp_context_read_info(&(populated_info[iterator]));
 		if (resp_continues) {
 			at_ptr = next_param_str;
