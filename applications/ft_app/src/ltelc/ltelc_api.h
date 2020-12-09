@@ -25,10 +25,13 @@ typedef struct {
 	uint32_t cid;
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
 	char apn_str[FTA_APN_STR_MAX_LEN];
-	char ip_addr_str[AT_CMD_PDP_CONTEXT_READ_IP_ADDR_STR_MAX_LEN];
-    char pdp_type;
+	char pdp_type;
 	struct sockaddr_in sin4;
 	struct sockaddr_in6 sin6;
+	struct in_addr dns_addr4_primary;
+	struct in_addr dns_addr4_secondary;
+	struct in6_addr dns_addr6_primary;
+	struct in6_addr dns_addr6_secondary;
 } pdp_context_info_t;
 
 typedef struct
@@ -42,7 +45,16 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #endif
 #if defined(CONFIG_AT_CMD)
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
-int ltelc_api_get_apn_by_pdn_cid(int pdn_cid, char* apn_str);
+
+/**
+ * Return PDP context info for a given PDN CID.
+ * 
+ * @param[in] pdn_cid PDN CID.
+ * 
+ * @retval pdp_context_info_t structure. NULL if context info for given CID not found.
+ *         Client is responsible for deallocating the memory of the returned pdp_context_info_t.
+ */
+pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid);
 #endif
 
 #endif /* LTELC_API_H */

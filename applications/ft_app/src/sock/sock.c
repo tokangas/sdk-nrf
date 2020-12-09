@@ -632,6 +632,12 @@ static void sock_receive_handler()
 			}
 		}
 
+		if (count == 0) {
+			/* No sockets in use, so no use calling poll() */
+			k_sleep(K_MSEC(SOCK_POLL_TIMEOUT_MS));
+			continue;
+		}
+
 		int ret = poll(fds, count, SOCK_POLL_TIMEOUT_MS);
 
 		if (ret > 0) {
@@ -674,6 +680,10 @@ static void sock_receive_handler()
 				}
 				if (fds[i].revents & POLLOUT) {
 					sock_send_data_length(socket_info);
+				}
+				if (fds[i].revents & POLLERR) {
+					shell_print(shell_global, "Error from socket id=%d (fd=%d), closing", socket_id, fds[i].fd);
+					sock_info_clear(socket_info);
 				}
 				if (fds[i].revents & POLLHUP) {
 					shell_print(shell_global, "Socket id=%d (fd=%d) disconnected so closing.", socket_id, fds[i].fd);
