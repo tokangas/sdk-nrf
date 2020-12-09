@@ -32,6 +32,11 @@ config FTA_GNSS
 	bool  "Enable GNSS support"
 	default y
 
+config FTA_PPP
+	bool  "Enable PPP support"
+#	select NET_RAW_MODE
+	default y
+
 config FTA_SMS
 	bool  "Enable SMS support"
     default y
