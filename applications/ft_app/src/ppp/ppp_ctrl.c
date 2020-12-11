@@ -61,7 +61,7 @@ static enum net_verdict ppp_ctrl_data_recv(struct net_if *iface, struct net_pkt 
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
 	if (ret < 0) {
-		shell_error(shell_global, "cannot read packet: %d, from pkt %p", ret), pkt;
+		shell_error(shell_global, "cannot read packet: %d, from pkt %p", ret, pkt);
 		goto drop;
 	}
 	
@@ -188,9 +188,11 @@ void ppp_ctrl_init()
 int ppp_ctrl_start(const struct shell *shell) {
 	struct ppp_context *ctx;
 	struct net_if *iface;
+	#if defined(CONFIG_NET_IPV4)
 	struct net_if_addr *ifaddr;
-	int idx = 0; //TODO: find PPP if according to name?
 	struct net_if_ipv4 *ipv4;
+#endif
+	int idx = 0; //TODO: find PPP if according to name?
 	pdp_context_info_t* pdp_context_info;
 
 	shell_global = shell;
