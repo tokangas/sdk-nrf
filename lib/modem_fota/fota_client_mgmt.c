@@ -45,16 +45,6 @@ LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
 #define JWT_PAYLOAD_TEMPLATE "{\"deviceIdentifier\":\"%s\"}"
 #define JWT_PAYLOAD_BUFF_SIZE (sizeof(JWT_PAYLOAD_TEMPLATE) + DEV_ID_BUFF_SIZE)
 
-/* TODO: For initial certification, a hard-coded shared secret will be used.
- * For a production release, the plan is to use the modem's built in key
- * to do the signing.
- */
-#define SHARED_SECRET { \
-		0x32, 0x39, 0x34, 0x41, 0x34, 0x30, 0x34, 0x45, \
-		0x36, 0x33, 0x35, 0x32, 0x36, 0x36, 0x35, 0x35, \
-		0x36, 0x41, 0x35, 0x38, 0x36, 0x45, 0x33, 0x32, \
-		0x37, 0x32, 0x33, 0x34, 0x37, 0x35, 0x33, 0x37 }
-
 #define GET_BASE64_LEN(n) (((4 * n / 3) + 3) & ~3)
 /* <b64 header>.<b64 payload>.<b64 signature><NULL> */
 #define JWT_BUFF_SIZE (sizeof(JWT_HEADER_B64) + \
@@ -960,10 +950,10 @@ static int get_signature(const uint8_t * const data_in,
 	}
 
 	struct tc_hmac_state_struct hmac;
-	char shared_secret[] = SHARED_SECRET;
+	char shared_secret[] = CONFIG_MODEM_FOTA_SHARED_SECRET;
 	int ret;
 
-	ret = tc_hmac_set_key(&hmac, shared_secret, sizeof(shared_secret));
+	ret = tc_hmac_set_key(&hmac, shared_secret, strlen(shared_secret));
 	if (ret != TC_CRYPTO_SUCCESS) {
 		LOG_ERR("tc_hmac_set_key failed, error: %d", ret);
 		return -EACCES;

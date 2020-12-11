@@ -157,6 +157,13 @@ config MODEM_FOTA_SHELL
 	help
 	  Enable shell interface for the FOTA Client.
 
+config MODEM_FOTA_SHARED_SECRET
+	string "Shared secret with nRF Cloud"
+	default "0123456789ABCDEF0123456789ABCDEF"
+	help
+	  A string of 32 hex characters (0-9, A-F). Shared secret is unique
+	  per-tenant. Must be coordinated with nRF Cloud.
+
 module=MODEM_FOTA
 module-dep=LOG
 module-str=Modem Firmware Over the Air client
