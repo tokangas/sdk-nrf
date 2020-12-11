@@ -130,15 +130,15 @@ static const char at_xmodemuuid[] = "AT\%XMODEMUUID";
 static const char at_xapnstatus_read[] = "AT\%XAPNSTATUS?";
 static const char at_xapnstatus_template[] = "AT%%XAPNSTATUS=%d,\"%s\"";
 static const char at_cgdcont_read[] = "AT+CGDCONT?";
-static const char aws_jobs_queued[] = "QUEUED";
-static const char aws_jobs_in_progress[] = "IN PROGRESS";
-static const char aws_jobs_succeeded[] = "SUCCEEDED";
-static const char aws_jobs_failed[] = "FAILED";
-static const char aws_jobs_timed_out[] = "TIMED OUT";
-static const char aws_jobs_rejected[] = "REJECTED";
-static const char aws_jobs_removed[] = "REMOVED";
-static const char aws_jobs_canceled[] = "CANCELED";
-static const char aws_jobs_unknown[] = "UNKNOWN JOB STATUS";
+static const char job_status_queued[] = "QUEUED";
+static const char job_status_in_progress[] = "IN PROGRESS";
+static const char job_status_succeeded[] = "SUCCEEDED";
+static const char job_status_failed[] = "FAILED";
+static const char job_status_timed_out[] = "TIMED OUT";
+static const char job_status_rejected[] = "REJECTED";
+static const char job_status_downloading[] = "DOWNLOADING";
+static const char job_status_canceled[] = "CANCELED";
+static const char job_status_unknown[] = "UNKNOWN JOB STATUS";
 
 static modem_fota_callback_t event_callback;
 
@@ -1008,27 +1008,27 @@ static int get_pending_job(void)
 	return ret;
 }
 
-static const char *get_job_status_string(enum execution_status status) {
+static const char *get_job_status_string(enum nrf_cloud_fota_status status) {
 	switch (status) {
-	case AWS_JOBS_QUEUED:
-		return aws_jobs_queued;
-	case AWS_JOBS_IN_PROGRESS:
-		return aws_jobs_in_progress;
-	case AWS_JOBS_SUCCEEDED:
-		return aws_jobs_succeeded;
-	case AWS_JOBS_FAILED:
-		return aws_jobs_failed;
-	case AWS_JOBS_TIMED_OUT:
-		return aws_jobs_timed_out;
-	case AWS_JOBS_REJECTED:
-		return aws_jobs_rejected;
-	case AWS_JOBS_REMOVED:
-		return aws_jobs_removed;
-	case AWS_JOBS_CANCELED:
-		return aws_jobs_canceled;
+	case NRF_CLOUD_FOTA_QUEUED:
+		return job_status_queued;
+	case NRF_CLOUD_FOTA_IN_PROGRESS:
+		return job_status_in_progress;
+	case NRF_CLOUD_FOTA_SUCCEEDED:
+		return job_status_succeeded;
+	case NRF_CLOUD_FOTA_FAILED:
+		return job_status_failed;
+	case NRF_CLOUD_FOTA_TIMED_OUT:
+		return job_status_timed_out;
+	case NRF_CLOUD_FOTA_REJECTED:
+		return job_status_rejected;
+	case NRF_CLOUD_FOTA_DOWNLOADING:
+		return job_status_downloading;
+	case NRF_CLOUD_FOTA_CANCELED:
+		return job_status_canceled;
 	default:
 		LOG_ERR("Unknown job status");
-		return aws_jobs_unknown;
+		return job_status_unknown;
 	}
 }
 
@@ -1150,7 +1150,7 @@ static void finish_update_work_fn(struct k_work *item)
 		break;
 
 	case MODEM_FOTA_EVT_ERROR:
-		if (current_job.status == AWS_JOBS_REJECTED) {
+		if (current_job.status == NRF_CLOUD_FOTA_REJECTED) {
 			/* No point in retrying a rejected job */
 			update_job_status();
 			erase_modem_fw_backup();
@@ -1206,7 +1206,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 	case FOTA_DOWNLOAD_EVT_ERROR:
 		if (evt->cause == FOTA_DOWNLOAD_ERROR_CAUSE_INVALID_UPDATE) {
 			LOG_ERR("Modem rejected the firmware");
-			current_job.status = AWS_JOBS_REJECTED;
+			current_job.status = NRF_CLOUD_FOTA_REJECTED;
 		} else {
 			/* Download failed, check if we should retry */
 			if (download_retry_count > 0) {
@@ -1221,7 +1221,7 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 			}
 
 			LOG_ERR("Downloading the firmware failed");
-			current_job.status = AWS_JOBS_FAILED;
+			current_job.status = NRF_CLOUD_FOTA_FAILED;
 		}
 
 		finish_update(MODEM_FOTA_EVT_ERROR);
@@ -1705,9 +1705,9 @@ static void update_job_status_work_fn(struct k_work *item)
 	current_job.id = update_job_id;
 	update_job_id = NULL;
 	if (update_successful) {
-		current_job.status = AWS_JOBS_SUCCEEDED;
+		current_job.status = NRF_CLOUD_FOTA_SUCCEEDED;
 	} else {
-		current_job.status = AWS_JOBS_REJECTED;
+		current_job.status = NRF_CLOUD_FOTA_REJECTED;
 	}
 	err = update_job_status();
 	if (err) {
