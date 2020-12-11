@@ -18,7 +18,6 @@
 #include <tinycrypt/constants.h>
 #include <sys/base64.h>
 #include <logging/log.h>
-#include <net/aws_jobs.h> /* for enum execution_status */
 #include "fota_client_mgmt.h"
 
 LOG_MODULE_REGISTER(fota_client_mgmt, CONFIG_MODEM_FOTA_LOG_LEVEL);
@@ -82,8 +81,10 @@ static int parse_pending_job_response(const char * const resp_buff,
 // TODO: determine if it is worth adding JSON parsing library to
 #define JOB_ID_BEGIN_STR	"\"jobId\":\""
 #define JOB_ID_END_STR		"\""
-#define FW_URI_BEGIN_STR	"\"uris\":[\""
-#define FW_URI_END_STR		"\"]"
+#define FW_PATH_BEGIN_STR	"\"path\":\""
+#define FW_PATH_END_STR		"\","
+#define FW_HOST_BEGIN_STR	"\"host\":\""
+#define FW_HOST_END_STR		"\","
 #define FW_PATH_PREFIX		"v1/firmwares/modem/"
 #define FW_HOSTNAME 		API_HOSTNAME
 
@@ -95,20 +96,20 @@ static int parse_pending_job_response(const char * const resp_buff,
 #define API_DEV_STATE_HDR_ACCEPT	"accept: */*\r\n"
 #define API_DEV_STATE_BODY_TEMPLATE	"{\"reported\":{\"device\":{" \
 					"\"deviceInfo\":{\"modemFirmware\":\"%s\"}," \
-					"\"serviceInfo\":{\"fota_v1\":[\"MODEM\"]}}}}"
+					"\"serviceInfo\":{\"fota_v2\":[\"MODEM\"]}}}}"
 
-#define API_UPDATE_JOB_URL_PREFIX	"/v1/fota-job-execution-statuses/"
+/* /v1/fota-job-executions/<device_id>/<job_id> */
+#define API_UPDATE_JOB_URL_TEMPLATE	"/v1/fota-job-executions/%s/%s"
 #define API_UPDATE_JOB_CONTENT_TYPE	"application/json"
 #define API_UPDATE_JOB_HDR_ACCEPT	"accept: */*\r\n"
 #define API_UPDATE_JOB_BODY_TEMPLATE	"{\"status\":\"%s\"}"
 
-#define API_GET_JOB_URL_TEMPLATE	"/v1/fota-jobs/device/%s/latest-pending"
+#define API_GET_JOB_URL_TEMPLATE	"/v1/fota-job-executions/%s/latest?firmwareType=MODEM"
 #define API_GET_JOB_CONTENT_TYPE 	"*/*"
 #define API_GET_JOB_HDR_ACCEPT		"accept: application/json\r\n"
 
 // NOTE:
-//       The endpoint address isn't actually important... traffic is routed
-//       based on the certs, so ensure that correct dev/beta/prod certs are
+//       Ensure that correct dev/beta/prod certs are
 //       installed on the device.
 // TODO: switch to PROD endpoint: "a2n7tk1kp18wix-ats.iot.us-east-1.amazonaws.com"
 //       BETA endpoint to be used for environment stability
@@ -151,17 +152,16 @@ struct http_user_data {
 	} data;
 };
 
-// TODO: this is copied from aws_jobs.c, find better way to share this?
 /** @brief Mapping of enum to strings for Job Execution Status. */
 static const char *job_status_strings[] = {
-	[AWS_JOBS_QUEUED]      = "QUEUED",
-	[AWS_JOBS_IN_PROGRESS] = "IN_PROGRESS",
-	[AWS_JOBS_SUCCEEDED]   = "SUCCEEDED",
-	[AWS_JOBS_FAILED]      = "FAILED",
-	[AWS_JOBS_TIMED_OUT]   = "TIMED_OUT",
-	[AWS_JOBS_REJECTED]    = "REJECTED",
-	[AWS_JOBS_REMOVED]     = "REMOVED",
-	[AWS_JOBS_CANCELED]    = "CANCELED"
+	[NRF_CLOUD_FOTA_QUEUED]      = "QUEUED",
+	[NRF_CLOUD_FOTA_IN_PROGRESS] = "IN_PROGRESS",
+	[NRF_CLOUD_FOTA_FAILED]      = "FAILED",
+	[NRF_CLOUD_FOTA_SUCCEEDED]   = "SUCCEEDED",
+	[NRF_CLOUD_FOTA_TIMED_OUT]   = "TIMED_OUT",
+	[NRF_CLOUD_FOTA_REJECTED]    = "REJECTED",
+	[NRF_CLOUD_FOTA_CANCELED]    = "CANCELLED",
+	[NRF_CLOUD_FOTA_DOWNLOADING] = "DOWNLOADING",
 };
 
 #define JOB_STATUS_STRING_COUNT (sizeof(job_status_strings) / \
@@ -497,7 +497,7 @@ int fota_client_get_pending_job(struct fota_client_mgmt_job * const job)
 			/* No pending job */
 		} else if (http_resp_status == HTTP_STATUS_OK) {
 			if (job->host && job->path && job->path) {
-				job->status = AWS_JOBS_IN_PROGRESS;
+				job->status = NRF_CLOUD_FOTA_IN_PROGRESS;
 			} else {
 				/* Job info was returned but it was not
 				 * able to be parsed */
@@ -551,6 +551,7 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 	char * host_hdr = NULL;
 	char * payload = NULL;
 	char * hostname = API_HOSTNAME;
+	char * device_id = NULL;
 	uint16_t port = API_PORT;
 
 	if (api_hostname != NULL) {
@@ -566,15 +567,24 @@ int fota_client_update_job(const struct fota_client_mgmt_job * job)
 		goto clean_up;
 	}
 
-	/* Format API URL with job ID */
-	buff_size = sizeof(API_UPDATE_JOB_URL_PREFIX) + strlen(job->id);
+	/* Format API URL with device ID and job ID */
+	device_id = get_device_id_string();
+	if (!device_id) {
+		ret = -ENOMEM;
+		goto clean_up;
+	}
+
+	buff_size = sizeof(API_UPDATE_JOB_URL_TEMPLATE) +
+		    strlen(device_id) + strlen(job->id);
+
 	url = k_calloc(buff_size, 1);
 	if (!url) {
 		ret = -ENOMEM;
 		goto clean_up;
 	}
-	ret = snprintk(url, buff_size, "%s%s",
-		       API_UPDATE_JOB_URL_PREFIX, job->id);
+	ret = snprintk(url, buff_size, API_UPDATE_JOB_URL_TEMPLATE,
+		       device_id,
+		       job->id);
 	if (ret < 0 || ret >= buff_size) {
 		LOG_ERR("Could not format URL");
 		ret = -ENOBUFS;
@@ -670,6 +680,9 @@ clean_up:
 	}
 	if (payload) {
 		k_free(payload);
+	}
+	if (device_id) {
+		k_free(device_id);
 	}
 
 	return ret;
@@ -1242,28 +1255,45 @@ int parse_pending_job_response(const char * const resp_buff,
 	job->id = NULL;
 	job->path = NULL;
 
-	hostname = FW_HOSTNAME;
+	/* Get host: use override if exists */
 	if (fw_api_hostname != NULL) {
 		hostname = fw_api_hostname;
+		len = strlen(hostname) + 1;
+	} else {
+		start = strstr(resp_buff,FW_HOST_BEGIN_STR);
+		if (!start) {
+			err = -ENOMSG;
+			goto error_clean_up;
+		}
+
+		start += strlen(FW_HOST_BEGIN_STR);
+		end = strstr(start,FW_HOST_END_STR);
+		if (!end) {
+			err = -ENOMSG;
+			goto error_clean_up;
+		}
+		hostname = start;
+		len = end - start;
 	}
 
-	job->host = k_calloc(strlen(hostname) + 1,1);
+	job->host = k_calloc(len+1,1);
 	if (!job->host) {
 		err = -ENOMEM;
 		goto error_clean_up;
 	}
-	strcpy(job->host,hostname);
+	strncpy(job->host,hostname,len);
 
+	/* Get job ID */
 	start = strstr(resp_buff,JOB_ID_BEGIN_STR);
 	if (!start) {
-		err =  -ENOMSG;
+		err = -ENOMSG;
 		goto error_clean_up;
 	}
 
 	start += strlen(JOB_ID_BEGIN_STR);
 	end = strstr(start,JOB_ID_END_STR);
 	if (!end) {
-		err =  -ENOMSG;
+		err = -ENOMSG;
 		goto error_clean_up;
 	}
 
@@ -1271,32 +1301,27 @@ int parse_pending_job_response(const char * const resp_buff,
 	job->id = k_calloc(len + 1,1);
 	strncpy(job->id,start,len);
 
-	// Get URI/path
-	start = strstr(resp_buff,FW_URI_BEGIN_STR);
+	/* Get path */
+	start = strstr(resp_buff,FW_PATH_BEGIN_STR);
 	if (!start) {
-		err =  -ENOMSG;
+		err = -ENOMSG;
 		goto error_clean_up;
 	}
 
-	start += strlen(FW_URI_BEGIN_STR);
-	end = strstr(start,FW_URI_END_STR);
+	start += strlen(FW_PATH_BEGIN_STR);
+	end = strstr(start,FW_PATH_END_STR);
 	if (!end) {
-		err =  -ENOMSG;
+		err = -ENOMSG;
 		goto error_clean_up;
 	}
 
 	len = end - start;
-	job->path = k_calloc(sizeof(FW_PATH_PREFIX) + len,1);
+	job->path = k_calloc(len+1,1);
 	if (!job->path) {
-		err =  -ENOMEM;
+		err = -ENOMEM;
 		goto error_clean_up;
 	}
-
-	strncpy(job->path,
-		FW_PATH_PREFIX,
-		sizeof(FW_PATH_PREFIX));
-	strncpy(job->path + strlen(FW_PATH_PREFIX),
-		start,len);
+	strncpy(job->path,start,len);
 
 	return 0;
 

@@ -3,7 +3,19 @@
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
-#include <net/aws_jobs.h>
+
+/* TODO: this enum will be in nrf_cloud_fota.h when PR#3160 is merged */
+/**@brief FOTA status reported to nRF Cloud. */
+enum nrf_cloud_fota_status {
+	NRF_CLOUD_FOTA_QUEUED = 0,
+	NRF_CLOUD_FOTA_IN_PROGRESS = 1,
+	NRF_CLOUD_FOTA_FAILED = 2,
+	NRF_CLOUD_FOTA_SUCCEEDED = 3,
+	NRF_CLOUD_FOTA_TIMED_OUT = 4,
+	NRF_CLOUD_FOTA_CANCELED = 5,
+	NRF_CLOUD_FOTA_REJECTED = 6,
+	NRF_CLOUD_FOTA_DOWNLOADING = 7,
+};
 
 struct fota_client_mgmt_job {
 
@@ -16,7 +28,7 @@ struct fota_client_mgmt_job {
 	/** Job ID */
 	char * id;
 	/** Job status */
-	enum execution_status status;
+	enum nrf_cloud_fota_status status;
 	/** Job status details */
 	char * status_details;
 };
