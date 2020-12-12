@@ -56,7 +56,7 @@ static enum net_verdict ppp_ctrl_data_recv(struct net_if *iface, struct net_pkt 
 		goto drop;
 	}
 	
-	static uint8_t buf_tx[NET_IPV6_MTU];
+	static uint8_t buf_tx[CONFIG_NET_PPP_MTU_MRU];
 	int data_len = net_pkt_remaining_data(pkt);
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
