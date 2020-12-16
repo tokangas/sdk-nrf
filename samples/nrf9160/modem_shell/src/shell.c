@@ -34,6 +34,9 @@
 #if defined (CONFIG_FTA_GNSS)
 #include "gnss/gnss_shell.h"
 #endif
+#if defined (CONFIG_FTA_SMS)
+#include "sms/sms_shell.h"
+#endif
 
 const struct shell* shell_global;
 
@@ -79,7 +82,9 @@ SHELL_CMD_REGISTER(iperf3, NULL, "For iperf3 usage, just type \"iperf3 --manual\
 #endif
 
 #if defined (CONFIG_FTA_GNSS)
-SHELL_CMD_REGISTER(gnss, NULL,
-	"Commands for controlling GNSS.",
-	gnss_shell);
+SHELL_CMD_REGISTER(gnss, NULL, "Commands for controlling GNSS.", gnss_shell);
+#endif
+
+#if defined (CONFIG_FTA_SMS)
+SHELL_CMD_REGISTER(sms, NULL, "Commands for sending and receiving SMS.", sms_shell);
 #endif

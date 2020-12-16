@@ -38,6 +38,9 @@ LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 #define AT_SMS_NOTIFICATION "+CMT:"
 #define AT_SMS_NOTIFICATION_LEN (sizeof(AT_SMS_NOTIFICATION) - 1)
 
+#define AT_SMS_NOTIFICATION_DS "+CDS:"
+#define AT_SMS_NOTIFICATION_DS_LEN (sizeof(AT_SMS_NOTIFICATION_DS) - 1)
+
 static struct k_work sms_ack_work;
 static struct at_param_list resp_list;
 static char resp[AT_SMS_RESPONSE_MAX_LEN];
@@ -68,12 +71,14 @@ static bool sms_is_cmd_notification(const char *const at_notif)
 		return false;
 	}
 
-	if (strlen(at_notif) <= AT_SMS_NOTIFICATION_LEN) {
-		return false;
+	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
+		AT_SMS_NOTIFICATION_LEN) == 0) {
+		return true;
+	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
+		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
+		return true;
 	}
-
-	return (strncmp(at_notif, AT_SMS_NOTIFICATION,
-			AT_SMS_NOTIFICATION_LEN) == 0);
+	return false;
 }
 
 /** @brief Parse the +CMT unsolicited received message in PDU mode. */
@@ -86,12 +91,6 @@ static int sms_cmt_notif_parse(const char *const buf)
 	if (err != 0) {
 		LOG_ERR("Unable to parse CMT notification, err=%d", err);
 		return err;
-	}
-
-	/* Check the AT response format. */
-	if (at_params_valid_count_get(&resp_list) != AT_CMT_PARAMS_COUNT) {
-		LOG_ERR("Invalid CMT notification format");
-		return -EAGAIN;
 	}
 
 	return 0;

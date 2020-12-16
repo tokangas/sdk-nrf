@@ -32,6 +32,10 @@ config FTA_GNSS
 	bool  "Enable GNSS support"
 	default y
 
+config FTA_SMS
+	bool  "Enable SMS support"
+    default y
+
 if FTA_IPERF3
 menu "FTA iperf3 selections"
 
