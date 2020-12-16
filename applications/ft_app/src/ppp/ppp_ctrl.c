@@ -22,7 +22,10 @@
 #include "ppp_ctrl.h"
 
 #if defined (CONFIG_FTA_PPP)
+#define PPP_CTRL_UPLINK_WORKER 1
+
 #define RAW_SCKT_FD_NONE -666
+
 struct net_if *ppp_iface_global;
 static const struct shell* shell_global;
 static int socket_fd = RAW_SCKT_FD_NONE;
@@ -32,9 +35,52 @@ typedef enum net_verdict (*ppp_l2_callback_t)(struct net_if *iface,
 
 void net_core_register_pkt_cb(ppp_l2_callback_t cb); /* found in net_core.c */
 
+static void ppp_ctrl_send_to_modem(struct net_pkt *pkt)
+{
+	static uint8_t buf_tx[CONFIG_NET_PPP_MTU_MRU];
+	int ret = 0;
+	int data_len = net_pkt_remaining_data(pkt);
+
+	ret = net_pkt_read(pkt, buf_tx, data_len);
+	if (ret < 0) {
+		shell_error(shell_global, "cannot read packet: %d, from pkt %p", ret, pkt);
+	} else {	
+		ret = send(socket_fd, buf_tx, data_len, 0);
+		if (ret <= 0) {
+			shell_error(shell_global, "send() failed: (%d), data len: %d\n", ret, data_len);
+		}
+	}
+	net_pkt_unref(pkt);
+}
+/* ********************************************************************/
+#ifdef PPP_CTRL_UPLINK_WORKER
+
+#define UPLINK_WORKQUEUE_STACK_SIZE 2048
+#define UPLINK_WORKQUEUE_PRIORITY 5
+K_THREAD_STACK_DEFINE(uplink_stack_area, UPLINK_WORKQUEUE_STACK_SIZE);
+#if 0
+//re-using work in pkt
+struct uplink_info {
+	struct k_work work;
+	struct net_pkt *pkt;
+};
+#endif
+//struct k_work uplink_work;
+struct k_work_q uplink_work_q;
+
+static void ppp_ctrl_process_ppp_rx_packet(struct k_work *item)
+{
+	struct net_pkt *pkt;
+	pkt = CONTAINER_OF(item, struct net_pkt, work);
+
+	ppp_ctrl_send_to_modem(pkt);
+}
+#endif
+
 static enum net_verdict ppp_ctrl_data_recv(struct net_if *iface, struct net_pkt *pkt)
 {
-	int ret = 0;
+	//TODO?
+	//iface not needed as parameter? set in pkt and can be get:	iface = net_pkt_iface(pkt);
 	if (!pkt->buffer) {
 		shell_info(shell_global,"MoSH: ppp_ctrl_data_recv: No data to recv!");
 		goto drop;
@@ -55,8 +101,12 @@ static enum net_verdict ppp_ctrl_data_recv(struct net_if *iface, struct net_pkt 
 		shell_error(shell_global, "MoSH: ppp_ctrl_data_recv: not IPv4 data\n");
 		goto drop;
 	}
-	
-	static uint8_t buf_tx[CONFIG_NET_PPP_MTU_MRU];
+#ifdef PPP_CTRL_UPLINK_WORKER
+	k_work_init(net_pkt_work(pkt), ppp_ctrl_process_ppp_rx_packet);
+	k_work_submit_to_queue(&uplink_work_q, net_pkt_work(pkt));
+#else
+	int ret = 0;
+	static uint8_t buf_tx[1500];//TODO: to be CONFIG_NET_PPP_MTU_MRU
 	int data_len = net_pkt_remaining_data(pkt);
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
@@ -71,41 +121,7 @@ static enum net_verdict ppp_ctrl_data_recv(struct net_if *iface, struct net_pkt 
 		goto drop;
 	}
 	net_pkt_unref(pkt);
-
-#if 0
-static uint8_t buf_tx[NET_IPV6_MTU];
-
-	ret = net_pkt_read(pkt, buf, reply_len);
-
-	if (ret < 0) {
-		LOG_ERR("cannot read packet: %d", ret);
-		return ret;
-	}
-
-	LOG_DBG("sending %d bytes", reply_len);
-
-	return reply_len;
-	net_pkt_unref(pkt);
-
-tai
-				raw_pkt = net_pkt_clone(pkt, CLONE_TIMEOUT);
-				if (!raw_pkt) {
-					goto drop;
-				}
-
-				if (conn->cb(conn, raw_pkt, ip_hdr,
-					     proto_hdr, conn->user_data) ==
-								NET_DROP) {
-					net_stats_update_per_proto_drop(
-							pkt_iface, proto);
-					net_pkt_unref(raw_pkt);
-				} else {
-					net_stats_update_per_proto_recv(
-						pkt_iface, proto);
-				}
 #endif
-	//net_pkt_acknowledge_data(pkt, &ipv4_access);
-
 	return NET_OK;
 
 drop:
@@ -182,7 +198,12 @@ void ppp_ctrl_init()
 	socket_fd = RAW_SCKT_FD_NONE;
 	//init iface
 	//net_if_flag_set(ictx.iface, NET_IF_NO_AUTO_START);
-
+#ifdef PPP_CTRL_UPLINK_WORKER
+	k_work_q_start(&uplink_work_q, uplink_stack_area,
+		       K_THREAD_STACK_SIZEOF(uplink_stack_area),
+		       UPLINK_WORKQUEUE_PRIORITY);
+	k_thread_name_set(&uplink_work_q.thread, "mosh_uplink_work_q");
+#endif
 }
 
 int ppp_ctrl_start(const struct shell *shell) {
@@ -282,9 +303,9 @@ void ppp_shell_set_ppp_carrier_off()
 
 /* *************************************************************************************/
 #define PPP_RECEIVE_STACK_SIZE 2048
-#define PPP_RECEIVE_PRIORITY 4
+#define PPP_RECEIVE_PRIORITY 5
 #define SOCK_POLL_TIMEOUT_MS 1000 // Milliseconds
-#define SOCK_RECEIVE_BUFFER_SIZE 1280
+#define SOCK_RECEIVE_BUFFER_SIZE 1500 //TODO
 static char receive_buffer[SOCK_RECEIVE_BUFFER_SIZE];
 
 static void ppp_ctrl_modem_data_receive_handler()
