@@ -42,21 +42,21 @@ static void ppp_ctrl_send_to_modem(struct net_pkt *pkt)
 	int data_len = net_pkt_remaining_data(pkt);
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
+	net_pkt_unref(pkt); //TODO non blocking send!
 	if (ret < 0) {
-		shell_error(shell_global, "cannot read packet: %d, from pkt %p", ret, pkt);
+		shell_error(shell_global, "ppp_ctrl_send_to_modem: cannot read packet: %d, from pkt %p", ret, pkt);
 	} else {	
 		ret = send(socket_fd, buf_tx, data_len, 0);
 		if (ret <= 0) {
-			shell_error(shell_global, "send() failed: (%d), data len: %d\n", ret, data_len);
+			shell_error(shell_global, "ppp_ctrl_send_to_modem: send() failed: (%d), data len: %d\n", ret, data_len);
 		}
 	}
-	net_pkt_unref(pkt);
 }
 /* ********************************************************************/
 #ifdef PPP_CTRL_UPLINK_WORKER
 
-#define UPLINK_WORKQUEUE_STACK_SIZE 2048
-#define UPLINK_WORKQUEUE_PRIORITY 5
+#define UPLINK_WORKQUEUE_STACK_SIZE 1024
+#define UPLINK_WORKQUEUE_PRIORITY -9
 K_THREAD_STACK_DEFINE(uplink_stack_area, UPLINK_WORKQUEUE_STACK_SIZE);
 #if 0
 //re-using work in pkt
@@ -127,6 +127,7 @@ static enum net_verdict ppp_ctrl_data_recv(struct net_if *iface, struct net_pkt 
 drop:
 	return NET_DROP;
 }
+
 static void ppp_shell_set_ppp_carrier_on()
 {
 	const struct device *ppp_dev = device_get_binding(CONFIG_NET_PPP_DRV_NAME);
@@ -302,10 +303,12 @@ void ppp_shell_set_ppp_carrier_off()
 
 
 /* *************************************************************************************/
-#define PPP_RECEIVE_STACK_SIZE 2048
-#define PPP_RECEIVE_PRIORITY 5
+#define PPP_RECEIVE_STACK_SIZE 1024
+#define PPP_RECEIVE_PRIORITY -2
 #define SOCK_POLL_TIMEOUT_MS 1000 // Milliseconds
 #define SOCK_RECEIVE_BUFFER_SIZE 1500 //TODO
+#define PPP_CTRL_BUF_ALLOC_TIMEOUT	K_MSEC(100)
+
 static char receive_buffer[SOCK_RECEIVE_BUFFER_SIZE];
 
 static void ppp_ctrl_modem_data_receive_handler()
@@ -337,10 +340,11 @@ static void ppp_ctrl_modem_data_receive_handler()
 				if (recv_data_len > 0) {
 					//shell_info(shell_global, "ppp_ctrl_modem_data_receive_handler: data received from modem, len %d", recv_data_len);
 
-
-					pkt = net_pkt_alloc_with_buffer(iface, recv_data_len, AF_UNSPEC, 0, K_NO_WAIT);
+					pkt = net_pkt_alloc_with_buffer(iface, recv_data_len, AF_UNSPEC, 0, PPP_CTRL_BUF_ALLOC_TIMEOUT);
 					if (!pkt) {
-						shell_error(shell_global, "ppp_ctrl_modem_data_receive_handler: no buf available - dropped packet");
+						shell_error(shell_global, "ppp_ctrl_modem_data_receive_handler: no buf available - dropped packet from modem of len %d", recv_data_len);
+						//net_stats_update_processing_error(iface);
+						//TODO: update iface stats for dropping
 					} else {
 						//memcpy(pkt->buffer->data, receive_buffer, recv_data_len);
 						//net_buf_add(pkt->buffer, recv_data_len);
