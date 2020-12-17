@@ -26,9 +26,8 @@
 #include "ppp_mdm_data_snd.h"
 
 #if defined (CONFIG_FTA_PPP)
-#define PPP_CTRL_UPLINK_WORKER 1
 
-#define PPP_CTRL_UPLINK_WORKER 1
+#define PPP_CTRL_UPLINK_WORKER 0
 
 /* ppp globals: */
 extern struct net_if *ppp_iface_global;
@@ -82,23 +81,21 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 	//TODO?
 	//iface not needed as parameter? set in pkt and can be get:	iface = net_pkt_iface(pkt);
 	if (!pkt->buffer) {
-		shell_info(ppp_shell_global,"MoSH: ppp_ctrl_data_recv: No data to recv!");
+		shell_info(ppp_shell_global,"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: No data to recv!");
 		goto drop;
 	}
-	if (ppp_iface_global != iface) {
-		/* Tai globalin sijaan:
-		net_if_l2(net_pkt_iface(pkt)) == &NET_L2_GET_NAME(PPP)) */
-		shell_error(ppp_shell_global, "MoSH: ppp_ctrl_data_recv: not for ppp iface\n");
+	if (iface && net_if_l2(iface) != &NET_L2_GET_NAME(PPP)) {
+		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not for ppp iface\n");
 		return NET_CONTINUE;
 	}
 	if (ppp_modem_data_raw_socket_fd < 0) {
-		shell_error(ppp_shell_global, "MoSH: ppp_ctrl_data_recv: no socket to modem\n");
+		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: no socket to modem\n");
 		return NET_CONTINUE;
 	}
 
 	char type = (NET_IPV6_HDR(pkt)->vtc & 0xf0);
 	if (type != 0x40) {
-		shell_error(ppp_shell_global, "MoSH: ppp_ctrl_data_recv: not IPv4 data\n");
+		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not IPv4 data\n");
 		goto drop;
 	}
 #ifdef PPP_CTRL_UPLINK_WORKER
@@ -111,13 +108,13 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
 	if (ret < 0) {
-		shell_error(ppp_shell_global, "cannot read packet: %d, from pkt %p", ret, pkt);
+		shell_error(ppp_shell_global, "ppp_mdm_data_snd_data_rcv_from_ppp: cannot read packet: %d, from pkt %p", ret, pkt);
 		goto drop;
 	}
 	
 	ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
 	if (ret <= 0) {
-		shell_error(ppp_shell_global, "send() failed: (%d), data len: %d\n", ret, data_len);
+		shell_error(ppp_shell_global, "ppp_mdm_data_snd_data_rcv_from_ppp: send() failed: (%d), data len: %d\n", ret, data_len);
 		goto drop;
 	}
 	net_pkt_unref(pkt);
