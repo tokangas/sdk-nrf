@@ -39,36 +39,12 @@ int ppp_modem_data_raw_socket_fd;
 
 /* ********************************************************************/
 
-static void ppp_ctrl_set_carrier_on()
-{
-	const struct device *ppp_dev = device_get_binding(CONFIG_NET_PPP_DRV_NAME);
-	const struct ppp_api *api;
-	/* olisko parempi:
-		iface = net_if_get_first_by_type(&NET_L2_GET_NAME(PPP));
-	*/
-
-	if (!ppp_dev) {
-		printf("Cannot find PPP %s!", "device");
-		return;
-	}
-	shell_print(ppp_shell_global, "Starting PPP");
-
-
-	api = (const struct ppp_api *)ppp_dev->api;
-	api->start(ppp_dev);
-}
-
-/* *******************************************/
-static struct net_mgmt_event_callback ppp_ctrl_net_mgmt_event_ip_cb;
 static struct net_mgmt_event_callback ppp_ctrl_net_mgmt_event_ppp_cb;
 
 static void ppp_ctrl_net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 			  uint32_t mgmt_event, struct net_if *iface)
 {
-	printf("\nppp_ctrl_net_mgmt_event_handler %d\n", mgmt_event);
-
-	if ((mgmt_event & (NET_EVENT_PPP_CARRIER_ON
-			   | NET_EVENT_PPP_CARRIER_OFF | NET_EVENT_IPV4_ADDR_DEL)) != mgmt_event) {
+	if ((mgmt_event & (NET_EVENT_PPP_CARRIER_ON | NET_EVENT_PPP_CARRIER_OFF)) != mgmt_event) {
 		return;
 	}
 
@@ -86,26 +62,17 @@ static void ppp_ctrl_net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 		return;
 	}
 
-	if (mgmt_event == NET_EVENT_IPV4_ADDR_DEL) {
-		printf("NET_EVENT_IPV4_ADDR_DEL: somebody removed the ip from PPP interface\n");
-		return;
-	}
 }
 
 static void ppp_ctrl_net_mgmt_events_subscribe()
 {
-	net_mgmt_init_event_callback(&ppp_ctrl_net_mgmt_event_ip_cb, ppp_ctrl_net_mgmt_event_handler,
-				     NET_EVENT_IPV4_ADDR_DEL);
-	net_mgmt_add_event_callback(&ppp_ctrl_net_mgmt_event_ip_cb);
-
 	net_mgmt_init_event_callback(&ppp_ctrl_net_mgmt_event_ppp_cb, ppp_ctrl_net_mgmt_event_handler,
 				     (NET_EVENT_PPP_CARRIER_ON | NET_EVENT_PPP_CARRIER_OFF));
 	net_mgmt_add_event_callback(&ppp_ctrl_net_mgmt_event_ppp_cb);
 }
 
-/* ****************************************/
+/* ********************************************************************/
 
-/* *******************************************/
 void ppp_ctrl_init()
 {
 	ppp_modem_data_raw_socket_fd = PPP_MODEM_DATA_RAW_SCKT_FD_NONE;
@@ -114,6 +81,7 @@ void ppp_ctrl_init()
 	ppp_mdm_data_snd_init();
 	ppp_ctrl_net_mgmt_events_subscribe();
 }
+/* ********************************************************************/
 
 int ppp_ctrl_start(const struct shell *shell) {
 	struct ppp_context *ctx;
@@ -124,7 +92,6 @@ int ppp_ctrl_start(const struct shell *shell) {
 #endif
 	int idx = 0; //TODO: find PPP if according to name?
 	pdp_context_info_t* pdp_context_info;
-
 	ppp_shell_global = shell;
 
 	ctx = net_ppp_context_get(idx);
@@ -141,17 +108,6 @@ int ppp_ctrl_start(const struct shell *shell) {
 	iface = ctx->iface;
 	ppp_iface_global = iface;
 	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
-#if defined(CONFIG_NET_IPV4)
-	if (net_if_config_ipv4_get(iface, &ipv4) < 0) {
-		shell_info(shell, "no ip address\n");
-	}
-	else {
-		bool removed = false;
-		/* remove the current IPv4 addr before adding a new one.*/
-		removed = net_if_ipv4_addr_rm(iface, &ctx->ipcp.my_options.address);
-		shell_info(shell, "removed %d \n", removed);
-	}
-#endif
 
 	/* Couldn't find the way to set these for PPP in another way: TODO api to PPP for raw mode?*/
 	memcpy(&(ctx->ipcp.my_options.address), &(pdp_context_info->sin4.sin_addr), sizeof(ctx->ipcp.my_options.address));
@@ -160,49 +116,33 @@ int ppp_ctrl_start(const struct shell *shell) {
 
 	free(pdp_context_info);
 	
-	/* Set the IP to netif: */
-#if defined(CONFIG_NET_IPV4)
-	shell_print(shell, "calling net_if_ipv4_addr_add...\n");
-	ifaddr = net_if_ipv4_addr_add(iface, &my_ipv4_addr1, NET_ADDR_DHCP, 0);//ei vaikutusta ppp contextiin, ylläoleva memcpy tekee sen
-	if (!ifaddr) {
-		shell_error(shell, "Cannot add IPv4 address\n");
-		goto return_error;
-	}
-	shell_print(shell, "calling ppp_ctrl_set_carrier_on...\n");
-#endif
-
 	ppp_modem_data_raw_socket_fd = socket(AF_PACKET, SOCK_RAW, 0);
 	if (ppp_modem_data_raw_socket_fd < 0) {
-		shell_error(shell, "socket creation failed: (%d)!!!!\n", -errno);
+		shell_error(shell, "modem data socket creation failed: (%d)!!!!\n", -errno);
 		goto return_error;
 	}
 	else {
-		shell_info(shell, "socket %d created for modem data", ppp_modem_data_raw_socket_fd);
+		shell_info(shell, "modem data socket %d created for modem data", ppp_modem_data_raw_socket_fd);
 	}
 
-	ppp_ctrl_set_carrier_on();
+	net_if_up(iface);
 	return 0;
 
 return_error:
 	return -1;
 }
+/* ********************************************************************/
 
 void ppp_ctrl_stop()
 {
 	struct ppp_context *ctx;
 	int idx = 0; //TODO: find PPP ifaccording to name?
 
-	printf("ppp_ctrl_stop\n");
-		
 	ctx = net_ppp_context_get(idx);
 	if (!ctx && !ctx->iface)
 		return;
 
-	const struct device *ppp_dev = net_if_get_device(ctx->iface);
-	const struct ppp_api *api;
-		
-	api = (const struct ppp_api *)ppp_dev->api;
-	api->stop(ppp_dev);
+	net_if_down(ctx->iface);
 }
 
 
