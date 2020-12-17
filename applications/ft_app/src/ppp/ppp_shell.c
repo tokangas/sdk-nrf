@@ -79,7 +79,7 @@ int ppp_shell_cmd(const struct shell *shell, size_t argc, char **argv)
 
 			break;
 		case PPP_CMD_STOP:
-			ppp_shell_set_ppp_carrier_off();
+			ppp_ctrl_stop();
 			break;
 	}
 

@@ -8,10 +8,11 @@
 #define PPP_CTRL_H
 
 #if defined (CONFIG_FTA_PPP)
-void ppp_ctrl_init();
+#define PPP_MODEM_DATA_RAW_SCKT_FD_NONE -666
 
+void ppp_ctrl_init();
 int ppp_ctrl_start(const struct shell *shell);
-void ppp_shell_set_ppp_carrier_off();
+void ppp_ctrl_stop();
 
 #endif
 
