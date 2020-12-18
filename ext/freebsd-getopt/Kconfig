@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+# Getopt Library for Zephyr
+
+config  GETOPT_LIB
+	bool "Getopt library"
+	default n
+	help
+	  Enable the Getopt Library

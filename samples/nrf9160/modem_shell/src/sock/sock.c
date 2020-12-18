@@ -21,7 +21,6 @@
 #include "sock.h"
 #include "fta_defines.h"
 #include "ltelc_api.h"
-#include "utils/freebsd-getopt/getopt.h"
 #include "utils/fta_net_utils.h"
 
 // Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one

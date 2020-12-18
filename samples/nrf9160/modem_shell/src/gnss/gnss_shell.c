@@ -8,8 +8,8 @@
 
 #include <zephyr.h>
 #include <shell/shell.h>
+#include <getopt.h>
 
-#include "utils/freebsd-getopt/getopt.h"
 #include "gnss.h"
 
 typedef enum {

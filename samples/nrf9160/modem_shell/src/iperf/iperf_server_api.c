@@ -30,8 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: not available by OS
-#include "utils/freebsd-getopt/getopt.h"
+#include <getopt.h>
 #include <errno.h>
 //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/unistd.h>

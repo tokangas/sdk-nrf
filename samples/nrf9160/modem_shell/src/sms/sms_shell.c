@@ -8,10 +8,10 @@
 #include <assert.h>
 #include <strings.h>
 #include <stdio.h>
+#include <getopt.h>
 
 #include "sms.h"
 #include "fta_defines.h"
-#include "utils/freebsd-getopt/getopt.h"
 
 // Maximum length of the data that can be specified with -d option
 #define SMS_MAX_MESSAGE_LEN 200

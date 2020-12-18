@@ -17,11 +17,11 @@
 #include <net/socket.h>
 #endif
 #include <fcntl.h>
+#include <getopt.h>
 
 #include "sock.h"
 #include "fta_defines.h"
 #include "ltelc_api.h"
-#include "utils/freebsd-getopt/getopt.h"
 #include "utils/fta_net_utils.h"
 
 // Maximum length of the address

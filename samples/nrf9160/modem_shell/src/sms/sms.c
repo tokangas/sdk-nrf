@@ -19,7 +19,6 @@
 #include "parser.h"
 #include "sms_deliver.h"
 #include "fta_defines.h"
-#include "utils/freebsd-getopt/getopt.h"
 
 #define PAYLOAD_BUF_SIZE 160
 

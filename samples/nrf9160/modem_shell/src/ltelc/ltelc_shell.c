@@ -9,8 +9,7 @@
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 #include <unistd.h>
-
-#include "utils/freebsd-getopt/getopt.h"
+#include <getopt.h>
 
 #include "ltelc.h"
 #include "ltelc_api.h"
@@ -201,6 +200,8 @@ static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff
 
 //**************************************************************************
 
+#include <posix/arpa/inet.h>
+
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int ret = 0;	
@@ -246,7 +247,31 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		ltelc_cmd_args.command = LTELC_CMD_PSM;
 	} else if (strcmp(argv[1], "help") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_HELP;
-        goto show_usage;
+		goto show_usage;
+	} else if (strcmp(argv[1], "ip") == 0) {
+		/*
+		char ip_addr[NET_IPV4_ADDR_LEN];
+		char ip_addr6[NET_IPV6_ADDR_LEN];
+		memset(ip_addr, 0, NET_IPV4_ADDR_LEN);
+		int cid = atoi(argv[2]);
+		pdp_context_info_t* pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(cid);
+		if (pdp_context_info == NULL) {
+			shell_print(shell, "ltelc_api_get_pdp_context_info_by_pdn_cid NOT FOUND");
+			return -99;
+		}
+		inet_ntop(AF_INET, &(pdp_context_info->ip_addr4), ip_addr, sizeof(ip_addr));
+		shell_print(shell, "ltelc_api_get_pdp_context_info_by_pdn_cid:ip_addr4: '%s'", ip_addr);
+
+		inet_ntop(AF_INET6, &(pdp_context_info->ip_addr6), ip_addr6, sizeof(ip_addr6));
+		shell_print(shell, "ltelc_api_get_pdp_context_info_by_pdn_cid:ip_addr6: '%s'", ip_addr6);
+
+		inet_ntop(AF_INET6, &(pdp_context_info->dns_addr6_primary), ip_addr6, sizeof(ip_addr6));
+		shell_print(shell, "ltelc_api_get_pdp_context_info_by_pdn_cid:dns_addr6_primary: '%s'", ip_addr6);
+
+		shell_print(shell, "ltelc_api_get_pdp_context_info_by_pdn_cid: cid=%d, apn=%s, pdp_type=%d, pdp_type_str=%s", pdp_context_info->cid, pdp_context_info->apn_str, pdp_context_info->pdp_type, pdp_context_info->pdp_type_str);
+
+		free(pdp_context_info);*/
+		return 0;
 	} else {
 		shell_error(shell, "Unsupported command=%s\n", argv[1]);
 		ret = -EINVAL;
