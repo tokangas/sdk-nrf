@@ -3157,8 +3157,8 @@ int iperf_test_fta_pdn_info_set(struct iperf_test *test)
         if (test->cid == FTA_ARG_NOT_SET) {
             /* Default context: */
             test->current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
-            test->current_sin4 = pdp_context_info_tbl.array[0].sin4;
-            test->current_sin6 = pdp_context_info_tbl.array[0].sin6;
+            test->current_sin4.sin_addr = pdp_context_info_tbl.array[0].ip_addr4;
+            test->current_sin6.sin6_addr = pdp_context_info_tbl.array[0].ip_addr6;
 
 			/* If '-B' option has been used, we need to try to find corresponding PDN: */
 			if (test->bind_address) {
@@ -3168,12 +3168,12 @@ int iperf_test_fta_pdn_info_set(struct iperf_test *test)
 				char ipv6_addr[NET_IPV6_ADDR_LEN];
 
 				for (i = 0; i < pdp_context_info_tbl.size; i++) {
-					inet_ntop(AF_INET, &(pdp_context_info_tbl.array[i].sin4.sin_addr), ipv4_addr, sizeof(ipv4_addr));
-					inet_ntop(AF_INET6, &(pdp_context_info_tbl.array[i].sin6.sin6_addr), ipv6_addr, sizeof(ipv6_addr));
+					inet_ntop(AF_INET, &(pdp_context_info_tbl.array[i].ip_addr4), ipv4_addr, sizeof(ipv4_addr));
+					inet_ntop(AF_INET6, &(pdp_context_info_tbl.array[i].ip_addr6), ipv6_addr, sizeof(ipv6_addr));
 					if (strcmp(test->bind_address, ipv4_addr) == 0 || strcmp(test->bind_address, ipv6_addr)) {
 						test->current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
-						test->current_sin4 = pdp_context_info_tbl.array[i].sin4;
-						test->current_sin6 = pdp_context_info_tbl.array[i].sin6;
+						test->current_sin4.sin_addr = pdp_context_info_tbl.array[i].ip_addr4;
+						test->current_sin6.sin6_addr = pdp_context_info_tbl.array[i].ip_addr6;
 						strcpy(test->current_apn_str, pdp_context_info_tbl.array[i].apn_str);
                     	found = true;
 						break;
@@ -3193,8 +3193,8 @@ int iperf_test_fta_pdn_info_set(struct iperf_test *test)
             for (i = 0; i < pdp_context_info_tbl.size; i++) {
                 if (pdp_context_info_tbl.array[i].cid == test->cid) {
                     test->current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
-                    test->current_sin4 = pdp_context_info_tbl.array[i].sin4;
-                    test->current_sin6 = pdp_context_info_tbl.array[i].sin6;
+                    test->current_sin4.sin_addr = pdp_context_info_tbl.array[i].ip_addr4;
+                    test->current_sin6.sin6_addr = pdp_context_info_tbl.array[i].ip_addr6;
                     strcpy(test->current_apn_str, pdp_context_info_tbl.array[i].apn_str);
                     found = true;
 					break;

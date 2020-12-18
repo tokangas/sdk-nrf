@@ -29,8 +29,8 @@ typedef struct {
 	char target_name[ICMP_MAX_URL];
 	struct addrinfo *src;
 	struct addrinfo *dest;
-	struct sockaddr_in current_sin4;
-	struct sockaddr_in6 current_sin6;
+	struct in_addr current_addr4;
+	struct in6_addr current_addr6;
     char current_apn_str[FTA_APN_STR_MAX_LEN];
     char current_pdp_type;
 	int len;
