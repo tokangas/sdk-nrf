@@ -30,7 +30,7 @@ extern struct net_if *ppp_iface_global;
 #define PPP_MODEM_DATA_RCV_THREAD_STACK_SIZE        1024
 #define PPP_MODEM_DATA_RCV_THREAD_PRIORITY          -2
 #define PPP_MODEM_DATA_RCV_POLL_TIMEOUT_MS          1000 // Milliseconds
-#define PPP_MODEM_DATA_RCV_BUFFER_SIZE              1500
+#define PPP_MODEM_DATA_RCV_BUFFER_SIZE              CONFIG_NET_PPP_MTU_MRU
 #define PPP_MODEM_DATA_RCV_PKT_BUF_ALLOC_TIMEOUT	K_MSEC(100)
 
 static char receive_buffer[PPP_MODEM_DATA_RCV_BUFFER_SIZE]; //TODO: from heap?
@@ -59,7 +59,7 @@ static void ppp_modem_data_rcv_thread_handler()
 			fds[0].revents = 0;
 
 			ret = poll(fds, 1, PPP_MODEM_DATA_RCV_POLL_TIMEOUT_MS);
-			if (ret > 0) {
+			if (ret > 0) {// && (fds[0].revents & POLLIN)
 				recv_data_len = recv(ppp_modem_data_raw_socket_fd, receive_buffer, PPP_MODEM_DATA_RCV_BUFFER_SIZE, 0);
 				if (recv_data_len > 0) {
 					//shell_info(ppp_shell_global, "ppp_modem_data_rcv_thread_handler: data received from modem, len %d", recv_data_len);

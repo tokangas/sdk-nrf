@@ -27,7 +27,7 @@
 
 #if defined (CONFIG_FTA_PPP)
 
-#define PPP_CTRL_UPLINK_WORKER 0
+#define PPP_CTRL_UPLINK_WORKER 1
 
 /* ppp globals: */
 extern struct net_if *ppp_iface_global;
@@ -40,9 +40,10 @@ typedef enum net_verdict (*net_core_callback_t)(struct net_if *iface,
 
 void net_core_register_pkt_cb(net_core_callback_t cb); /* found in net_core.c */
 
+static uint8_t buf_tx[CONFIG_NET_PPP_MTU_MRU];
+
 static void ppp_mdm_data_snd(struct net_pkt *pkt)
 {
-	static uint8_t buf_tx[CONFIG_NET_PPP_MTU_MRU];
 	int ret = 0;
 	int data_len = net_pkt_remaining_data(pkt);
 
@@ -53,15 +54,15 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 	} else {	
 		ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
 		if (ret <= 0) {
-			shell_error(ppp_shell_global, "ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", ret, data_len);
+			shell_error(ppp_shell_global, "ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", -errno, data_len);
 		}
 	}
 }
 
-#ifdef PPP_CTRL_UPLINK_WORKER
+#if defined(PPP_CTRL_UPLINK_WORKER)
 
 #define UPLINK_WORKQUEUE_STACK_SIZE 1024
-#define UPLINK_WORKQUEUE_PRIORITY -9
+#define UPLINK_WORKQUEUE_PRIORITY -7
 
 K_THREAD_STACK_DEFINE(uplink_stack_area, UPLINK_WORKQUEUE_STACK_SIZE);
 
@@ -84,7 +85,7 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 		shell_info(ppp_shell_global,"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: No data to recv!");
 		goto drop;
 	}
-	if (iface && net_if_l2(iface) != &NET_L2_GET_NAME(PPP)) {
+	if (iface && iface != ppp_iface_global) {//&NET_L2_GET_NAME(PPP)
 		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not for ppp iface\n");
 		return NET_CONTINUE;
 	}
@@ -98,7 +99,7 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not IPv4 data\n");
 		goto drop;
 	}
-#ifdef PPP_CTRL_UPLINK_WORKER
+#if defined(PPP_CTRL_UPLINK_WORKER)
 	k_work_init(net_pkt_work(pkt), ppp_ctrl_process_ppp_rx_packet);
 	k_work_submit_to_queue(&uplink_work_q, net_pkt_work(pkt));
 #else
@@ -111,7 +112,6 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 		shell_error(ppp_shell_global, "ppp_mdm_data_snd_data_rcv_from_ppp: cannot read packet: %d, from pkt %p", ret, pkt);
 		goto drop;
 	}
-	
 	ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
 	if (ret <= 0) {
 		shell_error(ppp_shell_global, "ppp_mdm_data_snd_data_rcv_from_ppp: send() failed: (%d), data len: %d\n", ret, data_len);
@@ -127,7 +127,7 @@ drop:
 
 void ppp_mdm_data_snd_init()
 {
-#ifdef PPP_CTRL_UPLINK_WORKER
+#if defined(PPP_CTRL_UPLINK_WORKER)
 	k_work_q_start(&uplink_work_q, uplink_stack_area,
 		       K_THREAD_STACK_SIZEOF(uplink_stack_area),
 		       UPLINK_WORKQUEUE_PRIORITY);
