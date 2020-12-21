@@ -98,14 +98,14 @@ const char ltelc_usage_str[] =
 	"Options for 'edrx' command:\n"
 	"  -e, --enable,     [bool] Enable eDRX\n"
 	"  -d, --disable,    [bool] Disable eDRX\n"
-	"  -x, --edrx_value, [str]  Sets custom eDRX value to be requested when enabling eDRX.\n"
-	"  -w, --ptw,        [str]  Sets custom Paging Time Window value to be requested when enabling eDRX.\n"
+	"  -x, --edrx_value, [str]  Sets custom eDRX value to be requested when enabling eDRX with -e option.\n"
+	"  -w, --ptw,        [str]  Sets custom Paging Time Window value to be requested when enabling eDRX -e option.\n"
 	"\n"
 	"Options for 'psm' command:\n"
 	"  -e, --enable,     [bool] Enable PSM\n"
 	"  -d, --disable,    [bool] Disable PSM\n"
-	"  -p, --rptau,      [str]  Sets custom requested periodic TAU value to be requested when enabling PSM.\n"
-	"  -t, --rat,        [str]  Sets custom requested active time (RAT) value to be requested when enabling PSM.\n"
+	"  -p, --rptau,      [str]  Sets custom requested periodic TAU value to be requested when enabling PSM -e option.\n"
+	"  -t, --rat,        [str]  Sets custom requested active time (RAT) value to be requested when enabling PSM -e option.\n"
 	"\n"
 	;
 
