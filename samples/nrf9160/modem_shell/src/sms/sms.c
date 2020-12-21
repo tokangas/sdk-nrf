@@ -31,6 +31,13 @@ void sms_callback(struct sms_data *const data, void *context)
 	if (data == NULL) {
 		printk("sms_callback with NULL data\n");
 	}
+
+	if (data->type == SMS_TYPE_SUBMIT_REPORT) {
+		/* TODO: Check whether we should parse SMS-SUBMIT-REPORT more carefully */
+		shell_print(shell_global, "SMS submit report received");
+		return;
+	}
+
 	// Alpha is phone number
 	shell_print(shell_global, "SMS received from number=%s with data (length=%d):", data->alpha, data->length);
 	shell_print(shell_global, "%s", data->pdu);
