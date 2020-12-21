@@ -108,7 +108,10 @@ int sms_send(char* number, char* data)
 	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
 	int ret;
 
-	printf("Sending SMS to number=%s, data(%d)=%s\n", number, strlen(data), data);
+	if (number == NULL) {
+		shell_error(shell_global, "SMS number not given\n");
+		return -EINVAL;
+	}
 
 	ret = initialize();
 	if (ret != 0) {
@@ -139,6 +142,19 @@ int sms_send(char* number, char* data)
 	uint8_t encoded_number_size = strlen(number);
 	memset(encoded_number, 0, 30);
 	memcpy(encoded_number, number, encoded_number_size);
+
+	if (encoded_number_size == 0) {
+		shell_error(shell_global, "SMS number not given\n");
+		return -EINVAL;
+	}
+
+	if (number[0] == '+') {
+		/* If first character of the number is plus, just ignore it.
+		   We are using international number format always anyway */
+		number += 1;
+		encoded_number_size = strlen(number);
+		printf("Ignoring leading '+' in the number. Remaining number=%s\n", number);
+	}
 
 	for (int i = 0; i < encoded_number_size; i++) {
 		if (!(i%2)) {
