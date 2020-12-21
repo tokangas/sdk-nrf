@@ -22,6 +22,7 @@
 
 #define PAYLOAD_BUF_SIZE 160
 
+extern const struct shell* shell_global;
 void sms_callback(struct sms_data *const data, void *context)
 {
 	// Alpha is phone number
