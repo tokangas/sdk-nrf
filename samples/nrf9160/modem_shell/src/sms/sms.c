@@ -149,8 +149,6 @@ int sms_send(char* number, char* text)
 
 	uint8_t encoded_number[30];
 	uint8_t encoded_number_size = strlen(number);
-	memset(encoded_number, 0, 30);
-	memcpy(encoded_number, number, encoded_number_size);
 
 	if (encoded_number_size == 0) {
 		shell_error(shell_global, "SMS number not given\n");
@@ -164,6 +162,9 @@ int sms_send(char* number, char* text)
 		encoded_number_size = strlen(number);
 		printf("Ignoring leading '+' in the number. Remaining number=%s\n", number);
 	}
+
+	memset(encoded_number, 0, 30);
+	memcpy(encoded_number, number, encoded_number_size);
 
 	for (int i = 0; i < encoded_number_size; i++) {
 		if (!(i%2)) {
