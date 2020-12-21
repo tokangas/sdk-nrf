@@ -72,6 +72,10 @@ extern const struct shell* shell_global; // TODO: Get rid of this variable here
 
 
 static void sock_info_clear(sock_info_t* socket_info) {
+	if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
+		k_timer_stop(&socket_info->send_info.timer);
+		shell_print(shell_global, "Socket data send periodic stop");
+	}
 	if (socket_info->send_buffer != NULL) {
 		free(socket_info->send_buffer);
 	}
