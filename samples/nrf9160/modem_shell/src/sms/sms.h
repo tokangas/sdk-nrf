@@ -10,5 +10,7 @@
 #define SMS_NUMBER_NONE -1
 
 int sms_send(char* number, char* data);
+int sms_register();
+int sms_unregister();
 
 #endif
