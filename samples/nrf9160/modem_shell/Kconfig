@@ -83,6 +83,21 @@ config FTA_CURL_FUNCTIONAL_CHANGES
 endmenu #FTA CURL
 endif #FTA_CURL
 
+choice FTA_GNSS_API
+	bool "Used GNSS API"
+	depends on FTA_GNSS
+	default FTA_GNSS_API_GPS_DRIVER
+	help
+	  Used GNSS API type.
+
+config FTA_GNSS_API_SOCKET
+	bool "GNSS socket API"
+
+config FTA_GNSS_API_GPS_DRIVER
+	bool "GPS driver"
+
+endchoice
+
 endmenu #FTA
 
 #menu "Zephyr Kernel"
