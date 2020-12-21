@@ -36,7 +36,6 @@ uint8_t event_output_level = 0;
 
 static void print_pvt(const struct gps_pvt *pvt, bool is_fix)
 {
-	bool tracked_svs = false;
 	char output_buffer[256];
 
 	if (pvt_output_level == 0) {
@@ -90,8 +89,6 @@ static void print_pvt(const struct gps_pvt *pvt, bool is_fix)
 			/* SV not valid, skip */
 			continue;
 		}
-
-		tracked_svs = true;
 
 		sprintf(output_buffer, "SV: %2d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
 			pvt->sv[i].sv,
