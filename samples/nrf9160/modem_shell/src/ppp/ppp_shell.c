@@ -16,8 +16,8 @@
 #include <net/promiscuous.h>
 
 typedef enum {
-	PPP_CMD_START = 0,
-	PPP_CMD_STOP
+	PPP_CMD_UP = 0,
+	PPP_CMD_DOWN
 } ppp_shell_command;
 
 typedef struct {
@@ -27,14 +27,12 @@ typedef struct {
 static ppp_shell_cmd_args_t ppp_cmd_args;
 
 const char ppp_cmd_usage_str[] =
-	"Usage: ppp <command> [options]\n"
+	"Usage: ppp <command>\n"
 	"\n"
 	"<command> is one of the following:\n"
 	"  help:                    Show this message\n"
-	"  start:                   Set carrier ON and start PPP\n"
-	"  stop:                    Set carrier OFF and stop PPP\n"
-	"\n"
-	"Options for 'pp' command:\n"
+	"  up:                      Set PPP net_if up\n"
+	"  down:                    Set PPP net_if down\n"
 	"\n"
 	;
 static void ppp_shell_print_usage(const struct shell *shell)
@@ -57,10 +55,10 @@ int ppp_shell_cmd(const struct shell *shell, size_t argc, char **argv)
 		goto show_usage;
 	}
 
-	if (strcmp(argv[1], "start") == 0) {
-		ppp_cmd_args.command = PPP_CMD_START;
-	} else if (strcmp(argv[1], "stop") == 0) {
-		ppp_cmd_args.command = PPP_CMD_STOP;
+	if (strcmp(argv[1], "up") == 0) {
+		ppp_cmd_args.command = PPP_CMD_UP;
+	} else if (strcmp(argv[1], "down") == 0) {
+		ppp_cmd_args.command = PPP_CMD_DOWN;
 	} else if (strcmp(argv[1], "help") == 0) {
         goto show_usage;
 	} else {
@@ -70,15 +68,15 @@ int ppp_shell_cmd(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	switch (ppp_cmd_args.command) {
-		case PPP_CMD_START:
+		case PPP_CMD_UP:
 			ret = ppp_ctrl_start(shell);
-			if (ret <= 0)
-				shell_print(shell, "PPP started\n");
+			if (ret >= 0)
+				shell_print(shell, "PPP net if up.\n");
 			else
-				shell_print(shell, "PPP cannot be started: %d\n", ret);
+				shell_error(shell, "PPP net if cannot be started\n");
 
 			break;
-		case PPP_CMD_STOP:
+		case PPP_CMD_DOWN:
 			ppp_ctrl_stop();
 			break;
 	}

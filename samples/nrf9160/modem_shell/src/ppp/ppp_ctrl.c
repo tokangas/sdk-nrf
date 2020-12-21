@@ -49,16 +49,12 @@ static void ppp_ctrl_net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 	}
 
 	if (mgmt_event == NET_EVENT_PPP_CARRIER_ON) {
-		printf("PPP carrier ON\n");
+		shell_print(ppp_shell_global, "PPP carrier ON");
 		return;
 	}
 
 	if (mgmt_event == NET_EVENT_PPP_CARRIER_OFF) {
-		printf("PPP carrier OFF\n");
-		if (ppp_modem_data_raw_socket_fd != PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
-			(void)close(ppp_modem_data_raw_socket_fd);
-			ppp_modem_data_raw_socket_fd = PPP_MODEM_DATA_RAW_SCKT_FD_NONE;
-		}
+		shell_print(ppp_shell_global, "PPP carrier OFF");
 		return;
 	}
 
@@ -93,6 +89,11 @@ int ppp_ctrl_start(const struct shell *shell) {
 	int idx = 0; //TODO: find PPP if according to name?
 	pdp_context_info_t* pdp_context_info;
 	ppp_shell_global = shell;
+
+	if (ppp_modem_data_raw_socket_fd != PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
+		shell_warn(shell, "PPP already up.\n");
+		goto return_error;
+	}
 
 	ctx = net_ppp_context_get(idx);
 	if (!ctx) {
@@ -131,12 +132,18 @@ int ppp_ctrl_start(const struct shell *shell) {
 return_error:
 	return -1;
 }
+
 /* ********************************************************************/
 
 void ppp_ctrl_stop()
 {
 	struct ppp_context *ctx;
 	int idx = 0; //TODO: find PPP ifaccording to name?
+
+	if (ppp_modem_data_raw_socket_fd != PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
+		(void)close(ppp_modem_data_raw_socket_fd);
+		ppp_modem_data_raw_socket_fd = PPP_MODEM_DATA_RAW_SCKT_FD_NONE;
+	}
 
 	ctx = net_ppp_context_get(idx);
 	if (!ctx && !ctx->iface)
