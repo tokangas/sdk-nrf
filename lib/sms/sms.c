@@ -73,9 +73,11 @@ static bool sms_is_cmd_notification(const char *const at_notif)
 
 	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
 		AT_SMS_NOTIFICATION_LEN) == 0) {
+		cmt_rsp.type = SMS_TYPE_DELIVER;
 		return true;
 	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
 		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
+		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
 		return true;
 	}
 	return false;

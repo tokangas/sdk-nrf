@@ -19,16 +19,28 @@
 #include "parser.h"
 #include "sms_deliver.h"
 #include "fta_defines.h"
-#include "utils/freebsd-getopt/getopt.h"
 
 #define PAYLOAD_BUF_SIZE 160
+#define SMS_HANDLE_NONE -1
+
+extern const struct shell* shell_global;
+static int sms_handle = SMS_HANDLE_NONE;
 
 void sms_callback(struct sms_data *const data, void *context)
 {
-	// Alpha is phone number
+	if (data == NULL) {
+		printk("sms_callback with NULL data\n");
+	}
 
-	// TODO: Decode length and PDU
-	printf("SMS Received: %s\nlength=%d: %s\n", data->alpha, data->length, data->pdu);
+	if (data->type == SMS_TYPE_SUBMIT_REPORT) {
+		/* TODO: Check whether we should parse SMS-SUBMIT-REPORT more carefully */
+		shell_print(shell_global, "SMS submit report received");
+		return;
+	}
+
+	// Alpha is phone number
+	shell_print(shell_global, "SMS received from number=%s with data (length=%d):", data->alpha, data->length);
+	shell_print(shell_global, "%s", data->pdu);
 
 	struct  parser sms_deliver;
 
@@ -44,6 +56,7 @@ void sms_callback(struct sms_data *const data, void *context)
 
 	if(err) {
 		printk("Parsing return code: %d\n", err);
+		// TODO: Check this when SMS SUBMIT REPORT is handled properly
 		//return err;
 	}
 
@@ -56,36 +69,29 @@ void sms_callback(struct sms_data *const data, void *context)
 	if(payload_size < 0) {
 		printk("Getting sms deliver payload failed: %d\n",
 			payload_size);
+		// TODO: Check this when SMS SUBMIT REPORT is handled properly
 		//return payload_size;
 	}
 
-	printk("SMS time, day:%02x month:%02x year:%02x  %02x:%02x:%02x \n",
-		sms_header.time.day,
-		sms_header.time.month,
+	shell_print(shell_global, "Number: %s", data->alpha);
+	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
+		sms_header.time.month,
+		sms_header.time.day,
 		sms_header.time.hour,
 		sms_header.time.minute,
 		sms_header.time.second);
-	/*
-	printk("SMS deliver message data length: %d\n", payload_size);
-	printk("SMS deliver message data payload: ");
 
-	for(int i=0;i<payload_size;++i) {
-		printk("%02x", deliver_data[i]);
-	}
-
-	printk("\n");*/
-	printk("Received length=%d, data='%s'\n", payload_size, deliver_data);
+	shell_print(shell_global, "Text:   '%s'", deliver_data);
 
 	parser_delete(&sms_deliver);
 }
 
-static int initialize()
+int sms_register()
 {
 	int ret;
-	static bool initialized = false;
 
-	if (initialized) {
+	if (sms_handle != SMS_HANDLE_NONE) {
 		return 0;
 	}
 
@@ -94,24 +100,39 @@ static int initialize()
 		printf("sms_init returned err: %d\n", ret);
 		return ret;
 	}
-	ret = sms_register_listener(sms_callback, NULL);
-	if (ret) {
-		printf("sms_register_listener returned err: %d\n", ret);
-		return ret;
+	int handle = sms_register_listener(sms_callback, NULL);
+	if (handle) {
+		printf("sms_register_listener returned err: %d\n", handle);
+		return handle;
 	}
 
-	initialized = true;
+	sms_handle = handle;
 	return 0;
 }
 
-int sms_send(char* number, char* data)
+int sms_unregister()
+{
+	sms_handle = SMS_HANDLE_NONE;
+
+	sms_unregister_listener(sms_handle);
+	sms_uninit();
+
+	return 0;
+}
+
+int sms_send(char* number, char* text)
 {
 	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
 	int ret;
 
-	printf("Sending SMS to number=%s, data(%d)=%s\n", number, strlen(data), data);
+	if (number == NULL) {
+		shell_error(shell_global, "SMS number not given\n");
+		return -EINVAL;
+	}
 
-	ret = initialize();
+	shell_print(shell_global, "Sending SMS to number=%s, text='%s'", number, text);
+
+	ret = sms_register();
 	if (ret != 0) {
 		return ret;
 	}
@@ -124,7 +145,7 @@ int sms_send(char* number, char* data)
 	memset(encoded, 0, 160);
 	memset(encoded_data_hex_str, 0, 400);
 
-	size = string_conversion_ascii_to_gsm7bit(data, strlen(data), encoded, &encoded_size, NULL, true);
+	size = string_conversion_ascii_to_gsm7bit(text, strlen(text), encoded, &encoded_size, NULL, true);
 
 	uint8_t hex_str_number = 0;
 	for (int i = 0; i < encoded_size; i++) {
@@ -133,11 +154,22 @@ int sms_send(char* number, char* data)
 		hex_str_number += 2;
 	}
 
-	//printf("string_conversion_ascii_to_gsm7bit: %d, encoded_size=%d, encoded_data_hex_str=%s\n", size, encoded_size, encoded_data_hex_str);
-
-	// TODO: Remove leading +, -, etc. sign
 	uint8_t encoded_number[30];
 	uint8_t encoded_number_size = strlen(number);
+
+	if (encoded_number_size == 0) {
+		shell_error(shell_global, "SMS number not given\n");
+		return -EINVAL;
+	}
+
+	if (number[0] == '+') {
+		/* If first character of the number is plus, just ignore it.
+		   We are using international number format always anyway */
+		number += 1;
+		encoded_number_size = strlen(number);
+		printf("Ignoring leading '+' in the number. Remaining number=%s\n", number);
+	}
+
 	memset(encoded_number, 0, 30);
 	memcpy(encoded_number, number, encoded_number_size);
 
@@ -155,21 +187,20 @@ int sms_send(char* number, char* data)
 		}
 	}
 
-	//printf("Number encoded: encoded_number_size=%d number=%s, encoded_number=%s\n", encoded_number_size, number, encoded_number);
-
 	char send_data[500];
 	memset(send_data, 0, 500);
 
 	int msg_size = 2 + 1 + 1 + (encoded_number_size / 2) + 3 + 1 + encoded_size;
 	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a", msg_size, encoded_number_size, encoded_number, size, encoded_data_hex_str);
-	printf("%s:send_data (msg_size=%d)\n", send_data, msg_size);
+	shell_print(shell_global, "Sending encoded SMS data (length=%d):", msg_size);
+	shell_print(shell_global, "%s", send_data);
 
 	ret = at_cmd_write(send_data, at_response_str, sizeof(at_response_str), NULL);
 	if (ret) {
 		printf("at_cmd_write returned err: %2d\n", ret);
 		return ret;
 	}
-	printf("\nAT Response:%s\n", at_response_str);
+	//printf("\nAT Response:%s\n", at_response_str);
 
 	return 0;
 }

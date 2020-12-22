@@ -8,8 +8,7 @@
 #include <zephyr.h>
 
 #include <shell/shell.h>
-
-#include "utils/freebsd-getopt/getopt.h"
+#include <getopt.h>
 
 #include "ltelc_api.h"
 

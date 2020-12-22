@@ -8,16 +8,18 @@
 #include <assert.h>
 #include <strings.h>
 #include <stdio.h>
+#include <getopt.h>
 
 #include "sms.h"
 #include "fta_defines.h"
-#include "utils/freebsd-getopt/getopt.h"
 
 // Maximum length of the data that can be specified with -d option
 #define SMS_MAX_MESSAGE_LEN 200
 
 typedef enum {
-	SMS_CMD_SEND = 0,
+	SMS_CMD_REGISTER = 0,
+	SMS_CMD_UNREGISTER,
+	SMS_CMD_SEND,
 	SMS_CMD_RECV,
 	SMS_CMD_HELP
 } sms_command;
@@ -28,12 +30,14 @@ const char sms_usage_str[] =
 	"Usage: sock <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
-	"  send:    Send SMS message. Mandatory options: -m, -n\n"
+	"  send:    Send SMS message. Also registers SMS service if required. Mandatory options: -m, -n\n"
+	"  reg:     Register SMS service to be able to receive messages.\n"
+	"  unreg:   Unregister SMS service after which messages cannot be received.\n"
 	"\n"
 	"Options for 'send' command:\n"
-	"  -m, --message [str]       Data to be sent. Cannot be used with -l option.\n"
-	"  -n, --number, [str]       Length of undefined data in bytes. This can be used when testing\n"
-	"                            with bigger data amounts. Cannot be used with -d or -e option.\n"
+	"  -m, --message [str]       Text to be sent.\n"
+	"  -n, --number, [str]       Number in international format including country\n"
+	"                            number. Leading '+' can be present or left out.\n"
 	"\n"
 	"Options for 'help' command:\n"
 	"  -v, --verbose, [bool]     Show examples\n"
@@ -69,17 +73,19 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err = 0;
 	shell_global = shell;
-	// Before parsing the command line, reset getopt index to the start of the arguments
-	optind = 1;
 
 	if (argc < 2) {
 		sms_print_usage();
 		return 0;
 	}
 
-	// Command = argv[1]
+	/* Command = argv[1] */
 	sms_command command;
-	if (!strcmp(argv[1], "send")) {
+	if (!strcmp(argv[1], "reg")) {
+		command = SMS_CMD_REGISTER;
+	} else if (!strcmp(argv[1], "unreg")) {
+		command = SMS_CMD_UNREGISTER;
+	} else if (!strcmp(argv[1], "send")) {
 		command = SMS_CMD_SEND;
 	} else if (!strcmp(argv[1], "recv")) {
 		command = SMS_CMD_RECV;
@@ -89,11 +95,11 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 		sms_print_usage();
 		return -EINVAL;
 	}
-	// Increase getopt command line parsing index not to handle command
-	optind++;
+	/* Set getopt command line parsing index to skip commands */
+	optind = 2;
 
-	// Variables for command line arguments
-	char arg_number[SMS_MAX_MESSAGE_LEN+1];// = SMS_NUMBER_NONE;
+	/* Variables for command line arguments */
+	char arg_number[SMS_MAX_MESSAGE_LEN+1];
 	char arg_message[SMS_MAX_MESSAGE_LEN+1];
 	bool arg_verbose = false;
 
@@ -125,6 +131,12 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// Run given command with it's arguments
 	switch (command) {
+		case SMS_CMD_REGISTER:
+			err = sms_register();
+			break;
+		case SMS_CMD_UNREGISTER:
+			err = sms_unregister();
+			break;
 		case SMS_CMD_SEND:
 			err = sms_send(arg_number, arg_message);
 			break;
