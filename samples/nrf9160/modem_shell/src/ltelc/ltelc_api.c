@@ -325,8 +325,8 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		{
 			char *ip_address1, *ip_address2;
 
-			// Get 1st 2 IP addresses from a CGDCONT string.
-			// Notice that ip_addr_str is slightly modified by strtok()
+			/* Get 1st 2 IP addresses from a CGDCONT string.
+			   Notice that ip_addr_str is slightly modified by strtok()*/
 			ip_address1 = strtok(ip_addr_str, " ");
 			ip_address2 = strtok(NULL, " ");
 
@@ -335,39 +335,33 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 					fta_net_utils_sa_family_from_ip_string(
 						ip_address1);
 				if (family == AF_INET) {
-					struct sockaddr_in *sin =
-						&populated_info[iterator].sin4;
-					(void)inet_pton(AF_INET, ip_address1,
-							&(sin->sin_addr));
-					sin->sin_family = AF_INET;
+					struct in_addr *addr4 =
+						&populated_info[iterator].ip_addr4;
+					(void)inet_pton(AF_INET, ip_address1, addr4);
 				} else if (family == AF_INET6) {
-					struct sockaddr_in6 *sin6 =
-						&populated_info[iterator].sin6;
+					struct in6_addr *addr6 =
+						&populated_info[iterator].ip_addr6;
 
-					(void)inet_pton(AF_INET6, ip_address1,
-							&(sin6->sin6_addr));
-					sin6->sin6_family = AF_INET6;
+					(void)inet_pton(AF_INET6, ip_address1, addr6);
 				}
 			}
 			if (ip_address2 != NULL) {
-				/* note: if we are here, PDP_addr_2 should be IPv6, thus in following ipv4 branch should not 
-			   be possible: */
+				/* Note: If we are here, PDP_addr_2 should be IPv6,
+				   thus in following ipv4 branch should not be possible: */
 				int family =
 					fta_net_utils_sa_family_from_ip_string(
 						ip_address2);
 				if (family == AF_INET) {
-					struct sockaddr_in *sin =
-						&populated_info[iterator].sin4;
+					struct in_addr *addr4 =
+						&populated_info[iterator].ip_addr4;
 					(void)inet_pton(AF_INET, ip_address2,
-							&(sin->sin_addr));
-					sin->sin_family = AF_INET;
+							addr4);
 				} else if (family == AF_INET6) {
-					struct sockaddr_in6 *sin6 =
-						&populated_info[iterator].sin6;
+					struct in6_addr *addr6 =
+						&populated_info[iterator].ip_addr6;
 
 					(void)inet_pton(AF_INET6, ip_address2,
-							&(sin6->sin6_addr));
-					sin6->sin6_family = AF_INET6;
+							addr6);
 				}
 			}
 		}
@@ -443,9 +437,9 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 			pdp_context_info_t *info_tbl = pdp_context_info_tbl.array;
 
 			for (i = 0; i < pdp_context_info_tbl.size; i++) {
-				inet_ntop(AF_INET, &(info_tbl[i].sin4.sin_addr),
+				inet_ntop(AF_INET, &(info_tbl[i].ip_addr4),
 					ipv4_addr, sizeof(ipv4_addr));
-				inet_ntop(AF_INET6, &(info_tbl[i].sin6.sin6_addr),
+				inet_ntop(AF_INET6, &(info_tbl[i].ip_addr6),
 					ipv6_addr, sizeof(ipv6_addr));
 
 				inet_ntop(AF_INET, &(info_tbl[i].dns_addr4_primary),

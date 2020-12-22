@@ -111,7 +111,7 @@ int ppp_ctrl_start(const struct shell *shell) {
 	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
 
 	/* Couldn't find the way to set these for PPP in another way: TODO api to PPP for raw mode?*/
-	memcpy(&(ctx->ipcp.my_options.address), &(pdp_context_info->sin4.sin_addr), sizeof(ctx->ipcp.my_options.address));
+	memcpy(&(ctx->ipcp.my_options.address), &(pdp_context_info->ip_addr4), sizeof(ctx->ipcp.my_options.address));
     memcpy(&ctx->ipcp.my_options.dns1_address, &pdp_context_info->dns_addr4_primary, sizeof(ctx->ipcp.my_options.dns1_address));
     memcpy(&ctx->ipcp.my_options.dns2_address, &pdp_context_info->dns_addr4_secondary, sizeof(ctx->ipcp.my_options.dns2_address));
 
