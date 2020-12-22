@@ -18,9 +18,11 @@
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
+#if defined(CONFIG_FTA_PPP)
 #include <shell/shell.h>
-
 #include "ppp_ctrl.h"
+#endif
+
 #include "ltelc.h"
 
 /* global variables */
