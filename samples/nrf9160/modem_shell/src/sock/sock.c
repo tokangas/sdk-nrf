@@ -28,7 +28,7 @@
 #define SOCK_SEND_BUFFER_SIZE_UDP 1200
 #define SOCK_SEND_BUFFER_SIZE_TCP 3540 // This should be multiple of TCP window size (708) to make it more efficient
 #define SOCK_RECEIVE_BUFFER_SIZE 1536
-#define SOCK_RECEIVE_STACK_SIZE 2048
+#define SOCK_RECEIVE_STACK_SIZE 1024
 #define SOCK_RECEIVE_PRIORITY 5
 // Timeout for polling socket events such as receive data, permission to send more, disconnected socket etc.
 // This limits how quickly data can be received after socket creation.
@@ -66,8 +66,7 @@ typedef struct {
 	struct data_transfer_info send_info;
 } sock_info_t;
 
-sock_info_t sockets[MAX_SOCKETS] = {0};
-char receive_buffer[SOCK_RECEIVE_BUFFER_SIZE];
+sock_info_t sockets[MAX_SOCKETS] = {0}; /* Reserve this from heap */
 extern const struct shell* shell_global; // TODO: Get rid of this variable here
 
 
@@ -619,6 +618,7 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 static void sock_receive_handler()
 {
 	struct pollfd fds[MAX_SOCKETS];
+	char *receive_buffer = NULL;
 
 	while (true) {
 		int count = 0;
@@ -638,6 +638,8 @@ static void sock_receive_handler()
 		if (count == 0) {
 			/* No sockets in use, so no use calling poll() */
 			k_sleep(K_MSEC(SOCK_POLL_TIMEOUT_MS));
+			k_free(receive_buffer);
+			receive_buffer = NULL;
 			continue;
 		}
 
@@ -656,6 +658,14 @@ static void sock_receive_handler()
 
 				if (fds[i].revents & POLLIN) {
 					int buffer_size;
+
+					if (receive_buffer == NULL) {
+						receive_buffer = calloc(SOCK_RECEIVE_BUFFER_SIZE + 1, 1);
+						if (receive_buffer == NULL) {
+							shell_error(shell_global, "Out of memory while reserving receive buffer of size %d bytes", SOCK_RECEIVE_BUFFER_SIZE);
+							break;
+						}
+					}
 
 					if (socket_info->recv_start_throughput) {
 						socket_info->start_time_ms = k_uptime_get();
