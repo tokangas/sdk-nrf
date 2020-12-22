@@ -420,16 +420,16 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 			} : NULL,
 	};
 	
-	inet_ntop(AF_INET,  &(ping_argv.current_sin4.sin_addr), src_ipv_addr, sizeof(src_ipv_addr));
+	inet_ntop(AF_INET,  &(ping_argv.current_addr4), src_ipv_addr, sizeof(src_ipv_addr));
     if (ping_argv.current_pdp_type == PDP_TYPE_IP4V6) {
 		if (ping_argv.force_ipv6) {
 			hints.ai_family = AF_INET6;
-			inet_ntop(AF_INET6,  &(ping_argv.current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
+			inet_ntop(AF_INET6,  &(ping_argv.current_addr6), src_ipv_addr, sizeof(src_ipv_addr));
 		}
 	}
     if (ping_argv.current_pdp_type == PDP_TYPE_IPV6) {
 		hints.ai_family = AF_INET6;
-		inet_ntop(AF_INET6,  &(ping_argv.current_sin6.sin6_addr), src_ipv_addr, sizeof(src_ipv_addr));
+		inet_ntop(AF_INET6,  &(ping_argv.current_addr6), src_ipv_addr, sizeof(src_ipv_addr));
 	}	
 	st = getaddrinfo(src_ipv_addr, NULL, &hints, &res);
 	if (st != 0) {

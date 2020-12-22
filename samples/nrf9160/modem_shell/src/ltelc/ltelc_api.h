@@ -26,8 +26,8 @@ typedef struct {
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
 	char apn_str[FTA_APN_STR_MAX_LEN];
 	char pdp_type;
-	struct sockaddr_in sin4;
-	struct sockaddr_in6 sin6;
+	struct in_addr ip_addr4;
+	struct in6_addr ip_addr6;
 	struct in_addr dns_addr4_primary;
 	struct in_addr dns_addr4_secondary;
 	struct in6_addr dns_addr6_primary;
