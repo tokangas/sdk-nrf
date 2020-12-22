@@ -17,7 +17,9 @@
 
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
+#if defined(CONFIG_FTA_LTELC)
 #include "ltelc.h"
+#endif
 
 /* global variables */
 struct modem_param_info modem_param;
@@ -86,7 +88,7 @@ static int fta_shell_init(const struct device *unused)
 
 	modem_trace_enable();
 
-#if defined(CONFIG_LTE_LINK_CONTROL)
+#if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	ltelc_init();
 
 	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
@@ -105,7 +107,7 @@ static int fta_shell_init(const struct device *unused)
 
 void main(void)
 {
-#if defined(CONFIG_LTE_LINK_CONTROL)
+#if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	int err;
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
