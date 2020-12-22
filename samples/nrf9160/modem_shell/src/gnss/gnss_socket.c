@@ -37,7 +37,7 @@ static void print_pvt_flags(nrf_gnss_pvt_data_frame_t *pvt)
 		(pvt->flags & NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) == NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT ? "true" : "false");
 	shell_print(gnss_shell_global, "Deadline missed:    %s",
 		(pvt->flags & NRF_GNSS_PVT_FLAG_DEADLINE_MISSED) == NRF_GNSS_PVT_FLAG_DEADLINE_MISSED ? "true" : "false");
-	shell_print(gnss_shell_global, "Insuf. time window: %s\n",
+	shell_print(gnss_shell_global, "Insuf. time window: %s",
 		(pvt->flags & NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) == NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME ? "true" : "false");
 
 }
