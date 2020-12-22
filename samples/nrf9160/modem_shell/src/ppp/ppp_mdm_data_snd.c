@@ -62,7 +62,7 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 #if defined(PPP_CTRL_UPLINK_WORKER)
 
 #define UPLINK_WORKQUEUE_STACK_SIZE 1024
-#define UPLINK_WORKQUEUE_PRIORITY -7
+#define UPLINK_WORKQUEUE_PRIORITY   K_PRIO_COOP(9)/* -7 */
 
 K_THREAD_STACK_DEFINE(uplink_stack_area, UPLINK_WORKQUEUE_STACK_SIZE);
 

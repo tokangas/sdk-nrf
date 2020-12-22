@@ -18,6 +18,8 @@
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
+#include <shell/shell.h>
+
 #include "ppp_ctrl.h"
 #include "ltelc.h"
 

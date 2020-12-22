@@ -28,8 +28,8 @@ extern int ppp_modem_data_raw_socket_fd;
 extern struct net_if *ppp_iface_global;
 
 #define PPP_MODEM_DATA_RCV_THREAD_STACK_SIZE        1024
-#define PPP_MODEM_DATA_RCV_THREAD_PRIORITY          -2
-#define PPP_MODEM_DATA_RCV_POLL_TIMEOUT_MS          1000 // Milliseconds
+#define PPP_MODEM_DATA_RCV_THREAD_PRIORITY          K_PRIO_COOP(14) /* -2 */
+#define PPP_MODEM_DATA_RCV_POLL_TIMEOUT_MS          1000 /* Milliseconds */
 #define PPP_MODEM_DATA_RCV_BUFFER_SIZE              CONFIG_NET_PPP_MTU_MRU
 #define PPP_MODEM_DATA_RCV_PKT_BUF_ALLOC_TIMEOUT	K_MSEC(100)
 
