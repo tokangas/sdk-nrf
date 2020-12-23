@@ -17,6 +17,12 @@
 
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
+
+#if defined(CONFIG_FTA_PPP)
+#include <shell/shell.h>
+#include "ppp_ctrl.h"
+#endif
+
 #if defined(CONFIG_FTA_LTELC)
 #include "ltelc.h"
 #endif
@@ -102,6 +108,10 @@ static int fta_shell_init(const struct device *unused)
 	}
 	modem_info_params_init(&modem_param);
 #endif
+#if defined (CONFIG_FTA_PPP)
+    ppp_ctrl_init();
+#endif
+
 	return err;
 }
 
