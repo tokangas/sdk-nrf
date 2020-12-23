@@ -105,7 +105,7 @@ static sock_info_t* get_socket_info_by_id(int socket_id)
 {
 	sock_info_t *socket_info = NULL;
 	if (socket_id == SOCK_ID_NONE) {
-		shell_error(shell_global, "Socket id not given. -i option is mandatory"); //for command=%s", argv[1]); // TODO: Can we print command somehow
+		shell_error(shell_global, "Socket id not given. -i option is mandatory");
 		return NULL;
 	}
 	if (socket_id < 0 || socket_id > MAX_SOCKETS) {

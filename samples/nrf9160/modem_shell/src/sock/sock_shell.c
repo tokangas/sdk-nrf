@@ -70,7 +70,7 @@ const char sock_usage_str[] =
 	"  -d, --data [str]          Data to be sent. Cannot be used with -l option.\n"
 	"  -l, --length, [int]       Length of undefined data in bytes. This can be used when testing\n"
 	"                            with bigger data amounts. Cannot be used with -d or -e option.\n"
-	"  -e, --period, [int]       Data sending interval in milliseconds. You must also specify -d.\n"
+	"  -e, --period, [int]       Data sending interval in seconds. You must also specify -d.\n"
 	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
 	"                            This is only valid when -l is given. Default value is 1.\n"
 	"  -s, --buffer_size, [int]  Send buffer size. This is only valid when -l is given.\n"
