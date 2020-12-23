@@ -37,6 +37,9 @@
 #if defined (CONFIG_FTA_SMS)
 #include "sms/sms_shell.h"
 #endif
+#if defined(CONFIG_FTA_PPP)
+#include "ppp/ppp_shell.h"
+#endif
 
 const struct shell* shell_global;
 
@@ -87,4 +90,10 @@ SHELL_CMD_REGISTER(gnss, NULL, "Commands for controlling GNSS.", gnss_shell);
 
 #if defined (CONFIG_FTA_SMS)
 SHELL_CMD_REGISTER(sms, NULL, "Commands for sending and receiving SMS.", sms_shell);
+#endif
+
+#if defined (CONFIG_FTA_PPP)
+SHELL_CMD_REGISTER(ppp, NULL,
+	"Commands for controlling FTA PPP.",
+	ppp_shell_cmd);
 #endif
