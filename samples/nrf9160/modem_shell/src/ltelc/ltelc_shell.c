@@ -52,8 +52,6 @@ typedef struct {
 	int sysmode_option;
 } ltelc_shell_cmd_args_t;
 
-static ltelc_shell_cmd_args_t ltelc_cmd_args;
-
 //**************************************************************************
 const char ltelc_usage_str[] =
 	"Usage: ltelc <command> [options]\n"
@@ -204,6 +202,7 @@ static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff
 
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
+	ltelc_shell_cmd_args_t ltelc_cmd_args;
 	int ret = 0;	
 	bool require_apn = false;
 	bool require_apn_or_pdn_cid = false;
