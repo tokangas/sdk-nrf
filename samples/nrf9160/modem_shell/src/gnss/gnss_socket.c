@@ -13,14 +13,27 @@
 
 #include "gnss.h"
 
-#define GNSS_THREAD_STACK_SIZE 2048
-#define GNSS_THREAD_PRIORITY 5 /* TODO: Check priority */
+#define GNSS_THREAD_STACK_SIZE 1536
+#define GNSS_THREAD_PRIORITY 5
+
+enum gnss_operation_mode {
+	GNSS_OP_MODE_CONTINUOUS,
+	GNSS_OP_MODE_SINGLE_FIX,
+	GNSS_OP_MODE_PERIODIC_FIX
+};
 
 extern const struct shell *gnss_shell_global;
 
 static int fd = -1;
 
-/* Default output configuration */
+/* GNSS configuration */
+enum gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
+uint16_t fix_interval;
+uint16_t fix_retry;
+bool delete_data = false;
+enum gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
+
+/* Output configuration */
 uint8_t pvt_output_level = 2;
 uint8_t nmea_output_level = 0;
 uint8_t event_output_level = 0;
@@ -160,7 +173,7 @@ static void gnss_thread(void)
 
 K_THREAD_DEFINE(gnss_socket_thread, GNSS_THREAD_STACK_SIZE,
                 gnss_thread, NULL, NULL, NULL,
-                GNSS_THREAD_PRIORITY, 0, 0);
+                K_PRIO_PREEMPT(GNSS_THREAD_PRIORITY), 0, 0);
 
 static void gnss_init(void)
 {
@@ -174,11 +187,81 @@ static void gnss_init(void)
 int gnss_start(void)
 {
 	int ret;
+	nrf_gnss_fix_interval_t interval;
+	nrf_gnss_fix_retry_t retry;
+	nrf_gnss_power_save_mode_t ps_mode;
 	nrf_gnss_delete_mask_t delete_mask;
 
 	gnss_init();
 
-	delete_mask = 0x0;
+	/* Configure GNSS */
+	switch (operation_mode) {
+	case GNSS_OP_MODE_CONTINUOUS:
+		interval = 1;
+		retry = 0;
+		switch (duty_cycling_policy) {
+		case GNSS_DUTY_CYCLING_DISABLED:
+			ps_mode = NRF_GNSS_PSM_DISABLED;
+			break;
+		case GNSS_DUTY_CYCLING_PERFORMANCE:
+			ps_mode = NRF_GNSS_PSM_DUTY_CYCLING_PERFORMANCE;
+			break;
+		case GNSS_DUTY_CYCLING_POWER:
+			ps_mode = NRF_GNSS_PSM_DUTY_CYCLING_POWER;
+			break;
+		default:
+			shell_error(gnss_shell_global, "GNSS: Invalid duty cycling policy");
+			return -EINVAL;
+		}
+		break;
+	case GNSS_OP_MODE_SINGLE_FIX:
+		interval = 0;
+		retry = fix_retry;
+		ps_mode = NRF_GNSS_PSM_DISABLED;
+		break;
+	case GNSS_OP_MODE_PERIODIC_FIX:
+		interval = fix_interval;
+		retry = fix_retry;
+		ps_mode = NRF_GNSS_PSM_DISABLED;
+		break;
+	default:
+		shell_error(gnss_shell_global, "GNSS: Invalid operation mode");
+		return -EINVAL;
+	}
+	ret = nrf_setsockopt(fd,
+			     NRF_SOL_GNSS,
+			     NRF_SO_GNSS_FIX_INTERVAL,
+			     &interval,
+			     sizeof(interval));
+	if (ret != 0) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set fix interval");
+		return -EINVAL;
+	}
+	ret = nrf_setsockopt(fd,
+			     NRF_SOL_GNSS,
+			     NRF_SO_GNSS_FIX_RETRY,
+			     &retry,
+			     sizeof(retry));
+	if (ret != 0) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set fix retry");
+		return -EINVAL;
+	}
+	ret = nrf_setsockopt(fd,
+			     NRF_SOL_GNSS,
+			     NRF_SO_GNSS_POWER_SAVE_MODE,
+			     &ps_mode,
+			     sizeof(ps_mode));
+	if (ret != 0) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set power saving mode");
+		return -EINVAL;
+	}
+
+	/* Start GNSS */
+	if (delete_data) {
+		delete_mask = 0x7f;
+	} else {
+		delete_mask = 0x0;
+	}
 	ret = nrf_setsockopt(fd,
 			     NRF_SOL_GNSS,
 			     NRF_SO_GNSS_START,
@@ -189,7 +272,7 @@ int gnss_start(void)
                         shell_print(gnss_shell_global, "GNSS: Search started");
                 }
 	} else {
-		shell_error(gnss_shell_global, "GNSS: Failed to start GPS");
+		shell_error(gnss_shell_global, "GNSS: Failed to start GNSS");
 	}
 
 	k_sem_give(&gnss_sem);
@@ -215,7 +298,7 @@ int gnss_stop(void)
                         shell_print(gnss_shell_global, "GNSS: Search stopped");
                 }
         } else {
-		shell_error(gnss_shell_global, "GNSS: Failed to stop GPS");
+		shell_error(gnss_shell_global, "GNSS: Failed to stop GNSS");
 	}
 
 	return ret;
@@ -223,35 +306,42 @@ int gnss_stop(void)
 
 int gnss_set_continuous_mode()
 {
-	/* TODO */
+	operation_mode = GNSS_OP_MODE_CONTINUOUS;
 
 	return 0;
 }
 
-int gnss_set_single_fix_mode(uint16_t fix_retry)
+int gnss_set_single_fix_mode(uint16_t retry)
 {
-	/* TODO */
+	operation_mode = GNSS_OP_MODE_SINGLE_FIX;
+	fix_retry = retry;
 
 	return 0;
 }
 
-int gnss_set_periodic_fix_mode(uint16_t fix_interval, uint16_t fix_retry)
+int gnss_set_periodic_fix_mode(uint16_t interval, uint16_t retry)
 {
-	/* TODO */
+	if (interval < 10 || interval > 1800) {
+		return -EINVAL;
+	}
+
+	operation_mode = GNSS_OP_MODE_PERIODIC_FIX;
+	fix_interval = interval;
+	fix_retry = retry;
 
 	return 0;
 }
 
 int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy)
 {
-	/* TODO */
+	duty_cycling_policy = policy;
 
 	return 0;
 }
 
 void gnss_set_delete_stored_data(bool value)
 {
-	/* TODO */
+	delete_data = value;
 }
 
 int gnss_set_pvt_output_level(uint8_t level)

@@ -90,7 +90,7 @@ endif #FTA_CURL
 choice FTA_GNSS_API
 	bool "Used GNSS API"
 	depends on FTA_GNSS
-	default FTA_GNSS_API_GPS_DRIVER
+	default FTA_GNSS_API_SOCKET
 	help
 	  Used GNSS API type.
 
