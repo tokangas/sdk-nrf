@@ -39,17 +39,16 @@
 #include <posix/sys/select.h>
 #include <limits.h>
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-#include "fta_defines.h"
-#include "ltelc_api.h"
-#include "utils/fta_net_utils.h"
-#endif
 
 #include "iperf.h"
 #include "iperf_api.h"
 #include "iperf_tcp.h"
 #include "net.h"
 #include "cjson.h"
+
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#include "iperf_util.h"
+#endif
 
 #if defined(HAVE_FLOWLABEL)
 #include "flowlabel.h"
@@ -228,19 +227,13 @@ iperf_tcp_listen(struct iperf_test *test)
         snprintf(portstr, 6, "%d", test->server_port);
         memset(&hints, 0, sizeof(hints));
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-	char *apn = NULL;
-
-    /* Set PDN: */
-	if (test->cid != FTA_ARG_NOT_SET) {
-		apn = test->current_apn_str;
-	}
-    hints.ai_next = apn ?
+#if defined (ONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+    hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
 				.ai_socktype  = SOCK_MGMT,
 				.ai_protocol  = NPROTO_PDN,
-				.ai_canonname = (char *)apn
+				.ai_canonname = (char *)test->apn_str
 			} : NULL;
 #endif
 
@@ -269,12 +262,13 @@ iperf_tcp_listen(struct iperf_test *test)
             return -1;
         }
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-        /* Set PDN if requested */
-        if (test->cid != FTA_ARG_NOT_SET) {
-            int ret = fta_net_utils_socket_apn_set(s, test->current_apn_str);
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+        /* Set APN if requested */
+        if (test->apn_str != NULL) {
+            int ret = iperf_util_socket_apn_set(s, test->apn_str);
             if (ret != 0) {
-                printf("iperf_tcp_listen: cannot bind socket to apn %s\n", test->current_apn_str);
+                printf("iperf_tcp_listen: cannot bind socket to apn %s\n", test->apn_str);
+                i_errno = IESTREAMLISTEN;
                 return -1;
             }				
         }
@@ -486,19 +480,14 @@ iperf_tcp_connect(struct iperf_test *test)
 
     hints.ai_family = test->settings->domain;
     hints.ai_socktype = SOCK_STREAM;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-	char *apn = NULL;
 
-    /* Set PDN: */
-	if (test->cid != FTA_ARG_NOT_SET) {
-		apn = test->current_apn_str;
-	}
-    hints.ai_next = apn ?
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+    hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
 				.ai_socktype  = SOCK_MGMT,
 				.ai_protocol  = NPROTO_PDN,
-				.ai_canonname = (char *)apn
+				.ai_canonname = (char *)test->apn_str
 			} : NULL;
 #endif
 
@@ -521,12 +510,13 @@ iperf_tcp_connect(struct iperf_test *test)
         return -1;
     }
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
 	/* Set PDN if requested */
-    if (test->cid != FTA_ARG_NOT_SET) {
-		int ret = fta_net_utils_socket_apn_set(s, test->current_apn_str);
+    if (test->apn_str != NULL) {
+		int ret = iperf_util_socket_apn_set(s, test->apn_str);
 		if (ret != 0) {
-			printf("Cannot bind socket to apn %s\n", test->current_apn_str);
+			printf("Cannot bind socket to apn %s\n", test->apn_str);
+            i_errno = IESTREAMCONNECT;            
 			return -1;
 		}				
 	}

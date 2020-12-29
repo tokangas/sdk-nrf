@@ -38,6 +38,11 @@
 #include <stdarg.h>
 //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
 #include <posix/sys/select.h>
+
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#include <posix/sys/socket.h>
+#endif
+
 #include <sys/types.h>
 #include <posix/sys/time.h>
 #if defined (CONFIG_POSIX_API)
@@ -69,8 +74,6 @@ int	getrusage (int, struct rusage*);
 
 #include "cjson.h"
 
-#include "ltelc_api.h" //FTA_IPERF3_INTEGRATION_CHANGE: added
-
 #include "iperf.h"
 #include "iperf_api.h"
 
@@ -93,43 +96,18 @@ static int mock_gethostname(char *name, size_t len)
 int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     /* Note:
-       very dummy, not doing anything according to given sockfd, just returning current local address by set preference
+       very dummy, not doing anything according to given sockfd, just settting the family by set preference
     */
     memset(addr->data, 0, sizeof(addr->data));
     addr->sa_family = AF_UNSPEC;
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    if (test->current_pdp_type == PDP_TYPE_IPV4) {
-        struct sockaddr_in *sin4 = &test->current_sin4;
-        struct sockaddr *sa4 = (struct sockaddr *)sin4;
-
-        memcpy(addr, sa4, sizeof(struct sockaddr));
-        addr->sa_family = AF_INET;
+    if (test->settings->domain == AF_INET6) {
+        addr->sa_family = AF_INET6;
     }
-    else if (test->current_pdp_type == PDP_TYPE_IP4V6) {
-		if (test->settings->domain == AF_INET6) {
-            struct sockaddr_in6 *sin6 = &test->current_sin6;
-            struct sockaddr *sa6 = (struct sockaddr *)sin6;
-
-            memcpy(addr, sa6, sizeof(struct sockaddr));
-            addr->sa_family = AF_INET6;
-		}
-        else {
-            /* IPv4 as a default */
-            struct sockaddr_in *sin4 = &test->current_sin4;
-            struct sockaddr *sa4 = (struct sockaddr *)sin4;
-
-            memcpy(addr, sa4, sizeof(struct sockaddr));
-            addr->sa_family = AF_INET;
-        }
+    else {
+         addr->sa_family = AF_INET;
     }
-    else if (test->current_pdp_type == PDP_TYPE_IPV6) {
-            struct sockaddr_in6 *sin6 = &test->current_sin6;
-            struct sockaddr *sa6 = (struct sockaddr *)sin6;
-
-            memcpy(addr, sa6, sizeof(struct sockaddr));
-            addr->sa_family = AF_INET6;
-	}
 #endif
 
     return 0;
@@ -142,6 +120,31 @@ int getrusage(int who, struct rusage *usage)
     return 0;
 }
 
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+int iperf_util_socket_apn_set(int fd, const char *apn)
+{
+	int ret;
+	size_t len;
+	struct ifreq ifr = {0};
+
+	__ASSERT_NO_MSG(apn);
+
+	len = strlen(apn);
+	if (len >= sizeof(ifr.ifr_name)) {
+		printf("Access point name is too long\n");
+		return -EINVAL;
+	}
+
+	memcpy(ifr.ifr_name, apn, len);
+	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (ret < 0) {
+		printf("Failed to bind socket, error: %d, %s\n",  ret, strerror(ret));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
 /*
  * Read entropy from /dev/urandom
  * Errors are fatal.

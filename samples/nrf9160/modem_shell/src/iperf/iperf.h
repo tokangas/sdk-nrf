@@ -66,10 +66,6 @@
 # endif
 #endif
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-#include "fta_defines.h"
-#endif
-
 #include "timer.h"
 #include "queue.h"
 #include "cjson.h"
@@ -321,7 +317,7 @@ struct iperf_test
     int       timestamps;			/* --timestamps */
     char     *timestamp_format;
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    int       cid;                          /* -I option */
+    char     *apn_str;				/* -I or --interface option */
 #endif
     char     *json_output_string; /* rendered JSON output if json_output is set */
     /* Select related parameters */
@@ -383,14 +379,6 @@ struct iperf_test
 
     /* Server output (use on server side only) */
     TAILQ_HEAD(iperf_textlisthead, iperf_textline) server_output_list;
-
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    char current_pdp_type;
-    char current_apn_str[FTA_APN_STR_MAX_LEN];
-	struct sockaddr_in current_sin4;
-	struct sockaddr_in6 current_sin6;
-#endif
-
 };
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)

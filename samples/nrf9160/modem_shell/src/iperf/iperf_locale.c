@@ -105,8 +105,9 @@ const char fta_iperf3_usage_support_str[] =
                            "  -d, --debug               emit debugging output\n"
                            "  -v, --version             show version information and quit"
                            "  -m, --manual              show this message and quit\n"
-                           "  -I   <CID>        use this option to bind pinging to specific CID, see ltelc cmd for interfaces.\n"
-
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)                           
+                           "  -I, --interface <apn>     use this option to bind to PDN with specific APN.\n"
+#endif
                            "\nServer specific:\n"
                            "  -s, --server              run in server mode\n"
                            "  -1, --one-off             handle one client connection then exit\n"

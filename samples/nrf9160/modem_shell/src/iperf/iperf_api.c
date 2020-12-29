@@ -83,12 +83,6 @@
 #include <Windows.h>
 #endif /* HAVE_SETPROCESSAFFINITYMASK */
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-#include "fta_defines.h"
-#include "ltelc_api.h"
-#include "utils/fta_net_utils.h"
-#endif
-
 #include "net.h"
 #include "iperf.h"
 #include "iperf_api.h"
@@ -985,7 +979,11 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "nstreams", required_argument, NULL, OPT_NUMSTREAMS },
 		{ "xbind", required_argument, NULL, 'X' },
 #endif
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)                           
+		{ "interface", required_argument, NULL, 'I' },
+#else
 		{ "pidfile", required_argument, NULL, 'I' },
+#endif
 		{ "logfile", required_argument, NULL, OPT_LOGFILE },
 		{ "forceflush", no_argument, NULL, OPT_FORCEFLUSH },
 		{ "get-server-output", no_argument, NULL,
@@ -1381,12 +1379,13 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		case 'd':
 			test->debug = 1;
 			break;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
 		case 'I':
-			test->cid = atoi(optarg);
-			if (test->cid == 0) {
-				printf("CID not an integer (> 0), default context used\n");
-                test->cid = FTA_ARG_NOT_SET;
+			test->apn_str = strdup(optarg);
+			if (test->apn_str == NULL) {
+				printf("strdup failed for setting the interface %s\n", optarg);
+                i_errno = IENOMEMORY;
+				return -1;
             }
 			break;
 #else
@@ -3141,81 +3140,6 @@ void connect_msg(struct iperf_stream *sp)
 #endif //NOT_IN_FTA_IPERF3_INTEGRATION
 }
 /**************************************************************************/
-int iperf_test_fta_pdn_info_set(struct iperf_test *test)
-{
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-  	 pdp_context_info_array_t pdp_context_info_tbl;
-     int ret = 0;
-
-    /* Read/store current PDN context: */
-    ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
-
-	test->current_pdp_type = PDP_TYPE_UNKNOWN;
-	if (ret >= 0 && pdp_context_info_tbl.size > 0) {
-
-        if (test->cid == FTA_ARG_NOT_SET) {
-            /* Default context: */
-            test->current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
-            test->current_sin4.sin_addr = pdp_context_info_tbl.array[0].ip_addr4;
-            test->current_sin6.sin6_addr = pdp_context_info_tbl.array[0].ip_addr6;
-
-			/* If '-B' option has been used, we need to try to find corresponding PDN: */
-			if (test->bind_address) {
-				int i;
-				bool found = false;
-				char ipv4_addr[NET_IPV4_ADDR_LEN];
-				char ipv6_addr[NET_IPV6_ADDR_LEN];
-
-				for (i = 0; i < pdp_context_info_tbl.size; i++) {
-					inet_ntop(AF_INET, &(pdp_context_info_tbl.array[i].ip_addr4), ipv4_addr, sizeof(ipv4_addr));
-					inet_ntop(AF_INET6, &(pdp_context_info_tbl.array[i].ip_addr6), ipv6_addr, sizeof(ipv6_addr));
-					if (strcmp(test->bind_address, ipv4_addr) == 0 || strcmp(test->bind_address, ipv6_addr)) {
-						test->current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
-						test->current_sin4.sin_addr = pdp_context_info_tbl.array[i].ip_addr4;
-						test->current_sin6.sin6_addr = pdp_context_info_tbl.array[i].ip_addr6;
-						strcpy(test->current_apn_str, pdp_context_info_tbl.array[i].apn_str);
-                    	found = true;
-						break;
-						}
-					}
-                if (!found) {
-                    printf("cannot find PDN based on requested bind address: %s\n", test->bind_address);
-					i_errno = IEPDN;
-                    return -1;
-                }
-			}
-        } else {
-            /* Find PDP context info for requested CID: */
-            int i;
-            bool found = false;
-
-            for (i = 0; i < pdp_context_info_tbl.size; i++) {
-                if (pdp_context_info_tbl.array[i].cid == test->cid) {
-                    test->current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
-                    test->current_sin4.sin_addr = pdp_context_info_tbl.array[i].ip_addr4;
-                    test->current_sin6.sin6_addr = pdp_context_info_tbl.array[i].ip_addr6;
-                    strcpy(test->current_apn_str, pdp_context_info_tbl.array[i].apn_str);
-                    found = true;
-					break;
-                    }
-                }
-
-                if (!found) {
-                    printf("cannot find PDN based on requested CID: %d\n", test->cid);
-					i_errno = IEPDN;
-                    return -1;
-                }
-        }
-    }
-    else {
-        printf("cannot read current connection info\n");
-		i_errno = IEPDN;
-        return -1;
-	}    
-#endif
-	return 0;
-}
-/**************************************************************************/
 
 struct iperf_test *iperf_new_test()
 {
@@ -3285,8 +3209,8 @@ int iperf_defaults(struct iperf_test *testp)
 	struct protocol *sctp;
 #endif /* HAVE_SCTP_H */
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-	testp->cid = FTA_ARG_NOT_SET;
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+	testp->apn_str = NULL;
 #endif
 	testp->omit = OMIT;
 	testp->duration = DURATION;

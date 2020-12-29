@@ -63,7 +63,12 @@ config FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES
 config FTA_IPERF3_FUNCTIONAL_CHANGES
 	bool
     default y
-	
+
+config FTA_IPERF3_MULTICONTEXT_SUPPORT
+	bool
+    default y
+	depends on FTA_IPERF3_FUNCTIONAL_CHANGES
+
 endmenu #FTA iperf3
 endif #FTA_IPERF3
 

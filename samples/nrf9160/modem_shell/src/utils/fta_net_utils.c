@@ -29,7 +29,7 @@ int fta_net_utils_socket_apn_set(int fd, const char *apn)
 	memcpy(ifr.ifr_name, apn, len);
 	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
 	if (ret < 0) {
-		printf("Failed to bind socket, error: %d, %s\n",  ret, gai_strerror(ret));
+		printf("Failed to bind socket, error: %d, %s\n",  ret, strerror(ret));
 		return -EINVAL;
 	}
 
