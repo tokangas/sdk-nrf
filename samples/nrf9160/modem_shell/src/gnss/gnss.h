@@ -101,6 +101,21 @@ void gnss_set_delete_stored_data(bool value);
 int gnss_set_elevation_threshold(uint8_t elevation);
 
 /**
+ * @brief Sets the system mask.
+ *
+ * Bit 0: GPS
+ * Bit 1: SBAS
+ * Bit 2: QZSS
+ * Bit 3..7: reserved
+ *
+ * @param system_mask System bitmask.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_system_mask(uint8_t nmea_mask);
+
+/**
  * @brief Sets the NMEA mask.
  *
  * Bit 0: GGA

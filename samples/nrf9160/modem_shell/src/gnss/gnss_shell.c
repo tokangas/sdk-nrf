@@ -231,6 +231,28 @@ int cmd_gnss_config_elevation(const struct shell *shell, size_t argc, char **arg
     return err;
 }
 
+int cmd_gnss_config_system(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+    GNSS_CMD_FAIL_IF_RUNNING();
+
+    uint8_t value;
+    uint8_t system_mask;
+    uint8_t system_mask_bit;
+
+    system_mask = 0;
+    system_mask_bit = 1;
+    for (int i = 0; i < 3; i++) {
+        value = atoi(argv[i+1]);
+        if (value == 1) {
+            system_mask |= system_mask_bit;
+        }
+        system_mask_bit = system_mask_bit << 1;
+    }
+
+    return gnss_set_system_mask(system_mask);
+}
+
 int cmd_gnss_config_nmea(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
@@ -357,6 +379,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config_powersave,
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config,
     SHELL_CMD(startmode, &sub_gnss_config_startmode, "Start mode.", cmd_gnss_config_startmode),
     SHELL_CMD(elevation, NULL, "<angle>\nElevation threshold angle.", cmd_gnss_config_elevation),
+    SHELL_CMD_ARG(system, NULL, "<GPS enabled> <SBAS enabled> <QZSS enabled>\nSystem mask. 0 = disabled, 1 = enabled.", cmd_gnss_config_system, 4, 0),
     SHELL_CMD_ARG(nmea, NULL, "<GGA enabled> <GLL enabled> <GSA enabled> <GSV enabled> <RMC enabled>\nNMEA mask. 0 = disabled, 1 = enabled.", cmd_gnss_config_nmea, 6, 0),
     SHELL_CMD(powersave, &sub_gnss_config_powersave, "Continuous tracking power saving mode.", cmd_gnss_config_powersave),
     SHELL_SUBCMD_SET_END

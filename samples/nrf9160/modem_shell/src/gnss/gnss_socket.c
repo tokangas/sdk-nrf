@@ -37,6 +37,7 @@ nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
 				 NRF_GNSS_NMEA_GSA_MASK | \
 				 NRF_GNSS_NMEA_GSV_MASK | \
 				 NRF_GNSS_NMEA_RMC_MASK;
+nrf_gnss_system_t system_mask = 0x1 | 0x2 | 0x4;
 gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
 
 /* Output configuration */
@@ -235,6 +236,7 @@ int gnss_start(void)
 		shell_error(gnss_shell_global, "GNSS: Invalid operation mode");
 		return -EINVAL;
 	}
+
 	ret = nrf_setsockopt(fd,
 			     NRF_SOL_GNSS,
 			     NRF_SO_GNSS_FIX_INTERVAL,
@@ -244,6 +246,7 @@ int gnss_start(void)
 		shell_error(gnss_shell_global, "GNSS: Failed to set fix interval");
 		return -EINVAL;
 	}
+
 	ret = nrf_setsockopt(fd,
 			     NRF_SOL_GNSS,
 			     NRF_SO_GNSS_FIX_RETRY,
@@ -253,6 +256,7 @@ int gnss_start(void)
 		shell_error(gnss_shell_global, "GNSS: Failed to set fix retry");
 		return -EINVAL;
 	}
+
 	ret = nrf_setsockopt(fd,
 			     NRF_SOL_GNSS,
 			     NRF_SO_GNSS_POWER_SAVE_MODE,
@@ -276,6 +280,18 @@ int gnss_start(void)
 		}
 	}
 
+#if 0 /* Disabled for now because bsdlib doesn't support this */
+	ret = nrf_setsockopt(fd,
+		NRF_SOL_GNSS,
+		NRF_SO_GNSS_SYSTEM,
+		&system_mask,
+		sizeof(system_mask));
+	if (ret != 0) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set system mask");
+		return -EINVAL;
+	}
+#endif
+
 	ret = nrf_setsockopt(fd,
 		NRF_SOL_GNSS,
 		NRF_SO_GNSS_NMEA_MASK,
@@ -288,6 +304,7 @@ int gnss_start(void)
 
 	/* Start GNSS */
 	if (delete_data) {
+		/* Delete everything else but TCXO frequency offset data */
 		delete_mask = 0x7f;
 	} else {
 		delete_mask = 0x0;
@@ -384,6 +401,23 @@ int gnss_set_elevation_threshold(uint8_t elevation)
 	elevation_threshold = elevation;
 
 	return 0;
+}
+
+int gnss_set_system_mask(uint8_t mask)
+{
+	shell_error(gnss_shell_global, "GNSS: Setting system mask not yet supported by bsdlib");
+	return -EOPNOTSUPP;
+#if 0 /* Disabled for now because bsdlib doesn't support this */
+	if (mask & 0xf8) {
+		/* More than three lowest bits set, invalid bitmask */
+		shell_error(gnss_shell_global, "GNSS: Invalid system bitmask 0x%x", mask);
+		return -EINVAL;
+	}
+
+	system_mask = mask;
+
+	return 0;
+#endif
 }
 
 int gnss_set_nmea_mask(uint16_t mask)
