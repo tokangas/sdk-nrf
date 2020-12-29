@@ -101,6 +101,23 @@ void gnss_set_delete_stored_data(bool value);
 int gnss_set_elevation_threshold(uint8_t elevation);
 
 /**
+ * @brief Sets the NMEA mask.
+ *
+ * Bit 0: GGA
+ * Bit 1: GLL
+ * Bit 2: GSA
+ * Bit 3: GSV
+ * Bit 4: RMC
+ * Bit 5..15: reserved
+ *
+ * @param nmea_mask NMEA bitmask.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_nmea_mask(uint16_t nmea_mask);
+
+/**
  * @brief Configures how much PVT information is printed out.
  *
  * @param level 0 = PVT output disabled

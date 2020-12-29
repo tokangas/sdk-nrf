@@ -32,6 +32,11 @@ uint16_t fix_interval;
 uint16_t fix_retry;
 bool delete_data = false;
 int8_t elevation_threshold = -1;
+nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
+				 NRF_GNSS_NMEA_GLL_MASK | \
+				 NRF_GNSS_NMEA_GSA_MASK | \
+				 NRF_GNSS_NMEA_GSV_MASK | \
+				 NRF_GNSS_NMEA_RMC_MASK;
 gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
 
 /* Output configuration */
@@ -271,6 +276,16 @@ int gnss_start(void)
 		}
 	}
 
+	ret = nrf_setsockopt(fd,
+		NRF_SOL_GNSS,
+		NRF_SO_GNSS_NMEA_MASK,
+		&nmea_mask,
+		sizeof(nmea_mask));
+	if (ret != 0) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set NMEA mask");
+		return -EINVAL;
+	}
+
 	/* Start GNSS */
 	if (delete_data) {
 		delete_mask = 0x7f;
@@ -367,6 +382,19 @@ int gnss_set_elevation_threshold(uint8_t elevation)
 	}
 
 	elevation_threshold = elevation;
+
+	return 0;
+}
+
+int gnss_set_nmea_mask(uint16_t mask)
+{
+	if (mask & 0xffe0) {
+		/* More than five lowest bits set, invalid bitmask */
+		shell_error(gnss_shell_global, "GNSS: Invalid NMEA bitmask 0x%x", mask);
+		return -EINVAL;
+	}
+
+	nmea_mask = mask;
 
 	return 0;
 }

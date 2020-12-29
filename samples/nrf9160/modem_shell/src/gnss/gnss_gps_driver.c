@@ -282,6 +282,11 @@ int gnss_set_elevation_threshold(uint8_t elevation)
 	return -EOPNOTSUPP;
 }
 
+int gnss_set_nmea_mask(uint16_t mask)
+{
+	return -EOPNOTSUPP;
+}
+
 int gnss_set_pvt_output_level(uint8_t level)
 {
 	if (level < 0 || level > 2) {
