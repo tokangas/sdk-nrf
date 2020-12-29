@@ -16,22 +16,23 @@
 #define GNSS_THREAD_STACK_SIZE 1536
 #define GNSS_THREAD_PRIORITY 5
 
-enum gnss_operation_mode {
+typedef enum {
 	GNSS_OP_MODE_CONTINUOUS,
 	GNSS_OP_MODE_SINGLE_FIX,
 	GNSS_OP_MODE_PERIODIC_FIX
-};
+} gnss_operation_mode;
 
 extern const struct shell *gnss_shell_global;
 
 static int fd = -1;
 
 /* GNSS configuration */
-enum gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
+gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
 uint16_t fix_interval;
 uint16_t fix_retry;
 bool delete_data = false;
-enum gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
+int8_t elevation_threshold = -1;
+gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
 
 /* Output configuration */
 uint8_t pvt_output_level = 2;
@@ -109,7 +110,7 @@ static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 			continue;
 		}
 
-		sprintf(output_buffer, "SV: %2d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
+		sprintf(output_buffer, "SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
 			pvt->sv[i].sv,
 			pvt->sv[i].cn0 * 0.1,
 			pvt->sv[i].elevation,
@@ -191,6 +192,7 @@ int gnss_start(void)
 	nrf_gnss_fix_retry_t retry;
 	nrf_gnss_power_save_mode_t ps_mode;
 	nrf_gnss_delete_mask_t delete_mask;
+	nrf_gnss_elevation_mask_t elevation_mask;
 
 	gnss_init();
 
@@ -254,6 +256,19 @@ int gnss_start(void)
 	if (ret != 0) {
 		shell_error(gnss_shell_global, "GNSS: Failed to set power saving mode");
 		return -EINVAL;
+	}
+
+	if (elevation_threshold > -1) {
+		elevation_mask = elevation_threshold;
+		ret = nrf_setsockopt(fd,
+			     NRF_SOL_GNSS,
+			     NRF_SO_GNSS_ELEVATION_MASK,
+			     &elevation_mask,
+			     sizeof(elevation_mask));
+		if (ret != 0) {
+			shell_error(gnss_shell_global, "GNSS: Failed to set elevation mask");
+			return -EINVAL;
+		}
 	}
 
 	/* Start GNSS */
@@ -332,7 +347,7 @@ int gnss_set_periodic_fix_mode(uint16_t interval, uint16_t retry)
 	return 0;
 }
 
-int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy)
+int gnss_set_duty_cycling_policy(gnss_duty_cycling_policy policy)
 {
 	duty_cycling_policy = policy;
 
@@ -342,6 +357,18 @@ int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy)
 void gnss_set_delete_stored_data(bool value)
 {
 	delete_data = value;
+}
+
+int gnss_set_elevation_threshold(uint8_t elevation)
+{
+	if (elevation < 0 || elevation > 90) {
+		shell_error(gnss_shell_global, "GNSS: Invalid elevation value %d", elevation);
+		return -EINVAL;
+	}
+
+	elevation_threshold = elevation;
+
+	return 0;
 }
 
 int gnss_set_pvt_output_level(uint8_t level)

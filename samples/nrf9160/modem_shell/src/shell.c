@@ -84,10 +84,6 @@ SHELL_CMD_REGISTER(ltelc, NULL,
 SHELL_CMD_REGISTER(iperf3, NULL, "For iperf3 usage, just type \"iperf3 --manual\"", cmd_iperf3);
 #endif
 
-#if defined (CONFIG_FTA_GNSS)
-SHELL_CMD_REGISTER(gnss, NULL, "Commands for controlling GNSS.", gnss_shell);
-#endif
-
 #if defined (CONFIG_FTA_SMS)
 SHELL_CMD_REGISTER(sms, NULL, "Commands for sending and receiving SMS.", sms_shell);
 #endif

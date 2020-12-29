@@ -90,7 +90,7 @@ static void print_pvt(const struct gps_pvt *pvt, bool is_fix)
 			continue;
 		}
 
-		sprintf(output_buffer, "SV: %2d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
+		sprintf(output_buffer, "SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
 			pvt->sv[i].sv,
 			pvt->sv[i].cn0 * 0.1,
 			pvt->sv[i].elevation,
@@ -250,7 +250,7 @@ int gnss_set_periodic_fix_mode(uint16_t fix_interval, uint16_t fix_retry)
 	return 0;
 }
 
-int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy)
+int gnss_set_duty_cycling_policy(gnss_duty_cycling_policy policy)
 {
 	int err = 0;
 
@@ -275,6 +275,11 @@ int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy)
 void gnss_set_delete_stored_data(bool value)
 {
 	gnss_conf.delete_agps_data = value;
+}
+
+int gnss_set_elevation_threshold(uint8_t elevation)
+{
+	return -EOPNOTSUPP;
 }
 
 int gnss_set_pvt_output_level(uint8_t level)

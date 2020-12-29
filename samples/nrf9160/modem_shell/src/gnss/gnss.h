@@ -9,11 +9,11 @@
 
 #include <zephyr/types.h>
 
-enum gnss_duty_cycling_policy {
+typedef enum {
 	GNSS_DUTY_CYCLING_DISABLED,
 	GNSS_DUTY_CYCLING_PERFORMANCE,
 	GNSS_DUTY_CYCLING_POWER
-};
+} gnss_duty_cycling_policy;
 
 /**
  * @brief Starts GNSS.
@@ -78,7 +78,7 @@ int gnss_set_periodic_fix_mode(uint16_t fix_interval, uint16_t fix_retry);
  * @retval 0 if the operation was successful.
  *         Otherwise, a (negative) error code is returned.
  */
-int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy);
+int gnss_set_duty_cycling_policy(gnss_duty_cycling_policy policy);
 
 /**
  * @brief Sets whether stored data is cleared whenever the GNSS is started.
@@ -86,6 +86,19 @@ int gnss_set_duty_cycling_policy(enum gnss_duty_cycling_policy policy);
  * @param value True if stored data should be cleared, false if not.
  */
 void gnss_set_delete_stored_data(bool value);
+
+/**
+ * @brief Sets satellite elevation threshold angle.
+ *
+ * Satellites with elevation angle less than the threshold are excluded from
+ * the PVT estimation.
+ *
+ * @param elevation Satellite elevation in degrees.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_elevation_threshold(uint8_t elevation);
 
 /**
  * @brief Configures how much PVT information is printed out.
