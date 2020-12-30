@@ -28,7 +28,7 @@
 #define SOCK_SEND_BUFFER_SIZE_UDP 1200
 #define SOCK_SEND_BUFFER_SIZE_TCP 3540 // This should be multiple of TCP window size (708) to make it more efficient
 #define SOCK_RECEIVE_BUFFER_SIZE 1536
-#define SOCK_RECEIVE_STACK_SIZE 1024
+#define SOCK_RECEIVE_STACK_SIZE 1280
 #define SOCK_RECEIVE_PRIORITY 5
 // Timeout for polling socket events such as receive data, permission to send more, disconnected socket etc.
 // This limits how quickly data can be received after socket creation.
