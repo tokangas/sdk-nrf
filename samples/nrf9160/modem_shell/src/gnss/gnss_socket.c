@@ -38,7 +38,7 @@ nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
 				 NRF_GNSS_NMEA_GSA_MASK | \
 				 NRF_GNSS_NMEA_GSV_MASK | \
 				 NRF_GNSS_NMEA_RMC_MASK;
-nrf_gnss_system_t system_mask = 0x1 | 0x2 | 0x4;
+int8_t system_mask = -1;
 gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
 
 /* Output configuration */
@@ -201,6 +201,7 @@ int gnss_start(void)
 	nrf_gnss_delete_mask_t delete_mask;
 	nrf_gnss_elevation_mask_t elevation_mask;
 	nrf_gnss_use_case_t use_case;
+	nrf_gnss_system_t system;
 
 	gnss_init();
 
@@ -299,17 +300,18 @@ int gnss_start(void)
 		}
 	}
 
-#if 0 /* Disabled for now because bsdlib doesn't support this */
-	ret = nrf_setsockopt(fd,
-		NRF_SOL_GNSS,
-		NRF_SO_GNSS_SYSTEM,
-		&system_mask,
-		sizeof(system_mask));
-	if (ret != 0) {
-		shell_error(gnss_shell_global, "GNSS: Failed to set system mask");
-		return -EINVAL;
+	if (system_mask > -1) {
+		system = system_mask;
+		ret = nrf_setsockopt(fd,
+			NRF_SOL_GNSS,
+			NRF_SO_GNSS_SYSTEM,
+			&system,
+			sizeof(system));
+		if (ret != 0) {
+			shell_error(gnss_shell_global, "GNSS: Failed to set system mask");
+			return -EINVAL;
+		}
 	}
-#endif
 
 	ret = nrf_setsockopt(fd,
 		NRF_SOL_GNSS,
@@ -431,19 +433,15 @@ int gnss_set_low_accuracy(bool value)
 
 int gnss_set_system_mask(uint8_t mask)
 {
-	shell_error(gnss_shell_global, "GNSS: Setting system mask not yet supported by bsdlib");
-	return -EOPNOTSUPP;
-#if 0 /* Disabled for now because bsdlib doesn't support this */
 	if (mask & 0xf8) {
 		/* More than three lowest bits set, invalid bitmask */
 		shell_error(gnss_shell_global, "GNSS: Invalid system bitmask 0x%x", mask);
 		return -EINVAL;
 	}
 
-	system_mask = mask;
+	system_mask = (int8_t)mask;
 
 	return 0;
-#endif
 }
 
 int gnss_set_nmea_mask(uint16_t mask)
