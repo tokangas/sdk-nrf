@@ -15,9 +15,9 @@
 #include <modem/sms.h>
 
 #include "sms.h"
-#include "string_conversion.h"
+/*#include "string_conversion.h"
 #include "parser.h"
-#include "sms_deliver.h"
+#include "sms_deliver.h"*/
 #include "fta_defines.h"
 
 #define PAYLOAD_BUF_SIZE 160
@@ -41,7 +41,7 @@ void sms_callback(struct sms_data *const data, void *context)
 	// Alpha is phone number
 	shell_print(shell_global, "SMS received from number=%s with data (length=%d):", data->alpha, data->length);
 	shell_print(shell_global, "%s", data->pdu);
-
+	/*
 	struct  parser sms_deliver;
 
 	int     err=0;
@@ -72,19 +72,19 @@ void sms_callback(struct sms_data *const data, void *context)
 		// TODO: Check this when SMS SUBMIT REPORT is handled properly
 		//return payload_size;
 	}
-
+	*/
 	shell_print(shell_global, "Number: %s", data->alpha);
-	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
+	/*shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
 		sms_header.time.month,
 		sms_header.time.day,
 		sms_header.time.hour,
 		sms_header.time.minute,
-		sms_header.time.second);
+		sms_header.time.second);*/
 
-	shell_print(shell_global, "Text:   '%s'", deliver_data);
+	shell_print(shell_global, "Text:   '%s'", data->pdu);
 
-	parser_delete(&sms_deliver);
+	//parser_delete(&sms_deliver);
 }
 
 int sms_register()
@@ -137,7 +137,7 @@ int sms_send_message(char* number, char* text)
 	memset(encoded, 0, 160);
 	memset(encoded_data_hex_str, 0, 400);
 
-	size = string_conversion_ascii_to_gsm7bit(text, strlen(text), encoded, &encoded_size, NULL, true);
+	//size = string_conversion_ascii_to_gsm7bit(text, strlen(text), encoded, &encoded_size, NULL, true);
 
 	uint8_t hex_str_number = 0;
 	for (int i = 0; i < encoded_size; i++) {
