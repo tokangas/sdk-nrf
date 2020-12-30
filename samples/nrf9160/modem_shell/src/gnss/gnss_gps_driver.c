@@ -283,6 +283,12 @@ int gnss_set_elevation_threshold(uint8_t elevation)
 	return -EOPNOTSUPP;
 }
 
+int gnss_set_low_accuracy(bool value)
+{
+	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+	return -EOPNOTSUPP;
+}
+
 int gnss_set_system_mask(uint8_t mask)
 {
 	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");

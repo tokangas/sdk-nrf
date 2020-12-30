@@ -101,6 +101,16 @@ void gnss_set_delete_stored_data(bool value);
 int gnss_set_elevation_threshold(uint8_t elevation);
 
 /**
+ * @brief Sets whether low accuracy fixes are allowed.
+ *
+ * @param value True if low accuracy fixes are allowed, false if not.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_low_accuracy(bool value);
+
+/**
  * @brief Sets the system mask.
  *
  * Bit 0: GPS

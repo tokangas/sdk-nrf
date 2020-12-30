@@ -32,6 +32,7 @@ uint16_t fix_interval;
 uint16_t fix_retry;
 bool delete_data = false;
 int8_t elevation_threshold = -1;
+bool low_accuracy = false;
 nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
 				 NRF_GNSS_NMEA_GLL_MASK | \
 				 NRF_GNSS_NMEA_GSA_MASK | \
@@ -199,6 +200,7 @@ int gnss_start(void)
 	nrf_gnss_power_save_mode_t ps_mode;
 	nrf_gnss_delete_mask_t delete_mask;
 	nrf_gnss_elevation_mask_t elevation_mask;
+	nrf_gnss_use_case_t use_case;
 
 	gnss_init();
 
@@ -264,6 +266,23 @@ int gnss_start(void)
 			     sizeof(ps_mode));
 	if (ret != 0) {
 		shell_error(gnss_shell_global, "GNSS: Failed to set power saving mode");
+		return -EINVAL;
+	}
+
+	/* The lowest bit currently doesn't affect GNSS behavior, so the value
+	 * is hard coded.
+	 */
+	use_case = NRF_GNSS_USE_CASE_MULTIPLE_HOT_START;
+	if (low_accuracy) {
+		use_case |= NRF_GNSS_USE_CASE_LOW_ACCURACY;
+	}
+	ret = nrf_setsockopt(fd,
+		NRF_SOL_GNSS,
+		NRF_SO_GNSS_USE_CASE,
+		&use_case,
+		sizeof(use_case));
+	if (ret != 0) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set use case");
 		return -EINVAL;
 	}
 
@@ -399,6 +418,13 @@ int gnss_set_elevation_threshold(uint8_t elevation)
 	}
 
 	elevation_threshold = elevation;
+
+	return 0;
+}
+
+int gnss_set_low_accuracy(bool value)
+{
+	low_accuracy = value;
 
 	return 0;
 }
