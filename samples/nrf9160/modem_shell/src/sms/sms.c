@@ -120,7 +120,7 @@ int sms_unregister()
 	return 0;
 }
 
-int sms_send(char* number, char* text)
+int sms_send_message(char* number, char* text)
 {
 	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
 	int ret;
@@ -130,14 +130,6 @@ int sms_send(char* number, char* text)
 		return -EINVAL;
 	}
 
-	shell_print(shell_global, "Sending SMS to number=%s, text='%s'", number, text);
-
-	ret = sms_register();
-	if (ret != 0) {
-		return ret;
-	}
-
-	// SEND MESSAGE
 	uint8_t size = 0;
 	uint8_t encoded[160];
 	uint8_t encoded_data_hex_str[400];
@@ -201,6 +193,26 @@ int sms_send(char* number, char* text)
 		return ret;
 	}
 	//printf("\nAT Response:%s\n", at_response_str);
-
 	return 0;
+}
+
+int sms_send(char* number, char* text)
+{
+	int ret;
+
+	if (number == NULL) {
+		shell_error(shell_global, "SMS number not given\n");
+		return -EINVAL;
+	}
+
+	shell_print(shell_global, "Sending SMS to number=%s, text='%s'", number, text);
+
+	ret = sms_register();
+	if (ret != 0) {
+		return ret;
+	}
+
+	ret = sms_send_message(number, text);
+
+	return ret;
 }
