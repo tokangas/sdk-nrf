@@ -23,7 +23,16 @@
  */
 #define GNSS_CMD_FAIL_IF_RUNNING() \
     if (gnss_running) { \
-        shell_error(shell, "stop GNSS to configure"); \
+        shell_error(shell, "%s: stop GNSS to execute command", argv[0]); \
+        return -ENOEXEC; \
+    }
+
+/* Exits the function and returns an appropriate error code if GNSS is not
+ * running.
+ */
+#define GNSS_CMD_FAIL_IF_NOT_RUNNING() \
+    if (!gnss_running) { \
+        shell_error(shell, "%s: start GNSS to execute command", argv[0]); \
         return -ENOEXEC; \
     }
 
@@ -45,14 +54,14 @@ static int print_help(const struct shell *shell, size_t argc, char **argv)
     return ret;
 }
 
-int cmd_gnss(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
     return print_help(shell, argc, argv);
 }
 
-int cmd_gnss_start(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_start(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
@@ -73,7 +82,7 @@ int cmd_gnss_start(const struct shell *shell, size_t argc, char **argv)
     return err;
 }
 
-int cmd_gnss_stop(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_stop(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
@@ -94,14 +103,14 @@ int cmd_gnss_stop(const struct shell *shell, size_t argc, char **argv)
     return err;
 }
 
-int cmd_gnss_mode(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_mode(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
     return print_help(shell, argc, argv);
 }
 
-int cmd_gnss_mode_cont(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_mode_cont(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -113,7 +122,7 @@ int cmd_gnss_mode_cont(const struct shell *shell, size_t argc, char **argv)
     return err;
 }
 
-int cmd_gnss_mode_single(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_mode_single(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -135,7 +144,7 @@ int cmd_gnss_mode_single(const struct shell *shell, size_t argc, char **argv)
     return err;
 }
 
-int cmd_gnss_mode_periodic(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_mode_periodic(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -167,21 +176,21 @@ int cmd_gnss_mode_periodic(const struct shell *shell, size_t argc, char **argv)
     return err;
 }
 
-int cmd_gnss_config(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
     return print_help(shell, argc, argv);
 }
 
-int cmd_gnss_config_startmode(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_startmode(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
     return print_help(shell, argc, argv);
 }
 
-int cmd_gnss_config_startmode_normal(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_startmode_normal(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -191,7 +200,7 @@ int cmd_gnss_config_startmode_normal(const struct shell *shell, size_t argc, cha
     return 0;
 }
 
-int cmd_gnss_config_startmode_cold(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_startmode_cold(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -201,7 +210,7 @@ int cmd_gnss_config_startmode_cold(const struct shell *shell, size_t argc, char 
     return 0;
 }
 
-int cmd_gnss_config_elevation(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_elevation(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -231,14 +240,14 @@ int cmd_gnss_config_elevation(const struct shell *shell, size_t argc, char **arg
     return err;
 }
 
-int cmd_gnss_config_accuracy(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_accuracy(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
     return print_help(shell, argc, argv);
 }
 
-int cmd_gnss_config_accuracy_normal(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_accuracy_normal(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -248,7 +257,7 @@ int cmd_gnss_config_accuracy_normal(const struct shell *shell, size_t argc, char
     return 0;
 }
 
-int cmd_gnss_config_accuracy_low(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_accuracy_low(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -258,7 +267,7 @@ int cmd_gnss_config_accuracy_low(const struct shell *shell, size_t argc, char **
     return 0;
 }
 
-int cmd_gnss_config_system(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_system(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -280,7 +289,7 @@ int cmd_gnss_config_system(const struct shell *shell, size_t argc, char **argv)
     return gnss_set_system_mask(system_mask);
 }
 
-int cmd_gnss_config_nmea(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_nmea(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -302,14 +311,14 @@ int cmd_gnss_config_nmea(const struct shell *shell, size_t argc, char **argv)
     return gnss_set_nmea_mask(nmea_mask);
 }
 
-int cmd_gnss_config_powersave(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_powersave(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
     return print_help(shell, argc, argv);
 }
 
-int cmd_gnss_config_powersave_off(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_powersave_off(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -321,7 +330,7 @@ int cmd_gnss_config_powersave_off(const struct shell *shell, size_t argc, char *
     return err;
 }
 
-int cmd_gnss_config_powersave_perf(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_powersave_perf(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -333,7 +342,7 @@ int cmd_gnss_config_powersave_perf(const struct shell *shell, size_t argc, char 
     return err;
 }
 
-int cmd_gnss_config_powersave_power(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_config_powersave_power(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
@@ -345,7 +354,34 @@ int cmd_gnss_config_powersave_power(const struct shell *shell, size_t argc, char
     return err;
 }
 
-int cmd_gnss_output(const struct shell *shell, size_t argc, char **argv)
+static int cmd_gnss_priority(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return print_help(shell, argc, argv);
+}
+
+static int cmd_gnss_priority_enable(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+    GNSS_CMD_FAIL_IF_NOT_RUNNING();
+
+    gnss_set_priority_time_windows(true);
+
+    return 0;
+}
+
+static int cmd_gnss_priority_disable(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+    GNSS_CMD_FAIL_IF_NOT_RUNNING();
+
+    gnss_set_priority_time_windows(false);
+
+    return 0;
+}
+
+static int cmd_gnss_output(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
 
@@ -419,11 +455,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config,
     SHELL_SUBCMD_SET_END
 );
 
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_priority,
+    SHELL_CMD_ARG(enable, NULL, "Enable priority time window requests.", cmd_gnss_priority_enable, 1, 0),
+    SHELL_CMD_ARG(disable, NULL, "Disable priority time window requests.", cmd_gnss_priority_disable, 1, 0),
+    SHELL_SUBCMD_SET_END
+);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss,
     SHELL_CMD_ARG(start, NULL, "Start GNSS.", cmd_gnss_start, 1, 0),
     SHELL_CMD_ARG(stop, NULL, "Stop GNSS.", cmd_gnss_stop, 1, 0),
     SHELL_CMD(mode, &sub_gnss_mode, "Set tracking mode.", cmd_gnss_mode),
     SHELL_CMD(config, &sub_gnss_config, "Set GNSS configuration.", cmd_gnss_config),
+    SHELL_CMD(priority, &sub_gnss_priority, "Enable/disable priority time window requests.", cmd_gnss_priority),
     SHELL_CMD(output, NULL, "<pvt level> <nmea level> <event level>\nSet output levels.", cmd_gnss_output),
     SHELL_SUBCMD_SET_END
 );

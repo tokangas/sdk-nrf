@@ -459,6 +459,29 @@ int gnss_set_nmea_mask(uint16_t mask)
 	return 0;
 }
 
+int gnss_set_priority_time_windows(bool value)
+{
+	int err;
+	int opt;
+
+	if (value) {
+		opt = NRF_SO_GNSS_ENABLE_PRIORITY;
+	} else {
+		opt = NRF_SO_GNSS_DISABLE_PRIORITY;
+	}
+
+	err = nrf_setsockopt(fd,
+			     NRF_SOL_GNSS,
+			     opt,
+			     NULL,
+			     0);
+	if (err) {
+		shell_error(gnss_shell_global, "GNSS: Failed to set priority time windows");
+	}
+
+	return err;
+}
+
 int gnss_set_pvt_output_level(uint8_t level)
 {
 	if (level < 0 || level > 2) {

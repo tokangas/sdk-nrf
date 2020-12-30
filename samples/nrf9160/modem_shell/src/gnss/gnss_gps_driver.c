@@ -301,6 +301,12 @@ int gnss_set_nmea_mask(uint16_t mask)
 	return -EOPNOTSUPP;
 }
 
+int gnss_set_priority_time_windows(bool value)
+{
+	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+	return -EOPNOTSUPP;
+}
+
 int gnss_set_pvt_output_level(uint8_t level)
 {
 	if (level < 0 || level > 2) {

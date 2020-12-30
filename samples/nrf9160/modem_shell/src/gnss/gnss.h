@@ -143,6 +143,22 @@ int gnss_set_system_mask(uint8_t nmea_mask);
 int gnss_set_nmea_mask(uint16_t nmea_mask);
 
 /**
+ * @brief Enables/disables priority time window requests.
+ *
+ * When priority time windows are enabled, GNSS requests longer RF time windows
+ * from the modem. This may interfere with LTE operations.
+ *
+ * Once a single valid PVT estimate has been produced, priority time window
+ * requests are automatically disabled.
+ *
+ * @param value True to enable priority time windows, false the disable.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_priority_time_windows(bool value);
+
+/**
  * @brief Configures how much PVT information is printed out.
  *
  * @param level 0 = PVT output disabled
