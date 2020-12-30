@@ -30,6 +30,7 @@ static int fd = -1;
 gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
 uint16_t fix_interval;
 uint16_t fix_retry;
+gnss_data_delete data_delete = GNSS_DATA_DELETE_NONE;
 bool delete_data = false;
 int8_t elevation_threshold = -1;
 bool low_accuracy = false;
@@ -324,11 +325,18 @@ int gnss_start(void)
 	}
 
 	/* Start GNSS */
-	if (delete_data) {
+	switch (data_delete) {
+	case GNSS_DATA_DELETE_EPHEMERIDES:
+		/* Delete ephemerides data */
+		delete_mask = 0x01;
+		break;
+	case GNSS_DATA_DELETE_ALL:
 		/* Delete everything else but TCXO frequency offset data */
 		delete_mask = 0x7f;
-	} else {
+		break;
+	default:
 		delete_mask = 0x0;
+		break;
 	}
 	ret = nrf_setsockopt(fd,
 			     NRF_SOL_GNSS,
@@ -407,9 +415,11 @@ int gnss_set_duty_cycling_policy(gnss_duty_cycling_policy policy)
 	return 0;
 }
 
-void gnss_set_delete_stored_data(bool value)
+int gnss_set_data_delete(gnss_data_delete value)
 {
-	delete_data = value;
+	data_delete = value;
+
+	return 0;
 }
 
 int gnss_set_elevation_threshold(uint8_t elevation)

@@ -195,9 +195,15 @@ static int cmd_gnss_config_startmode_normal(const struct shell *shell, size_t ar
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
 
-    gnss_set_delete_stored_data(false);
+    return gnss_set_data_delete(GNSS_DATA_DELETE_NONE);
+}
 
-    return 0;
+static int cmd_gnss_config_startmode_warm(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+    GNSS_CMD_FAIL_IF_RUNNING();
+
+    return gnss_set_data_delete(GNSS_DATA_DELETE_EPHEMERIDES);
 }
 
 static int cmd_gnss_config_startmode_cold(const struct shell *shell, size_t argc, char **argv)
@@ -205,9 +211,7 @@ static int cmd_gnss_config_startmode_cold(const struct shell *shell, size_t argc
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
 
-    gnss_set_delete_stored_data(true);
-
-    return 0;
+    return gnss_set_data_delete(GNSS_DATA_DELETE_ALL);
 }
 
 static int cmd_gnss_config_elevation(const struct shell *shell, size_t argc, char **argv)
@@ -428,7 +432,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_mode,
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config_startmode,
     SHELL_CMD_ARG(normal, NULL, "Normal start.", cmd_gnss_config_startmode_normal, 1, 0),
-    SHELL_CMD_ARG(cold, NULL, "Cold start (all stored GNSS data erased on each start command).", cmd_gnss_config_startmode_cold, 1, 0),
+    SHELL_CMD_ARG(warm, NULL, "Warm start (stored ephemerides data deleted on each start command).", cmd_gnss_config_startmode_warm, 1, 0),
+    SHELL_CMD_ARG(cold, NULL, "Cold start (all stored GNSS data deleted on each start command).", cmd_gnss_config_startmode_cold, 1, 0),
     SHELL_SUBCMD_SET_END
 );
 

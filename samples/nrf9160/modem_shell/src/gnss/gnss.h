@@ -15,6 +15,12 @@ typedef enum {
 	GNSS_DUTY_CYCLING_POWER
 } gnss_duty_cycling_policy;
 
+typedef enum {
+	GNSS_DATA_DELETE_NONE,
+	GNSS_DATA_DELETE_EPHEMERIDES,
+	GNSS_DATA_DELETE_ALL
+} gnss_data_delete;
+
 /**
  * @brief Starts GNSS.
  *
@@ -81,11 +87,14 @@ int gnss_set_periodic_fix_mode(uint16_t fix_interval, uint16_t fix_retry);
 int gnss_set_duty_cycling_policy(gnss_duty_cycling_policy policy);
 
 /**
- * @brief Sets whether stored data is cleared whenever the GNSS is started.
+ * @brief Sets what stored data (if any) is deleted whenever the GNSS is started.
  *
- * @param value True if stored data should be cleared, false if not.
+ * @param value Value indicating which data is deleted.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
  */
-void gnss_set_delete_stored_data(bool value);
+int gnss_set_data_delete(gnss_data_delete value);
 
 /**
  * @brief Sets satellite elevation threshold angle.

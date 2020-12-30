@@ -272,9 +272,25 @@ int gnss_set_duty_cycling_policy(gnss_duty_cycling_policy policy)
 	return err;
 }
 
-void gnss_set_delete_stored_data(bool value)
+int gnss_set_data_delete(gnss_data_delete value)
 {
-	gnss_conf.delete_agps_data = value;
+	switch (value) {
+	case GNSS_DATA_DELETE_NONE:
+		gnss_conf.delete_agps_data = false;
+		break;
+	case GNSS_DATA_DELETE_EPHEMERIDES:
+		shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+		return -EOPNOTSUPP;
+		break;
+	case GNSS_DATA_DELETE_ALL:
+		gnss_conf.delete_agps_data = true;
+		break;
+	default:
+		return -EOPNOTSUPP;
+		break;
+	}
+
+	return 0;
 }
 
 int gnss_set_elevation_threshold(uint8_t elevation)
