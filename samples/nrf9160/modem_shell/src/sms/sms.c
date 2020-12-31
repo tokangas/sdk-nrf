@@ -36,40 +36,6 @@ void sms_callback(struct sms_data *const data, void *context)
 	}
 
 	// Alpha is phone number
-	shell_print(shell_global, "SMS received from number=%s with data (length=%d):", data->alpha, data->length);
-	shell_print(shell_global, "%s", data->pdu);
-	/*
-	struct  parser sms_deliver;
-
-	int     err=0;
-	char    deliver_data[PAYLOAD_BUF_SIZE];
-	uint8_t payload_size = 0;
-
-	struct sms_deliver_header sms_header;
-
-	parser_create(&sms_deliver, sms_deliver_get_api());
-
-	err = parser_process_str(&sms_deliver, data->pdu);
-
-	if(err) {
-		printk("Parsing return code: %d\n", err);
-		// TODO: Check this when SMS SUBMIT REPORT is handled properly
-		//return err;
-	}
-
-	payload_size = parser_get_payload(&sms_deliver,
-					  deliver_data,
-					  PAYLOAD_BUF_SIZE);
-	deliver_data[payload_size] = '\0';
-	parser_get_header(&sms_deliver, &sms_header);
-
-	if(payload_size < 0) {
-		printk("Getting sms deliver payload failed: %d\n",
-			payload_size);
-		// TODO: Check this when SMS SUBMIT REPORT is handled properly
-		//return payload_size;
-	}
-	*/
 	shell_print(shell_global, "Number: %s", data->alpha);
 	/*shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,

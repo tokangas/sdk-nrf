@@ -22,6 +22,7 @@ LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 
 #define AT_SMS_PARAMS_COUNT_MAX 6
 #define AT_SMS_RESPONSE_MAX_LEN 256
+#define PAYLOAD_BUF_SIZE 160
 
 #define AT_CNMI_PARAMS_COUNT 6
 #define AT_CMT_PARAMS_COUNT 4
@@ -150,6 +151,65 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
+void sms_pdu_callback(struct sms_data *const data)
+{
+	if (data == NULL) {
+		printk("sms_callback with NULL data\n");
+	}
+
+	if (data->type == SMS_TYPE_SUBMIT_REPORT) {
+		/* TODO: Check whether we should parse SMS-SUBMIT-REPORT more carefully */
+		LOG_INF("SMS submit report received");
+		return;
+	}
+
+	/* SMS DELIVER message received */
+	struct  parser sms_deliver;
+
+	int     err=0;
+	char    deliver_data[PAYLOAD_BUF_SIZE];
+	uint8_t payload_size = 0;
+
+	struct sms_deliver_header sms_header;
+
+	parser_create(&sms_deliver, sms_deliver_get_api());
+
+	err = parser_process_str(&sms_deliver, data->pdu);
+
+	if(err) {
+		printk("Parsing return code: %d\n", err);
+		// TODO: Check this when SMS SUBMIT REPORT is handled properly
+		//return err;
+	}
+
+	payload_size = parser_get_payload(&sms_deliver,
+					  deliver_data,
+					  PAYLOAD_BUF_SIZE);
+	deliver_data[payload_size] = '\0';
+	parser_get_header(&sms_deliver, &sms_header);
+
+	if(payload_size < 0) {
+		printk("Getting sms deliver payload failed: %d\n",
+			payload_size);
+		// TODO: Check this when SMS SUBMIT REPORT is handled properly
+		//return payload_size;
+	}
+
+	LOG_INF("Number: %s", log_strdup(data->alpha));
+	LOG_INF("Time:   %02x-%02x-%02x %02x:%02x:%02x",
+		sms_header.time.year,
+		sms_header.time.month,
+		sms_header.time.day,
+		sms_header.time.hour,
+		sms_header.time.minute,
+		sms_header.time.second);
+
+	LOG_INF("Text:   '%s'", log_strdup(data->pdu));
+
+	parser_delete(&sms_deliver);
+}
+
+
 /** @brief Handler for AT responses and unsolicited events. */
 void sms_at_handler(void *context, const char *at_notif)
 {
@@ -173,6 +233,8 @@ void sms_at_handler(void *context, const char *at_notif)
 		LOG_ERR("Invalid SMS notification format");
 		return;
 	}
+
+	sms_pdu_callback(&cmt_rsp);
 
 	/* Notify all subscribers. */
 	LOG_DBG("Valid SMS notification decoded");
