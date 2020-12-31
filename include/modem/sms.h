@@ -77,6 +77,14 @@ void sms_unregister_listener(int handle);
  */
 void sms_uninit(void);
 
+/**
+ * @brief Send SMS message.
+ *
+ * @param number Recipient number.
+ * @param text Text to be sent.
+ */
+int sms_send_message(char *number, char *text);
+
 /** @} */
 
 #ifdef __cplusplus

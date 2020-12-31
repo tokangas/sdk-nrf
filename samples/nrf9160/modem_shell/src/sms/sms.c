@@ -15,9 +15,6 @@
 #include <modem/sms.h>
 
 #include "sms.h"
-/*#include "string_conversion.h"
-#include "parser.h"
-#include "sms_deliver.h"*/
 #include "fta_defines.h"
 
 #define PAYLOAD_BUF_SIZE 160
@@ -117,82 +114,6 @@ int sms_unregister()
 	sms_unregister_listener(sms_handle);
 	sms_uninit();
 
-	return 0;
-}
-
-int sms_send_message(char* number, char* text)
-{
-	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
-	int ret;
-
-	if (number == NULL) {
-		shell_error(shell_global, "SMS number not given\n");
-		return -EINVAL;
-	}
-
-	uint8_t size = 0;
-	uint8_t encoded[160];
-	uint8_t encoded_data_hex_str[400];
-	uint8_t encoded_size = 0;
-	memset(encoded, 0, 160);
-	memset(encoded_data_hex_str, 0, 400);
-
-	//size = string_conversion_ascii_to_gsm7bit(text, strlen(text), encoded, &encoded_size, NULL, true);
-
-	uint8_t hex_str_number = 0;
-	for (int i = 0; i < encoded_size; i++) {
-		//printf("%02X, %02d\n", encoded[i], encoded[i]);
-		sprintf(encoded_data_hex_str + hex_str_number, "%02X", encoded[i]);
-		hex_str_number += 2;
-	}
-
-	uint8_t encoded_number[30];
-	uint8_t encoded_number_size = strlen(number);
-
-	if (encoded_number_size == 0) {
-		shell_error(shell_global, "SMS number not given\n");
-		return -EINVAL;
-	}
-
-	if (number[0] == '+') {
-		/* If first character of the number is plus, just ignore it.
-		   We are using international number format always anyway */
-		number += 1;
-		encoded_number_size = strlen(number);
-		printf("Ignoring leading '+' in the number. Remaining number=%s\n", number);
-	}
-
-	memset(encoded_number, 0, 30);
-	memcpy(encoded_number, number, encoded_number_size);
-
-	for (int i = 0; i < encoded_number_size; i++) {
-		if (!(i%2)) {
-			if (i+1 < encoded_number_size) {
-				char first = encoded_number[i];
-				char second = encoded_number[i+1];
-				encoded_number[i] = second;
-				encoded_number[i+1] = first;
-			} else {
-				encoded_number[i+1] = encoded_number[i];
-				encoded_number[i] = 'F';
-			}
-		}
-	}
-
-	char send_data[500];
-	memset(send_data, 0, 500);
-
-	int msg_size = 2 + 1 + 1 + (encoded_number_size / 2) + 3 + 1 + encoded_size;
-	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a", msg_size, encoded_number_size, encoded_number, size, encoded_data_hex_str);
-	shell_print(shell_global, "Sending encoded SMS data (length=%d):", msg_size);
-	shell_print(shell_global, "%s", send_data);
-
-	ret = at_cmd_write(send_data, at_response_str, sizeof(at_response_str), NULL);
-	if (ret) {
-		printf("at_cmd_write returned err: %2d\n", ret);
-		return ret;
-	}
-	//printf("\nAT Response:%s\n", at_response_str);
 	return 0;
 }
 
