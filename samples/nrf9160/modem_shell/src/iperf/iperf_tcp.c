@@ -227,7 +227,7 @@ iperf_tcp_listen(struct iperf_test *test)
         snprintf(portstr, 6, "%d", test->server_port);
         memset(&hints, 0, sizeof(hints));
 
-#if defined (ONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
     hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
