@@ -24,14 +24,14 @@ extern "C" {
 #include <zephyr/types.h>
 #include <sys/types.h>
 
-typedef enum {
+enum sms_type {
 	SMS_TYPE_DELIVER = 0,
 	SMS_TYPE_SUBMIT_REPORT
-} sms_type;
+};
 
 /** @brief SMS PDU data. */
 struct sms_data {
-	sms_type type;
+	enum sms_type type;
 	char *alpha;
 	uint16_t length;
 	char *pdu;
