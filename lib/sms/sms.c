@@ -22,10 +22,10 @@ LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 
 #define AT_SMS_PARAMS_COUNT_MAX 6
 #define AT_SMS_RESPONSE_MAX_LEN 256
-#define PAYLOAD_BUF_SIZE 160
 
 #define AT_CNMI_PARAMS_COUNT 6
 #define AT_CMT_PARAMS_COUNT 4
+#define AT_CDS_PARAMS_COUNT 3
 
 /** @brief AT command to check if a client already exist. */
 #define AT_SMS_SUBSCRIBER_READ "AT+CNMI?"
@@ -69,75 +69,50 @@ struct sms_subscriber {
 /** @brief List of subscribers. */
 static struct sms_subscriber subscribers[CONFIG_SMS_MAX_SUBSCRIBERS_CNT];
 
-/** @brief Check if the received AT notification is a +CMT event. */
-static bool sms_is_cmd_notification(const char *const at_notif)
+/** @brief Save the SMS notification parameters. */
+static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 {
-	if (at_notif == NULL) {
-		return false;
-	}
-
-	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
-		AT_SMS_NOTIFICATION_LEN) == 0) {
-		cmt_rsp.type = SMS_TYPE_DELIVER;
-		return true;
-	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
-		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
-		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
-		return true;
-	}
-	return false;
-}
-
-/** @brief Parse the +CMT unsolicited received message in PDU mode. */
-static int sms_cmt_notif_parse(const char *const buf)
-{
-	/* Parse the received message. */
 	int err = at_parser_max_params_from_str(buf, NULL, &resp_list,
 						AT_CMT_PARAMS_COUNT);
-
 	if (err != 0) {
 		LOG_ERR("Unable to parse CMT notification, err=%d", err);
 		return err;
 	}
 
-	return 0;
-}
-
-/** @brief Save the SMS notification parameters. */
-static int sms_cmt_notif_save(void)
-{
-	if (cmt_rsp.alpha != NULL) {
-		k_free(cmt_rsp.alpha);
+	if (cmt_rsp->alpha != NULL) {
+		k_free(cmt_rsp->alpha);
 	}
 
-	if (cmt_rsp.pdu != NULL) {
-		k_free(cmt_rsp.pdu);
+	if (cmt_rsp->pdu != NULL) {
+		k_free(cmt_rsp->pdu);
 	}
 
 	/* Save alpha as a null-terminated String. */
 	size_t alpha_len;
 	(void)at_params_size_get(&resp_list, 1, &alpha_len);
 
-	cmt_rsp.alpha = k_malloc(alpha_len + 1);
-	if (cmt_rsp.alpha == NULL) {
+	cmt_rsp->alpha = k_malloc(alpha_len + 1);
+	if (cmt_rsp->alpha == NULL) {
+		LOG_ERR("Unable to parse CMT notification due to no memory");
 		return -ENOMEM;
 	}
-	(void)at_params_string_get(&resp_list, 1, cmt_rsp.alpha, &alpha_len);
-	cmt_rsp.alpha[alpha_len] = '\0';
+	(void)at_params_string_get(&resp_list, 1, cmt_rsp->alpha, &alpha_len);
+	cmt_rsp->alpha[alpha_len] = '\0';
 
 	/* Length field saved as number. */
-	(void)at_params_short_get(&resp_list, 2, &cmt_rsp.length);
+	(void)at_params_short_get(&resp_list, 2, &cmt_rsp->length);
 
 	/* Save PDU as a null-terminated String. */
 	size_t pdu_len;
 	(void)at_params_size_get(&resp_list, 3, &pdu_len);
-	cmt_rsp.pdu = k_malloc(pdu_len + 1);
-	if (cmt_rsp.pdu == NULL) {
+	cmt_rsp->pdu = k_malloc(pdu_len + 1);
+	if (cmt_rsp->pdu == NULL) {
+		LOG_ERR("Unable to parse CMT notification due to no memory");
 		return -ENOMEM;
 	}
 
-	(void)at_params_string_get(&resp_list, 3, cmt_rsp.pdu, &pdu_len);
-	cmt_rsp.pdu[pdu_len] = '\0';
+	(void)at_params_string_get(&resp_list, 3, cmt_rsp->pdu, &pdu_len);
+	cmt_rsp->pdu[pdu_len] = '\0';
 
 	return 0;
 }
@@ -151,30 +126,22 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
-void sms_pdu_callback(struct sms_data *const data)
+static int sms_cmt_pdu_parse(char *pdu)
 {
-	if (data == NULL) {
-		printk("sms_callback with NULL data\n");
-	}
-
-	if (data->type == SMS_TYPE_SUBMIT_REPORT) {
-		/* TODO: Check whether we should parse SMS-SUBMIT-REPORT more carefully */
-		LOG_INF("SMS submit report received");
-		return;
-	}
-
-	/* SMS DELIVER message received */
+	/* TODO: This decodes the pdu to the same 'pdu' variable. Need to think if this is OK. */
 	struct  parser sms_deliver;
-
 	int     err=0;
-	char    deliver_data[PAYLOAD_BUF_SIZE];
 	uint8_t payload_size = 0;
 
 	struct sms_deliver_header sms_header;
 
+	if (pdu == NULL) {
+		printk("sms_callback with NULL data\n");
+	}
+
 	parser_create(&sms_deliver, sms_deliver_get_api());
 
-	err = parser_process_str(&sms_deliver, data->pdu);
+	err = parser_process_str(&sms_deliver, pdu);
 
 	if(err) {
 		printk("Parsing return code: %d\n", err);
@@ -183,9 +150,9 @@ void sms_pdu_callback(struct sms_data *const data)
 	}
 
 	payload_size = parser_get_payload(&sms_deliver,
-					  deliver_data,
-					  PAYLOAD_BUF_SIZE);
-	deliver_data[payload_size] = '\0';
+					  pdu,
+					  strlen(pdu));
+	pdu[payload_size] = '\0';
 	parser_get_header(&sms_deliver, &sms_header);
 
 	if(payload_size < 0) {
@@ -195,7 +162,6 @@ void sms_pdu_callback(struct sms_data *const data)
 		//return payload_size;
 	}
 
-	LOG_INF("Number: %s", log_strdup(data->alpha));
 	LOG_INF("Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
 		sms_header.time.month,
@@ -203,10 +169,10 @@ void sms_pdu_callback(struct sms_data *const data)
 		sms_header.time.hour,
 		sms_header.time.minute,
 		sms_header.time.second);
-
-	LOG_INF("Text:   '%s'", log_strdup(data->pdu));
+	LOG_INF("Text:   '%s'", log_strdup(pdu));
 
 	parser_delete(&sms_deliver);
+	return 0;
 }
 
 
@@ -215,26 +181,36 @@ void sms_at_handler(void *context, const char *at_notif)
 {
 	ARG_UNUSED(context);
 
-	/* Ignore all notifications except CMT events. */
-	if (!sms_is_cmd_notification(at_notif)) {
+	if (at_notif == NULL) {
 		return;
 	}
 
-	/* Parse and validate the CMT notification, then extract parameters. */
-	if (sms_cmt_notif_parse(at_notif) != 0) {
-		LOG_ERR("Invalid CMT notification");
+	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
+		AT_SMS_NOTIFICATION_LEN) == 0) {
+
+		cmt_rsp.type = SMS_TYPE_DELIVER;
+
+		/* Extract and save the SMS notification parameters. */
+		int valid_notif = sms_cmt_at_parse(at_notif, &cmt_rsp);
+		if (valid_notif != 0) {
+			return;
+		}
+		LOG_INF("Number: %s", log_strdup(cmt_rsp.alpha));
+
+		int valid_pdu = sms_cmt_pdu_parse(cmt_rsp.pdu);
+		if (valid_pdu != 0) {
+			return;
+		}
+
+	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
+		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
+
+		LOG_INF("SMS submit report received");
+		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
+	} else {
+		/* Ignore all other notifications */
 		return;
 	}
-
-	/* Extract and save the SMS notification parameters. */
-	int valid_notif = sms_cmt_notif_save();
-
-	if (valid_notif != 0) {
-		LOG_ERR("Invalid SMS notification format");
-		return;
-	}
-
-	sms_pdu_callback(&cmt_rsp);
 
 	/* Notify all subscribers. */
 	LOG_DBG("Valid SMS notification decoded");
@@ -404,12 +380,14 @@ int sms_send_message(char* number, char* text)
 	memset(encoded, 0, 160);
 	memset(encoded_data_hex_str, 0, 400);
 
-	size = string_conversion_ascii_to_gsm7bit(text, strlen(text), encoded, &encoded_size, NULL, true);
+	size = string_conversion_ascii_to_gsm7bit(
+		text, strlen(text), encoded, &encoded_size, NULL, true);
 
 	uint8_t hex_str_number = 0;
 	for (int i = 0; i < encoded_size; i++) {
 		//printf("%02X, %02d\n", encoded[i], encoded[i]);
-		sprintf(encoded_data_hex_str + hex_str_number, "%02X", encoded[i]);
+		sprintf(encoded_data_hex_str + hex_str_number,
+			"%02X", encoded[i]);
 		hex_str_number += 2;
 	}
 
@@ -450,11 +428,14 @@ int sms_send_message(char* number, char* text)
 	memset(send_data, 0, 500);
 
 	int msg_size = 2 + 1 + 1 + (encoded_number_size / 2) + 3 + 1 + encoded_size;
-	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a", msg_size, encoded_number_size, encoded_number, size, encoded_data_hex_str);
+	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a",
+		msg_size, encoded_number_size, encoded_number,
+		size, encoded_data_hex_str);
 	LOG_INF("Sending encoded SMS data (length=%d):", msg_size);
 	LOG_INF("%s", log_strdup(send_data));
 
-	ret = at_cmd_write(send_data, at_response_str, sizeof(at_response_str), NULL);
+	ret = at_cmd_write(send_data, at_response_str,
+		sizeof(at_response_str), NULL);
 	if (ret) {
 		LOG_ERR("at_cmd_write returned err: %2d", ret);
 		return ret;

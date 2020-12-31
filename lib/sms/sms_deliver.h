@@ -7,8 +7,6 @@
 #ifndef _SMS_DELIVER_INCLUDE_H_
 #define _SMS_DELIVER_INCLUDE_H_
 
-#include <stdint.h>
-
 enum sms_deliver_alphabet {
 	GSM_ENCODING_8BIT,
 	GSM_ENCODING_UCS2,
