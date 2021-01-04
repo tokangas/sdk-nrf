@@ -69,7 +69,7 @@ int z_impl_clock_gettime(clockid_t clock_id, struct timespec *ts)
 
 	return 0;
 }
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 static inline int clock_gettime(clockid_t clock_id, struct timespec * ts)
 {
 	return mock_impl_clock_gettime(clock_id, ts);

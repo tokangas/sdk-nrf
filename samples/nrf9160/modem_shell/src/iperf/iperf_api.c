@@ -24,9 +24,12 @@
  * This code is distributed under a BSD style license, see the LICENSE file
  * for complete information.
  */
- //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+ 
+ /* NRF_IPERF3_INTEGRATION_CHANGE:  */
 #if defined (CONFIG_POSIX_API)
-//FTA_IPERF3_INTEGRATION_CHANGE: caused __BSD_VISIBLE to be enabled name collisions with select and fdsets when no POSIX APi
+/* NRF_IPERF3_INTEGRATION_CHANGE: 
+ disabling __BSD_VISIBLE, because it was causing name collisions with select and fdsets when no POSIX API 
+ */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -63,9 +66,9 @@
 #if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
 #endif
-//#include <sys/mman.h> FTA_IPERF3_INTEGRATION_CHANGE: not available
+/* #include <sys/mman.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <sys/stat.h>
-//#include <setjmp.h> FTA_IPERF3_INTEGRATION_CHANGE: not available
+/* #include <setjmp.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <stdarg.h>
 #include <math.h>
 
@@ -108,7 +111,7 @@ static int send_parameters(struct iperf_test *test);
 static int get_parameters(struct iperf_test *test);
 static int send_results(struct iperf_test *test);
 static int get_results(struct iperf_test *test);
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 static int diskfile_send(struct iperf_stream *sp);
 static int diskfile_recv(struct iperf_stream *sp);
 #endif
@@ -136,12 +139,12 @@ static int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr
 	return 0;
 }
 /****************************************************************************/
-int fta_iperf3_getsockdomain(struct iperf_test *test, int sock)
+int nrf_iperf3_getsockdomain(struct iperf_test *test, int sock)
 {
     struct sockaddr_storage sa;
     socklen_t len = sizeof(sa);
 
-    if (mock_getsockname(test, sock, (struct sockaddr *)&sa, &len) < 0) { //FTA_IPERF3_INTEGRATION_CHANGE
+    if (mock_getsockname(test, sock, (struct sockaddr *)&sa, &len) < 0) { /* NRF_IPERF3_INTEGRATION_CHANGE: platform getsockname() is not working */
         return -1;
     }
     return ((struct sockaddr *) &sa)->sa_family;
@@ -149,15 +152,15 @@ int fta_iperf3_getsockdomain(struct iperf_test *test, int sock)
 
 /*************************** Print usage functions ****************************/
 
-void fta_iperf3_usage()
+void nrf_iperf3_usage()
 {
-	fprintf(stderr, fta_iperf3_usage_support_str, UDP_RATE / (1024 * 1024), DURATION,
+	fprintf(stderr, nrf_iperf3_usage_support_str, UDP_RATE / (1024 * 1024), DURATION,
 		DEFAULT_TCP_BLKSIZE, DEFAULT_UDP_BLKSIZE);
 }
 #endif //(CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 
-#if NOT_IN_FTA_IPERF3_INTEGRATION
-//Long options not supported
+#if NOT_IN_NRF_IPERF3_INTEGRATION
+/* using dedicated nrf_iperf3_usage() */
 void usage_long(FILE *f)
 {
 	fprintf(f, usage_longstr, UDP_RATE / (1024 * 1024), DURATION,
@@ -775,15 +778,14 @@ static void mapped_v4_to_regular_v4(char *str)
 	}
 }
 
-//FTA_IPERF3_INTEGRATION_TODO: default to 70's
+/* NRF_IPERF3_INTEGRATION_TODO: this just defaults to 70's */
 time_t time(time_t *t)
 {
-    //at+cclk? TODO to get real time? or use date_time.h services?
+    /* at+cclk? TODO to get real time? or use date_time.h services? */
     return 0;
 }
 
-////FTA_IPERF3_INTEGRATION_CHANGE:
-/* forward declaration: */
+/* NRF_IPERF3_INTEGRATION_CHANGE: forward declarations: */
 struct tm *gmtime(const time_t *timep);
 size_t strftime (char *__restrict _s, size_t _maxsize, const char *__restrict _fmt, const struct tm *__restrict _t);
 
@@ -851,8 +853,8 @@ void iperf_on_connect(struct iperf_test *test)
 		}
 	} else {
 		len = sizeof(sa);
-		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); //FTA_IPERF3_INTEGRATION_TODO: instead this, store when accepted/connected?
-		if (fta_iperf3_getsockdomain(test, test->ctrl_sck) == AF_INET) {
+		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); /* NRF_IPERF3_INTEGRATION_TODO: instead this, store when accepted/connected? */
+		if (nrf_iperf3_getsockdomain(test, test->ctrl_sck) == AF_INET) {
 			sa_inP = (struct sockaddr_in *)&sa;
 			inet_ntop(AF_INET, &sa_inP->sin_addr, ipr, sizeof(ipr));
 			port = ntohs(sa_inP->sin_port);
@@ -946,7 +948,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "length", required_argument, NULL, 'l' },
 		{ "parallel", required_argument, NULL, 'P' },
 		{ "reverse", no_argument, NULL, 'R' },
-		{ "bidir", no_argument, NULL, '2' }, //FTA_IPERF3_INTEGRATION_CHANGE: short option -2
+		{ "bidir", no_argument, NULL, '2' }, /* NRF_IPERF3_INTEGRATION_CHANGE: short option -2 */
 		{ "window", required_argument, NULL, 'w' },
 		{ "bind", required_argument, NULL, 'B' },
 		{ "cport", required_argument, NULL, OPT_CLIENT_PORT },
@@ -1006,7 +1008,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "connect-timeout", required_argument, NULL,
 		  OPT_CONNECT_TIMEOUT },
 		{ "debug", no_argument, NULL, 'd' },
-		{ "manual", no_argument, NULL, 'm' },//FTA_IPERF3_INTEGRATION_CHANGE: -m or --manual instead of help, because shell is stoling -h and --help
+		{ "manual", no_argument, NULL, 'm' },/* NRF_IPERF3_INTEGRATION_CHANGE: -m or --manual instead of help, because shell is stoling -h and --help */
 		{ NULL, 0, NULL, 0 }
 	};
 	int flag;
@@ -1021,7 +1023,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	struct xbind_entry *xbe;
 	double farg;
 
-	optind = 1; //FTA_IPERF3_INTEGRATION_CHANGE: skip the iperf3 command
+	optind = 1; /* NRF_IPERF3_INTEGRATION_CHANGE: skip the iperf3 command */
 
 	blksize = 0;
 	server_flag = client_flag = rate_flag = duration_flag = 0;
@@ -1030,9 +1032,9 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	     *server_rsa_private_key = NULL;
 #endif /* HAVE_SSL */
 
-	//FTA_IPERF3_INTEGRATION_CHANGE: different supported options
+		/* NRF_IPERF3_INTEGRATION_CHANGE: different supported options */
 	    while ((flag = getopt_long(argc, argv, "p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:I:dm", longopts, NULL)) != -1) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 	while ((flag = getopt(
 			argc, argv,
 			"p:f:i:2RD1VJvsc:ub:t:n:k:l:B:N46O:T:I:dm")) !=
@@ -1097,8 +1099,8 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			printf("%s (cJSON %s)\n%s\n%s\n", version,
 			       cJSON_Version(), get_system_info(),
 			       get_optional_features());
-			//exit(0); 
-			return 0; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported
+			/* exit(0); */
+			return 0; /* NRF_IPERF3_INTEGRATION_CHANGE: exit() not supported */
 		case 's':
 			if (test->role == 'c') {
 				i_errno = IESERVCLIENT;
@@ -1209,7 +1211,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			iperf_set_test_reverse(test, 1);
 			client_flag = 1;
 			break;
-		case '2': //FTA_IPERF3_INTEGRATION_CHANGE: was: OPT_BIDIRECTIONAL
+		case '2': /* NRF_IPERF3_INTEGRATION_CHANGE: was: OPT_BIDIRECTIONAL */
 			if (test->reverse) {
 				i_errno = IEREVERSEBIDIR;
 				return -1;
@@ -1450,13 +1452,13 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			break;
 		case 'm':
 			//usage_long(stdout);
-			fta_iperf3_usage();
-			return -2; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported and help is special case
+			nrf_iperf3_usage();
+			return -2; /* NRF_IPERF3_INTEGRATION_CHANGE: exit() not supported and help is special case */
 		default:
-			//usage_long(stderr);
-			//fta_iperf3_usage();
-			return -1; //FTA_IPERF3_INTEGRATION_CHANGE: exit() not supported
-			//exit(1);
+			/* usage_long(stderr); */
+			/* nrf_iperf3_usage(); */
+			return -1; /* NRF_IPERF3_INTEGRATION_CHANGE: exit() not supported */
+			/* exit(1); */
 		}
 	}
 
@@ -1608,7 +1610,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 int iperf_open_logfile(struct iperf_test *test)
 {
 	test->outfile = NULL;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION	
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION	
 	test->outfile = fopen(test->logfile, "a+");
 	if (test->outfile == NULL) {
 		i_errno = IELOGFILE;
@@ -2412,7 +2414,7 @@ static int send_results(struct iperf_test *test)
 				cJSON_free(str);
 			}
 #if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
-			//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
+			/* NRF_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems */
 			if (test->role == 's') {
 				if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
 					i_errno = IESENDRESULTS;
@@ -2425,7 +2427,6 @@ static int send_results(struct iperf_test *test)
 					r = -1;
 				}
 			}
-			//end of FTA_IPERF3_INTEGRATION_CHANGE
 #else
             if (r == 0 && JSON_write(test->ctrl_sck, j) < 0)
             {
@@ -2469,7 +2470,7 @@ static int get_results(struct iperf_test *test)
 	struct iperf_stream *sp;
 
 #if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
-	//FTA_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems
+	/* NRF_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems */
 	if (test->role == 's')
 		j = JSON_read(test->ctrl_sck);
 	else
@@ -3092,7 +3093,7 @@ void connect_msg(struct iperf_stream *sp)
 	char ipl[INET6_ADDRSTRLEN], ipr[INET6_ADDRSTRLEN];
 	int lport, rport;
 
-	if (fta_iperf3_getsockdomain(sp->test, sp->socket) == AF_INET) {
+	if (nrf_iperf3_getsockdomain(sp->test, sp->socket) == AF_INET) {
 		inet_ntop(AF_INET,
 			  (void *)&((struct sockaddr_in *)&sp->local_addr)
 				  ->sin_addr,
@@ -3137,7 +3138,7 @@ void connect_msg(struct iperf_stream *sp)
 #else
     iperf_printf(sp->test, report_connected, sp->socket, "localhost", sp->local_port,
             sp->test->server_hostname ? sp->test->server_hostname : "remote", sp->remote_port);
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
+#endif //NOT_IN_NRF_IPERF3_INTEGRATION
 }
 /**************************************************************************/
 
@@ -3237,7 +3238,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->stats_interval = testp->reporter_interval = 1;
 	testp->num_streams = 1;
 
-	testp->settings->domain = AF_INET; //FTA_IPERF3_INTEGRATION_CHANGE: was AF_UNSPEC
+	testp->settings->domain = AF_INET; /* NRF_IPERF3_INTEGRATION_CHANGE: AF_UNSPEC not supported by bsdlib/modem */
 	testp->settings->unit_format = 'a';
 	testp->settings->socket_bufsize = 0; /* use autotuning */
 	testp->settings->blksize = DEFAULT_TCP_BLKSIZE;
@@ -3254,7 +3255,7 @@ int iperf_defaults(struct iperf_test *testp)
 	testp->settings->connect_timeout = -1;
 	memset(testp->cookie, 0, COOKIE_SIZE);
 
-    testp->multisend = 1;	/* arbitrary, FTA_IPERF3_INTEGRATION_CHANGE: was 10 */
+    testp->multisend = 1;	/* NRF_IPERF3_INTEGRATION_CHANGE: was 10 */
 
 	/* Set up protocol list */
 	SLIST_INIT(&testp->streams);
@@ -3403,7 +3404,7 @@ void iperf_free_test(struct iperf_test *test)
 	}
 
 	if (test->logfile) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 		free(test->logfile);
 		test->logfile = NULL;
 		if (test->outfile) {
@@ -3556,7 +3557,7 @@ void iperf_reset_test(struct iperf_test *test)
 #endif /* HAVE_SSL */
 
 	memset(test->cookie, 0, COOKIE_SIZE);
-    test->multisend = 1;	/* arbitrary, FTA_IPERF3_INTEGRATION_CHANGE: was 10 */
+    test->multisend = 1; /* NRF_IPERF3_INTEGRATION_CHANGE: was 10 */
 	test->udp_counters_64bit = 0;
 	if (test->title) {
 		free(test->title);
@@ -3751,7 +3752,7 @@ static void iperf_print_intermediate(struct iperf_test *test)
      * So we're going to try to ignore very short intervals (less than
      * 10% of the interval time) that have no data.
      */
-	int interval_ok = 0; //FTA_IPERF3_INTEGRATION_CHANGE: put as 1 with debugger and let's not ignore anything
+	int interval_ok = 0;
 	SLIST_FOREACH(sp, &test->streams, streams)
 	{	
 		irp = TAILQ_LAST(&sp->result->interval_results, irlisthead);
@@ -3760,7 +3761,7 @@ static void iperf_print_intermediate(struct iperf_test *test)
 					&irp->interval_end_time, &temp_time);
 			double interval_len = iperf_time_in_secs(&temp_time);
 			if (test->debug) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 				printf("interval_len %f bytes_transferred %" PRIu64
 				       "\n",
 				       interval_len, irp->bytes_transferred);
@@ -4148,7 +4149,7 @@ static void iperf_print_results(struct iperf_test *test)
 		    receiver_total_packets = 0; /* running total */
 		char ubuf[UNIT_LEN];
 		char nbuf[UNIT_LEN];
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 		struct stat sb;
 		char sbuf[UNIT_LEN];
 #endif
@@ -4500,8 +4501,9 @@ static void iperf_print_results(struct iperf_test *test)
 						}
 					}
 
-					if (sp->diskfile_fd >= 0) {//FTA_IPERF3_INTEGRATION_CHANGE: not supported and also: fstat might cause _times from newlib -> flagged out
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+					if (sp->diskfile_fd >= 0) {
+/* NRF_IPERF3_INTEGRATION_CHANGE: not supported and also: fstat might requires _times from newlib -> flagged out */
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 						if (fstat(sp->diskfile_fd,
 							  &sb) == 0) {
 							/* In the odd case that it's a zero-sized file, say it was all transferred. */
@@ -4565,7 +4567,7 @@ static void iperf_print_results(struct iperf_test *test)
 									test->diskfile_name);
 							}
 						}
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
+#endif /* NOT_IN_NRF_IPERF3_INTEGRATION */
 					}
 
 					unit_snprintf(ubuf, UNIT_LEN,
@@ -5254,10 +5256,10 @@ void iperf_free_stream(struct iperf_stream *sp)
 {
 	struct iperf_interval_results *irp, *nirp;
 
-	//munmap(sp->buffer, sp->test->settings->blksize); //FTA_IPERF3_INTEGRATION_CHANGE: not supported
-	//close(sp->buffer_fd); //FTA_IPERF3_INTEGRATION_CHANGE
+	/* munmap(sp->buffer, sp->test->settings->blksize); NRF_IPERF3_INTEGRATION_CHANGE: not supported */
+	/* close(sp->buffer_fd); NRF_IPERF3_INTEGRATION_CHANGE */
 
-	free(sp->buffer); //FTA_IPERF3_INTEGRATION_CHANGE
+	free(sp->buffer); /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 	if (sp->diskfile_fd >= 0)
 		close(sp->diskfile_fd);		
 	for (irp = TAILQ_FIRST(&sp->result->interval_results); irp != NULL;
@@ -5278,7 +5280,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	struct iperf_stream *sp;
 	int ret = 0;
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 	char template[1024];
 	if (test->tmp_template) {
 		snprintf(template, sizeof(template) / sizeof(char), "%s",
@@ -5298,7 +5300,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 		snprintf(template, sizeof(template) / sizeof(char),
 			 "%s/iperf3.XXXXXX", tempdir);
 	}
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
+#endif //NOT_IN_NRF_IPERF3_INTEGRATION
 
 	sp = (struct iperf_stream *)malloc(sizeof(struct iperf_stream));
 	if (!sp) {
@@ -5368,7 +5370,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	sp->snd = test->protocol->send;
 	sp->rcv = test->protocol->recv;
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 	if (test->diskfile_name != (char *)0) {
 		sp->diskfile_fd =
 			open(test->diskfile_name,
@@ -5376,11 +5378,8 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 			     S_IRUSR | S_IWUSR);
 		if (sp->diskfile_fd == -1) {
 			i_errno = IEFILE;
-#if 1 //TA_IPERF3_INTEGRATION_CHANGE: 
-			free(sp->buffer);
-#else //mmap not supported
-			munmap(sp->buffer, sp->test->settings->blksize);
-#endif
+			free(sp->buffer); /* NRF_IPERF3_INTEGRATION_CHANGE: added */
+			/* munmap(sp->buffer, sp->test->settings->blksize); NRF_IPERF3_INTEGRATION_CHANGE: not supported */
 			free(sp->result);
 			free(sp);
 			return NULL;
@@ -5396,7 +5395,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 
 	/* Initialize stream */
 
-//FTA_IPERF3_INTEGRATION_CHANGE: only repeating pattern
+/* NRF_IPERF3_INTEGRATION_CHANGE: only repeating pattern supported */
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
 	{
 		if (test->debug) {
@@ -5441,7 +5440,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 
 	len = sizeof(struct sockaddr_storage);
 
-	//FTA_IPERF3_INTEGRATION_CHANGE: not available, mock used instead
+	/* NRF_IPERF3_INTEGRATION_CHANGE: not available, mock used instead */
 	if (mock_getsockname(test, sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
@@ -5449,7 +5448,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 	}
 	len = sizeof(struct sockaddr_storage);
 
-	//FTA_IPERF3_INTEGRATION_CHANGE: not available, mock used instead
+	/* NRF_IPERF3_INTEGRATION_CHANGE: not available, mock used instead */
 	if (mock_getpeername(test, sp->socket, (struct sockaddr *)&sp->remote_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
@@ -5461,7 +5460,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 #endif
 	/* Set IP TOS */
 	if ((opt = test->settings->tos)) {
-		if (fta_iperf3_getsockdomain(test, sp->socket) == AF_INET6) {
+		if (nrf_iperf3_getsockdomain(test, sp->socket) == AF_INET6) {
 #ifdef IPV6_TCLASS
 			if (setsockopt(sp->socket, IPPROTO_IPV6, IPV6_TCLASS,
 				       &opt, sizeof(opt)) < 0) {
@@ -5473,13 +5472,13 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 			return -1;
 #endif
 		} else {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
 			if (setsockopt(sp->socket, IPPROTO_IP, IP_TOS, &opt,
 				       sizeof(opt)) < 0) {
 #endif
 				i_errno = IESETTOS;
 				return -1;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 			}
 #endif
 		}
@@ -5517,7 +5516,7 @@ void iperf_add_stream(struct iperf_test *test, struct iperf_stream *sp)
 ** The advantage of doing it this way is that in the much more common
 ** case of no -F flag, there is zero extra overhead.
 */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 static int diskfile_send(struct iperf_stream *sp)
 {
 	int r;
@@ -5568,7 +5567,6 @@ static int diskfile_send(struct iperf_stream *sp)
 	return r;
 }
 
-extern int fsync(int fd); //FTA_IPERF3_INTEGRATION_CHANGE
 static int diskfile_recv(struct iperf_stream *sp)
 {
 	int r;
@@ -5576,11 +5574,11 @@ static int diskfile_recv(struct iperf_stream *sp)
 	r = sp->rcv2(sp);
 	if (r > 0) {
 		(void)write(sp->diskfile_fd, sp->buffer, r);
-		(void)fsync(sp->diskfile_fd); //FTA_IPERF3_INTEGRATION_CHANGE
+		(void)fsync(sp->diskfile_fd);
 	}
 	return r;
 }
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
+#endif /* NOT_IN_NRF_IPERF3_INTEGRATION */
 
 void iperf_catch_sigend(void (*handler)(int))
 {
@@ -5602,7 +5600,7 @@ void iperf_catch_sigend(void (*handler)(int))
  * before cleaning up and exiting.
  */
 
-//FTA_IPERF3_INTEGRATION_TODO: call this to end the iperf from shell?
+/* NRF_IPERF3_INTEGRATION_TODO: call this to end the iperf from shell when cmd  cancellation is supported by zephyr shell */
 void iperf_got_sigend(struct iperf_test *test)
 {
 	/*
@@ -5612,7 +5610,7 @@ void iperf_got_sigend(struct iperf_test *test)
 	if (test->role == 'c' ||
 	    (test->role == 's' && test->state == TEST_RUNNING)) {
 		test->done = 1;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 		cpu_util(test->cpu_util);
 #endif
 		test->stats_callback(test);
@@ -5633,7 +5631,7 @@ void iperf_got_sigend(struct iperf_test *test)
 }
 
 /* Try to write a PID file if requested, return -1 on an error. */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* No support */
 int iperf_create_pidfile(struct iperf_test *test)
 {
 	if (test->pidfile) {
@@ -5696,7 +5694,7 @@ int iperf_delete_pidfile(struct iperf_test *test)
 	}
 	return 0;
 }
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
+#endif /* NOT_IN_NRF_IPERF3_INTEGRATION */
 int iperf_json_start(struct iperf_test *test)
 {
 	test->json_top = cJSON_CreateObject();
@@ -5743,7 +5741,7 @@ int iperf_json_finish(struct iperf_test *test)
 	if (test->json_output_string == NULL)
 		return -1;
 	fprintf(test->outfile, "%s\n", test->json_output_string);
-	if (test->logfile || test->forceflush) //b_jh: added
+	if (test->logfile || test->forceflush) /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 		iflush(test);
 	cJSON_free(test->json_output_string);
 	test->json_output_string = NULL;
@@ -5840,7 +5838,7 @@ int iperf_clearaffinity(struct iperf_test *test)
 #endif /* neither HAVE_SCHED_SETAFFINITY nor HAVE_CPUSET_SETAFFINITY nor HAVE_SETPROCESSAFFINITYMASK */
 }
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 char iperf_timestr[100];
 #endif
 
@@ -5852,7 +5850,7 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 	char *ct = NULL;
 
 	/* Timestamp if requested */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 	struct tm *ltm = NULL;
 	if (iperf_get_test_timestamps(test)) {
 		time(&now);
@@ -5910,5 +5908,5 @@ int iperf_printf(struct iperf_test *test, const char *format, ...)
 
 int iflush(struct iperf_test *test)
 {
-	return 0; //fflush(test->outfile); //FTA_IPERF3_INTEGRATION_CHANGE
+	return 0; /* fflush(test->outfile); NRF_IPERF3_INTEGRATION_CHANGE */
 }

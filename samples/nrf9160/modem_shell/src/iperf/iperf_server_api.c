@@ -32,7 +32,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <errno.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/unistd.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -91,7 +91,7 @@ iperf_server_listen(struct iperf_test *test)
 
     if (!test->json_output) {
 	iperf_printf(test, "-----------------------------------------------------------\n");
-	//FTA_IPERF3_INTEGRATION_CHANGE: added bind address printing:
+	/* NRF_IPERF3_INTEGRATION_CHANGE: added bind address printing: */
 	iperf_printf(test, "Server listening on local %s port %d\n", (test->bind_address ? test->bind_address : "local"), test->server_port);
 	iperf_printf(test, "-----------------------------------------------------------\n");
 	if (test->forceflush)
@@ -114,13 +114,12 @@ iperf_accept(struct iperf_test *test)
     struct sockaddr_storage addr;
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    //modified due to nrf91_socket_offload_accept() -> in this way ipv6 won't work -> FTA_IPERF3_INTEGRATION_TODO
     struct sockaddr_in client_addr; 
     struct sockaddr_in6 client6_addr;
     struct sockaddr *sa;
 
     /* Workaround due to nrf91_socket_offload_accept / bsdlib that requires len to be either of in4 or in6 */    
-    int domain = fta_iperf3_getsockdomain(test, test->ctrl_sck);
+    int domain = nrf_iperf3_getsockdomain(test, test->ctrl_sck);
 
     if (domain == AF_INET) {
         len = sizeof(client_addr);
@@ -205,7 +204,7 @@ iperf_handle_message_server(struct iperf_test *test)
             break;
         case TEST_END:
 	    test->done = 1;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION        
             cpu_util(test->cpu_util);
 #endif
             test->stats_callback(test);
@@ -232,7 +231,7 @@ iperf_handle_message_server(struct iperf_test *test)
 	    // Temporarily be in DISPLAY_RESULTS phase so we can get
 	    // ending summary statistics.
 	    signed char oldstate = test->state;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION        
 	    cpu_util(test->cpu_util);
 #endif        
 	    test->state = DISPLAY_RESULTS;
@@ -441,7 +440,7 @@ iperf_run_server(struct iperf_test *test)
     struct iperf_stream *sp;
     struct iperf_time now;
     struct timeval* timeout;
-    int flag = -1; //FTA_IPERF3_INTEGRATION_CHANGE
+    int flag = -1; /* NRF_IPERF3_INTEGRATION_CHANGE */
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -471,7 +470,7 @@ iperf_run_server(struct iperf_test *test)
     }
 
     // Begin calculating CPU utilization
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION    
     cpu_util(NULL);
 #endif
     test->state = IPERF_START;

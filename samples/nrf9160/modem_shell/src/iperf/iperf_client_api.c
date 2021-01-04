@@ -24,9 +24,9 @@
  * This code is distributed under a BSD style license, see the LICENSE
  * file for complete information.
  */
- //FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+ /* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <errno.h>
-//#include <setjmp.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
+/* #include <setjmp.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +35,7 @@
 #include <sys/types.h>
 #include <posix/netinet/in.h>
 #include <posix/sys/select.h>
-//#include <sys/uio.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
+/* #include <sys/uio.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <posix/arpa/inet.h>
 
 #include "iperf.h"
@@ -233,7 +233,7 @@ iperf_handle_message_client(struct iperf_test *test)
 {
     int rval;
     int32_t err;
-    struct iperf_stream *sp; //FTA_IPERF3_INTEGRATION_CHANGE
+    struct iperf_stream *sp; /* NRF_IPERF3_INTEGRATION_CHANGE */
 
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
@@ -319,7 +319,7 @@ iperf_handle_message_client(struct iperf_test *test)
 	     * ending summary statistics.
 	     */
 	    signed char oldstate = test->state;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION        
 	    cpu_util(test->cpu_util);
 #endif
 	    test->state = DISPLAY_RESULTS;
@@ -381,11 +381,11 @@ iperf_connect(struct iperf_test *test)
     socklen_t len;
 
     len = sizeof(opt);
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported    
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     if (getsockopt(test->ctrl_sck, IPPROTO_TCP, TCP_MAXSEG, &opt, &len) < 0) {
 #endif        
         test->ctrl_sck_mss = 0;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported    
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     }
     else {
         if (opt > 0 && opt <= MAX_UDP_BLOCKSIZE) {
@@ -403,11 +403,11 @@ iperf_connect(struct iperf_test *test)
 #endif        
 
     if (test->verbose) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION        
 	printf("Control connection MSS %d\n", test->ctrl_sck_mss);
 #else
-    //no support to set nor read the mss
-	printf("Control connection MSS: modem default\n");
+    /* no support to set nor read the mss */
+	printf("Control connection MSS: using modem default\n");
 #endif
     }
 
@@ -460,7 +460,7 @@ int
 iperf_client_end(struct iperf_test *test)
 {
     struct iperf_stream *sp;
-    int retval = 0; //FTA_IPERF3_INTEGRATION_CHANGE: closing control socket when DONE failed
+    int retval = 0; /* NRF_IPERF3_INTEGRATION_CHANGE: closing control socket when DONE failed */
 
     /* Close all stream sockets */
     SLIST_FOREACH(sp, &test->streams, streams) {
@@ -539,7 +539,7 @@ iperf_run_client(struct iperf_test * test)
     }
 
     /* Begin calculating CPU utilization */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     cpu_util(NULL);
 #endif
 
@@ -697,7 +697,7 @@ iperf_run_client(struct iperf_test * test)
 			}
 		}
 
-        /* FTA_IPERF3_INTEGRATION_CHANGE: make sure that we can send, read from the buffers 1st */
+        /* NRF_IPERF3_INTEGRATION_CHANGE: make sure that we can send, read from the buffers 1st */
         if (iperf_recv(test, &flush_read_set) < 0) {
             if (test->debug) {
                 printf("iperf_run_client: iperf_recv flushing failed, ignored\n");
@@ -705,7 +705,7 @@ iperf_run_client(struct iperf_test * test)
         }
 #endif
 #endif        
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION        
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION        
 		cpu_util(test->cpu_util);
 #endif
 		test->stats_callback(test);
@@ -737,7 +737,7 @@ iperf_run_client(struct iperf_test * test)
 	if (iperf_json_finish(test) < 0)
 	    return -1;
     } else {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 	iperf_printf(test, "\n");
 	iperf_printf(test, "%s", report_done);
 #endif    

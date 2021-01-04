@@ -26,11 +26,12 @@
  */
 #ifndef        __IPERF_API_H
 #define        __IPERF_API_H
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 
 #include <posix/sys/socket.h>
 #include <posix/sys/time.h>
-//#include <setjmp.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
+/* #include <setjmp.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -267,7 +268,7 @@ int       iperf_init_stream(struct iperf_stream *, struct iperf_test *);
  */
 void      iperf_free_stream(struct iperf_stream * sp);
 
-int iperf_main(int argc, char *argv[]); //FTA_IPERF3_INTEGRATION_CHANGE
+int iperf_main(int argc, char *argv[]); /* NRF_IPERF3_INTEGRATION_CHANGE */
 
 int has_tcpinfo(void);
 int has_tcpinfo_retransmits(void);
@@ -286,17 +287,17 @@ int iperf_send(struct iperf_test *, fd_set *) /* __attribute__((hot)) */;
 int iperf_recv(struct iperf_test *, fd_set *);
 
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 void iperf_catch_sigend(void (*handler)(int));
 void iperf_got_sigend(struct iperf_test *test) __attribute__ ((noreturn));
 #endif
 
-void fta_iperf3_usage(); //FTA_IPERF3_INTEGRATION_CHANGE
-int fta_iperf3_getsockdomain(struct iperf_test *test, int sock); //FTA_IPERF3_INTEGRATION_CHANGE: added
+void nrf_iperf3_usage(); /* NRF_IPERF3_INTEGRATION_CHANGE: added */
+int nrf_iperf3_getsockdomain(struct iperf_test *test, int sock); /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 void usage(void);
-void usage_long(FILE * f); b_jh: long options not supported
+void usage_long(FILE * f);
 #endif
 void warning(const char *);
 int iperf_exchange_results(struct iperf_test *);
@@ -315,7 +316,7 @@ void iperf_on_test_start(struct iperf_test *);
 void iperf_on_connect(struct iperf_test *);
 void iperf_on_test_finish(struct iperf_test *);
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 extern jmp_buf env;
 #endif
 
@@ -331,7 +332,7 @@ int iperf_run_server(struct iperf_test *);
 int iperf_server_listen(struct iperf_test *);
 int iperf_accept(struct iperf_test *);
 int iperf_handle_message_server(struct iperf_test *);
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 int iperf_create_pidfile(struct iperf_test *);
 int iperf_delete_pidfile(struct iperf_test *);
 #endif
@@ -351,7 +352,7 @@ int iflush(struct iperf_test *test);
 
 /* Error routines. */
 void iperf_err(struct iperf_test *test, const char *format, ...) __attribute__ ((format(printf,2,3)));
-void iperf_errexit(struct iperf_test *test, const char *format, ...) __attribute__ ((format(printf,2,3))); //FTA_IPERF3_INTEGRATION_CHANGE: noreturn removed as no support for exit()
+void iperf_errexit(struct iperf_test *test, const char *format, ...) __attribute__ ((format(printf,2,3))); /* NRF_IPERF3_INTEGRATION_CHANGE: noreturn removed as no support for exit() */
 char *iperf_strerror(int);
 extern int i_errno;
 enum {
@@ -444,8 +445,7 @@ enum {
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
     IENOMEMORY = 302,       // no dynamic memory from heap
-    IEPDN = 303,            // Invalid PDN: FTA_IPERF3_INTEGRATION_TODO
-    IETESTSTARTTIMEOUT = 304, // testing start timeout
+    IETESTSTARTTIMEOUT = 303, // testing start timeout
 #endif
 };
 

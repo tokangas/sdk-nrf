@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/unistd.h>
 #include <posix/arpa/inet.h>
 #include <posix/sys/socket.h>
@@ -87,7 +87,7 @@ iperf_tcp_recv(struct iperf_stream *sp)
             if (sp->test->debug)
                 printf("TCP Early/Late receive, state = %d, read %d\n", sp->test->state, r);
 
-            //FTA_IPERF3_INTEGRATION_TODO: should we count these still?
+            /* NRF_IPERF3_INTEGRATION_TODO: should we count followings still? */
             //sp->result->bytes_received += r;
             //sp->result->bytes_received_this_interval += r;
         }
@@ -125,7 +125,7 @@ iperf_tcp_send(struct iperf_stream *sp)
 {
     int r;
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     if (sp->test->zerocopy)
 	r = Nsendfile(sp->buffer_fd, sp->socket, sp->buffer, sp->settings->blksize);
     else
@@ -139,7 +139,7 @@ iperf_tcp_send(struct iperf_stream *sp)
     sp->result->bytes_sent_this_interval += r;
 
     if (sp->test->debug && r > 0) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 	    printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
 
 #else
@@ -163,7 +163,7 @@ iperf_tcp_accept(struct iperf_test * test)
     char    cookie[COOKIE_SIZE];
     socklen_t len;
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-    struct sockaddr_in addr; //b_jh: modified due to nrf91_socket_offload_accept()
+    struct sockaddr_in addr; /* modified due to nrf91_socket_offload_accept() */
 #else
     struct sockaddr_storage addr;
 #endif
@@ -198,11 +198,11 @@ int
 iperf_tcp_listen(struct iperf_test *test)
 {
     int s, opt;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* options not supported */
     socklen_t optlen;
 #endif	
     int saved_errno;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     int rcvbuf_actual, sndbuf_actual;
 #endif
 
@@ -286,7 +286,7 @@ iperf_tcp_listen(struct iperf_test *test)
         }
         // XXX: Setting MSS is very buggy!
         if ((opt = test->settings->mss)) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
             if (setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, &opt, sizeof(opt)) < 0) {
 #endif
 		saved_errno = errno;
@@ -295,12 +295,12 @@ iperf_tcp_listen(struct iperf_test *test)
 		errno = saved_errno;
                 i_errno = IESETMSS;
                 return -1;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
             }
 #endif
         }
         if ((opt = test->settings->socket_bufsize)) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
             if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
 #endif
 		saved_errno = errno;
@@ -309,10 +309,10 @@ iperf_tcp_listen(struct iperf_test *test)
 		errno = saved_errno;
                 i_errno = IESETBUF;
                 return -1;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
             }
 #endif
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
             if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &opt, sizeof(opt)) < 0) {
 		saved_errno = errno;
 		close(s);
@@ -361,7 +361,7 @@ iperf_tcp_listen(struct iperf_test *test)
 	 * connections as well.  See documentation in netannounce() for
 	 * more details.
 	 */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 #if defined(IPV6_V6ONLY) && !defined(__OpenBSD__)
 	if (res->ai_family == AF_INET6 && (test->settings->domain == AF_UNSPEC || test->settings->domain == AF_INET)) {
 	    if (test->settings->domain == AF_UNSPEC)
@@ -400,7 +400,7 @@ iperf_tcp_listen(struct iperf_test *test)
     }
     
     /* Read back and verify the sender socket buffer size */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     optlen = sizeof(sndbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_actual, &optlen) < 0) {
 	saved_errno = errno;
@@ -419,7 +419,7 @@ iperf_tcp_listen(struct iperf_test *test)
 #endif
 
     /* Read back and verify the receiver socket buffer size */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     optlen = sizeof(rcvbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {
 	saved_errno = errno;
@@ -460,7 +460,7 @@ iperf_tcp_connect(struct iperf_test *test)
     struct addrinfo hints, *local_res, *server_res;
     char portstr[6];
     int s, opt;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     socklen_t optlen;
 #endif
     int saved_errno;
@@ -596,7 +596,7 @@ iperf_tcp_connect(struct iperf_test *test)
         }
     }
     if ((opt = test->settings->mss)) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
         if (setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, &opt, sizeof(opt)) < 0) {
 #endif
 	    saved_errno = errno;
@@ -605,12 +605,12 @@ iperf_tcp_connect(struct iperf_test *test)
 	    errno = saved_errno;
             i_errno = IESETMSS;
             return -1;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
         }
 #endif
     }
     if ((opt = test->settings->socket_bufsize)) {
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
         if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
 	    saved_errno = errno;
 	    close(s);
@@ -636,7 +636,7 @@ iperf_tcp_connect(struct iperf_test *test)
     }
 
     /* Read back and verify the sender socket buffer size */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     optlen = sizeof(sndbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_actual, &optlen) < 0) {
 	saved_errno = errno;
@@ -655,7 +655,7 @@ iperf_tcp_connect(struct iperf_test *test)
     }
 #endif
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     /* Read back and verify the receiver socket buffer size */
     optlen = sizeof(rcvbuf_actual);
     if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf_actual, &optlen) < 0) {

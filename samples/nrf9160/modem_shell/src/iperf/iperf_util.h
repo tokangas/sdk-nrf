@@ -32,11 +32,11 @@
 #include <posix/sys/select.h>
 #include <stddef.h>
 
-//FTA_IPERF3_INTEGRATION_CHANGE: getsockname in system is not working
+/* NRF_IPERF3_INTEGRATION_CHANGE: getsockname in system is not working */
 #include "iperf.h"
 int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 int readentropy(void *out, size_t outsize);
 #endif
 void fill_with_repeating_pattern(void *out, size_t outsize);
@@ -51,7 +51,7 @@ int timeval_equals(struct timeval *tv0, struct timeval *tv1);
 
 double timeval_diff(struct timeval *tv0, struct timeval *tv1);
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 void cpu_util(double pcpu[3]);
 #endif
 const char* get_system_info(void);

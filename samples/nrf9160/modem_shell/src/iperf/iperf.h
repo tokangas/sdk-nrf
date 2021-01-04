@@ -29,7 +29,7 @@
 
 #include "iperf_config.h"
 
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/sys/time.h>
 #include <sys/types.h>
 #ifdef HAVE_STDINT_H
@@ -38,14 +38,13 @@
 #include <posix/sys/select.h>
 #include <posix/sys/socket.h>
 
-//FTA_IPERF3_INTEGRATION_CHANGE: 
+/* NRF_IPERF3_INTEGRATION_CHANGE: */
 #if defined (CONFIG_POSIX_API)
 //caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
 #endif
-//end of FTA_IPERF3_INTEGRATION_CHANGE
 
 #include <posix/netinet/tcp.h>
 
@@ -266,7 +265,7 @@ struct iperf_test
     char     *tmp_template;
     char     *bind_address;                     /* first -B option */
 
-    struct sockaddr remote_addr; /* FTA_IPERF3_INTEGRATION_CHANGE: added */
+    struct sockaddr remote_addr; /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 
     TAILQ_HEAD(xbind_addrhead, xbind_entry) xbind_addrs; /* all -X opts */
     int       bind_port;                        /* --cport option */
@@ -381,10 +380,6 @@ struct iperf_test
     TAILQ_HEAD(iperf_textlisthead, iperf_textline) server_output_list;
 };
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-#define FTA_IPERF3_CID_NOT_SET -6
-#endif
-
 /* default settings */
 #define PORT 5201  /* default port to listen on (don't use the same port as iperf2) */
 #define uS_TO_NS 1000
@@ -399,7 +394,7 @@ struct iperf_test
 #define UDP_BUFFER_EXTRA 1024
 
 /* constants for command line arg sanity checks */
-#ifdef MB //FTA_IPERF3_INTEGRATION_CHANGE
+#ifdef MB /* NRF_IPERF3_INTEGRATION_CHANGE: added ifdef */
 #undef MB
 #define MB (1024 * 1024)
 #endif

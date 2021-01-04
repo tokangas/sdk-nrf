@@ -70,7 +70,6 @@
 #undef HAVE_STRUCT_SCTP_ASSOC_VALUE
 
 /* Define to 1 if you have the <sys/endian.h> header file. */
-//b_jh: whgatg about this?
 #undef HAVE_SYS_ENDIAN_H
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
@@ -105,7 +104,8 @@
 #define PACKAGE_NAME "iperf"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "iperf 3.9"
+/* NRF_IPERF3_INTEGRATION_CHANGE: 3.9 tag was used as a base when iperf3 was integrated to NCS: https://github.com/esnet/iperf/commits/3.9 */
+#define PACKAGE_STRING "iperf 3.9-nrf"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
