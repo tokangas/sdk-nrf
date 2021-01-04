@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/unistd.h>
 #include <assert.h>
 #include <posix/arpa/inet.h>
@@ -108,8 +108,8 @@ iperf_udp_recv(struct iperf_stream *sp)
 	    memcpy(&pcount, sp->buffer+8, sizeof(pcount));
 	    sec = ntohl(sec);
 	    usec = ntohl(usec);
-	    //pcount = be64toh(pcount);
-		pcount = ntohll(pcount); //FTA_IPERF3_INTEGRATION_CHANGE
+	    /* pcount = be64toh(pcount); */
+		pcount = ntohll(pcount); /* NRF_IPERF3_INTEGRATION_CHANGE */
 	    sent_time.secs = sec;
 	    sent_time.usecs = usec;
 	}
@@ -126,7 +126,7 @@ iperf_udp_recv(struct iperf_stream *sp)
 	}
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-	/* FTA_IPERF3_INTEGRATION_CHANGE: because 64bit printing ain't working */
+	/* NRF_IPERF3_INTEGRATION_CHANGE: because 64bit printing ain't working */
 	if (sp->test->debug)
 	    fprintf(stderr, "pcount %d packet_count %d\n", (uint32_t)pcount, sp->packet_count);
 
@@ -175,7 +175,7 @@ iperf_udp_recv(struct iperf_stream *sp)
 	
 	    /* Log the out-of-order packet */
 		
-#if NOT_IN_FTA_IPERF3_INTEGRATION
+#if NOT_IN_NRF_IPERF3_INTEGRATION
 	    if (sp->test->debug) 
 		fprintf(stderr, "OUT OF ORDER - incoming packet sequence %" PRIu64 " but expected sequence %d on stream %d", pcount, sp->packet_count + 1, sp->socket);
 #else
@@ -213,7 +213,7 @@ iperf_udp_recv(struct iperf_stream *sp)
     }
     else {
 	if (sp->test->debug)
-	    printf("UDP Early/Late receive, state = %d, count: %d\n", sp->test->state, r); //FTA_IPERF3_INTEGRATION_CHANGE
+	    printf("UDP Early/Late receive, state = %d, count: %d\n", sp->test->state, r); /* NRF_IPERF3_INTEGRATION_CHANGE */
     }
 
     return r;
@@ -242,8 +242,8 @@ iperf_udp_send(struct iperf_stream *sp)
 
 	sec = htonl(before.secs);
 	usec = htonl(before.usecs);
-	//pcount = htobe64(sp->packet_count);
-	pcount = htonl(sp->packet_count); //FTA_IPERF3_INTEGRATION_CHANGE
+	/* pcount = htobe64(sp->packet_count); */
+	pcount = htonl(sp->packet_count); /* NRF_IPERF3_INTEGRATION_CHANGE */
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
 	memcpy(sp->buffer+4, &usec, sizeof(usec));
@@ -272,7 +272,7 @@ iperf_udp_send(struct iperf_stream *sp)
     sp->result->bytes_sent += r;
     sp->result->bytes_sent_this_interval += r;
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     if (sp->test->debug)
 	printf("sent %d bytes of %d, total %" PRIu64 "\n", r, sp->settings->blksize, sp->result->bytes_sent);
 #else
@@ -304,7 +304,7 @@ int
 iperf_udp_buffercheck(struct iperf_test *test, int s)
 {
     int rc = 0;
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
     int sndbuf_actual = 0, rcvbuf_actual = 0;
 
     /*
@@ -473,7 +473,7 @@ iperf_udp_accept(struct iperf_test *test)
 
     /* Let the client know we're ready "accept" another UDP "stream" */
     buf = 987654321;		/* any content will work here */
-#if defined (CONFIG_POSIX_API) //FTA_IPERF3_INTEGRATION_CHANGE
+#if defined (CONFIG_POSIX_API) /* NRF_IPERF3_INTEGRATION_CHANGE */
     if (write(s, &buf, sizeof(buf)) < 0) {
 #else
     if (send(s, &buf, sizeof(buf), 0) < 0) {
@@ -580,7 +580,7 @@ iperf_udp_connect(struct iperf_test *test)
     tv.tv_sec = 30;
     tv.tv_usec = 0;
     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
-		warning("Unable to set socket SO_RCVTIMEO"); //FTA_IPERF3_INTEGRATION_CHANGE
+		warning("Unable to set socket SO_RCVTIMEO"); /* NRF_IPERF3_INTEGRATION_CHANGE */
 	}
 #endif
 

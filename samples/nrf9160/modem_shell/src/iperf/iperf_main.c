@@ -66,7 +66,7 @@ int
 iperf_main(int argc, char **argv)
 {
     struct iperf_test *test;
-    int retval = 0; //b_jh
+    int retval = 0; /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 
     // XXX: Setting the process affinity requires root on most systems.
     //      Is this a feature we really need?
@@ -119,7 +119,7 @@ iperf_main(int argc, char **argv)
         {
             iperf_err(test, "parameter error - %s", iperf_strerror(i_errno));
             fprintf(stderr, "\n");
-            fta_iperf3_usage();
+            nrf_iperf3_usage();
             retval = -1;
         }
         goto exit;
@@ -145,7 +145,7 @@ exit:
     return retval;
 }
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support for signals or setjmp?
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* No support for signals or setjmp */
 static jmp_buf sigend_jmp_buf;
 
 static void __attribute__ ((noreturn))
@@ -156,7 +156,8 @@ sigend_handler(int sig)
 #endif
 
 /**************************************************************************/
-#ifdef TODO_JH
+/* NRF_IPERF3_INTEGRATION_TODO: enable when zephyr shell is supporting abort */
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 static bool do_exit;
 static void signal_handler(int sig)
 {
@@ -167,7 +168,7 @@ static int
 run(struct iperf_test *test)
 {
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support for signals or setjmp? TODO
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* No support for signals or setjmp */
     /* Termination signals. */
     iperf_catch_sigend(sigend_handler);
     if (setjmp(sigend_jmp_buf))
@@ -177,13 +178,14 @@ run(struct iperf_test *test)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
-#ifdef TODO_JH
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
+/* NRF_IPERF3_INTEGRATION_TODO: enable when zephyr shell is supporting abort */
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 #endif
     switch (test->role) {
         case 's':
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* No support */
 	    if (test->daemon) {
 		int rc;
 		rc = daemon(0, 0);
@@ -218,7 +220,7 @@ run(struct iperf_test *test)
 		    break;
 		}
             }
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //No support
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* No support */
 	    iperf_delete_pidfile(test);
 #endif
             break;
@@ -229,10 +231,10 @@ run(struct iperf_test *test)
         }
             break;
         default:
-            fta_iperf3_usage();
+            nrf_iperf3_usage();
             break;
     }
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     iperf_catch_sigend(SIG_DFL);
     signal(SIGPIPE, SIG_DFL);
 #endif

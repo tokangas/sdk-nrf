@@ -27,7 +27,7 @@
 #include "iperf_config.h"
 
 #include <stdio.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/unistd.h>
 #include <errno.h>
 #include <posix/arpa/inet.h>
@@ -124,7 +124,7 @@ timeout_connect(int s, const struct sockaddr *name, socklen_t namelen,
 
 /* make connection to server */
 int
-netdial(struct iperf_test *test, int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout)/* FTA_IPERF3_INTEGRATION_CHANGE: added test */
+netdial(struct iperf_test *test, int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout)/* NRF_IPERF3_INTEGRATION_CHANGE: added test */
 {
     struct addrinfo hints, *local_res, *server_res;
     int s, saved_errno;
@@ -260,7 +260,7 @@ netdial(struct iperf_test *test, int domain, int proto, const char *local, int l
         return -1;
     }
     
-    test->remote_addr = *(server_res->ai_addr); /* FTA_IPERF3_INTEGRATION_CHANGE: added */
+    test->remote_addr = *(server_res->ai_addr); /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 
     freeaddrinfo(server_res);
     return s;
@@ -269,7 +269,7 @@ netdial(struct iperf_test *test, int domain, int proto, const char *local, int l
 /***************************************************************/
 
 int
-netannounce(struct iperf_test *test, int domain, int proto, const char *local, int port)/* FTA_IPERF3_INTEGRATION_CHANGE: added test */
+netannounce(struct iperf_test *test, int domain, int proto, const char *local, int port) /* NRF_IPERF3_INTEGRATION_CHANGE: added test */
 {
     struct addrinfo hints, *res;
     char portstr[6];
@@ -367,7 +367,7 @@ netannounce(struct iperf_test *test, int domain, int proto, const char *local, i
 	freeaddrinfo(res);
 	errno = saved_errno;
     
-    /* FTA_IPERF3_INTEGRATION_CHANGE: note: SO_REUSEADDR is not supported by modem in 1.2.1/1.2.2. */
+    /* NRF_IPERF3_INTEGRATION_CHANGE: note: SO_REUSEADDR is not supported by modem in 1.2.1/1.2.2. */
     printk("listen setsockopt SO_REUSEADDR %s\n",  gai_strerror(saved_errno));
 	return -1;
     }
@@ -379,7 +379,7 @@ netannounce(struct iperf_test *test, int domain, int proto, const char *local, i
      * OpenBSD explicitly omits support for IPv4-mapped addresses,
      * even though it implements IPV6_V6ONLY.
      */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 #if defined(IPV6_V6ONLY) && !defined(__OpenBSD__)
     if (res->ai_family == AF_INET6 && (domain == AF_UNSPEC || domain == AF_INET6)) {
 	if (domain == AF_UNSPEC)
@@ -504,7 +504,7 @@ int
 Nsendfile(int fromfd, int tofd, const char *buf, size_t count)
 {
 #if defined(HAVE_SENDFILE)
-    off_t offset; //FTA_IPERF3_INTEGRATION_CHANGE
+    off_t offset; /* NRF_IPERF3_INTEGRATION_CHANGE */
 #if defined(__FreeBSD__) || (defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_6))
     off_t sent;
 #endif
@@ -586,7 +586,7 @@ setnonblocking(int fd, int nonblocking)
 }
 
 /****************************************************************************/
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //FTA version used instead from iperf_util.c
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* due to lack of decent platform support: mock version used instead from iperf_util.c */
 int
 getsockdomain(int sock)
 {

@@ -92,7 +92,7 @@ extern    "C"
  * ------------------------------------------------------------------- */
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-const char fta_iperf3_usage_support_str[] = 
+const char nrf_iperf3_usage_support_str[] = 
                            "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-m|--manual] [-v|--version]\n\n"
                            "Server or Client:\n"
@@ -156,9 +156,9 @@ const char fta_iperf3_usage_support_str[] =
                            "Report bugs to:     " PACKAGE_BUGREPORT "\n"
 #endif /* PACKAGE_BUGREPORT */
 			   ;
-#endif //CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES
+#endif /* CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES */
 
-#if NOT_IN_FTA_IPERF3_INTEGRATION //Long options not supported
+#if NOT_IN_NRF_IPERF3_INTEGRATION /* nrf_iperf3_usage_support_str used, see above */
 const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-h|--help] [-v|--version]\n\n"
                            "Server or Client:\n"
@@ -277,7 +277,7 @@ const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
   "-x, --reportexclude [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports\n"
   "-y, --reportstyle C      report as a Comma-Separated Values\n"
 #endif
-#endif //NOT_IN_FTA_IPERF3_INTEGRATION
+#endif /* NOT_IN_NRF_IPERF3_INTEGRATION */
 
 const char version[] = PACKAGE_STRING;
 

@@ -26,7 +26,7 @@
  */
 #include <stdio.h>
 #include <errno.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/netdb.h>
 #include <string.h>
 #include <stdlib.h>
@@ -37,7 +37,7 @@
 
 int gerror;
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 char iperf_timestrerr[100];
 #endif
 
@@ -50,7 +50,7 @@ iperf_err(struct iperf_test *test, const char *format, ...)
     char *ct = NULL;
 
     /* Timestamp if requested */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     time_t now;
     struct tm *ltm = NULL;
     if (test != NULL && test->timestamps) {
@@ -87,14 +87,14 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
 {
     va_list argp;
     char str[1000];
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     time_t now;
     struct tm *ltm = NULL;
 #endif
     char *ct = NULL;
 
     /* Timestamp if requested */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     if (test != NULL && test->timestamps) {
 	time(&now);
 	ltm = localtime(&now);
@@ -122,11 +122,11 @@ iperf_errexit(struct iperf_test *test, const char *format, ...)
 	    fprintf(stderr, "iperf3: %s\n", str);
 	}
     va_end(argp);
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION    
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION    
     if (test)
         iperf_delete_pidfile(test);
 #endif
-    //exit(1); //FTA_IPERF3_INTEGRATION_CHANGE: exit not supported
+    /* exit(1); NRF_IPERF3_INTEGRATION_CHANGE: exit not supported */
 }
 
 int i_errno;

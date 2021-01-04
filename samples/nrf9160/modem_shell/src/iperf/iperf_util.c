@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-//FTA_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
 #include <posix/sys/select.h>
 
 #if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
@@ -48,10 +48,10 @@
 #if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
 #else
-//FTA_IPERF3_INTEGRATION_CHANGE for compiling without POSIX_API
+/* NRF_IPERF3_INTEGRATION_CHANGE for compiling without POSIX_API */
 /* From <sys/resource.h> that caused collisions without POSIX_API by inclusing sys/time.h */
 
-//#include <sys/time.h>
+/* #include <sys/time.h> */
 
 #define	RUSAGE_SELF	0		/* calling process */
 #define	RUSAGE_CHILDREN	-1		/* terminated child processes */
@@ -66,7 +66,7 @@ int	getrusage (int, struct rusage*);
 //end resource.h
 #endif //CONFIG_POSIX_API
 
-//#include <sys/utsname.h> //FTA_IPERF3_INTEGRATION_CHANGE: not available
+/* #include <sys/utsname.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 
 #include <time.h>
 #include <errno.h>
@@ -78,21 +78,21 @@ int	getrusage (int, struct rusage*);
 #include "iperf_api.h"
 
 
-//FTA_IPERF3_INTEGRATION_CHANGE: added, ref: https://docs.zephyrproject.org/1.13.0/kernel/timing/clocks.html
+/* NRF_IPERF3_INTEGRATION_CHANGE: added, ref: https://docs.zephyrproject.org/1.13.0/kernel/timing/clocks.html */
 #ifndef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC CONFIG_SYS_CLOCK_TICKS_PER_SEC
 #endif
 
 /**************************************************************************/
-//FTA_IPERF3_INTEGRATION_CHANGE: added 
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
 static int mock_gethostname(char *name, size_t len)
 {
      strncpy(name, CONFIG_FTA_IPERF3_HOST_NAME, len);
      return 0;
 }
 /**************************************************************************/
-//FTA_IPERF3_INTEGRATION_CHANGE: added because zephyr getsockname crashed the system, local port cannot be known by this mock impl
-// https://pubs.opengroup.org/onlinepubs/9699919799/functions/getsockname.html
+/* NRF_IPERF3_INTEGRATION_CHANGE: added because zephyr getsockname crashed the system, this is very dummy */
+/* https://pubs.opengroup.org/onlinepubs/9699919799/functions/getsockname.html */
 int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     /* Note:
@@ -113,7 +113,7 @@ int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr,
     return 0;
 }
 
-//FTA_IPERF3_INTEGRATION_CHANGE: added 
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
 int getrusage(int who, struct rusage *usage)
 {
     memset(usage, 0, sizeof(*usage));   // XXX
@@ -150,7 +150,7 @@ int iperf_util_socket_apn_set(int fd, const char *apn)
  * Errors are fatal.
  * Returns 0 on success.
  */
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 
 int readentropy(void *out, size_t outsize)
 {
@@ -302,7 +302,7 @@ timeval_diff(struct timeval * tv0, struct timeval * tv1)
     return time1;
 }
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported 
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* not supported */
 /* CPU usage not supported. Additionally, Calling of fstat() / clock() would require system callbacks to be impelemted in libc-hook.c for _times()
  */
 void
@@ -347,7 +347,7 @@ get_system_info(void)
 {
     static const char *buf = CONFIG_FTA_IPERF3_HOST_NAME;
 
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION //not supported
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION  /* other system info not supported */
     static char buf[1024];
     struct utsname  uts;
     memset(buf, 0, 1024);
@@ -362,11 +362,11 @@ get_system_info(void)
 const char *
 get_optional_features(void)
 {
-    static char features[64]; //was 1024, FTA_IPERF3_INTEGRATION_CHANGE: no support, decrease stack usage
+    static char features[64]; /* was 1024, NRF_IPERF3_INTEGRATION_CHANGE: no actual support, so decrease stack usage */
     unsigned int numfeatures = 0;
 
     snprintf(features, sizeof(features), "Optional features available: ");
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION  /* not supported */
 #if defined(HAVE_CPU_AFFINITY)
     if (numfeatures > 0) {
 	strncat(features, ", ", 
@@ -545,7 +545,7 @@ iperf_dump_fdset(FILE *fp, const char *str, int nfds, fd_set *fds)
  * Cobbled together from various daemon(3) implementations,
  * not intended to be general-purpose. */
 #ifndef HAVE_DAEMON
-#ifdef NOT_IN_FTA_IPERF3_INTEGRATION
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 int daemon(int nochdir, int noclose)
 {
     pid_t pid = 0;
