@@ -638,8 +638,10 @@ static void sock_receive_handler()
 		if (count == 0) {
 			/* No sockets in use, so no use calling poll() */
 			k_sleep(K_MSEC(SOCK_POLL_TIMEOUT_MS));
-			k_free(receive_buffer);
-			receive_buffer = NULL;
+			if (receive_buffer != NULL) {
+				k_free(receive_buffer);
+				receive_buffer = NULL;
+			}
 			continue;
 		}
 
@@ -660,7 +662,7 @@ static void sock_receive_handler()
 					int buffer_size;
 
 					if (receive_buffer == NULL) {
-						receive_buffer = calloc(SOCK_RECEIVE_BUFFER_SIZE + 1, 1);
+						receive_buffer = k_calloc(SOCK_RECEIVE_BUFFER_SIZE + 1, 1);
 						if (receive_buffer == NULL) {
 							shell_error(shell_global, "Out of memory while reserving receive buffer of size %d bytes", SOCK_RECEIVE_BUFFER_SIZE);
 							break;
