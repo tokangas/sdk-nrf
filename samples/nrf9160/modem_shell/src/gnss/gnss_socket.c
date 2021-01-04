@@ -13,7 +13,7 @@
 
 #include "gnss.h"
 
-#define GNSS_THREAD_STACK_SIZE 1536
+#define GNSS_THREAD_STACK_SIZE 640
 #define GNSS_THREAD_PRIORITY 5
 
 typedef enum {
@@ -66,8 +66,6 @@ static void print_pvt_flags(nrf_gnss_pvt_data_frame_t *pvt)
 
 static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 {
-	char output_buffer[256];
-
         if (pvt_output_level == 0) {
                 return;
         }
@@ -83,7 +81,7 @@ static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 			    pvt->datetime.minute,
 			    pvt->datetime.seconds,
 			    pvt->datetime.ms);
-		sprintf(output_buffer,
+		shell_print(gnss_shell_global,
 			"Latitude:  %f\n"
 			"Longitude: %f\n"
 			"Altitude:  %.1f m\n"
@@ -104,7 +102,6 @@ static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 			pvt->hdop,
 			pvt->vdop,
 			pvt->tdop);
-		shell_print(gnss_shell_global, "%s", output_buffer);
 	}
 
 	if (pvt_output_level < 2) {
@@ -118,7 +115,7 @@ static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 			continue;
 		}
 
-		sprintf(output_buffer, "SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
+		shell_print(gnss_shell_global, "SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
 			pvt->sv[i].sv,
 			pvt->sv[i].cn0 * 0.1,
 			pvt->sv[i].elevation,
@@ -126,7 +123,6 @@ static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 			pvt->sv[i].signal,
 			(pvt->sv[i].flags & NRF_GNSS_SV_FLAG_USED_IN_FIX) == NRF_GNSS_SV_FLAG_USED_IN_FIX ? 1 : 0,
 			(pvt->sv[i].flags & NRF_GNSS_SV_FLAG_UNHEALTHY) == NRF_GNSS_SV_FLAG_UNHEALTHY ? 1 : 0);
-		shell_print(gnss_shell_global, "%s", output_buffer);
 	}
 }
 
@@ -165,15 +161,17 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 static void gnss_thread(void)
 {
 	int len;
+	nrf_gnss_data_frame_t *raw_gnss_data;
 
 	k_sem_take(&gnss_sem, K_FOREVER);
 
-	while (true) {
-		nrf_gnss_data_frame_t raw_gnss_data = {0};
+	raw_gnss_data = k_malloc(sizeof(nrf_gnss_data_frame_t));
+	__ASSERT(raw_gnss_data != NULL, "GNSS recv buffer alloc failed");
 
-		while ((len = nrf_recv(fd, &raw_gnss_data,
+	while (true) {
+		while ((len = nrf_recv(fd, raw_gnss_data,
 			               sizeof(nrf_gnss_data_frame_t), 0)) > 0) {
-			process_gnss_data(&raw_gnss_data);
+			process_gnss_data(raw_gnss_data);
 		}
 
 		k_sleep(K_MSEC(500));
