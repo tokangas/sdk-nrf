@@ -8,6 +8,9 @@
 
 config  NCS_IPERF3
 	bool "Iperf3 NCS integration"
+	depends on POSIX_API && !PTHREAD_IPC && !NET_SOCKETS_POSIX_NAMES && NEWLIB_LIBC
+	imply NEWLIB_LIBC_FLOAT_SCAN
+	imply NEWLIB_LIBC_FLOAT_PRINTF
 	default n
 	help
 	  Enable Iperf3 NCS integration
