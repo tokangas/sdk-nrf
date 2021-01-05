@@ -44,7 +44,7 @@
 #endif
 
 #include <sys/types.h>
-#include <posix/sys/time.h>
+#include <sys/time.h>
 #if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
 #else

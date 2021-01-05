@@ -23,7 +23,7 @@
 #endif
 #endif
 #if defined (CONFIG_FTA_IPERF3)
-#include "iperf/iperf_api.h"
+#include <iperf_api.h>
 #endif
 #if defined (CONFIG_FTA_LTELC)
 #include "ltelc_shell.h"
