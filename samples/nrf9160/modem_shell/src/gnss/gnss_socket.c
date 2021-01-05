@@ -13,7 +13,7 @@
 
 #include "gnss.h"
 
-#define GNSS_THREAD_STACK_SIZE 640
+#define GNSS_THREAD_STACK_SIZE 768
 #define GNSS_THREAD_PRIORITY 5
 
 typedef enum {
