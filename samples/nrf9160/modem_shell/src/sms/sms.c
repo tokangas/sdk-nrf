@@ -22,8 +22,10 @@
 
 extern const struct shell* shell_global;
 static int sms_handle = SMS_HANDLE_NONE;
+static int sms_recv_counter = 0;
 
-void sms_callback(struct sms_data *const data, void *context)
+
+static void sms_callback(struct sms_data *const data, void *context)
 {
 	if (data == NULL) {
 		printk("sms_callback with NULL data\n");
@@ -37,7 +39,8 @@ void sms_callback(struct sms_data *const data, void *context)
 
 	// Alpha is phone number
 	shell_print(shell_global, "Number: %s", data->alpha);
-	/*shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
+	/* TODO: date and time not available from the library at the moment
+	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
 		sms_header.time.month,
 		sms_header.time.day,
@@ -47,7 +50,7 @@ void sms_callback(struct sms_data *const data, void *context)
 
 	shell_print(shell_global, "Text:   '%s'", data->pdu);
 
-	//parser_delete(&sms_deliver);
+	sms_recv_counter++;
 }
 
 int sms_register()
@@ -102,4 +105,17 @@ int sms_send(char* number, char* text)
 	ret = sms_send_message(number, text);
 
 	return ret;
+}
+
+int sms_recv(bool arg_receive_start)
+{
+	if (arg_receive_start) {
+		sms_recv_counter = 0;
+		shell_print(shell_global, "SMS receive counter set to zero");
+	} else {
+		shell_print(shell_global, "SMS receive counter = %d",
+			sms_recv_counter);
+	}
+
+	return 0;
 }

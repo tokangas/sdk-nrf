@@ -30,17 +30,22 @@ const char sms_usage_str[] =
 	"Usage: sock <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
-	"  send:    Send SMS message. Also registers SMS service if required. Mandatory options: -m, -n\n"
+	"  send:    Send SMS message. Also registers SMS service if required.\n"
+	"           Mandatory options: -m, -n\n"
+	"  recv:    Record number of received SMS messages.\n"
 	"  reg:     Register SMS service to be able to receive messages.\n"
 	"  unreg:   Unregister SMS service after which messages cannot be received.\n"
 	"\n"
 	"Options for 'send' command:\n"
-	"  -m, --message [str]       Text to be sent.\n"
-	"  -n, --number, [str]       Number in international format including country\n"
-	"                            number. Leading '+' can be present or left out.\n"
+	"  -m, --message, <str> Text to be sent.\n"
+	"  -n, --number, <str>  Number in international format including country number.\n"
+	"                       Leading '+' can be present or left out.\n"
+	"\n"
+	"Options for 'recv' command:\n"
+	"  -r, --start,         Reset SMS counter to zero\n"
 	"\n"
 	"Options for 'help' command:\n"
-	"  -v, --verbose, [bool]     Show examples\n"
+	"  -v, --verbose,       Show examples\n"
 	;
 
 const char sms_usage_example_str[] =
@@ -53,6 +58,7 @@ const char sms_usage_example_str[] =
 static struct option long_options[] = {
     {"message",        required_argument, 0,  'm' },
     {"number",         required_argument, 0,  'n' },
+    {"start",          no_argument,       0,  'r' },
     {0,                0,                 0,   0  }
 };
 
@@ -89,7 +95,8 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 		command = SMS_CMD_SEND;
 	} else if (!strcmp(argv[1], "recv")) {
 		command = SMS_CMD_RECV;
-		shell_error(shell, "recv command not implemented yet\n");
+	} else if (!strcmp(argv[1], "help")) {
+		command = SMS_CMD_HELP;
 	} else {
 		shell_error(shell, "Unsupported command=%s\n", argv[1]);
 		sms_print_usage();
@@ -101,13 +108,14 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 	/* Variables for command line arguments */
 	char arg_number[SMS_MAX_MESSAGE_LEN+1];
 	char arg_message[SMS_MAX_MESSAGE_LEN+1];
+	bool arg_receive_start = false;
 	bool arg_verbose = false;
 
 	memset(arg_message, 0, SMS_MAX_MESSAGE_LEN+1);
 
 	// Parse command line
 	int flag = 0;
-	while ((flag = getopt_long(argc, argv, "m:n:", long_options, NULL)) != -1) {
+	while ((flag = getopt_long(argc, argv, "m:n:r", long_options, NULL)) != -1) {
 		int send_data_len = 0;
 
 		switch (flag) {
@@ -123,7 +131,10 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			strcpy(arg_message, optarg);
 			break;
-		case 'v': // Start monitoring received data
+		case 'r': // Start monitoring received messages
+			arg_receive_start = true;
+			break;
+		case 'v': // Longer help text with examples
 			arg_verbose = true;
 			break;
 		}
@@ -141,7 +152,7 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sms_send(arg_number, arg_message);
 			break;
 		case SMS_CMD_RECV:
-			//err = sms_recv();
+			err = sms_recv(arg_receive_start);
 			break;
 		case SMS_CMD_HELP:
 			err = sms_help(arg_verbose);
