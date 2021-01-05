@@ -28,7 +28,7 @@
 #define        IPERF_LOCALE_H
 
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 extern const char nrf_iperf3_usage_support_str[]; /* added */
 #else
 extern const char usage_shortstr[];

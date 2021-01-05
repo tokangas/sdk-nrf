@@ -110,13 +110,13 @@ iperf_accept(struct iperf_test *test)
     socklen_t len;
     struct sockaddr_storage addr;
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     struct sockaddr_in client_addr; 
     struct sockaddr_in6 client6_addr;
     struct sockaddr *sa;
 
     /* Workaround due to nrf91_socket_offload_accept / bsdlib that requires len to be either of in4 or in6 */    
-    int domain = nrf_iperf3_getsockdomain(test, test->ctrl_sck);
+    int domain = nrf_iperf3_mock_getsockdomain(test, test->ctrl_sck);
 
     if (domain == AF_INET) {
         len = sizeof(client_addr);

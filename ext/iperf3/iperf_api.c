@@ -58,7 +58,7 @@
 #endif
 #include <netinet/tcp.h>
 #include <sys/time.h>
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
 #include <modem/modem_info.h>
 #endif
 #include <sys/resource.h>
@@ -117,13 +117,13 @@ static void print_interval_results(struct iperf_test *test,
 				   cJSON *json_interval_streams);
 static cJSON *JSON_read(int fd);
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
-#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 static cJSON *JSON_read_nonblock(struct iperf_test *test) __attribute__((noinline));
 static int JSON_write_nonblock(struct iperf_test *test, cJSON *json) __attribute__((noinline));
 #endif
 
-static int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+static int nrf_iperf3_mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     memset(addr, 0, sizeof(struct sockaddr));
 
@@ -135,12 +135,12 @@ static int mock_getpeername(struct iperf_test *test, int sockfd, struct sockaddr
 	return 0;
 }
 /****************************************************************************/
-int nrf_iperf3_getsockdomain(struct iperf_test *test, int sock)
+int nrf_iperf3_mock_getsockdomain(struct iperf_test *test, int sock)
 {
     struct sockaddr_storage sa;
     socklen_t len = sizeof(sa);
 
-    if (mock_getsockname(test, sock, (struct sockaddr *)&sa, &len) < 0) { /* NRF_IPERF3_INTEGRATION_CHANGE: platform getsockname() is not working */
+    if (nrf_iperf3_mock_getsockname(test, sock, (struct sockaddr *)&sa, &len) < 0) { /* NRF_IPERF3_INTEGRATION_CHANGE: platform getsockname() is not working */
         return -1;
     }
     return ((struct sockaddr *) &sa)->sa_family;
@@ -153,7 +153,7 @@ void nrf_iperf3_usage()
 	fprintf(stderr, nrf_iperf3_usage_support_str, UDP_RATE / (1024 * 1024), DURATION,
 		DEFAULT_TCP_BLKSIZE, DEFAULT_UDP_BLKSIZE);
 }
-#endif //(CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#endif //(CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 
 #if NOT_IN_NRF_IPERF3_INTEGRATION
 /* using dedicated nrf_iperf3_usage() */
@@ -797,7 +797,7 @@ void iperf_on_connect(struct iperf_test *test)
 	struct sockaddr_in6 *sa_in6P;
 	socklen_t len;
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
 	int ret = modem_info_string_get(MODEM_INFO_DATE_TIME, now_str, sizeof(now_str));
 	if (ret >= 0) {
 		if (test->json_output)
@@ -852,8 +852,8 @@ void iperf_on_connect(struct iperf_test *test)
 		}
 	} else {
 		len = sizeof(sa);
-		(void)mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); /* NRF_IPERF3_INTEGRATION_TODO: instead this, store when accepted/connected? */
-		if (nrf_iperf3_getsockdomain(test, test->ctrl_sck) == AF_INET) {
+		(void)nrf_iperf3_mock_getpeername(test, test->ctrl_sck, (struct sockaddr *)&sa, &len); /* NRF_IPERF3_INTEGRATION_TODO: instead this, store when accepted/connected? */
+		if (nrf_iperf3_mock_getsockdomain(test, test->ctrl_sck) == AF_INET) {
 			sa_inP = (struct sockaddr_in *)&sa;
 			inet_ntop(AF_INET, &sa_inP->sin_addr, ipr, sizeof(ipr));
 			port = ntohs(sa_inP->sin_port);
@@ -902,7 +902,7 @@ void iperf_on_connect(struct iperf_test *test)
 					     test->ctrl_sck_mss);
 			}
 		}
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 		/* 64bit printing does not work: */
 		if (test->settings->rate)
 			iperf_printf(test,
@@ -980,7 +980,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "nstreams", required_argument, NULL, OPT_NUMSTREAMS },
 		{ "xbind", required_argument, NULL, 'X' },
 #endif
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)                           
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)                           
 		{ "interface", required_argument, NULL, 'I' },
 #else
 		{ "pidfile", required_argument, NULL, 'I' },
@@ -1380,7 +1380,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		case 'd':
 			test->debug = 1;
 			break;
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 		case 'I':
 			test->apn_str = strdup(optarg);
 			if (test->apn_str == NULL) {
@@ -1624,7 +1624,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state)
 
 	test->state = state;
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     fd_set flush_read_set;
     struct iperf_stream *sp;
 
@@ -2220,7 +2220,7 @@ static int get_parameters(struct iperf_test *test)
 			iperf_set_test_bidirectional(test, 1);
 		if ((j_p = cJSON_GetObjectItem(j, "window")) != NULL)
 			test->settings->socket_bufsize = j_p->valueint;
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 		if ((j_p = cJSON_GetObjectItem(j, "len")) != NULL) {
 			if (j_p->valueint > test->settings->blksize) {
 				if (test->debug)
@@ -2412,7 +2412,7 @@ static int send_results(struct iperf_test *test)
 				printf("send_results\n%s\n", str);
 				cJSON_free(str);
 			}
-#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
+#if defined (CONFIG_NRF_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
 			/* NRF_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems */
 			if (test->role == 's') {
 				if (r == 0 && JSON_write(test->ctrl_sck, j) < 0) {
@@ -2468,7 +2468,7 @@ static int get_results(struct iperf_test *test)
 	int retransmits;
 	struct iperf_stream *sp;
 
-#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
+#if defined (CONFIG_NRF_IPERF3_NONBLOCKING_CLIENT_CHANGES)			
 	/* NRF_IPERF3_INTEGRATION_CHANGE: non blocking mode client when sending results, due to several jamning problems */
 	if (test->role == 's')
 		j = JSON_read(test->ctrl_sck);
@@ -2697,7 +2697,7 @@ static int get_results(struct iperf_test *test)
 }
 /*************************************************************/
 
-#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 static int
 JSON_write_nonblock(struct iperf_test *test, cJSON *json)
 {
@@ -2733,7 +2733,7 @@ JSON_write_nonblock(struct iperf_test *test, cJSON *json)
     }
 
     /* wait for max 10 sec */
-    struct timeval tout = { .tv_sec = CONFIG_NCS_IPERF3_RESULTS_WAIT_TIME, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = CONFIG_NRF_IPERF3_RESULTS_WAIT_TIME, .tv_usec = 0 };
     int err;
     //bool wait_for_send = false;
 
@@ -2833,7 +2833,7 @@ exit:
 
     return r;
 }
-#endif //CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES
+#endif //CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES
 /*************************************************************/
 
 static int JSON_write(int fd, cJSON *json)
@@ -2899,7 +2899,7 @@ static cJSON *JSON_read(int fd)
 	return json;
 }
 
-#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 /*************************************************************/
 //for a deadlock situation (one socket filled the modem-app buffer)
 /**
@@ -2925,7 +2925,7 @@ static cJSON
     int rc;
 
     /* wait for max 10 sec */
-    struct timeval tout = { .tv_sec = CONFIG_NCS_IPERF3_RESULTS_WAIT_TIME, .tv_usec = 0 };
+    struct timeval tout = { .tv_sec = CONFIG_NRF_IPERF3_RESULTS_WAIT_TIME, .tv_usec = 0 };
     int err;
 
 	iperf_time_now(&start_time); //store starting time
@@ -3045,7 +3045,7 @@ void add_to_interval_list(struct iperf_stream_result *rp,
 	irp = (struct iperf_interval_results *)malloc(
 		sizeof(struct iperf_interval_results));
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 	if (irp == NULL) {
 		struct iperf_interval_results *nirp;
 
@@ -3092,7 +3092,7 @@ void connect_msg(struct iperf_stream *sp)
 	char ipl[INET6_ADDRSTRLEN], ipr[INET6_ADDRSTRLEN];
 	int lport, rport;
 
-	if (nrf_iperf3_getsockdomain(sp->test, sp->socket) == AF_INET) {
+	if (nrf_iperf3_mock_getsockdomain(sp->test, sp->socket) == AF_INET) {
 		inet_ntop(AF_INET,
 			  (void *)&((struct sockaddr_in *)&sp->local_addr)
 				  ->sin_addr,
@@ -3209,7 +3209,7 @@ int iperf_defaults(struct iperf_test *testp)
 	struct protocol *sctp;
 #endif /* HAVE_SCTP_H */
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 	testp->apn_str = NULL;
 #endif
 	testp->omit = OMIT;
@@ -5323,7 +5323,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	memset(sp->result, 0, sizeof(struct iperf_stream_result));
 	TAILQ_INIT(&sp->result->interval_results);
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 	sp->buffer = (char *)malloc(test->settings->blksize);
 	if (sp->buffer == NULL) {
 		printf("iperf_new_stream: no memory for buffer\n");
@@ -5362,7 +5362,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 		free(sp);
 		return NULL;
 	}
-#endif //CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES
+#endif //CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES
 	/* Set socket */
 	sp->socket = s;
 
@@ -5395,7 +5395,7 @@ struct iperf_stream *iperf_new_stream(struct iperf_test *test, int s,
 	/* Initialize stream */
 
 /* NRF_IPERF3_INTEGRATION_CHANGE: only repeating pattern supported */
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 	{
 		if (test->debug) {
 			printf("note: only repeating pattern supported\n");
@@ -5440,7 +5440,7 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 	len = sizeof(struct sockaddr_storage);
 
 	/* NRF_IPERF3_INTEGRATION_CHANGE: not available, mock used instead */
-	if (mock_getsockname(test, sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
+	if (nrf_iperf3_mock_getsockname(test, sp->socket, (struct sockaddr *)&sp->local_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;
@@ -5448,18 +5448,18 @@ int iperf_init_stream(struct iperf_stream *sp, struct iperf_test *test)
 	len = sizeof(struct sockaddr_storage);
 
 	/* NRF_IPERF3_INTEGRATION_CHANGE: not available, mock used instead */
-	if (mock_getpeername(test, sp->socket, (struct sockaddr *)&sp->remote_addr, &len) <
+	if (nrf_iperf3_mock_getpeername(test, sp->socket, (struct sockaddr *)&sp->remote_addr, &len) <
 	    0) {
 		i_errno = IEINITSTREAM;
 		return -1;
 	}
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     sp->local_port = test->bind_port;       // XXX: Probably incorrect
     sp->remote_port = test->server_port;
 #endif
 	/* Set IP TOS */
 	if ((opt = test->settings->tos)) {
-		if (nrf_iperf3_getsockdomain(test, sp->socket) == AF_INET6) {
+		if (nrf_iperf3_mock_getsockdomain(test, sp->socket) == AF_INET6) {
 #ifdef IPV6_TCLASS
 			if (setsockopt(sp->socket, IPPROTO_IPV6, IPV6_TCLASS,
 				       &opt, sizeof(opt)) < 0) {

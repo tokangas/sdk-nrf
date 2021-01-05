@@ -91,7 +91,7 @@ extern    "C"
  * usage
  * ------------------------------------------------------------------- */
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 const char nrf_iperf3_usage_support_str[] = 
                            "Usage: iperf3 [-s|-c host] [options]\n"
                            "       iperf3 [-m|--manual] [-v|--version]\n\n"
@@ -105,7 +105,7 @@ const char nrf_iperf3_usage_support_str[] =
                            "  -d, --debug               emit debugging output\n"
                            "  -v, --version             show version information and quit"
                            "  -m, --manual              show this message and quit\n"
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)                           
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)                           
                            "  -I, --interface <apn>     use this option to bind to PDN with specific APN.\n"
 #endif
                            "\nServer specific:\n"
@@ -156,7 +156,7 @@ const char nrf_iperf3_usage_support_str[] =
                            "Report bugs to:     " PACKAGE_BUGREPORT "\n"
 #endif /* PACKAGE_BUGREPORT */
 			   ;
-#endif /* CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES */
+#endif /* CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES */
 
 #if NOT_IN_NRF_IPERF3_INTEGRATION /* nrf_iperf3_usage_support_str used, see above */
 const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
@@ -475,7 +475,7 @@ const char server_reporting[] =
 const char reportCSV_peer[] =
 "%s,%u,%s,%u";
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 const char report_cpu[] = "CPU Utilization: not supported\n";
 #else
 const char report_cpu[] =

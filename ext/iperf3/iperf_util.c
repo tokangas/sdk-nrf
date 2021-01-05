@@ -39,7 +39,7 @@
 #include <stdarg.h>
 #include <sys/select.h>
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 #include <sys/socket.h>
 #endif
 
@@ -64,15 +64,15 @@
 
 /**************************************************************************/
 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
-static int mock_gethostname(char *name, size_t len)
+static int nrf_iperf3_mock_gethostname(char *name, size_t len)
 {
-     strncpy(name, CONFIG_NCS_IPERF3_HOST_NAME, len);
+     strncpy(name, CONFIG_NRF_IPERF3_HOST_NAME, len);
      return 0;
 }
 /**************************************************************************/
 /* NRF_IPERF3_INTEGRATION_CHANGE: added because zephyr getsockname crashed the system, this is very dummy */
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/getsockname.html */
-int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+int nrf_iperf3_mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     /* Note:
        very dummy, not doing anything according to given sockfd, just settting the family by set preference
@@ -80,7 +80,7 @@ int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr,
     memset(addr->data, 0, sizeof(addr->data));
     addr->sa_family = AF_UNSPEC;
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     if (test->settings->domain == AF_INET6) {
         addr->sa_family = AF_INET6;
     }
@@ -99,7 +99,7 @@ int getrusage(int who, struct rusage *usage)
     return 0;
 }
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 int iperf_util_socket_apn_set(int fd, const char *apn)
 {
 	int ret;
@@ -188,16 +188,16 @@ void fill_with_repeating_pattern(void *out, size_t outsize)
  * Assumes cookie has size (COOKIE_SIZE + 1) char's.
  */
 
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 void make_cookie(char *cookie)
 {
-    int len = strlen(CONFIG_NCS_IPERF3_HOST_NAME);
+    int len = strlen(CONFIG_NRF_IPERF3_HOST_NAME);
     char hostname[len];
     struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
     char temp[100];
 
     /* Generate a string based on hostname, time, randomness, and filler. */
-    (void) mock_gethostname(hostname, sizeof(hostname) + 1);    
+    (void) nrf_iperf3_mock_gethostname(hostname, sizeof(hostname) + 1);    
     (void) gettimeofday(&tv, 0);
     (void) snprintf(temp, sizeof(temp), "%s.%ld.%06ld.%08lx%08lx.%s", hostname, (unsigned long int) tv.tv_sec, (unsigned long int) tv.tv_usec, (unsigned long int) rand(), (unsigned long int) rand(), "1234567890123456789012345678901234567890");
 
@@ -218,7 +218,7 @@ void make_cookie(const char *cookie)
     }
     out[pos] = '\0';
 }
-#endif //CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES
+#endif //CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES
 
 /* is_closed
  *
@@ -324,7 +324,7 @@ cpu_util(double pcpu[3])
 const char *
 get_system_info(void)
 {
-    static const char *buf = CONFIG_NCS_IPERF3_HOST_NAME;
+    static const char *buf = CONFIG_NRF_IPERF3_HOST_NAME;
 
 #ifdef NOT_IN_NRF_IPERF3_INTEGRATION  /* other system info not supported */
     static char buf[1024];

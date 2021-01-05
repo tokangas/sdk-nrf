@@ -104,8 +104,10 @@
 #define PACKAGE_NAME "iperf"
 
 /* Define to the full name and version of this package. */
-/* NRF_IPERF3_INTEGRATION_CHANGE: 3.9 tag was used as a base when iperf3 was integrated to NCS: https://github.com/esnet/iperf/commits/3.9 */
-#define PACKAGE_STRING "iperf 3.9-ncs"
+/* NRF_IPERF3_INTEGRATION_CHANGE: 
+ * 3.9 tag was used as a base when iperf3 was integrated to NRF Connect SDK: https://github.com/esnet/iperf/commits/3.9 
+ * */
+#define PACKAGE_STRING "iperf 3.9-nrf"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME

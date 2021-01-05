@@ -34,7 +34,7 @@
 
 /* NRF_IPERF3_INTEGRATION_CHANGE: getsockname in system is not working */
 #include "iperf.h"
-int mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+int nrf_iperf3_mock_getsockname(struct iperf_test *test, int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
 #ifdef NOT_IN_NRF_IPERF3_INTEGRATION
 int readentropy(void *out, size_t outsize);
@@ -70,7 +70,7 @@ extern int daemon(int nochdir, int noclose);
 ssize_t getline(char **buf, size_t *bufsiz, FILE *fp);
 #endif /* HAVE_GETLINE */
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 int iperf_util_socket_apn_set(int fd, const char *apn);
 #endif
 #endif

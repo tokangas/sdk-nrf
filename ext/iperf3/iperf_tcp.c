@@ -44,7 +44,7 @@
 #include "net.h"
 #include "cjson.h"
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 #include "iperf_util.h"
 #endif
 
@@ -60,7 +60,7 @@ int
 iperf_tcp_recv(struct iperf_stream *sp)
 {
     int r;
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     #define MAX_READ_COUNT 4 /* in case of very small buffers, 
                                 let's not stuck here more that count */
     int count = 0;
@@ -160,7 +160,7 @@ iperf_tcp_accept(struct iperf_test * test)
     signed char rbuf = ACCESS_DENIED;
     char    cookie[COOKIE_SIZE];
     socklen_t len;
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     struct sockaddr_in addr; /* modified due to nrf91_socket_offload_accept() */
 #else
     struct sockaddr_storage addr;
@@ -225,7 +225,7 @@ iperf_tcp_listen(struct iperf_test *test)
         snprintf(portstr, 6, "%d", test->server_port);
         memset(&hints, 0, sizeof(hints));
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
     hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
@@ -260,7 +260,7 @@ iperf_tcp_listen(struct iperf_test *test)
             return -1;
         }
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
         /* Set APN if requested */
         if (test->apn_str != NULL) {
             int ret = iperf_util_socket_apn_set(s, test->apn_str);
@@ -479,7 +479,7 @@ iperf_tcp_connect(struct iperf_test *test)
     hints.ai_family = test->settings->domain;
     hints.ai_socktype = SOCK_STREAM;
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
     hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
@@ -496,7 +496,7 @@ iperf_tcp_connect(struct iperf_test *test)
         i_errno = IESTREAMCONNECT;
         return -1;
     }
-#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES) //wildcard not supported
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES) //wildcard not supported
     if ((s = socket(server_res->ai_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #else
     if ((s = socket(server_res->ai_family, SOCK_STREAM, 0)) < 0) {
@@ -508,7 +508,7 @@ iperf_tcp_connect(struct iperf_test *test)
         return -1;
     }
 
-#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 	/* Set PDN if requested */
     if (test->apn_str != NULL) {
 		int ret = iperf_util_socket_apn_set(s, test->apn_str);

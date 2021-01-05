@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
-# CMakeLists.txt - iperf3 NCS integration
+# CMakeLists.txt - iperf3 NRF integration
 
 zephyr_library()
 zephyr_include_directories(.) 

@@ -4,45 +4,45 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
-# iperf3 NCS integration
+# iperf3 NRF integration
 
-config  NCS_IPERF3
-	bool "Iperf3 NCS integration"
+config  NRF_IPERF3
+	bool "Iperf3 NRF integration"
 	depends on POSIX_API && !PTHREAD_IPC && !NET_SOCKETS_POSIX_NAMES && NEWLIB_LIBC
 	imply NEWLIB_LIBC_FLOAT_SCAN
 	imply NEWLIB_LIBC_FLOAT_PRINTF
 	default n
 	help
-	  Enable Iperf3 NCS integration
+	  Enable Iperf3 NRF integration
 
-if NCS_IPERF3
-menu "NCS iperf3 selections"
+if NRF_IPERF3
+menu "NRF Iperf3 selections"
 
-config NCS_IPERF3_HOST_NAME
+config NRF_IPERF3_HOST_NAME
 	string "Configure a host name for iperf3 to be sent as a part of cookie"
 	default "nrf9160"
 
-config NCS_IPERF3_RESULTS_WAIT_TIME
+config NRF_IPERF3_RESULTS_WAIT_TIME
 	int "Configure the time to be waited to send and recv results"
 	default 15
 
-config NCS_IPERF3_CLIENT_TEST_START_TIME
+config NRF_IPERF3_CLIENT_TEST_START_TIME
 	int "Configure the time to be waited after ctrl socket has been created to actual test start"
 	default 15
 
 #invisible configs:
-config NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES
+config NRF_IPERF3_NONBLOCKING_CLIENT_CHANGES
 	bool
     default y
 
-config NCS_IPERF3_FUNCTIONAL_CHANGES
+config NRF_IPERF3_FUNCTIONAL_CHANGES
 	bool
     default y
 
-config NCS_IPERF3_MULTICONTEXT_SUPPORT
+config NRF_IPERF3_MULTICONTEXT_SUPPORT
 	bool
     default y
-	depends on NCS_IPERF3_FUNCTIONAL_CHANGES
+	depends on NRF_IPERF3_FUNCTIONAL_CHANGES
 
-endmenu #NCS iperf3
-endif #NCS_IPERF3
+endmenu #NRF iperf3
+endif #NRF_IPERF3

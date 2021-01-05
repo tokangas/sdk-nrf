@@ -11,7 +11,7 @@ menu "Nordic FTA config"
 config FTA_IPERF3
 	bool  "Enable FTA iperf3 support"
     default y
-	select NCS_IPERF3
+	select NRF_IPERF3
 
 config FTA_SOCK
 	bool  "Enable FTA socket tool support"
