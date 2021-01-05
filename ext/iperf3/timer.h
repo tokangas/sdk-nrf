@@ -31,8 +31,7 @@
 #define __TIMER_H
 
 #include <time.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/sys/time.h>
+#include <sys/time.h>
 
 #include "iperf_time.h"
 

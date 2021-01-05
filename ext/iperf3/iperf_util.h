@@ -29,7 +29,7 @@
 
 #include "iperf_config.h"
 #include "cjson.h"
-#include <posix/sys/select.h>
+#include <sys/select.h>
 #include <stddef.h>
 
 /* NRF_IPERF3_INTEGRATION_CHANGE: getsockname in system is not working */

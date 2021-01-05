@@ -57,10 +57,9 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/sys/socket.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <posix/sys/time.h>
+#include <sys/time.h>
 
 
 #include "iperf.h"

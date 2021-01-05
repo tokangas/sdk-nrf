@@ -29,7 +29,7 @@
 
 
 #if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
-extern const char nrf_iperf3_usage_support_str[]; //added
+extern const char nrf_iperf3_usage_support_str[]; /* added */
 #else
 extern const char usage_shortstr[];
 extern const char usage_longstr[];

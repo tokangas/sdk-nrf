@@ -27,16 +27,15 @@
 #include "iperf_config.h"
 
 #include <stdio.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/unistd.h>
+#include <unistd.h>
 #include <errno.h>
-#include <posix/arpa/inet.h>
-#include <posix/sys/socket.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <posix/netinet/in.h>
-#include <posix/netinet/tcp.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <assert.h>
-#include <posix/netdb.h>
+#include <netdb.h>
 #include <string.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -59,7 +58,7 @@
 #endif /* HAVE_SENDFILE */
 
 #ifdef HAVE_POLL_H
-#include <posix/poll.h>
+#include <poll.h>
 #endif /* HAVE_POLL_H */
 
 #include "iperf_util.h"

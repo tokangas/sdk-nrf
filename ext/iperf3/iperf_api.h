@@ -27,10 +27,8 @@
 #ifndef        __IPERF_API_H
 #define        __IPERF_API_H
 
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-
-#include <posix/sys/socket.h>
-#include <posix/sys/time.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 /* #include <setjmp.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <stdio.h>
 #ifdef HAVE_STDINT_H

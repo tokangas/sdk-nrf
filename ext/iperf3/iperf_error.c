@@ -26,8 +26,7 @@
  */
 #include <stdio.h>
 #include <errno.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/netdb.h>
+#include <netdb.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -46,7 +45,7 @@ void
 iperf_err(struct iperf_test *test, const char *format, ...)
 {
     va_list argp;
-    char str[1000];
+    char str[1000]; /* NRF_IPERF3_INTEGRATION_TODO: heap instead of stack? */
     char *ct = NULL;
 
     /* Timestamp if requested */
@@ -86,7 +85,7 @@ void
 iperf_errexit(struct iperf_test *test, const char *format, ...)
 {
     va_list argp;
-    char str[1000];
+    char str[1000]; /* NRF_IPERF3_INTEGRATION_TODO: heap instead of stack? */
 #ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     time_t now;
     struct tm *ltm = NULL;

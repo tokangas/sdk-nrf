@@ -29,24 +29,17 @@
 
 #include "iperf_config.h"
 
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/sys/time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <posix/sys/select.h>
-#include <posix/sys/socket.h>
-
-/* NRF_IPERF3_INTEGRATION_CHANGE: */
-#if defined (CONFIG_POSIX_API)
-//caused __BSD_VISBLE to be enabled name collisions with select and fdsets when no POSIX APi
+#include <sys/select.h>
+#include <sys/socket.h>
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
-#endif
-
-#include <posix/netinet/tcp.h>
+#include <netinet/tcp.h>
 
 #if defined(HAVE_CPUSET_SETAFFINITY)
 #include <sys/param.h>

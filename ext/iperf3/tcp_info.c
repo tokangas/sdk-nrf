@@ -47,10 +47,9 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/types.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/sys/socket.h>
+#include <sys/socket.h>
 #include <string.h>
-#include <posix/netinet/in.h>
+#include <netinet/in.h>
 #include <errno.h>
 
 #include "iperf.h"

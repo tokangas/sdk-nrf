@@ -30,13 +30,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <posix/unistd.h>
-#include <posix/signal.h>
+#include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
-#include <posix/netinet/in.h>
-#include <posix/sys/select.h>
+#include <netinet/in.h>
+#include <sys/select.h>
 /* #include <sys/uio.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
-#include <posix/arpa/inet.h>
+#include <arpa/inet.h>
 
 #include "iperf.h"
 #include "iperf_api.h"

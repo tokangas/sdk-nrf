@@ -6,8 +6,9 @@
 
 # CMakeLists.txt - iperf3 NCS integration
 
-zephyr_include_directories(.)
 zephyr_library()
+zephyr_include_directories(.) 
+zephyr_library_include_directories(${ZEPHYR_BASE}/include/posix)
 zephyr_library_sources(
 	cjson.c
 	dscp.c

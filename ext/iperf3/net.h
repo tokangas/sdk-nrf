@@ -26,7 +26,7 @@
  */
 #ifndef __NET_H
 #define __NET_H
-#include "iperf.h"/* NRF_IPERF3_INTEGRATION_CHANGE: added for passing test */
+#include "iperf.h"/* NRF_IPERF3_INTEGRATION_CHANGE: added for passing test parameter (see below) */
 
 int timeout_connect(int s, const struct sockaddr *name, socklen_t namelen, int timeout);
 int netdial(struct iperf_test *test, int domain, int proto, const char *local, int local_port, const char *server, int port, int timeout); /* NRF_IPERF3_INTEGRATION_CHANGE: added test */

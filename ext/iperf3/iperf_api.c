@@ -41,31 +41,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 #include <time.h>
+#include <getopt.h>
 #include <errno.h>
-#include <posix/signal.h>
-#include <posix/unistd.h>
+#include <signal.h>
+#include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-
-#include <posix/sys/socket.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <posix/netinet/in.h>
-#include <posix/arpa/inet.h>
-#include <posix/netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <posix/netinet/tcp.h>
-#include <posix/sys/time.h>
-
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#include <netinet/tcp.h>
+#include <sys/time.h>
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
 #include <modem/modem_info.h>
 #endif
-#if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
-#endif
 /* #include <sys/mman.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <sys/stat.h>
 /* #include <setjmp.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
@@ -801,7 +797,7 @@ void iperf_on_connect(struct iperf_test *test)
 	struct sockaddr_in6 *sa_in6P;
 	socklen_t len;
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
 	int ret = modem_info_string_get(MODEM_INFO_DATE_TIME, now_str, sizeof(now_str));
 	if (ret >= 0) {
 		if (test->json_output)
@@ -813,6 +809,9 @@ void iperf_on_connect(struct iperf_test *test)
 			iperf_printf(test, report_time, now_str);
 	}
 	else {
+		if (test->debug)
+			printf("warn: cannot get current time from modem (ret: %d). Let's start rockin', and defaulting to early 70's\n", ret);
+		
 		now_secs = time((time_t *)0);
 		(void)strftime(now_str, sizeof(now_str), rfc1123_fmt,
 				gmtime(&now_secs));

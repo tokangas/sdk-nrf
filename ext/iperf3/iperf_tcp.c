@@ -28,17 +28,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/unistd.h>
-#include <posix/arpa/inet.h>
-#include <posix/sys/socket.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <posix/netinet/in.h>
-#include <posix/netdb.h>
-#include <posix/sys/time.h>
-#include <posix/sys/select.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <sys/time.h>
+#include <sys/select.h>
 #include <limits.h>
-
 
 #include "iperf.h"
 #include "iperf_api.h"

@@ -32,22 +32,19 @@
 #include <string.h>
 #include <getopt.h>
 #include <errno.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/unistd.h>
+#include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <posix/sys/socket.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <posix/netinet/in.h>
-#include <posix/arpa/inet.h>
-#include <posix/netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <posix/sys/time.h>
-#if defined (CONFIG_POSIX_API)
+#include <sys/time.h>
 #include <sys/resource.h>
-#endif
 #include <sched.h>
 #include <setjmp.h>
 

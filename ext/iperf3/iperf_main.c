@@ -29,17 +29,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
-#include <posix/sys/socket.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <posix/netinet/in.h>
-#include <posix/arpa/inet.h>
-#include <posix/netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
 #include "iperf.h"
 #include "iperf_api.h"
@@ -52,12 +53,12 @@
 static int run(struct iperf_test *test);
 
 /**************************************************************************/
-#if 1 // SAMPO_NUTTX:
+#ifdef NOT_IN_NRF_IPERF3_INTEGRATION /* NRF_IPERF3_INTEGRATION_TODO: zephyr support missing?? */
 int
 daemon(int nochdir, int noclose)
 {
     (void)nochdir; (void)noclose;
-    return -1;  // XXX: No support for daemon()
+    return -1;
 }
 #endif
 

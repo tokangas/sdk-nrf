@@ -34,40 +34,19 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
-/* NRF_IPERF3_INTEGRATION_CHANGE: all posix files added to have directory in order to compile without CONFIG_POSIX_API */
-#include <posix/sys/select.h>
+#include <sys/select.h>
 
 #if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
-#include <posix/sys/socket.h>
+#include <sys/socket.h>
 #endif
 
 #include <sys/types.h>
 #include <sys/time.h>
-#if defined (CONFIG_POSIX_API)
 #include <sys/resource.h>
-#else
-/* NRF_IPERF3_INTEGRATION_CHANGE for compiling without POSIX_API */
-/* From <sys/resource.h> that caused collisions without POSIX_API by inclusing sys/time.h */
-
-/* #include <sys/time.h> */
-
-#define	RUSAGE_SELF	0		/* calling process */
-#define	RUSAGE_CHILDREN	-1		/* terminated child processes */
-
-struct rusage {
-  	struct timeval ru_utime;	/* user time used */
-	struct timeval ru_stime;	/* system time used */
-};
-
-int	getrusage (int, struct rusage*);
-
-//end resource.h
-#endif //CONFIG_POSIX_API
-
 /* #include <sys/utsname.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
-
 #include <time.h>
 #include <errno.h>
 #include <fcntl.h>
