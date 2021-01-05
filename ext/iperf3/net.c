@@ -138,7 +138,7 @@ netdial(struct iperf_test *test, int domain, int proto, const char *local, int l
 
     memset(&hints, 0, sizeof(hints));
     
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
     //here was mixed with protos & types
     int type = proto;
     int protocol = 0;
@@ -152,7 +152,7 @@ netdial(struct iperf_test *test, int domain, int proto, const char *local, int l
     hints.ai_family = domain;
     hints.ai_socktype = type;
 
-#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
     /* Bind to given interface: */
     hints.ai_next = test->apn_str?
 			&(struct addrinfo) {
@@ -185,7 +185,7 @@ netdial(struct iperf_test *test, int domain, int proto, const char *local, int l
         return -1;
     }
 
-#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
     /* Bind to given interface: */
     if (test->apn_str != NULL) {
 		int ret = iperf_util_socket_apn_set(s, test->apn_str);
@@ -295,7 +295,7 @@ netannounce(struct iperf_test *test, int domain, int proto, const char *local, i
 	hints.ai_family = domain;
     }
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
     //here was mixed with protos & types
     int type = proto;
     int protocol = 0;
@@ -310,7 +310,7 @@ netannounce(struct iperf_test *test, int domain, int proto, const char *local, i
     hints.ai_protocol = protocol;
     hints.ai_flags = AI_PASSIVE;
 
-#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)    
+#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)    
     /* Set APN to hints if requested: */
     hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
@@ -333,7 +333,7 @@ netannounce(struct iperf_test *test, int domain, int proto, const char *local, i
 	    freeaddrinfo(res);
         return -1;
     }
-#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
 	/* Bind to interface with given APN if requested */
     if (test->apn_str != NULL) {
 		int ret = iperf_util_socket_apn_set(s, test->apn_str);
@@ -344,7 +344,7 @@ netannounce(struct iperf_test *test, int domain, int proto, const char *local, i
 	}
 #endif
 
-#else /* not CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES: */
+#else /* not CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES: */
     hints.ai_socktype = proto;
     hints.ai_flags = AI_PASSIVE;
     if ((gerror = getaddrinfo(local, portstr, &hints, &res)) != 0)

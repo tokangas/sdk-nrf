@@ -54,7 +54,7 @@ typedef uint64_t iperf_size_t;
 #define Pudp SOCK_DGRAM
 #define Psctp 12
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
 #define DEFAULT_UDP_BLKSIZE 1200 /* default is dynamically set, else this */
 #define DEFAULT_TCP_BLKSIZE (5 * 708)  /* default read/write block size */
 #else
@@ -441,7 +441,7 @@ enum {
     /* Timer errors */
     IENEWTIMER = 300,       // Unable to create new timer (check perror)
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
     IENOMEMORY = 302,       // no dynamic memory from heap
     IETESTSTARTTIMEOUT = 303, // testing start timeout
 #endif

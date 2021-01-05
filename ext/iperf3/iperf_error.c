@@ -225,7 +225,7 @@ iperf_strerror(int int_errno)
             snprintf(errstr, len, "unable to create a new test");
             perr = 1;
             break;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)			
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)			
         case IENOMEMORY:
             snprintf(errstr, len, "unable to create a new test - no memory");
             perr = 1;

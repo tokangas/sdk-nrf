@@ -308,7 +308,7 @@ struct iperf_test
     int	      repeating_payload;                /* --repeating-payload */
     int       timestamps;			/* --timestamps */
     char     *timestamp_format;
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
     char     *apn_str;				/* -I or --interface option */
 #endif
     char     *json_output_string; /* rendered JSON output if json_output is set */

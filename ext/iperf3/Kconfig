@@ -18,31 +18,31 @@ config  NCS_IPERF3
 if NCS_IPERF3
 menu "NCS iperf3 selections"
 
-config FTA_IPERF3_HOST_NAME
-	string "configure host name for iperf3 to be sent as a part of cookie"
+config NCS_IPERF3_HOST_NAME
+	string "Configure a host name for iperf3 to be sent as a part of cookie"
 	default "nrf9160"
 
-config FTA_IPERF3_RESULTS_WAIT_TIME
+config NCS_IPERF3_RESULTS_WAIT_TIME
 	int "Configure the time to be waited to send and recv results"
 	default 15
 
-config FTA_IPERF3_CLIENT_TEST_START_TIME
+config NCS_IPERF3_CLIENT_TEST_START_TIME
 	int "Configure the time to be waited after ctrl socket has been created to actual test start"
 	default 15
 
 #invisible configs:
-config FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES
+config NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES
 	bool
     default y
 
-config FTA_IPERF3_FUNCTIONAL_CHANGES
+config NCS_IPERF3_FUNCTIONAL_CHANGES
 	bool
     default y
 
-config FTA_IPERF3_MULTICONTEXT_SUPPORT
+config NCS_IPERF3_MULTICONTEXT_SUPPORT
 	bool
     default y
-	depends on FTA_IPERF3_FUNCTIONAL_CHANGES
+	depends on NCS_IPERF3_FUNCTIONAL_CHANGES
 
 endmenu #NCS iperf3
 endif #NCS_IPERF3

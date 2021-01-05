@@ -110,7 +110,7 @@ iperf_accept(struct iperf_test *test)
     socklen_t len;
     struct sockaddr_storage addr;
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
     struct sockaddr_in client_addr; 
     struct sockaddr_in6 client6_addr;
     struct sockaddr *sa;

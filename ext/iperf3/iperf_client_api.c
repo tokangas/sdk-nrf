@@ -263,7 +263,7 @@ iperf_handle_message_client(struct iperf_test *test)
             }
             else if (iperf_create_streams(test, test->mode) < 0)
                 return -1;
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
             if (test->protocol->id != Pudp) {
                 SLIST_FOREACH(sp, &test->streams, streams) {
                 setnonblocking(sp->socket, 1);
@@ -282,7 +282,7 @@ iperf_handle_message_client(struct iperf_test *test)
 #endif
             break;
         case TEST_START:
-#if defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
             if (test->debug) {
                 printf("TEST_START: non-blocking ctrl sckt %d\n", test->ctrl_sck);
             }
@@ -471,7 +471,7 @@ iperf_client_end(struct iperf_test *test)
     test->reporter_callback(test);
 
     if (iperf_set_send_state(test, IPERF_DONE) != 0) {
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
         printf("iperf_client_end: iperf_set_send_state failed\n");
         retval = -1;
 #else
@@ -495,13 +495,13 @@ iperf_run_client(struct iperf_test * test)
     fd_set read_set, write_set;
     struct iperf_time now;
     struct timeval* timeout = NULL;
-#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if !defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
     struct iperf_stream *sp;
 #endif
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
 	struct iperf_time connected_time;
     /* wait testing start for max xx sec */
-    struct timeval test_start_tout = { .tv_sec = CONFIG_FTA_IPERF3_CLIENT_TEST_START_TIME, .tv_usec = 0 };    
+    struct timeval test_start_tout = { .tv_sec = CONFIG_NCS_IPERF3_CLIENT_TEST_START_TIME, .tv_usec = 0 };    
 #endif
 
     if (test->logfile)
@@ -550,7 +550,7 @@ iperf_run_client(struct iperf_test * test)
 	iperf_time_now(&now);
 	timeout = tmr_timeout(&now);
 	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
     if (!test->state) {
         /* ctrl socket connected but test not yet started: */
         struct iperf_time now;
@@ -588,7 +588,7 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}    
 
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)//added due to early test jamn where rx buffer was full between modem and app
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)//added due to early test jamn where rx buffer was full between modem and app
         if (test->state == TEST_START ||
             test->state == PARAM_EXCHANGE ||
             test->state == CREATE_STREAMS /* ||
@@ -611,7 +611,7 @@ iperf_run_client(struct iperf_test * test)
 	    if (startup) {
 	        startup = 0;
 
-#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if !defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 		// Set non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
@@ -663,7 +663,7 @@ iperf_run_client(struct iperf_test * test)
 	         (test->settings->bytes != 0 && test->bytes_sent >= test->settings->bytes) ||
 	         (test->settings->blocks != 0 && test->blocks_sent >= test->settings->blocks))) {
 
-#if !defined (CONFIG_FTA_IPERF3_NONBLOCKING_CLIENT_CHANGES)
+#if !defined (CONFIG_NCS_IPERF3_NONBLOCKING_CLIENT_CHANGES)
 		// Unset non-blocking for non-UDP tests
 		if (test->protocol->id != Pudp) {
 		    SLIST_FOREACH(sp, &test->streams, streams) {
@@ -676,7 +676,7 @@ iperf_run_client(struct iperf_test * test)
         if (test->debug) {
             printf("iperf_run_client: Yes, done! Send TEST_END\n");
         }
-#if defined (CONFIG_FTA_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NCS_IPERF3_FUNCTIONAL_CHANGES)
 #if 0 /* removed for now, we are flushing iniperf_set_send_state() */
         struct iperf_stream *sp;
         fd_set flush_read_set;

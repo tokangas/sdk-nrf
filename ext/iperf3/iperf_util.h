@@ -70,7 +70,7 @@ extern int daemon(int nochdir, int noclose);
 ssize_t getline(char **buf, size_t *bufsiz, FILE *fp);
 #endif /* HAVE_GETLINE */
 
-#if defined (CONFIG_FTA_IPERF3_MULTICONTEXT_SUPPORT)
+#if defined (CONFIG_NCS_IPERF3_MULTICONTEXT_SUPPORT)
 int iperf_util_socket_apn_set(int fd, const char *apn);
 #endif
 #endif
