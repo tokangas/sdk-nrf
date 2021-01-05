@@ -404,7 +404,7 @@ int sms_send_message(char* number, char* text)
 		   We are using international number format always anyway */
 		number += 1;
 		encoded_number_size = strlen(number);
-		LOG_INF("Ignoring leading '+' in the number");
+		LOG_DBG("Ignoring leading '+' in the number");
 	}
 
 	memset(encoded_number, 0, 30);
@@ -434,10 +434,11 @@ int sms_send_message(char* number, char* text)
 	LOG_INF("Sending encoded SMS data (length=%d):", msg_size);
 	LOG_INF("%s", log_strdup(send_data));
 
+	enum at_cmd_state state = 0;
 	ret = at_cmd_write(send_data, at_response_str,
-		sizeof(at_response_str), NULL);
+		sizeof(at_response_str), &state);
 	if (ret) {
-		LOG_ERR("at_cmd_write returned err: %2d", ret);
+		LOG_ERR("at_cmd_write returned state=%d, err=%d", state, ret);
 		return ret;
 	}
 	LOG_DBG("AT Response:%s", log_strdup(at_response_str));

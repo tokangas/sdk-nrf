@@ -14,37 +14,53 @@
 
 #define DELIVER_DATA(parser_data) ((struct pdu_deliver_data*)parser_data->data)
 
+/**
+ * @brief SMS-DELIVER type of PDU in 3GPP TS 23.040 chapter 9.2.2.1.
+ * TODO: Seems sri and udhi are in wrong order in the code compared to
+ *       3GPP TS 23.040 chapter 9.2.2.1. Also, tp is not the last bit.
+ */
 struct pdu_deliver_header {
-	uint8_t mti:2;
-	uint8_t mms:1;
-	uint8_t :2;
-	uint8_t sri:1;
-	uint8_t udhi:1;
-	uint8_t rp:1;
+	uint8_t mti:2;  /** TP-Message-Type-Indicator */
+	uint8_t mms:1;  /** TP-More-Messages-to-Send */
+	uint8_t :2;     /** TP-Loop-Prevention, TP-Reply-Path */
+	uint8_t sri:1;  /** TP-Status-Report-Indication */
+	uint8_t udhi:1; /** TP-User-Data-Header-Indicator */
+	uint8_t rp:1;   /** TODO: Is this supposed to be TP-Reply-Path which is not in here in the spec? */
 };
 
+/**
+ * @brief Address field in 3GPP TS 23.040 chapter 9.1.2.5.
+ */
 struct pdu_do_field {
-	uint8_t length;
-	uint8_t adr_type;
-	uint8_t adr[10];
+	uint8_t length;   /** Address-Length */
+	uint8_t adr_type; /** Type-of-Address */
+	uint8_t adr[10];  /** Address */
 };
 
+/**
+ * @brief Address field in 3GPP TS 23.038 chapter 4.
+ * This encoding applies if bits 7 to 6 are zeroes.
+ */
 struct pdu_dcs_field {
-	uint8_t class:2;
-	uint8_t alphabet:2;
-	uint8_t presence_of_class:1;
+	uint8_t class:2;      /** Message Class */
+	uint8_t alphabet:2;   /** Character set */
+	/** If set to 1, indicates that bits 1 to 0 have a message class
+	 *  meaning. Otherwise bits 1 to 0 are reserved. */
+	uint8_t presence_of_class:1; 
+	/** If set to 0, indicates the text is uncompressed.
+	 *  Otherwise it's compressed. */
 	uint8_t compressed:1;
-
 };
 
 struct pdu_deliver_data {
 	struct pdu_deliver_header field_header;
-	struct pdu_do_field       field_do;
-	struct pdu_dcs_field      field_dcs;
-	uint8_t                   field_pid;
-	struct sms_deliver_time   timestamp;
-	uint8_t                   field_udl;
-	uint8_t                   field_ud[140];
+	struct pdu_do_field       field_do;  /** TP-Originating-Address */
+/* TODO: Seems dcs and pid are in wrong order in the code compared to 3GPP TS 23.040 chapter 9.2.2.1 */
+	struct pdu_dcs_field      field_dcs; /** TP-Data-Coding-Scheme */
+	uint8_t                   field_pid; /** TP-Protocol-Identifier */
+	struct sms_deliver_time   timestamp; /** TP-Service-Centre-Time-Stamp */
+	uint8_t                   field_udl; /** TP-User-Data-Length */
+	uint8_t                   field_ud[140]; /** TP-User-Data */ 
 };
 
 static uint8_t swap_nibbles(uint8_t value)
@@ -235,8 +251,9 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 {
 	struct sms_deliver_header *sms_header = header;
 
-
-	memcpy(&sms_header->time, &DELIVER_DATA(parser)->timestamp, sizeof(struct sms_deliver_time));
+	memcpy(&sms_header->time,
+	       &DELIVER_DATA(parser)->timestamp,
+	       sizeof(struct sms_deliver_time));
 
 	sms_header->protocol_id       = DELIVER_DATA(parser)->field_pid;
 
@@ -260,7 +277,6 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	memcpy(sms_header->service_center_address.address,
 	       &parser->buf[1],
 	       parser->buf[0]);
-
 
 	sms_header->orginator_address.length =
 		DELIVER_DATA(parser)->field_do.length;
