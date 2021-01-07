@@ -53,7 +53,7 @@ After programming the application and all prerequisites to your board, test the 
 
 	uart-fta:~$ *** Booting Zephyr OS build v2.3.0 ***
 
-	The FT app sample started
+	The MoSH sample started
 
 	LTE cell changed: Cell ID: 1480706, Tracking area: 2002
 	Network registration status: searching

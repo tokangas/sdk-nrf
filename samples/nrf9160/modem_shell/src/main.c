@@ -90,7 +90,7 @@ static int fta_shell_init(const struct device *unused)
 
 	ARG_UNUSED(unused);
 
-	printk("\nThe FT app sample started\n\n");
+	printk("\nThe MoSH sample started\n\n");
 
 	modem_trace_enable();
 
