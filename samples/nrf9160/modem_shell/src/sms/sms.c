@@ -86,7 +86,8 @@ int sms_unregister()
 	return 0;
 }
 
-int sms_send(char* number, char* text)
+/* Function name is not sms_send() because it's reserved by SMS library. */
+int sms_send_msg(char* number, char* text)
 {
 	int ret;
 
@@ -102,7 +103,7 @@ int sms_send(char* number, char* text)
 		return ret;
 	}
 
-	ret = sms_send_message(number, text);
+	ret = sms_send(number, text);
 
 	return ret;
 }

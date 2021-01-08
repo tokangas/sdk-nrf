@@ -149,7 +149,7 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sms_unregister();
 			break;
 		case SMS_CMD_SEND:
-			err = sms_send(arg_number, arg_message);
+			err = sms_send_msg(arg_number, arg_message);
 			break;
 		case SMS_CMD_RECV:
 			err = sms_recv(arg_receive_start);

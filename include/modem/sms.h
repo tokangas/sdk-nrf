@@ -83,7 +83,7 @@ void sms_uninit(void);
  * @param number Recipient number.
  * @param text Text to be sent.
  */
-int sms_send_message(char *number, char *text);
+int sms_send(char *number, char *text);
 
 /** @} */
 

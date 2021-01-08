@@ -11,7 +11,7 @@
 
 int sms_register();
 int sms_unregister();
-int sms_send(char* number, char* data);
+int sms_send_msg(char* number, char* data);
 int sms_recv(bool arg_receive_start);
 
 #endif

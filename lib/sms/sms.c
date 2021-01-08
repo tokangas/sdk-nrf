@@ -360,7 +360,7 @@ void sms_uninit(void)
 	sms_client_registered = false;
 }
 
-int sms_send_message(char* number, char* text)
+int sms_send(char* number, char* text)
 {
 	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
 	int ret;
