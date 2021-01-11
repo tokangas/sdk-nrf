@@ -162,14 +162,14 @@ static int sms_cmt_pdu_parse(char *pdu)
 		//return payload_size;
 	}
 
-	LOG_INF("Time:   %02x-%02x-%02x %02x:%02x:%02x",
+	LOG_DBG("Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
 		sms_header.time.month,
 		sms_header.time.day,
 		sms_header.time.hour,
 		sms_header.time.minute,
 		sms_header.time.second);
-	LOG_INF("Text:   '%s'", log_strdup(pdu));
+	LOG_DBG("Text:   '%s'", log_strdup(pdu));
 
 	parser_delete(&sms_deliver);
 	return 0;
@@ -195,7 +195,7 @@ void sms_at_handler(void *context, const char *at_notif)
 		if (valid_notif != 0) {
 			return;
 		}
-		LOG_INF("Number: %s", log_strdup(cmt_rsp.alpha));
+		LOG_DBG("Number: %s", log_strdup(cmt_rsp.alpha));
 
 		int valid_pdu = sms_cmt_pdu_parse(cmt_rsp.pdu);
 		if (valid_pdu != 0) {
@@ -205,7 +205,7 @@ void sms_at_handler(void *context, const char *at_notif)
 	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
 		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
 
-		LOG_INF("SMS submit report received");
+		LOG_DBG("SMS submit report received");
 		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
 	} else {
 		/* Ignore all other notifications */
@@ -370,7 +370,7 @@ int sms_send(char* number, char* text)
 		return -EINVAL;
 	}
 
-	LOG_INF("Sending SMS to number=%s, text='%s'",
+	LOG_DBG("Sending SMS to number=%s, text='%s'",
 		log_strdup(number), log_strdup(text));
 
 	uint8_t size = 0;
@@ -431,8 +431,8 @@ int sms_send(char* number, char* text)
 	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a",
 		msg_size, encoded_number_size, encoded_number,
 		size, encoded_data_hex_str);
-	LOG_INF("Sending encoded SMS data (length=%d):", msg_size);
-	LOG_INF("%s", log_strdup(send_data));
+	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
+	LOG_DBG("%s", log_strdup(send_data));
 
 	enum at_cmd_state state = 0;
 	ret = at_cmd_write(send_data, at_response_str,
