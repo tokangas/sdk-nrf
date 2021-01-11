@@ -223,7 +223,7 @@ void sms_at_handler(void *context, const char *at_notif)
 	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
 		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
 
-		LOG_INF("SMS submit report received");
+		LOG_DBG("SMS submit report received");
 		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
 	} else {
 		/* Ignore all other notifications */
@@ -388,7 +388,7 @@ int sms_send(char* number, char* text)
 		return -EINVAL;
 	}
 
-	LOG_INF("Sending SMS to number=%s, text='%s'",
+	LOG_DBG("Sending SMS to number=%s, text='%s'",
 		log_strdup(number), log_strdup(text));
 
 	uint8_t size = 0;
@@ -449,8 +449,8 @@ int sms_send(char* number, char* text)
 	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a",
 		msg_size, encoded_number_size, encoded_number,
 		size, encoded_data_hex_str);
-	LOG_INF("Sending encoded SMS data (length=%d):", msg_size);
-	LOG_INF("%s", log_strdup(send_data));
+	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
+	LOG_DBG("%s", log_strdup(send_data));
 
 	enum at_cmd_state state = 0;
 	ret = at_cmd_write(send_data, at_response_str,
