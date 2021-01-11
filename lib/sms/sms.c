@@ -99,8 +99,12 @@ static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 	(void)at_params_string_get(&resp_list, 1, cmt_rsp->alpha, &alpha_len);
 	cmt_rsp->alpha[alpha_len] = '\0';
 
+	LOG_DBG("Number: %s", log_strdup(cmt_rsp->alpha));
+
 	/* Length field saved as number. */
 	(void)at_params_short_get(&resp_list, 2, &cmt_rsp->length);
+
+	LOG_DBG("PDU length: %d", cmt_rsp->length);
 
 	/* Save PDU as a null-terminated String. */
 	size_t pdu_len;
@@ -114,6 +118,8 @@ static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 	(void)at_params_string_get(&resp_list, 3, cmt_rsp->pdu, &pdu_len);
 	cmt_rsp->pdu[pdu_len] = '\0';
 
+	LOG_DBG("PDU: %s", log_strdup(cmt_rsp->pdu));
+
 	return 0;
 }
 
@@ -126,17 +132,15 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
-static int sms_cmt_pdu_parse(char *pdu)
+static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 {
-	/* TODO: This decodes the pdu to the same 'pdu' variable. Need to think if this is OK. */
 	struct  parser sms_deliver;
 	int     err=0;
 	uint8_t payload_size = 0;
 
-	struct sms_deliver_header sms_header;
-
-	if (pdu == NULL) {
+	if (pdu == NULL || out == NULL) {
 		printk("sms_callback with NULL data\n");
+		return -EINVAL;
 	}
 
 	parser_create(&sms_deliver, sms_deliver_get_api());
@@ -149,29 +153,50 @@ static int sms_cmt_pdu_parse(char *pdu)
 		//return err;
 	}
 
-	payload_size = parser_get_payload(&sms_deliver,
-					  pdu,
-					  strlen(pdu));
-	pdu[payload_size] = '\0';
-	parser_get_header(&sms_deliver, &sms_header);
+	parser_get_header(&sms_deliver, out);
 
-	if(payload_size < 0) {
-		printk("Getting sms deliver payload failed: %d\n",
-			payload_size);
-		// TODO: Check this when SMS SUBMIT REPORT is handled properly
-		//return payload_size;
+	out->ud = k_malloc(out->ud_len + 1);
+	if (out->ud == NULL) {
+		LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
+		return -ENOMEM;
 	}
 
-	LOG_INF("Time:   %02x-%02x-%02x %02x:%02x:%02x",
-		sms_header.time.year,
-		sms_header.time.month,
-		sms_header.time.day,
-		sms_header.time.hour,
-		sms_header.time.minute,
-		sms_header.time.second);
-	LOG_INF("Text:   '%s'", log_strdup(pdu));
+	payload_size = parser_get_payload(&sms_deliver,
+					  out->ud,
+					  out->ud_len);
+	out->ud[payload_size] = '\0';
+
+	if(payload_size < 0) {
+		LOG_ERR("Getting sms deliver payload failed: %d\n",
+			payload_size);
+		return payload_size;
+	}
+
+	LOG_DBG("Time:   %02x-%02x-%02x %02x:%02x:%02x",
+		out->time.year,
+		out->time.month,
+		out->time.day,
+		out->time.hour,
+		out->time.minute,
+		out->time.second);
+	LOG_DBG("Text:   '%s'", log_strdup(out->ud));
 
 	parser_delete(&sms_deliver);
+	return 0;
+}
+
+int sms_get_header(struct sms_data *in, struct sms_deliver_header *out)
+{
+	if (in == NULL || out == NULL) {
+		LOG_ERR("sms_get_header with NULL input\n");
+		return -EINVAL;
+	}
+
+	int err = sms_deliver_pdu_parse(in->pdu, out);
+	if (err != 0) {
+		return err;
+	}
+
 	return 0;
 }
 
@@ -195,13 +220,6 @@ void sms_at_handler(void *context, const char *at_notif)
 		if (valid_notif != 0) {
 			return;
 		}
-		LOG_INF("Number: %s", log_strdup(cmt_rsp.alpha));
-
-		int valid_pdu = sms_cmt_pdu_parse(cmt_rsp.pdu);
-		if (valid_pdu != 0) {
-			return;
-		}
-
 	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
 		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
 

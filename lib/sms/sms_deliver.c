@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <zephyr.h>
+#include <modem/sms.h>
 
 #define SCTS_FIELD_SIZE 7
 
@@ -287,6 +288,8 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	       DELIVER_DATA(parser)->field_do.adr,
 	       DELIVER_DATA(parser)->field_do.length);
 
+	sms_header->ud_len = DELIVER_DATA(parser)->field_udl;
+
 	return 0;
 }
 
@@ -302,4 +305,3 @@ void *sms_deliver_get_api(void)
 {
 	return (struct parser_api*)&sms_deliver_api;
 }
-

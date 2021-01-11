@@ -7,6 +7,7 @@
 #ifndef _SMS_DELIVER_INCLUDE_H_
 #define _SMS_DELIVER_INCLUDE_H_
 
+/*
 enum sms_deliver_alphabet {
 	GSM_ENCODING_8BIT,
 	GSM_ENCODING_UCS2,
@@ -45,7 +46,7 @@ struct sms_deliver_header {
 	struct sms_deliver_address service_center_address;
 	struct sms_deliver_address orginator_address;
 };
-
+*/
 void *sms_deliver_get_api(void);
 
 #endif

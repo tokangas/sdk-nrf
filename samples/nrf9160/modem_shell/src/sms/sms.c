@@ -27,6 +27,8 @@ static int sms_recv_counter = 0;
 
 static void sms_callback(struct sms_data *const data, void *context)
 {
+	struct sms_deliver_header sms_header;
+
 	if (data == NULL) {
 		printk("sms_callback with NULL data\n");
 	}
@@ -39,16 +41,24 @@ static void sms_callback(struct sms_data *const data, void *context)
 
 	// Alpha is phone number
 	shell_print(shell_global, "Number: %s", data->alpha);
-	/* TODO: date and time not available from the library at the moment
+
+	int err = sms_get_header(data, &sms_header);
+	if (err) {
+		printf("sms_get_header returned err: %d\n", err);
+		return;
+	}
+
 	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
 		sms_header.time.month,
 		sms_header.time.day,
 		sms_header.time.hour,
 		sms_header.time.minute,
-		sms_header.time.second);*/
+		sms_header.time.second);
 
-	shell_print(shell_global, "Text:   '%s'", data->pdu);
+	shell_print(shell_global, "Text:   '%s'", sms_header.ud);
+
+	/* TODO: sms_header.ud leaks memory */
 
 	sms_recv_counter++;
 }
