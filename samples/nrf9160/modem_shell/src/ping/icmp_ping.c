@@ -353,13 +353,9 @@ wait_for_data:
 	}
 
 	/* Result */
-	char rsp_buf[220];
-	sprintf(rsp_buf,
-		"Pinging %s results: time=%d.%03dsecs, payload sent: %d, payload received %d\r\n",
+	shell_print(shell, "Pinging %s results: time=%d.%03dsecs, payload sent: %d, payload received %d",
 		ping_argv.target_name, (uint32_t)(delta_t) / 1000,
 		(uint32_t)(delta_t) % 1000, ping_argv.len, dpllen);
-
-	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
 
 close_end:
 	(void)close(fd);
@@ -384,12 +380,9 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 		k_sleep(K_MSEC(ping_argv.interval));
 	}
 
-	char rsp_buf[20];
-
 	freeaddrinfo(si);
 	freeaddrinfo(di);
-	sprintf(rsp_buf, "Pinging DONE\r\n");
-	shell_print_stream(shell, rsp_buf, strlen(rsp_buf));
+	shell_print(shell, "Pinging DONE\r\n");
 }
 /*****************************************************************************/
 int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_args)

@@ -9,7 +9,14 @@
 #include <zephyr.h>
 #include <zephyr/types.h>
 #include <toolchain/common.h>
+#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
+#include <posix/unistd.h>
+#include <posix/netdb.h>
+#include <posix/sys/time.h>
+#include <posix/sys/socket.h>
+#else
 #include <net/socket.h>
+#endif
 #include <nrf_socket.h>
 #include <net/tls_credentials.h>
 #include <net/download_client.h>
@@ -61,8 +68,11 @@ static int socket_timeout_set(int fd)
 		.tv_usec = (timeout_ms % 1000) * 1000,
 	};
 
+#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+	LOG_INF("Configuring socket timeout (%lld s)", timeo.tv_sec);
+#else
 	LOG_INF("Configuring socket timeout (%ld s)", timeo.tv_sec);
-
+#endif
 	err = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeo, sizeof(timeo));
 	if (err) {
 		LOG_WRN("Failed to set socket timeout, errno %d", errno);

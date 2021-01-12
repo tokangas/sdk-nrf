@@ -101,8 +101,12 @@ int sms_send_msg(char* number, char* text)
 {
 	int ret;
 
-	if (number == NULL) {
-		shell_error(shell_global, "SMS number not given\n");
+	if (number == NULL || strlen(number) == 0) {
+		shell_error(shell_global, "Number not given");
+		return -EINVAL;
+	}
+	if (text == NULL || strlen(text) == 0) {
+		shell_error(shell_global, "Text not given");
 		return -EINVAL;
 	}
 

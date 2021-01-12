@@ -111,6 +111,7 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_receive_start = false;
 	bool arg_verbose = false;
 
+	memset(arg_number, 0, SMS_MAX_MESSAGE_LEN+1);
 	memset(arg_message, 0, SMS_MAX_MESSAGE_LEN+1);
 
 	// Parse command line
