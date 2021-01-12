@@ -119,7 +119,8 @@ void main(void)
 {
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	int err;
-	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
+	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT) ||
+	    IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else {
 		err = lte_lc_init_and_connect_async(ltelc_ind_handler);
