@@ -30,6 +30,8 @@
 /* global variables */
 struct modem_param_info modem_param;
 
+K_SEM_DEFINE(bsdlib_ready, 0, 1);
+
 #if !defined (CONFIG_RESET_ON_FATAL_ERROR)
 #if 0
 void k_sys_fatal_error_handler(unsigned int reason,
@@ -84,15 +86,10 @@ static void modem_trace_enable(void)
 
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
-static int fta_shell_init(const struct device *unused)
+
+static void init_after_bsdlib(void)
 {
-	int err = 0;
-
-	ARG_UNUSED(unused);
-
-	printk("\nThe MoSH sample started\n\n");
-
-	modem_trace_enable();
+	int err;
 
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	ltelc_init();
@@ -104,12 +101,31 @@ static int fta_shell_init(const struct device *unused)
 	err = modem_info_init();
 	if (err) {
 		printk("\nModem info could not be established: %d", err);
-		return err;
+		return;
 	}
 	modem_info_params_init(&modem_param);
 #endif
+}
+
+static int fta_shell_init(const struct device *unused)
+{
+	int err = 0;
+
+	ARG_UNUSED(unused);
+
+	printk("\nThe MoSH sample started\n\n");
+
+	modem_trace_enable();
+
+#if !defined(CONFIG_LWM2M_CARRIER)
+	/* When LwM2M carrier library is not enabled bsdlib and AT command
+	 * interface have already been initialized at this point.
+	 */
+	init_after_bsdlib();
+#endif
+
 #if defined (CONFIG_FTA_PPP)
-    ppp_ctrl_init();
+	ppp_ctrl_init();
 #endif
 
 	return err;
@@ -119,9 +135,14 @@ void main(void)
 {
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	int err;
-	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT) ||
-	    IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
+	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
+	} else if (IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
+		/* Wait until bsdlib and AT command interface have been
+		 * initialized. */
+		k_sem_take(&bsdlib_ready, K_FOREVER);
+
+		init_after_bsdlib();
 	} else {
 		err = lte_lc_init_and_connect_async(ltelc_ind_handler);
 		if (err) {
