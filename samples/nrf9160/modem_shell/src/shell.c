@@ -48,7 +48,7 @@
 
 const struct shell* shell_global;
 
-extern struct k_sem bsdlib_ready;
+extern struct k_sem bsdlib_initialized;
 
 #if defined (CONFIG_LWM2M_CARRIER)
 void lwm2m_print_err(const lwm2m_carrier_event_t *evt)
@@ -115,13 +115,10 @@ int lwm2m_carrier_event_handler(const lwm2m_carrier_event_t *event)
 	switch (event->type) {
 	case LWM2M_CARRIER_EVENT_BSDLIB_INIT:
 		shell_print(shell_global, "LwM2M carrier event: bsdlib initialized");
+		k_sem_give(&bsdlib_initialized);
 		break;
 	case LWM2M_CARRIER_EVENT_CONNECTING:
 		shell_print(shell_global, "LwM2M carrier event: connecting");
-		/* Semaphore is given after CONNECTING event so that also
-		 * AT command interface has been initialized.
-		 */
-		k_sem_give(&bsdlib_ready);
 		break;
 	case LWM2M_CARRIER_EVENT_CONNECTED:
 		shell_print(shell_global, "LwM2M carrier event: connected");

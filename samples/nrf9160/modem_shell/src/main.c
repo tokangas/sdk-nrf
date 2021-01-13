@@ -15,6 +15,7 @@
 #include <hal/nrf_gpio.h>
 #include <logging/log_ctrl.h>
 
+#include <modem/at_cmd.h>
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
@@ -30,7 +31,7 @@
 /* global variables */
 struct modem_param_info modem_param;
 
-K_SEM_DEFINE(bsdlib_ready, 0, 1);
+K_SEM_DEFINE(bsdlib_initialized, 0, 1);
 
 #if !defined (CONFIG_RESET_ON_FATAL_ERROR)
 #if 0
@@ -118,8 +119,8 @@ static int fta_shell_init(const struct device *unused)
 	modem_trace_enable();
 
 #if !defined(CONFIG_LWM2M_CARRIER)
-	/* When LwM2M carrier library is not enabled bsdlib and AT command
-	 * interface have already been initialized at this point.
+	/* When LwM2M carrier library is not enabled bsdlib has already been
+	 * initialized at this point.
 	 */
 	init_after_bsdlib();
 #endif
@@ -138,9 +139,13 @@ void main(void)
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else if (IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
-		/* Wait until bsdlib and AT command interface have been
-		 * initialized. */
-		k_sem_take(&bsdlib_ready, K_FOREVER);
+		/* Wait until bsdlib has been initialized. */
+		k_sem_take(&bsdlib_initialized, K_FOREVER);
+
+		/* Initialize AT command interface so we don't have to wait
+		 * for somebody else to do it.
+		 */
+		at_cmd_init();
 
 		init_after_bsdlib();
 	} else {
