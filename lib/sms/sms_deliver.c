@@ -166,7 +166,12 @@ static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
 }
 
 static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
-{
+{	
+	/* Check if TP-User-Data-Header-Indicator is not set */
+	if (!DELIVER_DATA(parser)->field_header.udhi) {
+		return 0;
+	}
+
 	uint8_t ofs=0;
 
 	int length = buf[ofs++];
