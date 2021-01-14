@@ -123,6 +123,42 @@ static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 	return 0;
 }
 
+/** @brief Save the SMS status report parameters. */
+static int sms_cds_at_parse(const char *const buf, struct sms_data *cmt_rsp)
+{
+	int err = at_parser_max_params_from_str(buf, NULL, &resp_list,
+						AT_CDS_PARAMS_COUNT);
+	if (err != 0) {
+		LOG_ERR("Unable to parse CMT notification, err=%d", err);
+		return err;
+	}
+
+	if (cmt_rsp->alpha != NULL) {
+		k_free(cmt_rsp->alpha);
+	}
+
+	if (cmt_rsp->pdu != NULL) {
+		k_free(cmt_rsp->pdu);
+	}
+
+	/* Length field saved as number. */
+	(void)at_params_short_get(&resp_list, 1, &cmt_rsp->length);
+
+	/* Save PDU as a null-terminated String. */
+	size_t pdu_len;
+	(void)at_params_size_get(&resp_list, 2, &pdu_len);
+	cmt_rsp->pdu = k_malloc(pdu_len + 1);
+	if (cmt_rsp->pdu == NULL) {
+		LOG_ERR("Unable to parse CMT notification due to no memory");
+		return -ENOMEM;
+	}
+
+	(void)at_params_string_get(&resp_list, 2, cmt_rsp->pdu, &pdu_len);
+	cmt_rsp->pdu[pdu_len] = '\0';
+
+	return 0;
+}
+
 static void sms_ack(struct k_work *work)
 {
 	int ret = at_cmd_write(AT_SMS_PDU_ACK, NULL, 0, NULL);
@@ -239,6 +275,12 @@ void sms_at_handler(void *context, const char *at_notif)
 
 		LOG_DBG("SMS submit report received");
 		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
+
+		int valid_notif = sms_cds_at_parse(at_notif, &cmt_rsp);
+		if (valid_notif != 0) {
+			LOG_ERR("sms_cds_at_parse");
+			return;
+		}
 	} else {
 		/* Ignore all other notifications */
 		return;
