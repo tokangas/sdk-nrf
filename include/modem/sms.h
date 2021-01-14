@@ -75,6 +75,7 @@ struct sms_deliver_header {
 	struct sms_deliver_address service_center_address;
 	struct sms_deliver_address orginator_address;
 	uint8_t                    ud_len;
+	uint8_t			   data_len; /* TODO: Check if this is needed */
 	char 			   *ud;
 };
 

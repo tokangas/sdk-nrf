@@ -10,6 +10,9 @@
 #include <string.h>
 #include <zephyr.h>
 #include <modem/sms.h>
+#include <logging/log.h>
+
+LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 #define SCTS_FIELD_SIZE 7
 
@@ -141,6 +144,45 @@ static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
 	return 1;
 }
 
+static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
+{
+	uint8_t ofs=0;
+
+	int length = buf[ofs++];
+	LOG_DBG("User Data Header Length: %d", length);
+
+	/* Reduce User-Data-length based on UDH length */
+	int field_udl_old = DELIVER_DATA(parser)->field_udl;
+	DELIVER_DATA(parser)->field_udl -= length + 1; /* +1 for length field itself */
+	if (length + 1 > field_udl_old) {
+		LOG_ERR("User Data Header Length %d is bigger than User-Data-Length %d",
+			length, field_udl_old);
+		return -EMSGSIZE;
+	}
+	LOG_DBG("User-Data-Length reduced from %d to %d",
+		field_udl_old, DELIVER_DATA(parser)->field_udl);
+
+	while (ofs <= length) {
+		int ie_id     = buf[ofs++];
+		int ie_length = buf[ofs++];
+
+		LOG_DBG("User Data Header id=0x%02X, length=%d", ie_id, ie_length);
+
+		switch (ie_id) {
+		case 0x00:
+			break;
+		case 0x05:
+			break;
+		default:
+			LOG_WRN("Ignoring not supported User Data Header id=0x%02X, length=%d", ie_id, ie_length);
+			break;
+		}
+		ofs += ie_length;
+	}
+
+	return length + 1;
+}
+
 static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 {
 	uint8_t mask           = 0x7f;
@@ -204,6 +246,7 @@ static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
 
 static int decode_pdu_deliver_message(struct parser *parser, uint8_t *buf)
 {
+	/* TODO: There are other bits (bits 4 to 7) than alphabet we need to consider because alphabet is not what we expect in some cases */
 	switch(DELIVER_DATA(parser)->field_dcs.alphabet) {
 		case 0:
 			return decode_pdu_ud_field_7bit(parser, buf);
@@ -225,6 +268,7 @@ const static parser_module sms_pdu_deliver_parsers[] = {
 		decode_pdu_dcs_field,
 		decode_pdu_scts_field,
 		decode_pdu_udl_field,
+		decode_pdu_udh,
 	};
 
 static void *sms_deliver_get_parsers(void) 

@@ -155,7 +155,7 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 
 	parser_get_header(&sms_deliver, out);
 
-	out->ud = k_malloc(out->ud_len + 1);
+	out->ud = k_calloc(1, out->ud_len + 1);
 	if (out->ud == NULL) {
 		LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
 		return -ENOMEM;
@@ -165,8 +165,9 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 					  out->ud,
 					  out->ud_len);
 	out->ud[payload_size] = '\0';
+	out->data_len = payload_size;
 
-	if(payload_size < 0) {
+	if (payload_size < 0) {
 		LOG_ERR("Getting sms deliver payload failed: %d\n",
 			payload_size);
 		return payload_size;
@@ -181,12 +182,25 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 		out->time.second);
 	LOG_DBG("Text:   '%s'", log_strdup(out->ud));
 
+	if (payload_size < 150) {
+		char ud_data[150];
+		memset(ud_data, 0, 150);
+
+		for(int i = 0; i < payload_size; i++) {
+			sprintf(ud_data + i*2, "%02X", out->ud[i]);
+		}
+		LOG_DBG("Data:   %s", log_strdup(ud_data));
+	}
+
+	LOG_DBG("Length: %d", out->data_len);
+
 	parser_delete(&sms_deliver);
 	return 0;
 }
 
 int sms_get_header(struct sms_data *in, struct sms_deliver_header *out)
 {
+	/* TODO: Right now this returns payload too in out->ud */
 	if (in == NULL || out == NULL) {
 		LOG_ERR("sms_get_header with NULL input\n");
 		return -EINVAL;
