@@ -27,7 +27,7 @@ typedef enum {
 extern const struct shell* shell_global;
 
 const char sms_usage_str[] =
-	"Usage: sock <command> [options]\n"
+	"Usage: sms <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
 	"  send:    Send SMS message. Also registers SMS service if required.\n"
@@ -159,7 +159,7 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sms_help(arg_verbose);
 			break;
 		default:
-			shell_error(shell, "Internal error. Unknown socket command=%d", command);
+			shell_error(shell, "Internal error. Unknown sms command=%d", command);
 			err = -EINVAL;
 			break;
 	}
