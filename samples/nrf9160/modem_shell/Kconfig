@@ -76,6 +76,10 @@ config FTA_GNSS_API_GPS_DRIVER
 
 endchoice
 
+config FTA_GNSS_ENABLE_LNA
+	bool "Enable Low Noise Amplifier (LNA) during startup"
+	depends on FTA_GNSS
+
 endmenu #FTA
 
 #menu "Zephyr Kernel"

@@ -28,6 +28,10 @@
 #include "ltelc.h"
 #endif
 
+#if defined(CONFIG_FTA_GNSS)
+#include "gnss.h"
+#endif
+
 /* global variables */
 struct modem_param_info modem_param;
 
@@ -88,6 +92,7 @@ static void modem_trace_enable(void)
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
 
+/* Initialization which needs bsdlib should be done here */
 static void init_after_bsdlib(void)
 {
 	int err;
@@ -105,6 +110,10 @@ static void init_after_bsdlib(void)
 		return;
 	}
 	modem_info_params_init(&modem_param);
+#endif
+
+#if defined(CONFIG_FTA_GNSS_ENABLE_LNA)
+	gnss_set_lna_enabled(true);
 #endif
 }
 

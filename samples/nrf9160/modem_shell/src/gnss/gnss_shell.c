@@ -305,11 +305,7 @@ static int cmd_gnss_config_powersave_off(const struct shell *shell, size_t argc,
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
 
-    int err;
-
-    err = gnss_set_duty_cycling_policy(GNSS_DUTY_CYCLING_DISABLED);
-
-    return err;
+    return gnss_set_duty_cycling_policy(GNSS_DUTY_CYCLING_DISABLED);
 }
 
 static int cmd_gnss_config_powersave_perf(const struct shell *shell, size_t argc, char **argv)
@@ -317,11 +313,7 @@ static int cmd_gnss_config_powersave_perf(const struct shell *shell, size_t argc
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
 
-    int err;
-
-    err = gnss_set_duty_cycling_policy(GNSS_DUTY_CYCLING_PERFORMANCE);
-
-    return err;
+    return gnss_set_duty_cycling_policy(GNSS_DUTY_CYCLING_PERFORMANCE);
 }
 
 static int cmd_gnss_config_powersave_power(const struct shell *shell, size_t argc, char **argv)
@@ -329,11 +321,7 @@ static int cmd_gnss_config_powersave_power(const struct shell *shell, size_t arg
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_RUNNING();
 
-    int err;
-
-    err = gnss_set_duty_cycling_policy(GNSS_DUTY_CYCLING_POWER);
-
-    return err;
+    return gnss_set_duty_cycling_policy(GNSS_DUTY_CYCLING_POWER);
 }
 
 static int cmd_gnss_priority(const struct shell *shell, size_t argc, char **argv)
@@ -361,6 +349,28 @@ static int cmd_gnss_priority_disable(const struct shell *shell, size_t argc, cha
     gnss_set_priority_time_windows(false);
 
     return 0;
+}
+
+
+static int cmd_gnss_lna(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return print_help(shell, argc, argv);
+}
+
+static int cmd_gnss_lna_enable(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return gnss_set_lna_enabled(true);
+}
+
+static int cmd_gnss_lna_disable(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return gnss_set_lna_enabled(false);
 }
 
 static int cmd_gnss_output(const struct shell *shell, size_t argc, char **argv)
@@ -443,12 +453,19 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_priority,
     SHELL_SUBCMD_SET_END
 );
 
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_lna,
+    SHELL_CMD_ARG(enable, NULL, "Enable LNA.", cmd_gnss_lna_enable, 1, 0),
+    SHELL_CMD_ARG(disable, NULL, "Disable LNA.", cmd_gnss_lna_disable, 1, 0),
+    SHELL_SUBCMD_SET_END
+);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss,
     SHELL_CMD_ARG(start, NULL, "Start GNSS.", cmd_gnss_start, 1, 0),
     SHELL_CMD_ARG(stop, NULL, "Stop GNSS.", cmd_gnss_stop, 1, 0),
     SHELL_CMD(mode, &sub_gnss_mode, "Set tracking mode.", cmd_gnss_mode),
     SHELL_CMD(config, &sub_gnss_config, "Set GNSS configuration.", cmd_gnss_config),
     SHELL_CMD(priority, &sub_gnss_priority, "Enable/disable priority time window requests.", cmd_gnss_priority),
+    SHELL_CMD(lna, &sub_gnss_lna, "Enable or disable LNA.", cmd_gnss_lna),
     SHELL_CMD(output, NULL, "<pvt level> <nmea level> <event level>\nSet output levels.", cmd_gnss_output),
     SHELL_SUBCMD_SET_END
 );
