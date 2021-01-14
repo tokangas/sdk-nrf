@@ -77,8 +77,18 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 	uint8_t smsc_size = *buf;
 	buf += smsc_size + 1;
 
+	LOG_DBG("SMSC size: %d", smsc_size);
+
 	DELIVER_DATA(parser)->field_header = 
 		*((struct pdu_deliver_header*)buf);
+
+	LOG_DBG("SMS header 1st byte: 0x%X", *buf);
+
+	LOG_DBG("TP-Message-Type-Indicator: %d", DELIVER_DATA(parser)->field_header.mti);
+	LOG_DBG("TP-More-Messages-to-Send: %d", DELIVER_DATA(parser)->field_header.mms);
+	LOG_DBG("TP-Status-Report-Indication: %d", DELIVER_DATA(parser)->field_header.sri);
+	LOG_DBG("TP-User-Data-Header-Indicator: %d", DELIVER_DATA(parser)->field_header.udhi);
+	LOG_DBG("TP-Reply-Path: %d", DELIVER_DATA(parser)->field_header.rp);
 
 	return smsc_size + 2;
 }
@@ -89,6 +99,9 @@ static int decode_pdu_do_field(struct parser *parser, uint8_t *buf)
 	DELIVER_DATA(parser)->field_do.length   = (uint8_t)*buf++;
 	DELIVER_DATA(parser)->field_do.adr_type = (uint8_t)*buf++;
 
+	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_do.length);
+	LOG_DBG("Type-of-Address: %02X", DELIVER_DATA(parser)->field_do.adr_type);
+
 	memcpy(DELIVER_DATA(parser)->field_do.adr,
 	       buf, 
 	       DELIVER_DATA(parser)->field_do.length/2);
@@ -98,6 +111,8 @@ static int decode_pdu_do_field(struct parser *parser, uint8_t *buf)
 			swap_nibbles(DELIVER_DATA(parser)->field_do.adr[i]);
 	}
 	
+	/* TODO: Log Address-Value field */
+
 	return 2+(DELIVER_DATA(parser)->field_do.length/2);
 }
 
@@ -105,12 +120,16 @@ static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
 {
 	DELIVER_DATA(parser)->field_pid = (uint8_t)*buf;
 
+	LOG_DBG("TP-Protocol-Identifier: %d", DELIVER_DATA(parser)->field_pid);
+
 	return 1;
 }
 
 static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 {
 	DELIVER_DATA(parser)->field_dcs = *((struct pdu_dcs_field*)buf);
+
+	LOG_DBG("TP-Data-Coding-Scheme: %02X", *buf);
 
 	return 1;
 }
@@ -140,6 +159,8 @@ static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
 {
 	DELIVER_DATA(parser)->field_udl = (uint8_t)*buf;
+
+	LOG_DBG("TP-User-Data-Length: %d", DELIVER_DATA(parser)->field_udl);
 
 	return 1;
 }
