@@ -21,6 +21,14 @@ typedef enum {
 	GNSS_DATA_DELETE_ALL
 } gnss_data_delete;
 
+/* Common functions */
+
+int gnss_set_lna_enabled(bool enabled);
+
+/* Functions implemented by different API implementations
+ * (GNSS socket/GPS driver)
+ */
+
 /**
  * @brief Starts GNSS.
  *

@@ -15,6 +15,7 @@
 #include <hal/nrf_gpio.h>
 #include <logging/log_ctrl.h>
 
+#include <modem/at_cmd.h>
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
@@ -27,8 +28,14 @@
 #include "ltelc.h"
 #endif
 
+#if defined(CONFIG_FTA_GNSS)
+#include "gnss.h"
+#endif
+
 /* global variables */
 struct modem_param_info modem_param;
+
+K_SEM_DEFINE(bsdlib_initialized, 0, 1);
 
 #if !defined (CONFIG_RESET_ON_FATAL_ERROR)
 #if 0
@@ -84,15 +91,11 @@ static void modem_trace_enable(void)
 
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
-static int fta_shell_init(const struct device *unused)
+
+/* Initialization which needs bsdlib should be done here */
+static void init_after_bsdlib(void)
 {
-	int err = 0;
-
-	ARG_UNUSED(unused);
-
-	printk("\nThe MoSH sample started\n\n");
-
-	modem_trace_enable();
+	int err;
 
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	ltelc_init();
@@ -104,12 +107,35 @@ static int fta_shell_init(const struct device *unused)
 	err = modem_info_init();
 	if (err) {
 		printk("\nModem info could not be established: %d", err);
-		return err;
+		return;
 	}
 	modem_info_params_init(&modem_param);
 #endif
+
+#if defined(CONFIG_FTA_GNSS_ENABLE_LNA)
+	gnss_set_lna_enabled(true);
+#endif
+}
+
+static int fta_shell_init(const struct device *unused)
+{
+	int err = 0;
+
+	ARG_UNUSED(unused);
+
+	printk("\nThe MoSH sample started\n\n");
+
+	modem_trace_enable();
+
+#if !defined(CONFIG_LWM2M_CARRIER)
+	/* When LwM2M carrier library is not enabled bsdlib has already been
+	 * initialized at this point.
+	 */
+	init_after_bsdlib();
+#endif
+
 #if defined (CONFIG_FTA_PPP)
-    ppp_ctrl_init();
+	ppp_ctrl_init();
 #endif
 
 	return err;
@@ -121,6 +147,16 @@ void main(void)
 	int err;
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
+	} else if (IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
+		/* Wait until bsdlib has been initialized. */
+		k_sem_take(&bsdlib_initialized, K_FOREVER);
+
+		/* Initialize AT command interface so we don't have to wait
+		 * for somebody else to do it.
+		 */
+		at_cmd_init();
+
+		init_after_bsdlib();
 	} else {
 		err = lte_lc_init_and_connect_async(ltelc_ind_handler);
 		if (err) {

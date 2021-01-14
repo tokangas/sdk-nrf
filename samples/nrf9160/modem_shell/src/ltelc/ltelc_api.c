@@ -419,9 +419,6 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 						sizeof(info_str));
 		if (ret >= 0) {
 			shell_print(shell, "Mobile network time and date: %s", info_str);
-		} else {
-			shell_error(shell,
-					"Unable to obtain modem time (%d)", ret);
 		}
 
 	#if defined(CONFIG_AT_CMD)
