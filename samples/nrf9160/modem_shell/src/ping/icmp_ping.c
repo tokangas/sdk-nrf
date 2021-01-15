@@ -114,7 +114,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	uint8_t rep = 0;
 	uint8_t header_len = 0;
 	struct addrinfo *si = ping_argv.src;
-	const int alloc_size = 1280; // MTU
+	const int alloc_size = ICMP_LINK_MTU;
   	struct pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;

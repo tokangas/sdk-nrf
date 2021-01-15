@@ -17,7 +17,8 @@
 #include "fta_defines.h"
 
 #define ICMP_MAX_URL		128
-#define ICMP_MAX_LEN		512
+#define ICMP_MAX_LEN		1452 /* MTU - IPv6 header - ICMP header, TODO: separate for ipv4 and v6? */
+#define ICMP_LINK_MTU		1500
 
 #define ICMP_PARAM_LENGTH_DEFAULT 0
 #define ICMP_PARAM_COUNT_DEFAULT 4
