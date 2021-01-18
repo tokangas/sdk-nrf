@@ -23,6 +23,7 @@
 #include <posix/sys/socket.h>
 #include <shell/shell.h>
 
+#include "ppp_ctrl.h"
 #include "ppp_mdm_data_snd.h"
 
 #if defined (CONFIG_FTA_PPP)
@@ -51,10 +52,12 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 	net_pkt_unref(pkt); //TODO non blocking send?
 	if (ret < 0) {
 		shell_error(ppp_shell_global, "ppp_mdm_data_snd: cannot read packet: %d, from pkt %p", ret, pkt);
+		net_pkt_unref(pkt);
 	} else {	
 		ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
 		if (ret <= 0) {
 			shell_error(ppp_shell_global, "ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", -errno, data_len);
+			net_pkt_unref(pkt);
 		}
 	}
 }
@@ -62,7 +65,7 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 #if defined(PPP_CTRL_UPLINK_WORKER)
 
 #define UPLINK_WORKQUEUE_STACK_SIZE 1024
-#define UPLINK_WORKQUEUE_PRIORITY   K_PRIO_COOP(9)/* -7 */
+#define UPLINK_WORKQUEUE_PRIORITY   K_PRIO_COOP(10)/* -6 */
 
 K_THREAD_STACK_DEFINE(uplink_stack_area, UPLINK_WORKQUEUE_STACK_SIZE);
 
@@ -89,7 +92,7 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not for ppp iface\n");
 		return NET_CONTINUE;
 	}
-	if (ppp_modem_data_raw_socket_fd < 0) {
+	if (ppp_modem_data_raw_socket_fd == PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
 		shell_error(ppp_shell_global, "MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: no socket to modem\n");
 		return NET_CONTINUE;
 	}
@@ -104,7 +107,6 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 	k_work_submit_to_queue(&uplink_work_q, net_pkt_work(pkt));
 #else
 	int ret = 0;
-	static uint8_t buf_tx[1500];//TODO: to be CONFIG_NET_PPP_MTU_MRU
 	int data_len = net_pkt_remaining_data(pkt);
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
