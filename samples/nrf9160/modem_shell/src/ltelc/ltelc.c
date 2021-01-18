@@ -102,6 +102,8 @@ void ltelc_init(void)
 	k_work_init(&modem_info_signal_work, ltelc_rsrp_signal_update);
 	modem_info_rsrp_register(ltelc_rsrp_signal_handler);
 #endif
+	lte_lc_register_handler(ltelc_ind_handler);
+
 	sys_dlist_init(&pdn_socket_list);
 }
 
@@ -238,7 +240,15 @@ int ltelc_func_mode_set(int fun)
 		break;
 	case LTELC_FUNMODE_NORMAL:
 	default:
-		return_value = lte_lc_normal();
+		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
+			return_value = lte_lc_normal();
+		}
+		else {
+			return_value = lte_lc_init_and_connect_async(ltelc_ind_handler);
+			if (return_value == -EALREADY) {
+				return_value = lte_lc_connect_async(ltelc_ind_handler);
+			}
+		}
 		break;
 	}
 	return return_value;

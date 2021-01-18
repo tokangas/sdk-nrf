@@ -99,8 +99,6 @@ static void init_after_bsdlib(void)
 
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	ltelc_init();
-
-	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
 #endif
 
 #if defined(CONFIG_MODEM_INFO)
@@ -144,7 +142,6 @@ static int fta_shell_init(const struct device *unused)
 void main(void)
 {
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
-	int err;
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already configured and LTE connected. */
 	} else if (IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
@@ -157,17 +154,6 @@ void main(void)
 		at_cmd_init();
 
 		init_after_bsdlib();
-	} else {
-		err = lte_lc_init_and_connect_async(ltelc_ind_handler);
-		if (err) {
-			printk("\nModem could not be configured, error: %d",
-			       err);
-			return;
-		}
-
-		/* Check LTE events of type LTE_LC_EVT_NW_REG_STATUS in
-		 * lte_async_connect_handler() to determine when the LTE link is up.
-		 */
 	}
 #endif
 }
