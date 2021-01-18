@@ -133,7 +133,7 @@ void ppp_mdm_data_snd_init()
 	k_work_q_start(&uplink_work_q, uplink_stack_area,
 		       K_THREAD_STACK_SIZEOF(uplink_stack_area),
 		       UPLINK_WORKQUEUE_PRIORITY);
-	k_thread_name_set(&uplink_work_q.thread, "mosh_uplink_work_q");
+	k_thread_name_set(&uplink_work_q.thread, "ppp_modem_ul_data_thread");
 #endif
 	net_core_register_pkt_cb(ppp_mdm_data_snd_data_rcv_from_ppp);
 }
