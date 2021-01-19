@@ -10,7 +10,7 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
 
-#define BUF_SIZE     160 /* CONFIG_MESSAGE_PARSER_BUF_SIZE */
+#define BUF_SIZE     180 /* TODO: CONFIG_MESSAGE_PARSER_BUF_SIZE */
 
 /* Forward declaration of the parser struct */
 struct parser;
@@ -34,7 +34,7 @@ struct parser {
 	uint8_t             payload_pos;
 
 	void                *data;
-	uint8_t             data_length;
+	uint16_t            data_length;
 
 	struct parser_api   *api;
 };

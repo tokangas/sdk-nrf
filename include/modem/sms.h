@@ -65,18 +65,33 @@ struct sms_deliver_address {
 	uint8_t type;
 };
 
+struct sms_udh_concatenated {
+	bool present;
+	uint16_t ref_number;
+	uint8_t total_msgs;
+	uint8_t seq_number;
+};
+
+struct sms_udh_app_port {
+	bool present;
+	uint16_t dest_port;
+	uint16_t src_port;
+};
+
 struct sms_deliver_header {
-	struct sms_deliver_time    time;
-	uint8_t                    protocol_id;
-	enum sms_deliver_alphabet  alphabet;
-	bool                       compressed;
-	bool                       presence_of_class;
-	enum sms_deliver_class     class;
-	struct sms_deliver_address service_center_address;
-	struct sms_deliver_address orginator_address;
-	uint8_t                    ud_len;
-	uint8_t			   data_len; /* TODO: Check if this is needed */
-	char 			   *ud;
+	struct sms_deliver_time     time;
+	uint8_t                     protocol_id;
+	enum sms_deliver_alphabet   alphabet;
+	bool                        compressed;
+	bool                        presence_of_class;
+	enum sms_deliver_class      class;
+	struct sms_deliver_address  service_center_address;
+	struct sms_deliver_address  orginator_address;
+	uint8_t                     ud_len;
+	struct sms_udh_app_port     app_port;
+	struct sms_udh_concatenated concatenated;
+	int			    data_len; /* TODO: Check if this is needed */
+	char 			    *ud;
 };
 
 int sms_get_header(struct sms_data *in, struct sms_deliver_header *out);

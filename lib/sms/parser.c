@@ -45,12 +45,11 @@ static int convert_to_bytes(char *str, uint32_t str_length,
 
 int parser_create(struct parser *parser, struct parser_api *api)
 {
+	memset(parser, 0, sizeof(struct parser));
+
 	parser->api              = api;
 
-	parser->data             = k_malloc(api->data_size());
-	parser->payload          = NULL;
-	parser->payload_buf_size = 0;
-	parser->payload_pos      = 0;
+	parser->data             = k_calloc(1, api->data_size());
 
 	return 0;
 }
@@ -96,7 +95,7 @@ int parser_process_raw(struct parser *parser, uint8_t *data, uint8_t length)
 
 int parser_process_str(struct parser *parser, char *data)
 {
-	uint8_t length = strlen(data);
+	uint16_t length = strlen(data);
 
 	parser->data_length = length / 2;
 

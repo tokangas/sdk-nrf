@@ -109,6 +109,7 @@ static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 	/* Save PDU as a null-terminated String. */
 	size_t pdu_len;
 	(void)at_params_size_get(&resp_list, 3, &pdu_len);
+	LOG_DBG("PDU string length: %d", pdu_len);
 	cmt_rsp->pdu = k_malloc(pdu_len + 1);
 	if (cmt_rsp->pdu == NULL) {
 		LOG_ERR("Unable to parse CMT notification due to no memory");
@@ -172,7 +173,9 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 {
 	struct  parser sms_deliver;
 	int     err=0;
-	uint8_t payload_size = 0;
+	int     payload_size = 0;
+
+	memset(out, 0, sizeof(struct sms_deliver_header));
 
 	if (pdu == NULL || out == NULL) {
 		printk("sms_callback with NULL data\n");
@@ -200,7 +203,6 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 	payload_size = parser_get_payload(&sms_deliver,
 					  out->ud,
 					  out->ud_len);
-	out->ud[payload_size] = '\0';
 	out->data_len = payload_size;
 
 	if (payload_size < 0) {
@@ -217,16 +219,6 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 		out->time.minute,
 		out->time.second);
 	LOG_DBG("Text:   '%s'", log_strdup(out->ud));
-
-	if (payload_size < 150) {
-		char ud_data[150];
-		memset(ud_data, 0, 150);
-
-		for(int i = 0; i < payload_size; i++) {
-			sprintf(ud_data + i*2, "%02X", out->ud[i]);
-		}
-		LOG_DBG("Data:   %s", log_strdup(ud_data));
-	}
 
 	LOG_DBG("Length: %d", out->data_len);
 
@@ -249,7 +241,6 @@ int sms_get_header(struct sms_data *in, struct sms_deliver_header *out)
 
 	return 0;
 }
-
 
 /** @brief Handler for AT responses and unsolicited events. */
 void sms_at_handler(void *context, const char *at_notif)
