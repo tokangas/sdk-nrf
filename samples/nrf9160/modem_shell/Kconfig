@@ -26,6 +26,11 @@ config FTA_LTELC
     depends on LTE_LINK_CONTROL
     default y
 
+config FTA_LTELC_AUTO_CONNECT
+	bool  "Connect automatically to network during startup"
+	depends on LTE_LINK_CONTROL
+	default y
+
 config FTA_CURL
 	bool  "Enable CURL"
     default y
@@ -41,6 +46,10 @@ config FTA_PPP
 config FTA_SMS
 	bool  "Enable SMS support"
     default y
+
+config FTA_FOTA
+	bool "Enable FOTA support"
+	default y
 
 if FTA_CURL
 menu "FTA CURL selections"

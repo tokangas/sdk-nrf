@@ -115,10 +115,10 @@ int lwm2m_carrier_event_handler(const lwm2m_carrier_event_t *event)
 	switch (event->type) {
 	case LWM2M_CARRIER_EVENT_BSDLIB_INIT:
 		shell_print(shell_global, "LwM2M carrier event: bsdlib initialized");
-		k_sem_give(&bsdlib_initialized);
 		break;
 	case LWM2M_CARRIER_EVENT_CONNECTING:
 		shell_print(shell_global, "LwM2M carrier event: connecting");
+		k_sem_give(&bsdlib_initialized);
 		break;
 	case LWM2M_CARRIER_EVENT_CONNECTED:
 		shell_print(shell_global, "LwM2M carrier event: connected");
