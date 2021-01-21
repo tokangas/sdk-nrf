@@ -94,7 +94,21 @@ struct sms_deliver_header {
 	char 			    *ud;
 };
 
+/** TODO: The function name is not good at the moment. It's a leftover when
+ *        there was a plan to have sms_get_header() and sms_get_payload().
+ *        Maybe this should be sms_decode.
+ * 
+ * @brief Decode received SMS message.
+ * 
+ * @param in Received SMS PDU that is still decoded.
+ * @param out SMS message decoded into a structure.
+ * 
+ * @retval -EINVAL Invalid parameter.
+ * @retval -ENOMEM No memory to register new observers.
+ * @return Zero on success, otherwise error code.
+ */
 int sms_get_header(struct sms_data *in, struct sms_deliver_header *out);
+
 /** @brief SMS listener callback function. */
 typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
 
