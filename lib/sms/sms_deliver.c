@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#include "parser.h"
-#include "sms_deliver.h"
-
 #include <string.h>
 #include <zephyr.h>
 #include <modem/sms.h>
 #include <logging/log.h>
+
+#include "sms_deliver.h"
+#include "parser.h"
+#include "string_conversion.h"
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
@@ -299,6 +300,44 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 
 static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 {
+	if (DELIVER_DATA(parser)->field_udl > 160) {
+		LOG_ERR("User Data Length exceeds maximum number of characters (160) in SMS spec");
+		return -EMSGSIZE;
+	}
+
+	/* Convert GSM 7bit data to ASCII characters */
+	uint8_t temp_buf[160];
+	uint8_t length = string_conversion_gsm7bit_to_ascii(
+		buf, temp_buf, DELIVER_DATA(parser)->field_udl, true);
+
+	/* Check whether User Data Header is present.
+	   If yes, we need to skip those septets in the temp_buf, which has
+	   all of the data decoded including User Data Header. This is done
+	   because the actual data/text is aligned into septet (7bit) boundary
+	   after User Data Header. */
+	uint8_t skip_bits = DELIVER_DATA(parser)->field_udhl * 8;
+	uint8_t skip_septets = skip_bits / 7;
+	if (skip_bits % 7 > 0) {
+		skip_septets++;
+	}
+
+	/* Number of characters/bytes in the actual data which excludes
+	   User Data Header */
+	int length_udh_skipped = (int)(length - skip_septets);
+
+	/* Verify that payload buffer is not too short */
+	if (length_udh_skipped > parser->payload_buf_size) {
+		LOG_ERR("Buffer for SMS data is too small (%d) for decoded data length %d. Discarding additional data.",
+			parser->payload_buf_size, length_udh_skipped);
+		length_udh_skipped = parser->payload_buf_size;
+	}
+
+	/* Copy decoded data/text into the output buffer */
+	memcpy(parser->payload, temp_buf + skip_septets, length_udh_skipped);
+
+	return length_udh_skipped;
+
+#if 0
 	uint8_t mask           = 0x7f;
 	uint8_t shift;
 	uint8_t remainder_bits = 0;
@@ -359,6 +398,7 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	} else {
 		return payload_ofs;
 	}
+#endif
 }
 
 static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
