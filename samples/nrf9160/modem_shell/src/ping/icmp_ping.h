@@ -16,13 +16,20 @@
 #include <zephyr/types.h>
 #include "fta_defines.h"
 
-#define ICMP_MAX_URL		128
-#define ICMP_MAX_LEN		1452 /* MTU - IPv6 header - ICMP header, TODO: separate for ipv4 and v6? */
-#define ICMP_LINK_MTU		1500
+#define ICMP_IPV4_HDR_LEN        20
+#define ICMP_IPV6_HDR_LEN        40
 
-#define ICMP_PARAM_LENGTH_DEFAULT 0
-#define ICMP_PARAM_COUNT_DEFAULT 4
-#define ICMP_PARAM_TIMEOUT_DEFAULT 3000
+#define ICMP_MAX_URL	128
+#define ICMP_LINK_MTU	1500
+#define ICMP_HDR_LEN    8
+
+/* Max payload lengths: */
+#define ICMP_IPV4_MAX_LEN	(ICMP_LINK_MTU - ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN)
+#define ICMP_IPV6_MAX_LEN	(ICMP_LINK_MTU - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN)
+
+#define ICMP_PARAM_LENGTH_DEFAULT   0
+#define ICMP_PARAM_COUNT_DEFAULT    4
+#define ICMP_PARAM_TIMEOUT_DEFAULT  3000
 #define ICMP_PARAM_INTERVAL_DEFAULT 1000
 
 /**@ ICMP Ping command arguments */
