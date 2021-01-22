@@ -123,8 +123,8 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             break;
 		case 'l': //payload length
 			ping_args.len = atoi(optarg);
-            if (ping_args.len > ICMP_MAX_LEN) {
-                shell_error(shell, "Payload size exceeds the limit %d", ICMP_MAX_LEN);
+            if (ping_args.len > ICMP_IPV4_MAX_LEN) {
+                shell_error(shell, "Payload size exceeds the limit %d", ICMP_IPV4_MAX_LEN);
                 goto show_usage;
             }
             break;

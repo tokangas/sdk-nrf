@@ -1253,7 +1253,6 @@ static CURLcode singleipconnect(struct connectdata *conn,
      || addr.family == AF_INET6
 #endif
     ) {
-    //TODO jani: multi context support
     result = bindlocal(conn, sockfd, addr.family,
                        Curl_ipv6_scope((struct sockaddr*)&addr.sa_addr));
     if(result) {
@@ -1579,6 +1578,19 @@ CURLcode Curl_socket(struct connectdata *conn,
   addr->socktype = (conn->transport == TRNSPRT_TCP) ? SOCK_STREAM : SOCK_DGRAM;
   addr->protocol = conn->transport != TRNSPRT_TCP ? IPPROTO_UDP :
     ai->ai_protocol;
+
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  /* wildcard (0) for protocol not supported by bsdlib/modemlib: */
+  if (!addr->protocol) {
+    if (addr->socktype == SOCK_STREAM) {
+      addr->protocol = IPPROTO_TCP;
+    }
+    else if (addr->socktype == SOCK_DGRAM) {
+      addr->protocol = IPPROTO_UDP;
+    }
+  }
+#endif
+
   addr->addrlen = ai->ai_addrlen;
 
   if(addr->addrlen > sizeof(struct Curl_sockaddr_storage))
@@ -1605,7 +1617,7 @@ CURLcode Curl_socket(struct connectdata *conn,
     /* opensocket callback not set, so simply create the socket now */
     *sockfd = socket(addr->family, addr->socktype, addr->protocol);
 
-  if(*sockfd == CURL_SOCKET_BAD)
+  if (*sockfd == CURL_SOCKET_BAD)
     /* no socket, no connection */
     return CURLE_COULDNT_CONNECT;
 

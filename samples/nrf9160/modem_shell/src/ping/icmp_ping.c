@@ -114,20 +114,20 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	uint8_t rep = 0;
 	uint8_t header_len = 0;
 	struct addrinfo *si = ping_argv.src;
-	const int alloc_size = 1280; // MTU
+	const int alloc_size = ICMP_LINK_MTU;
   	struct pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
 	int plseqnr;
 	int ret;
-	const uint16_t icmp_hdr_len = 8;
+	const uint16_t icmp_hdr_len = ICMP_HDR_LEN;
 
     if (si->ai_family == AF_INET)
     {
         // Generate IPv4 ICMP EchoReq
 
         // Ping header
-        header_len = 20;
+        header_len = ICMP_IPV4_HDR_LEN;
 
         total_length = ping_argv.len + header_len + icmp_hdr_len;
 
@@ -175,7 +175,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
         // Generate IPv6 ICMP EchoReq
 
         // ipv6 header
-        header_len = 40;
+        header_len = ICMP_IPV6_HDR_LEN;
         uint16_t payload_length = ping_argv.len + icmp_hdr_len;
 
         total_length = payload_length + header_len;
@@ -454,6 +454,11 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 		sa = ping_argv.dest->ai_addr;
 		shell_print(shell, "Destination IP addr: %s",
 			    fta_net_utils_sckt_addr_ntop(sa));
+	}
+	/* Now we can check the max paload len for IPv6: */
+	if (ping_argv.src->ai_family == AF_INET6 && ping_argv.len > ICMP_IPV6_MAX_LEN) {
+		shell_error(shell, "Payload size for ipv6 exceeds the limit %d %d ", ICMP_IPV6_MAX_LEN);
+		return -1;
 	}
  
 	icmp_ping_tasks_execute(shell);

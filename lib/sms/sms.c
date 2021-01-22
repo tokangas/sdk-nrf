@@ -57,7 +57,7 @@ static char resp[AT_SMS_RESPONSE_MAX_LEN];
 static bool sms_client_registered;
 
 /** @brief SMS event. */
-static struct sms_data cmt_rsp;
+static struct sms_data cmt_rsp = {0};
 
 struct sms_subscriber {
 	/* Listener user context. */
@@ -81,10 +81,12 @@ static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 
 	if (cmt_rsp->alpha != NULL) {
 		k_free(cmt_rsp->alpha);
+		cmt_rsp->alpha = NULL;
 	}
 
 	if (cmt_rsp->pdu != NULL) {
 		k_free(cmt_rsp->pdu);
+		cmt_rsp->pdu = NULL;
 	}
 
 	/* Save alpha as a null-terminated String. */
@@ -413,10 +415,12 @@ void sms_uninit(void)
 
 	if (cmt_rsp.alpha != NULL) {
 		k_free(cmt_rsp.alpha);
+		cmt_rsp.alpha = NULL;
 	}
 
 	if (cmt_rsp.pdu != NULL) {
 		k_free(cmt_rsp.pdu);
+		cmt_rsp.pdu = NULL;
 	}
 
 	/* Unregister from AT commands notifications. */

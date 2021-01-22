@@ -9,13 +9,17 @@
 
 #include <zephyr.h>
 #include <init.h>
+#include <bsd.h>
 
 #include <sys/types.h>
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
 #include <logging/log_ctrl.h>
+#include <power/reboot.h>
 
+#include <modem/bsdlib.h>
 #include <modem/at_cmd.h>
+#include <modem/at_notif.h>
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
@@ -30,6 +34,10 @@
 
 #if defined(CONFIG_FTA_GNSS)
 #include "gnss.h"
+#endif
+
+#if defined(CONFIG_FTA_FOTA)
+#include "fota.h"
 #endif
 
 /* global variables */
@@ -92,15 +100,69 @@ static void modem_trace_enable(void)
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
 
-/* Initialization which needs bsdlib should be done here */
-static void init_after_bsdlib(void)
+void main(void)
 {
 	int err;
 
+	printk("\nThe MoSH sample started\n\n");
+
+	modem_trace_enable();
+
+#if !defined(CONFIG_LWM2M_CARRIER)
+	printk("Initializing bsdlib...\n");
+	err = bsdlib_init();
+	switch (err) {
+	case MODEM_DFU_RESULT_OK:
+		printk("Modem firmware update successful!\n");
+		printk("Modem will run the new firmware after reboot\n");
+		sys_reboot(SYS_REBOOT_WARM);
+		break;
+	case MODEM_DFU_RESULT_UUID_ERROR:
+	case MODEM_DFU_RESULT_AUTH_ERROR:
+		printk("Modem firmware update failed!\n");
+		printk("Modem will run non-updated firmware on reboot.\n");
+		sys_reboot(SYS_REBOOT_WARM);
+		break;
+	case MODEM_DFU_RESULT_HARDWARE_ERROR:
+	case MODEM_DFU_RESULT_INTERNAL_ERROR:
+		printk("Modem firmware update failed!\n");
+		printk("Fatal error.\n");
+		sys_reboot(SYS_REBOOT_WARM);
+		break;
+	case -1:
+		printk("Could not initialize bsdlib.\n");
+		printk("Fatal error.\n");
+		return;
+	default:
+		break;
+	}
+	printk("Initialized bsdlib\n");
+
+	at_cmd_init();
+	at_notif_init();
+	lte_lc_init();
+#else
+	/* Wait until bsdlib has been initialized. */
+	k_sem_take(&bsdlib_initialized, K_FOREVER);
+
+#endif
+
+#if defined(CONFIG_FTA_GNSS_ENABLE_LNA)
+	gnss_set_lna_enabled(true);
+#endif
+
+#if defined(CONFIG_FTA_FOTA)
+	err = fota_init();
+	if (err) {
+		printk("Could not initialize FOTA: %d\n", err);
+	}
+#endif
+
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	ltelc_init();
-
-	lte_lc_register_handler(ltelc_ind_handler); //for autoconnect
+#if defined(CONFIG_FTA_LTELC_AUTO_CONNECT)
+	ltelc_func_mode_set(LTELC_FUNMODE_NORMAL);
+#endif
 #endif
 
 #if defined(CONFIG_MODEM_INFO)
@@ -112,64 +174,7 @@ static void init_after_bsdlib(void)
 	modem_info_params_init(&modem_param);
 #endif
 
-#if defined(CONFIG_FTA_GNSS_ENABLE_LNA)
-	gnss_set_lna_enabled(true);
-#endif
-}
-
-static int fta_shell_init(const struct device *unused)
-{
-	int err = 0;
-
-	ARG_UNUSED(unused);
-
-	printk("\nThe MoSH sample started\n\n");
-
-	modem_trace_enable();
-
-#if !defined(CONFIG_LWM2M_CARRIER)
-	/* When LwM2M carrier library is not enabled bsdlib has already been
-	 * initialized at this point.
-	 */
-	init_after_bsdlib();
-#endif
-
 #if defined (CONFIG_FTA_PPP)
 	ppp_ctrl_init();
 #endif
-
-	return err;
 }
-
-void main(void)
-{
-#if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
-	int err;
-	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
-		/* Do nothing, modem is already configured and LTE connected. */
-	} else if (IS_ENABLED(CONFIG_LWM2M_CARRIER)) {
-		/* Wait until bsdlib has been initialized. */
-		k_sem_take(&bsdlib_initialized, K_FOREVER);
-
-		/* Initialize AT command interface so we don't have to wait
-		 * for somebody else to do it.
-		 */
-		at_cmd_init();
-
-		init_after_bsdlib();
-	} else {
-		err = lte_lc_init_and_connect_async(ltelc_ind_handler);
-		if (err) {
-			printk("\nModem could not be configured, error: %d",
-			       err);
-			return;
-		}
-
-		/* Check LTE events of type LTE_LC_EVT_NW_REG_STATUS in
-		 * lte_async_connect_handler() to determine when the LTE link is up.
-		 */
-	}
-#endif
-}
-
-SYS_INIT(fta_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
