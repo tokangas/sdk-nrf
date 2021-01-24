@@ -22,9 +22,7 @@
 
 #include <nrf_socket.h>
 
-//#include <posix/unistd.h>
-//#include <posix/sys/socket.h>
-
+#include "ltelc_settings.h"
 #include "ltelc_api.h"
 #include "ltelc.h"
 
@@ -108,6 +106,7 @@ void ltelc_init(void)
 	sys_dlist_init(&pdn_socket_list);
 
 	uart_shell = shell_backend_uart_get_ptr();
+	ltelc_settings_init();
 }
 
 
@@ -230,6 +229,23 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 	}
 }
 
+int ltelc_default_pdp_context_set()
+{
+	static char cgdcont[128];
+
+	if (ltelc_settings_is_defcont_enabled() == true) {
+		snprintf(cgdcont, sizeof(cgdcont),
+			"AT+CGDCONT=0,\"%s\",\"%s\"",
+				ltelc_settings_defcont_ip_family_get(),
+				ltelc_settings_defcont_apn_get());
+		if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
+			printf("ltelc_default_pdp_context_set: ERROR received for %s", cgdcont);
+			return -EIO;
+		}
+	}
+	return 0;
+}
+
 int ltelc_func_mode_set(int fun)
 {
 	int return_value = 0;
@@ -243,6 +259,7 @@ int ltelc_func_mode_set(int fun)
 		break;
 	case LTELC_FUNMODE_NORMAL:
 	default:
+		ltelc_default_pdp_context_set();
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 			return_value = lte_lc_normal();
 		}
