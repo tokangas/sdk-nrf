@@ -182,5 +182,7 @@ void main(void)
 	/* Application started successfully, mark image as OK to prevent
 	 * revert at next reboot.
 	 */
+#if defined (CONFIG_BOOTLOADER_MCUBOOT )	
 	boot_write_img_confirmed();
+#endif
 }
