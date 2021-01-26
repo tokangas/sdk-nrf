@@ -106,18 +106,22 @@ static int decode_pdu_do_field(struct parser *parser, uint8_t *buf)
 	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_do.length);
 	LOG_DBG("Type-of-Address: %02X", DELIVER_DATA(parser)->field_do.adr_type);
 
+	uint8_t length = DELIVER_DATA(parser)->field_do.length / 2;
+	if (DELIVER_DATA(parser)->field_do.length % 2 == 1) {
+		/* There is an extra number in semi-octet and fill bits*/
+		length++;
+	}
+
 	memcpy(DELIVER_DATA(parser)->field_do.adr,
 	       buf, 
-	       DELIVER_DATA(parser)->field_do.length/2);
+	       length);
 
-	for(int i=0;i<DELIVER_DATA(parser)->field_do.length/2;i++) {
+	for(int i = 0; i < length; i++) {
 		DELIVER_DATA(parser)->field_do.adr[i] = 
 			swap_nibbles(DELIVER_DATA(parser)->field_do.adr[i]);
 	}
-	
-	/* TODO: Log Address-Value field */
 
-	return 2+(DELIVER_DATA(parser)->field_do.length/2);
+	return 2 + length;
 }
 
 static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
