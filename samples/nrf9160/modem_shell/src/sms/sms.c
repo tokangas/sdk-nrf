@@ -57,18 +57,17 @@ static void sms_callback(struct sms_data *const data, void *context)
 		sms_header.time.second);
 
 	shell_print(shell_global, "Text:   '%s'", sms_header.ud);
-	shell_print(shell_global, "UD len: %d", sms_header.ud_len);
-	shell_print(shell_global, "Datalen:%d", sms_header.data_len);
+	shell_print(shell_global, "Length: %d", sms_header.ud_len);
 
 	if (sms_header.app_port.present) {
 		shell_print(shell_global,
-			"Application port addressing scheme, dest_port=%d, src_port=%d",
+			"Application port addressing scheme: dest_port=%d, src_port=%d",
 			sms_header.app_port.dest_port,
 			sms_header.app_port.src_port);
 	}
 	if (sms_header.concatenated.present) {
 		shell_print(shell_global,
-			"Concatenated short messages, ref_number=%d, msg %d/%d",
+			"Concatenated short messages: ref_number=%d, msg %d/%d",
 			sms_header.concatenated.ref_number,
 			sms_header.concatenated.seq_number,
 			sms_header.concatenated.total_msgs);
