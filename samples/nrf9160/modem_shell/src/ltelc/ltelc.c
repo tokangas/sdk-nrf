@@ -54,7 +54,8 @@ static struct k_work modem_info_work;
 
 /* Work queue for signal info: */
 static struct k_work modem_info_signal_work;
-static int32_t modem_rsrp;
+#define LTELC_RSRP_VALUE_NOT_KNOWN -999
+static int32_t modem_rsrp = LTELC_RSRP_VALUE_NOT_KNOWN;
 
 //**************************************************************************
 
@@ -105,12 +106,13 @@ void ltelc_init(void)
 	lte_lc_register_handler(ltelc_ind_handler);
 
 	sys_dlist_init(&pdn_socket_list);
+
+	uart_shell = shell_backend_uart_get_ptr();
 }
 
 
 void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 {
-	uart_shell = shell_backend_uart_get_ptr();
 	switch (evt->type) {
 	case LTE_LC_EVT_NW_REG_STATUS:
 		switch (evt->nw_reg_status) {
@@ -218,12 +220,13 @@ static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn
 
 void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
-	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
-		/* print current value right away: */
-		shell_print(uart_shell, "RSRP subscribed");
-		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
-	} else {
-		shell_print(uart_shell, "RSRP unsubscribed");
+	if (uart_shell != NULL) {
+		if (ltelc_subscribe_for_rsrp) {
+			/* print current value right away: */
+			shell_print(uart_shell, "RSRP subscribed");
+			if (modem_rsrp != LTELC_RSRP_VALUE_NOT_KNOWN)
+				shell_print(uart_shell, "RSRP: %d", modem_rsrp);
+		}
 	}
 }
 
