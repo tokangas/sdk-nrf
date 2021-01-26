@@ -39,15 +39,13 @@ static void sms_callback(struct sms_data *const data, void *context)
 		return;
 	}
 
-	// Alpha is phone number
-	shell_print(shell_global, "Number: %s", data->alpha);
-
 	int err = sms_get_header(data, &sms_header);
 	if (err) {
 		printf("sms_get_header returned err: %d\n", err);
 		return;
 	}
 
+	shell_print(shell_global, "Number: %s", data->alpha);
 	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
 		sms_header.time.year,
 		sms_header.time.month,
@@ -58,6 +56,7 @@ static void sms_callback(struct sms_data *const data, void *context)
 
 	shell_print(shell_global, "Text:   '%s'", sms_header.ud);
 	shell_print(shell_global, "Length: %d", sms_header.ud_len);
+	shell_print(shell_global, "PDU:    %s", data->pdu);
 
 	if (sms_header.app_port.present) {
 		shell_print(shell_global,
