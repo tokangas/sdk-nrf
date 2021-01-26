@@ -50,6 +50,13 @@ const struct shell* shell_global;
 
 extern struct k_sem bsdlib_initialized;
 
+void bsd_recoverable_error_handler(uint32_t err)
+{
+	shell_global = shell_backend_uart_get_ptr();
+
+	shell_error(shell_global, "bsdlib recoverable error: %u\n", err);
+}
+
 #if defined (CONFIG_LWM2M_CARRIER)
 void lwm2m_print_err(const lwm2m_carrier_event_t *evt)
 {

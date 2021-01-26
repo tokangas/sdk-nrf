@@ -16,6 +16,7 @@
 #include <hal/nrf_gpio.h>
 #include <logging/log_ctrl.h>
 #include <power/reboot.h>
+#include <dfu/mcuboot.h>
 
 #include <modem/bsdlib.h>
 #include <modem/at_cmd.h>
@@ -177,4 +178,9 @@ void main(void)
 #if defined (CONFIG_FTA_PPP)
 	ppp_ctrl_init();
 #endif
+
+	/* Application started successfully, mark image as OK to prevent
+	 * revert at next reboot.
+	 */
+	boot_write_img_confirmed();
 }
