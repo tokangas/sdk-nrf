@@ -106,7 +106,7 @@ void ltelc_init(void)
 	sys_dlist_init(&pdn_socket_list);
 
 	uart_shell = shell_backend_uart_get_ptr();
-	ltelc_settings_init();
+	ltelc_sett_init(uart_shell);
 }
 
 
@@ -216,6 +216,39 @@ static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn
 	// }
 	return found_pdn_socket_info;
 }
+static int ltelc_default_pdp_context_set()
+{
+	static char cgdcont[128];
+
+	if (ltelc_sett_is_defcont_enabled() == true) {
+		snprintf(cgdcont, sizeof(cgdcont),
+			"AT+CGDCONT=0,\"%s\",\"%s\"",
+				ltelc_sett_defcont_ip_family_get(),
+				ltelc_sett_defcont_apn_get());
+		if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
+			printf("ltelc_default_pdp_context_set: ERROR received for %s", cgdcont);
+			return -EIO;
+		}
+	}
+	return 0;
+}
+static int ltelc_default_pdp_context_auth_set()
+{
+	static char cgauth[128];
+
+	if (ltelc_sett_is_defcontauth_enabled() == true) {
+		snprintf(cgauth, sizeof(cgauth),
+			"AT+CGAUTH=0,%d,\"%s\",\"%s\"",
+				ltelc_sett_defcontauth_prot_get(),
+				ltelc_sett_defcontauth_username_get(),
+				ltelc_sett_defcontauth_password_get());
+		if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
+			printf("ltelc_default_pdp_context_auth_set: ERROR received for %s", cgauth);
+			return -EIO;
+		}
+	}
+	return 0;
+}
 
 void ltelc_rsrp_subscribe(bool subscribe) {
 	ltelc_subscribe_for_rsrp = subscribe;
@@ -227,23 +260,6 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 				shell_print(uart_shell, "RSRP: %d", modem_rsrp);
 		}
 	}
-}
-
-int ltelc_default_pdp_context_set()
-{
-	static char cgdcont[128];
-
-	if (ltelc_settings_is_defcont_enabled() == true) {
-		snprintf(cgdcont, sizeof(cgdcont),
-			"AT+CGDCONT=0,\"%s\",\"%s\"",
-				ltelc_settings_defcont_ip_family_get(),
-				ltelc_settings_defcont_apn_get());
-		if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
-			printf("ltelc_default_pdp_context_set: ERROR received for %s", cgdcont);
-			return -EIO;
-		}
-	}
-	return 0;
 }
 
 int ltelc_func_mode_set(int fun)
@@ -260,6 +276,7 @@ int ltelc_func_mode_set(int fun)
 	case LTELC_FUNMODE_NORMAL:
 	default:
 		ltelc_default_pdp_context_set();
+		ltelc_default_pdp_context_auth_set();
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 			return_value = lte_lc_normal();
 		}
