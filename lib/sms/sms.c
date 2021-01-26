@@ -462,6 +462,7 @@ int sms_send(char* number, char* text)
 
 	uint8_t encoded_number[30];
 	uint8_t encoded_number_size = strlen(number);
+	uint8_t encoded_number_size_octets = 0;
 
 	if (encoded_number_size == 0) {
 		LOG_ERR("SMS number not given");
@@ -490,18 +491,20 @@ int sms_send(char* number, char* text)
 				encoded_number[i+1] = encoded_number[i];
 				encoded_number[i] = 'F';
 			}
+			encoded_number_size_octets++;
 		}
 	}
 
 	char send_data[500];
 	memset(send_data, 0, 500);
 
-	int msg_size = 2 + 1 + 1 + (encoded_number_size / 2) + 3 + 1 + encoded_size;
+	int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 3 + 1 + encoded_size;
 	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a",
 		msg_size, encoded_number_size, encoded_number,
 		size, encoded_data_hex_str);
 	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
 	LOG_DBG("%s", log_strdup(send_data));
+	LOG_DBG("SMS data encoded: %s", log_strdup(encoded_data_hex_str));
 
 	enum at_cmd_state state = 0;
 	ret = at_cmd_write(send_data, at_response_str,
