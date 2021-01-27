@@ -29,6 +29,9 @@ enum sms_type {
 	SMS_TYPE_SUBMIT_REPORT
 };
 
+#define SMS_MAX_ADDRESS_LEN_OCTETS 10
+#define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
+
 /** @brief SMS PDU data. */
 struct sms_data {
 	enum sms_type type;
@@ -60,7 +63,8 @@ struct sms_deliver_time {
 };
 
 struct sms_deliver_address {
-	uint8_t address[12];
+	char    address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
+	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
 	uint8_t length;
 	uint8_t type;
 };
