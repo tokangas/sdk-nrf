@@ -175,9 +175,6 @@ void main(void)
 	modem_info_params_init(&modem_param);
 #endif
 
-#if defined (CONFIG_FTA_PPP)
-	ppp_ctrl_init();
-#endif
 
 	/* Application started successfully, mark image as OK to prevent
 	 * revert at next reboot.
@@ -186,3 +183,12 @@ void main(void)
 	boot_write_img_confirmed();
 #endif
 }
+
+#if defined (CONFIG_FTA_PPP)
+static int fta_shell_init(const struct device *unused)
+{
+	ppp_ctrl_init();
+	return 0;
+}
+SYS_INIT(fta_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+#endif
