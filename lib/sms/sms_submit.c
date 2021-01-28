@@ -31,11 +31,12 @@ int sms_submit_send(char* number, char* text)
 	uint8_t encoded[160];
 	uint8_t encoded_data_hex_str[400];
 	uint8_t encoded_size = 0;
+	uint8_t encoded_data_size = 0;
 	memset(encoded, 0, 160);
 	memset(encoded_data_hex_str, 0, 400);
 
 	size = string_conversion_ascii_to_gsm7bit(
-		text, strlen(text), encoded, &encoded_size, NULL, true);
+		text, strlen(text), encoded, &encoded_size, &encoded_data_size, true);
 
 	uint8_t hex_str_number = 0;
 	for (int i = 0; i < encoded_size; i++) {
@@ -86,7 +87,7 @@ int sms_submit_send(char* number, char* text)
 	int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 3 + 1 + encoded_size;
 	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a",
 		msg_size, encoded_number_size, encoded_number,
-		size, encoded_data_hex_str);
+		encoded_data_size, encoded_data_hex_str);
 	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
 	LOG_DBG("%s", log_strdup(send_data));
 	LOG_DBG("SMS data encoded: %s", log_strdup(encoded_data_hex_str));
