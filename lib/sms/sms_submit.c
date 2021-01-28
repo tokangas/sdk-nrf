@@ -91,21 +91,18 @@ int sms_submit_send(char* number, char* text)
 	/* Encode text into GSM 7bit encoding */
 	uint8_t size = 0;
 	uint8_t encoded[SMS_MAX_DATA_LEN_CHARS];
-	uint8_t encoded_data_hex_str[SMS_MAX_DATA_LEN_CHARS * 2 + 1];
 	uint8_t encoded_size = 0;
 	uint8_t encoded_data_size = 0;
 	memset(encoded, 0, SMS_MAX_DATA_LEN_CHARS);
-	memset(encoded_data_hex_str, 0, SMS_MAX_DATA_LEN_CHARS * 2 + 1);
 
 	size = string_conversion_ascii_to_gsm7bit(
 		text, strlen(text), encoded, &encoded_size, &encoded_data_size, true);
 
 	/* Create hexadecimal string representation of GSM 7bit encoded text */
-	uint8_t hex_str_number = 0;
+	uint8_t encoded_data_hex_str[SMS_MAX_DATA_LEN_CHARS * 2 + 1];
+	memset(encoded_data_hex_str, 0, SMS_MAX_DATA_LEN_CHARS * 2 + 1);
 	for (int i = 0; i < encoded_size; i++) {
-		sprintf(encoded_data_hex_str + hex_str_number,
-			"%02X", encoded[i]);
-		hex_str_number += 2;
+		sprintf(encoded_data_hex_str + (2 * i), "%02X", encoded[i]);
 	}
 
 	/* Encode number into format required in SMS header */
