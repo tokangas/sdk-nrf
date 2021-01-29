@@ -140,7 +140,9 @@ void main(void)
 	printk("Initialized modemlib\n");
 
 	at_cmd_init();
+#if !defined (CONFIG_AT_NOTIF_SYS_INIT)
 	at_notif_init();
+#endif
 	lte_lc_init();
 #else
 	/* Wait until bsdlib has been initialized. */
