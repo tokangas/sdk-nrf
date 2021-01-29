@@ -105,7 +105,7 @@ void main(void)
 {
 	int err;
 
-	printk("\nThe MoSH sample started\n\n");
+	printk("\nMoSH build %s\n\n", STRINGIFY(APP_VERSION));
 
 	modem_trace_enable();
 
