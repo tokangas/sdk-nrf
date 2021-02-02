@@ -111,7 +111,7 @@ void main(void)
 
 #if !defined(CONFIG_LWM2M_CARRIER)
 	printk("Initializing modemlib...\n");
-	err = nrf_modem_lib_init();
+	err = nrf_modem_lib_init(NORMAL_MODE);
 	switch (err) {
 	case MODEM_DFU_RESULT_OK:
 		printk("Modem firmware update successful!\n");
