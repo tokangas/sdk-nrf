@@ -9,6 +9,37 @@ Changelog
 
 All notable changes to this project are documented in this file.
 
+liblwm2m_carrier 0.10.2
+***********************
+
+Release for modem firmware versions 1.2.3 and 1.1.4, and |NCS| 1.4.2.
+
+Certification status
+====================
+
+For certification status, see `Mobile network operator certifications`_.
+
+Changes
+=======
+
+* :c:macro:`LWM2M_CARRIER_EVENT_LTE_READY` will be sent to the application even when the device is outside of AT&T and Verizon networks.
+* The interval to check for sufficient battery charge during FOTA has been reduced from five minutes to one minute.
+
+liblwm2m_carrier 0.10.1
+***********************
+
+Release for modem firmware versions 1.2.2 and 1.1.4, and |NCS| 1.4.1.
+
+Certification status
+====================
+
+For certification status, see `Mobile network operator certifications`_.
+
+Changes
+=======
+
+* Minor fixes and improvements.
+
 liblwm2m_carrier 0.10.0
 ***********************
 
@@ -171,7 +202,7 @@ Changes
 =======
 
 * Numerous stability fixes and improvements.
-* Updated bsdlib version dependency.
+* Updated Modem library version dependency.
 * Fixed an issue where high LTE network activity could prevent modem firmware updates over LwM2M.
 
 * Added the following library events:

@@ -15,25 +15,30 @@ Overview
 
 The sample initializes trace pins to observe the following hardware events:
 
-* RTC Compare event (``NRF_RTC_EVENT_COMPARE_0``)
-* RTC Tick event (``NRF_RTC_EVENT_TICK``)
-* Low frequency clock (LFCLK) Started event (``NRF_CLOCK_EVENT_LFCLKSTARTED``)
+* RTC Compare event (:c:enumerator:`NRF_RTC_EVENT_COMPARE_0`)
+* RTC Tick event (:c:enumerator:`NRF_RTC_EVENT_TICK`)
+* Low frequency clock (LFCLK) Started event (:c:enumerator:`NRF_CLOCK_EVENT_LFCLKSTARTED`)
 * Radio activity during *Bluetooth* advertising (available only for Bluetooth capable devices)
 
-The sample sets up a :ref:`zephyr:counter_api` to generate an ``NRF_RTC_EVENT_COMPARE_0`` event every 50 ms.
+The sample sets up a :ref:`zephyr:counter_api` to generate an :c:enumerator:`NRF_RTC_EVENT_COMPARE_0` event every 50 ms.
 Initially, RTC runs on RC low frequency (lower precision) as clock source.
 When the crystal is ready, it switches seamlessly to crystal (precise) as clock source.
-When the low-frequency crystal is ready, an ``NRF_CLOCK_EVENT_LFCLKSTARTED`` event is generated.
+When the low-frequency crystal is ready, an :c:enumerator:`NRF_CLOCK_EVENT_LFCLKSTARTED` event is generated.
+
+The sample uses Zephyr's Link Layer instead of the SoftDevice Link Layer.
+This is because the SoftDevice Link Layer is blocked during the initialization until the low-frequency crystal is started and the clock is stable.
+For this reason, the SoftDevice Link Layer cannot be used to show the :c:enumerator:`NRF_CLOCK_EVENT_LFCLKSTARTED` event on pin.
 
 Requirements
 ************
 
-* One of the following development boards:
+The sample supports the following development kits:
 
-  * |nRF9160DK|
-  * |nRF52840DK|
-  * |nRF52DK|
-* Logic analyzer
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf52dk_nrf52832, nrf52840dk_nrf52840, nrf9160dk_nrf9160
+
+The sample also requires a logic analyzer.
 
 
 Building and running
@@ -45,7 +50,7 @@ Building and running
 Testing
 =======
 
-After programming the sample to your board, test it by performing the following steps:
+After programming the sample to your development kit, test it by performing the following steps:
 
 1. Connect a logic analyzer to the pins that are used for tracing.
    Check the sample configuration for information about which pins are used.

@@ -107,8 +107,8 @@ void rsp_send(const uint8_t *str, size_t len);
 
 /* global variable defined in different files */
 extern struct at_param_list at_param_list;
-extern struct modem_param_info modem_param;
-extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
+extern char rsp_buf[CONFIG_SLM_SOCKET_RX_MAX * 2];
+extern uint8_t rx_data[CONFIG_SLM_SOCKET_RX_MAX];
 
 /**@brief Resolves host IPv4 address and port
  */
@@ -228,8 +228,7 @@ static int do_socket_open(uint8_t type, uint8_t role, int sec_tag)
 		}
 #else
 		if (role == AT_SOCKET_ROLE_SERVER) {
-			sprintf(rsp_buf,
-				"#XSOCKET: (D)TLS Server not supported\r\n");
+			sprintf(rsp_buf, "#XSOCKET: \"not supported\"\r\n");
 			rsp_send(rsp_buf, strlen(rsp_buf));
 			ret = -ENOTSUP;
 			goto error_exit;
@@ -246,7 +245,7 @@ static int do_socket_open(uint8_t type, uint8_t role, int sec_tag)
 	}
 
 	client.role = role;
-	sprintf(rsp_buf, "#XSOCKET: %d, %d, %d, %d\r\n", client.sock,
+	sprintf(rsp_buf, "#XSOCKET: %d,%d,%d,%d\r\n", client.sock,
 		type, role, client.ip_proto);
 	rsp_send(rsp_buf, strlen(rsp_buf));
 
@@ -285,7 +284,7 @@ static int do_socket_close(int error)
 			close(client.sock_peer);
 		}
 		slm_at_tcpip_init();
-		sprintf(rsp_buf, "#XSOCKET: %d, closed\r\n", error);
+		sprintf(rsp_buf, "#XSOCKET: %d,\"closed\"\r\n", error);
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		LOG_DBG("Socket closed");
 	}
@@ -300,7 +299,7 @@ static int do_socketopt_set(int name, int value)
 	switch (name) {
 	case SO_REUSEADDR:	/* Ignored by Zephyr */
 	case SO_ERROR:		/* Ignored by Zephyr */
-		sprintf(rsp_buf, "#XSOCKETOPT: ignored\r\n");
+		sprintf(rsp_buf, "#XSOCKETOPT: \"ignored\"\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
 		break;
@@ -320,7 +319,7 @@ static int do_socketopt_set(int name, int value)
 	case SO_TXTIME:		/* Not supported by SLM for now */
 	case SO_SOCKS5:		/* Not supported by SLM for now */
 	default:
-		sprintf(rsp_buf, "#XSOCKETOPT: not supported\r\n");
+		sprintf(rsp_buf, "#XSOCKETOPT: \"not supported\"\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
 		break;
@@ -336,7 +335,7 @@ static int do_socketopt_get(int name)
 	switch (name) {
 	case SO_REUSEADDR:	/* Ignored by Zephyr */
 	case SO_ERROR:		/* Ignored by Zephyr */
-		sprintf(rsp_buf, "#XSOCKETOPT: ignored\r\n");
+		sprintf(rsp_buf, "#XSOCKETOPT: \"ignored\"\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		break;
 
@@ -349,7 +348,7 @@ static int do_socketopt_get(int name)
 		if (ret) {
 			LOG_ERR("getsockopt() error: %d", -errno);
 		} else {
-			sprintf(rsp_buf, "#XSOCKETOPT: %d sec\r\n",
+			sprintf(rsp_buf, "#XSOCKETOPT: \"%d sec\"\r\n",
 				(int)tmo.tv_sec);
 			rsp_send(rsp_buf, strlen(rsp_buf));
 		}
@@ -360,7 +359,7 @@ static int do_socketopt_get(int name)
 	case SO_TXTIME:		/* Not supported by SLM for now */
 	case SO_SOCKS5:		/* Not supported by SLM for now */
 	default:
-		sprintf(rsp_buf, "#XSOCKETOPT: not supported\r\n");
+		sprintf(rsp_buf, "#XSOCKETOPT: \"not supported\"\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		break;
 	}
@@ -373,30 +372,28 @@ static int do_bind(uint16_t port)
 	int ret;
 	struct sockaddr_in local;
 	int addr_len;
+	char ipv4_addr[NET_IPV4_ADDR_LEN];
 
 	local.sin_family = AF_INET;
 	local.sin_port = htons(port);
 
-	ret = modem_info_params_get(&modem_param);
-	if (ret) {
-		LOG_ERR("Unable to obtain modem parameters (%d)", ret);
+	if (!util_get_ipv4_addr(ipv4_addr)) {
+		LOG_ERR("Unable to obtain local IPv4 address");
 		return -1;
 	}
 	/* Check network connection status by checking local IP address */
-	addr_len = strlen(modem_param.network.ip_address.value_string);
+	addr_len = strlen(ipv4_addr);
 	if (addr_len == 0) {
 		LOG_ERR("LTE not connected yet");
 		return -1;
 	}
-	if (!check_for_ipv4(modem_param.network.ip_address.value_string,
-			addr_len)) {
+	if (!check_for_ipv4(ipv4_addr, addr_len)) {
 		LOG_ERR("Invalid local address");
 		return -1;
 	}
 
 	/* NOTE inet_pton() returns 1 as success */
-	if (inet_pton(AF_INET, modem_param.network.ip_address.value_string,
-		&local.sin_addr) != 1) {
+	if (inet_pton(AF_INET, ipv4_addr, &local.sin_addr) != 1) {
 		LOG_ERR("Parse local IP address failed: %d", -errno);
 		return -EINVAL;
 	}
@@ -484,7 +481,7 @@ static int do_accept(void)
 		LOG_WRN("Parse peer IP address failed: %d", -errno);
 		return -EINVAL;
 	}
-	sprintf(rsp_buf, "#XACCEPT: connected with %s\r\n",
+	sprintf(rsp_buf, "#XACCEPT: \"connected with %s\"\r\n",
 		peer_addr);
 	rsp_send(rsp_buf, strlen(rsp_buf));
 	client.sock_peer = ret;
@@ -542,7 +539,6 @@ static int do_send(const uint8_t *data, int datalen)
 static int do_recv(uint16_t length)
 {
 	int ret;
-	char data[NET_IPV4_MTU];
 	int sock = client.sock;
 
 	/* For TCP/TLS Server, receive from imcoming socket */
@@ -555,7 +551,7 @@ static int do_recv(uint16_t length)
 		}
 	}
 
-	ret = recv(sock, data, length, 0);
+	ret = recv(sock, rx_data, length, 0);
 	if (ret < 0) {
 		LOG_WRN("recv() error: %d", -errno);
 		if (errno != EAGAIN && errno != ETIMEDOUT) {
@@ -576,14 +572,14 @@ static int do_recv(uint16_t length)
 	if (ret == 0) {
 		LOG_WRN("recv() return 0");
 	}
-	if (slm_util_hex_check(data, ret)) {
+	if (slm_util_hex_check(rx_data, ret)) {
 		char data_hex[ret * 2];
 		int size = ret * 2;
 
-		ret = slm_util_htoa(data, ret, data_hex, size);
+		ret = slm_util_htoa(rx_data, ret, data_hex, size);
 		if (ret > 0) {
 			rsp_send(data_hex, ret);
-			sprintf(rsp_buf, "\r\n#XRECV: %d, %d\r\n",
+			sprintf(rsp_buf, "\r\n#XRECV: %d,%d\r\n",
 				DATATYPE_HEXADECIMAL, ret);
 			rsp_send(rsp_buf, strlen(rsp_buf));
 			ret = 0;
@@ -591,8 +587,8 @@ static int do_recv(uint16_t length)
 			LOG_ERR("hex convert error: %d", ret);
 		}
 	} else {
-		rsp_send(data, ret);
-		sprintf(rsp_buf, "\r\n#XRECV: %d, %d\r\n",
+		rsp_send(rx_data, ret);
+		sprintf(rsp_buf, "\r\n#XRECV: %d,%d\r\n",
 			DATATYPE_PLAINTEXT, ret);
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
@@ -664,9 +660,8 @@ static int do_sendto(const char *url, uint16_t port, const uint8_t *data,
 static int do_recvfrom(uint16_t length)
 {
 	int ret;
-	char data[NET_IPV4_MTU];
 
-	ret = recvfrom(client.sock, data, length, 0, NULL, NULL);
+	ret = recvfrom(client.sock, rx_data, length, 0, NULL, NULL);
 	if (ret < 0) {
 		LOG_ERR("recvfrom() error: %d", -errno);
 		if (errno != EAGAIN && errno != ETIMEDOUT) {
@@ -682,14 +677,14 @@ static int do_recvfrom(uint16_t length)
 	 * datagrams. When such a datagram is received, the return
 	 * value is 0. Treat as normal case
 	 */
-	if (slm_util_hex_check(data, ret)) {
+	if (slm_util_hex_check(rx_data, ret)) {
 		char data_hex[ret * 2];
 		int size = ret * 2;
 
-		ret = slm_util_htoa(data, ret, data_hex, size);
+		ret = slm_util_htoa(rx_data, ret, data_hex, size);
 		if (ret > 0) {
 			rsp_send(data_hex, ret);
-			sprintf(rsp_buf, "\r\n#XRECVFROM: %d, %d\r\n",
+			sprintf(rsp_buf, "\r\n#XRECVFROM: %d,%d\r\n",
 				DATATYPE_HEXADECIMAL, ret);
 			rsp_send(rsp_buf, strlen(rsp_buf));
 			ret = 0;
@@ -697,8 +692,8 @@ static int do_recvfrom(uint16_t length)
 			LOG_ERR("hex convert error: %d", ret);
 		}
 	} else {
-		rsp_send(data, ret);
-		sprintf(rsp_buf, "\r\n#XRECVFROM: %d, %d\r\n",
+		rsp_send(rx_data, ret);
+		sprintf(rsp_buf, "\r\n#XRECVFROM: %d,%d\r\n",
 			DATATYPE_PLAINTEXT, ret);
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
@@ -763,7 +758,7 @@ static int handle_at_socket(enum at_cmd_type cmd_type)
 
 	case AT_CMD_TYPE_READ_COMMAND:
 		if (client.sock != INVALID_SOCKET) {
-			sprintf(rsp_buf, "#XSOCKET: %d, %d, %d\r\n",
+			sprintf(rsp_buf, "#XSOCKET: %d,%d,%d\r\n",
 				client.sock, client.ip_proto, client.role);
 		} else {
 			sprintf(rsp_buf, "#XSOCKET: 0\r\n");
@@ -773,12 +768,12 @@ static int handle_at_socket(enum at_cmd_type cmd_type)
 		break;
 
 	case AT_CMD_TYPE_TEST_COMMAND:
-		sprintf(rsp_buf, "#XSOCKET: (%d, %d), (%d, %d), (%d, %d)",
+		sprintf(rsp_buf, "#XSOCKET: (%d,%d),(%d,%d),(%d,%d)",
 			AT_SOCKET_CLOSE, AT_SOCKET_OPEN,
 			SOCK_STREAM, SOCK_DGRAM,
 			AT_SOCKET_ROLE_CLIENT, AT_SOCKET_ROLE_SERVER);
 		rsp_send(rsp_buf, strlen(rsp_buf));
-		sprintf(rsp_buf, ", <sec-tag>\r\n");
+		sprintf(rsp_buf, ",<sec-tag>\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		err = 0;
 		break;
@@ -838,7 +833,7 @@ static int handle_at_socketopt(enum at_cmd_type cmd_type)
 		} break;
 
 	case AT_CMD_TYPE_TEST_COMMAND:
-		sprintf(rsp_buf, "#XSOCKETOPT: (%d, %d), <name>, <value>\r\n",
+		sprintf(rsp_buf, "#XSOCKETOPT: (%d,%d),<name>,<value>\r\n",
 			AT_SOCKETOPT_GET, AT_SOCKETOPT_SET);
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		err = 0;
@@ -1078,7 +1073,7 @@ static int handle_at_send(enum at_cmd_type cmd_type)
 static int handle_at_recv(enum at_cmd_type cmd_type)
 {
 	int err = -EINVAL;
-	uint16_t length = NET_IPV4_MTU;
+	uint16_t length = CONFIG_SLM_SOCKET_RX_MAX;
 
 	if (!client.connected) {
 		LOG_ERR("Not connected yet");
@@ -1178,7 +1173,7 @@ static int handle_at_sendto(enum at_cmd_type cmd_type)
 static int handle_at_recvfrom(enum at_cmd_type cmd_type)
 {
 	int err = -EINVAL;
-	uint16_t length = NET_IPV4_MTU;
+	uint16_t length = CONFIG_SLM_SOCKET_RX_MAX;
 
 	if (client.sock < 0) {
 		LOG_ERR("Socket not opened yet");
@@ -1241,13 +1236,11 @@ static int handle_at_getaddrinfo(enum at_cmd_type cmd_type)
 		}
 		err = getaddrinfo(url, NULL, &hints, &result);
 		if (err) {
-			LOG_ERR("getaddrinfo() failed %d", err);
 			sprintf(rsp_buf, "#XGETADDRINFO: %d\r\n", -err);
 			rsp_send(rsp_buf, strlen(rsp_buf));
 			return err;
 		} else if (result == NULL) {
-			LOG_ERR("Address not found\n");
-			sprintf(rsp_buf, "#XGETADDRINFO: not found\r\n");
+			sprintf(rsp_buf, "#XGETADDRINFO: \"not found\"\r\n");
 			rsp_send(rsp_buf, strlen(rsp_buf));
 			return -ENOENT;
 		}
@@ -1255,7 +1248,7 @@ static int handle_at_getaddrinfo(enum at_cmd_type cmd_type)
 		host = (struct sockaddr_in *)result->ai_addr;
 		inet_ntop(AF_INET, &(host->sin_addr.s_addr),
 			ipv4addr, sizeof(ipv4addr));
-		sprintf(rsp_buf, "#XGETADDRINFO: %s\r\n", ipv4addr);
+		sprintf(rsp_buf, "#XGETADDRINFO: \"%s\"\r\n", ipv4addr);
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		freeaddrinfo(result);
 		break;

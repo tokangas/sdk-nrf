@@ -33,16 +33,16 @@ struct bt_mesh_light_temp_srv;
  */
 #define BT_MESH_LIGHT_TEMP_SRV_INIT(_handlers)                                 \
 	{                                                                      \
-		.handlers = _handlers,                                         \
 		.lvl = BT_MESH_LVL_SRV_INIT(                                   \
 			&_bt_mesh_light_temp_srv_lvl_handlers),                \
 		.pub = { .msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(          \
 				 BT_MESH_LIGHT_TEMP_STATUS,                    \
 				 BT_MESH_LIGHT_CTL_MSG_MAXLEN_TEMP_STATUS)) }, \
-		.temp_range = {                                                \
-			.min = BT_MESH_LIGHT_TEMP_RANGE_MIN,                   \
-			.max = BT_MESH_LIGHT_TEMP_RANGE_MAX                    \
-		}                                                              \
+		.handlers = _handlers,                                         \
+		.range = {                                                     \
+			.min = BT_MESH_LIGHT_TEMP_MIN,                         \
+			.max = BT_MESH_LIGHT_TEMP_MAX,                         \
+		},                                                             \
 	}
 
 /** @def BT_MESH_MODEL_LIGHT_TEMP_SRV
@@ -59,24 +59,9 @@ struct bt_mesh_light_temp_srv;
 		BT_MESH_MODEL_USER_DATA(struct bt_mesh_light_temp_srv, _srv),  \
 		&_bt_mesh_light_temp_srv_cb)
 
-/** Set structure for CTL Temperature messages */
-struct bt_mesh_light_temp_cb_set {
-	/** Pointer to new Temperature level to set. */
-	uint16_t *temp;
-	/**
-	 * Pointer to new Delta UV level to set.
-	 * @note NULL if not applicable.
-	 */
-	int16_t *delta_uv;
-	/** Transition time value in milliseconds. */
-	uint32_t time;
-	/** Message execution delay in milliseconds. */
-	uint32_t delay;
-};
-
 /** Light CTL Temperature Server state access handlers. */
 struct bt_mesh_light_temp_srv_handlers {
-	/** @brief Set the CTL Temperature state.
+	/** @brief Set the Light Temperature state.
 	 *
 	 * @note This handler is mandatory.
 	 *
@@ -87,7 +72,7 @@ struct bt_mesh_light_temp_srv_handlers {
 	 */
 	void (*const set)(struct bt_mesh_light_temp_srv *srv,
 			  struct bt_mesh_msg_ctx *ctx,
-			  const struct bt_mesh_light_temp_cb_set *set,
+			  const struct bt_mesh_light_temp_set *set,
 			  struct bt_mesh_light_temp_status *rsp);
 
 	/** @brief Get the CTL Temperature state.
@@ -101,6 +86,31 @@ struct bt_mesh_light_temp_srv_handlers {
 	void (*const get)(struct bt_mesh_light_temp_srv *srv,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct bt_mesh_light_temp_status *rsp);
+
+	/** @brief The Temperature Range state has changed.
+	 *
+	 *  @param[in] srv Server the Temperature Range state was changed on.
+	 *  @param[in] ctx Context of the set message that triggered the update.
+	 *  @param[in] old_range The old Temperature Range.
+	 *  @param[in] new_range The new Temperature Range.
+	 */
+	void (*const range_update)(
+		struct bt_mesh_light_temp_srv *srv, struct bt_mesh_msg_ctx *ctx,
+		const struct bt_mesh_light_temp_range *old_range,
+		const struct bt_mesh_light_temp_range *new_range);
+
+	/** @brief The Default Light Temperature has changed.
+	 *
+	 *  @param[in] srv Server the Default Light Temperature state was
+	 *                 changed on.
+	 *  @param[in] ctx Context of the set message that triggered the update.
+	 *  @param[in] old_default The old Default Light Temperature.
+	 *  @param[in] new_default The new Default Light Temperature.
+	 */
+	void (*const default_update)(
+		struct bt_mesh_light_temp_srv *srv, struct bt_mesh_msg_ctx *ctx,
+		const struct bt_mesh_light_temp *old_default,
+		const struct bt_mesh_light_temp *new_default);
 };
 
 /**
@@ -116,16 +126,16 @@ struct bt_mesh_light_temp_srv {
 	struct bt_mesh_model_pub pub;
 	/** Transaction ID tracker for the set messages. */
 	struct bt_mesh_tid_ctx prev_transaction;
-	/** Acknowledged message tracking. */
-	struct bt_mesh_model_ack_ctx ack_ctx;
 	/** Handler function structure. */
 	const struct bt_mesh_light_temp_srv_handlers *handlers;
-	/** The last known Temperature Level. */
-	uint16_t temp_last;
-	/** The last known Delta UV Level. */
-	int16_t delta_uv_last;
+	/** Default light temperature and delta UV */
+	struct bt_mesh_light_temp dflt;
 	/** Current Temperature range. */
-	struct bt_mesh_light_temp_range temp_range;
+	struct bt_mesh_light_temp_range range;
+	/** The last known color temperature. */
+	struct bt_mesh_light_temp last;
+	/** Scene data entry */
+	struct bt_mesh_scene_entry scene;
 };
 
 /** @brief Publish the current CTL Temperature status.
@@ -133,8 +143,8 @@ struct bt_mesh_light_temp_srv {
  * Asynchronously publishes a CTL Temperature status message with the configured
  * publish parameters.
  *
- * @note This API is only used publishing unprompted status messages. Response
- * messages for get and set messages are handled internally.
+ * @note This API is only used for publishing unprompted status messages.
+ * Response messages for get and set messages are handled internally.
  *
  * @param[in] srv Server instance to publish on.
  * @param[in] ctx Message context to send with, or NULL to send with the
@@ -142,15 +152,13 @@ struct bt_mesh_light_temp_srv {
  * @param[in] status Current status.
  *
  * @retval 0 Successfully sent the message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
  */
-int32_t bt_mesh_light_temp_srv_pub(struct bt_mesh_light_temp_srv *srv,
-				   struct bt_mesh_msg_ctx *ctx,
-				   struct bt_mesh_light_temp_status *status);
+int bt_mesh_light_temp_srv_pub(struct bt_mesh_light_temp_srv *srv,
+			       struct bt_mesh_msg_ctx *ctx,
+			       const struct bt_mesh_light_temp_status *status);
 
 /** @cond INTERNAL_HIDDEN */
 extern const struct bt_mesh_model_op _bt_mesh_light_temp_srv_op[];
@@ -165,4 +173,4 @@ extern const struct bt_mesh_lvl_srv_handlers
 
 #endif /* BT_MESH_LIGHT_TEMP_SRV_H__ */
 
-/* @} */
+/** @} */

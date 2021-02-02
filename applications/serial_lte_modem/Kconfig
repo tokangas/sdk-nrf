@@ -14,11 +14,6 @@ config SLM_AT_MODE
 	select AT_CMD
 	select AT_NOTIF
 	select AT_CMD_PARSER
-	select MODEM_INFO
-	select MQTT_LIB
-	select MQTT_LIB_TLS
-	select FTP_CLIENT
-	select HTTP_CLIENT
 
 config SLM_AT_MAX_PARAM
 	int "Maximum number of parameters in AT command"
@@ -26,6 +21,13 @@ config SLM_AT_MAX_PARAM
 
 config SLM_NATIVE_TLS
 	bool "Use Zephyr mbedTLS"
+
+#
+# external XTAL for UART
+#
+config SLM_EXTERNAL_XTAL
+	bool "Use external XTAL for UARTE"
+	default y
 
 #
 # Inter-Connect
@@ -87,36 +89,43 @@ config SLM_INTERFACE_PIN
 	default 31 if SLM_CONNECT_UART_2
 
 #
-# A-GPS
+# Socket
 #
-config SLM_SUPL_SERVER
-	string "SUPL server"
-	default "supl.google.com"
-
-config SLM_SUPL_PORT
-	int "SUPL server port"
-	default 7276
-
-#
-# FTP
-#
-config SLM_FTP_SERVER_PORT
-	int "FTP service port on remote host"
-	default 21
-
-config SLM_FTP_USER_ANONYMOUS
-	string "FTP client anonymous login user"
-	default "anonymous"
+config SLM_SOCKET_RX_MAX
+	int "Maximum RX buffer size for socket data receive"
+	range 576 708
+	default 576
 	help
-	  Define the user name for anonymous login.
+	  Default: NET_IPV4_MTU (576)
+	  Maximum: MSS setting in modem (708)
 
-config SLM_FTP_PASSWORD_ANONYMOUS
-	string "FTP client anonymous login password"
-	default "anonymous@example.com"
-	help
-	  Define the password for anonymous login.
+#
+# TCP/TLS proxy
+#
+config SLM_TCP_FILTER_SIZE
+	int "Size of IPv4 address allowlist"
+	range 1 6
+	default 6
 
-rsource "src/tcpip_proxy/Kconfig"
+config SLM_TCP_POLL_TIME
+	int "Poll time-out in seconds for TCP connection"
+	default 10
+
+config SLM_UDP_POLL_TIME
+	int "Poll time-out in seconds for UDP connection"
+	default 10
+
+config SLM_TCP_CONN_TIME
+	int "Connection time-out in seconds for TCP server"
+	default 60
+
+#
+# Configurable services
+#
+rsource "src/gps/Kconfig"
+rsource "src/ftp_c/Kconfig"
+rsource "src/mqtt_c/Kconfig"
+rsource "src/http_c/Kconfig"
 
 module = SLM
 module-str = serial modem

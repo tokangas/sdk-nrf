@@ -80,6 +80,7 @@ manifest:
           - loramac-node
           - lvgl
           - mbedtls
+          - mcumgr
           - mipi-sys-t
           - net-tools
           - nrf_hw_models
@@ -88,6 +89,7 @@ manifest:
           - segger
           - tinycbor
           - tinycrypt
+          - tfm-mcuboot
 
     # NCS repositories.
     #
@@ -95,16 +97,16 @@ manifest:
     # changes.
     - name: mcuboot
       repo-path: sdk-mcuboot
-      revision: v1.6.99-ncs1
+      revision: 78fc1d62edc9d639059fa5fdf7b39ef8a9e3f1a3
       path: bootloader/mcuboot
-    - name: mcumgr
-      repo-path: sdk-mcumgr
-      revision: v0.1.0-ncs1
-      path: modules/lib/mcumgr
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: v1.4.0
+      revision: 70994a63a43f8738acab62123b0e180505ee0443
+    - name: trusted-firmware-m
+      repo-path: sdk-trusted-firmware-m
+      path: modules/tee/tfm
+      revision: dcfa70e66e91d9bf31fd6f083e2fba19b4305f4e
     # Other third-party repositories.
     - name: cmock
       path: test/cmock
@@ -117,7 +119,7 @@ manifest:
     - name: mbedtls-nrf
       path: mbedtls
       repo-path: mbedtls
-      revision: mbedtls-2.23.0
+      revision: mbedtls-2.24.0
       remote: armmbed
     - name: nanopb
       path: modules/lib/nanopb

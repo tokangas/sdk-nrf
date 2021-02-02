@@ -9,8 +9,9 @@ menu "SPM"
 config SPM
 	bool "Use Secure Partition Manager"
 	default y if TRUSTED_EXECUTION_NONSECURE
+	depends on !BUILD_WITH_TFM
 	select FW_INFO
-	imply ARM_FIRMWARE_USES_SECURE_ENTRY_FUNCS
+	imply ARM_FIRMWARE_USES_SECURE_ENTRY_FUNCS if SPM_SECURE_SERVICES
 
 if SPM
 module=SPM
@@ -37,14 +38,15 @@ config PM_PARTITION_SIZE_SPM
 
 config PM_PARTITION_SIZE_SPM_SRAM
 	hex "RAM reserved for SPM"
+	default 0 if !SPM_SECURE_SERVICES
 	default 0x10000 if SOC_NRF9160
 	default 0x8000
 	help
 	  RAM area set aside for the SPM.
-	  On the nRF9160 the BSDLib needs to be included in the build.
-	  There are scrict requirements to the RAM area reserved for BSDLib.
+	  On the nRF9160 the Modem library needs to be included in the build.
+	  There are scrict requirements to the RAM area reserved for Modem library.
 	  Specifically it must be 64kB from RAM offset 0x10000.
-	  By setting the SPM RAM to 0x10000 we ensure that BSDLib RAM ends
+	  By setting the SPM RAM to 0x10000 we ensure that Modem library RAM ends
 	  up in the right place.
 
 config SPM_BOOT_SILENTLY
@@ -105,6 +107,10 @@ config SPM_SERVICE_FIND_FIRMWARE_INFO
 	  The Non-Secure Firmware is not allowed to read the memory
 	  marked as secure. This service allows it to request firmware info
 	  about image stored at a given address.
+
+config SPM_SERVICE_S0_ACTIVE
+	bool "Enable secure service to check if S0 is active B1 slot"
+	default y
 
 config SPM_SERVICE_PREVALIDATE
 	bool "Prevalidate B1 upgrades (Requires Immutable Bootloader)"

@@ -12,32 +12,26 @@ Enabling a device to work with these commands simplifies testing and debugging o
 
 .. _zigbee_shell_extending_samples:
 
-Adding support for Zigbee shell commands
-****************************************
+Configuration
+*************
 
 The Zigbee shell commands are implemented using Zephyr's :ref:`zephyr:shell_api` interface.
-By default, it uses the UART backend.
-To change this and other Zephyr's shell settings (for example, the prompt or the maximum amount of accepted command arguments), check the documentation page in Zephyr.
+By default, Zephyr shell uses the UART backend.
+To change this and other Zephyr's shell settings (for example, the prompt or the maximum amount of accepted command arguments), read the documentation page in Zephyr.
 
-Zigbee shell command support can be added to any Zigbee sample.
-Some of the commands use an endpoint to send packets from, so no endpoint handler is allowed to be registered for this endpoint.
+|zigbee_shell_config|
 
-To extend a sample with the Zigbee shell command support, set the following KConfig options:
+To configure the Zigbee shell library, use the following options:
 
-* :option:`CONFIG_ZIGBEE_SHELL` - This option enables Zigbee shell and Zephyr's :ref:`zephyr:shell_api`.
-* :option:`CONFIG_ZIGBEE_SHELL_ENDPOINT` - This option specifies the endpoint number to be used by the Zigbee shell instance.
-  Endpoint must be present at the device and you must not register an endpoint handler for this endpoint.
-* :option:`CONFIG_ZIGBEE_SHELL_DEBUG_CMD` - This option enables commands useful for testing and debugging.
+* :option:`CONFIG_ZIGBEE_SHELL`
+* :option:`CONFIG_ZIGBEE_SHELL_ENDPOINT`
+* :option:`CONFIG_ZIGBEE_SHELL_DEBUG_CMD`
+* :option:`CONFIG_ZIGBEE_SHELL_LOG_LEVEL`
 
-  .. note::
-        Using debug commands can make the device unstable.
+For detailed steps about configuring the library in a Zigbee sample or application, see :ref:`ug_zigbee_configuring_components_logger_ep`.
 
-* :option:`CONFIG_ZIGBEE_SHELL_LOG_ENABLED` - This option enables logging of the incoming ZCL frames.
-  This option is enabled by default, and it uses the logging level set in :option:`CONFIG_ZIGBEE_SHELL_LOG_LEVEL` for logging of the incoming ZCL frames and Zigbee shell logs.
-  See :ref:`zigbee_ug_logging_logger_options` for more information.
-
-Running Zigbee shell commands
-*****************************
+Supported backends
+******************
 
 Zigbee shell commands are available for the following backends when testing samples:
 
@@ -57,17 +51,33 @@ This section lists commands that are supported by :ref:`Zigbee samples <zigbee_s
 Description convention
 ======================
 
-Every command prints ``Done`` when it is finished, or ``Error: <reason>`` in case of errors.
+Every command prints ``Done`` when it is finished, or an error with the reason why it occurs.
 
 The command argument description uses the following convention:
 
-* ``command [arg]`` - square brackets mean that an argument is optional.
-* ``command <d:arg1> <h:arg2>`` - a single letter before an argument name defines the format of the argument:
+* Square brackets mean that an argument is optional:
 
-  * ``h`` stands for hexadecimal strings.
-  * ``d`` stands for decimal values.
+  .. parsed-literal::
+     :class: highlight
 
-* ``command <arg> ...`` - the ellipsis after an argument means that the preceding argument can be repeated several times.
+     command [*arg*]
+
+* A single letter before an argument name defines the format of the argument:
+
+  .. parsed-literal::
+     :class: highlight
+
+     command *d:arg1* *h:arg2*
+
+  * *h* stands for hexadecimal strings.
+  * *d* stands for decimal values.
+
+* The ellipsis after an argument means that the preceding argument can be repeated several times:
+
+  .. parsed-literal::
+     :class: highlight
+
+     command *arg* ...
 
 ----
 
@@ -78,9 +88,10 @@ bdb role
 
 Set or get the Zigbee role of a device.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb role [<role>]
+   bdb role [*role*]
 
 .. note::
     |precondition|
@@ -92,7 +103,7 @@ Returns the following values:
 * ``zr`` it it is a router.
 * ``zed`` if it is an end device.
 
-If the optional argument is provided, set the device role to ``role``.
+If the optional argument is provided, set the device role to *role*.
 Can be either ``zc`` or ``zr``.
 
 .. note::
@@ -109,16 +120,17 @@ bdb extpanid
 Set or get the Zigbee Extended Pan ID value.
 
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb extpanid [<h:id>]
+   bdb extpanid [*h:id*]
 
 .. note::
     |precondition|
 
 If the optional argument is not provided, gets the extended PAN ID of the joined network.
 
-If the optional argument is provided, gets the extended PAN ID to ``id``.
+If the optional argument is provided, gets the extended PAN ID to *id*.
 
 ----
 
@@ -129,15 +141,16 @@ bdb panid
 
 Set or get the Zigbee PAN ID value.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb panid [<h:id>]
+   bdb panid [*h:id*]
 
 .. note::
     |precondition|
 
 If the optional argument is not provided, gets the PAN ID of the joined network.
-If the optional argument is provided, sets the PAN ID to ``id``.
+If the optional argument is provided, sets the PAN ID to *id*.
 
 ----
 
@@ -163,9 +176,10 @@ bdb channel
 
 Set or get the 802.15.4 channel.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb channel <n>
+   bdb channel *n*
 
 .. note::
     |precondition2|
@@ -174,8 +188,8 @@ If the optional argument is not provided, get the current number and bitmask of 
 
 If the optional argument is provided:
 
-* If ``n`` is in ``[11:26]`` range, set to that channel.
-* Otherwise, treat ``n`` as bitmask (logical or of a single bit shifted by channel number).
+* If *n* is in ``[11:26]`` range, set to that channel.
+* Otherwise, treat *n* as bitmask (logical or of a single bit shifted by channel number).
 
 
 Example:
@@ -195,11 +209,12 @@ bdb ic
 
 Set install code on the device, add information about the install code on the trust center, set the trust center install code policy.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb ic add <h:install code> <h:eui64>
-   bdb ic set <h:install code>
-   bdb ic policy <enable|disable>
+   bdb ic add *h:install code* *h:eui64*
+   bdb ic set *h:install code*
+   bdb ic policy *enable|disable*
 
 .. note::
     |precondition3|
@@ -207,7 +222,7 @@ Set install code on the device, add information about the install code on the tr
 * ``bdb ic set`` must only be used on a joining device.
 
 * ``bdb ic add`` must only be used on a coordinator.
-  For ``<h:eui64>``, use the address of the joining device.
+  For *h:eui64*, use the address of the joining device.
 
 * ``bdb ic policy`` must only be used on a coordinator.
 
@@ -234,9 +249,10 @@ bdb legacy
 
 Enable or disable the legacy device support.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb legacy <enable|disable>
+   bdb legacy *enable|disable*
 
 Allow or disallow legacy pre-r21 devices on the Zigbee network.
 
@@ -256,11 +272,12 @@ bdb nwkkey
 
 Set network key.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   bdb nwkkey <h:key>>
+   bdb nwkkey *h:key*
 
-Set a pre-defined network key instead of a random one.
+Set a pre-defined network key *key* instead of a random one.
 
 .. note::
     |precondition2|
@@ -294,11 +311,12 @@ See Base Device Behavior specification chapter 9.5 for details.
 bdb child_max
 =============
 
-Set the amount of child devices that is equal to <d:nbr>.
+Set the amount of child devices that is equal to *d:nbr*.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   > bdb child_max <d:nbr>
+   > bdb child_max *d:nbr*
 
 .. note::
     |precondition2|
@@ -313,6 +331,118 @@ Example:
 
 ----
 
+.. _zcl_ping:
+
+zcl ping
+========
+
+Ping other devices using ZCL.
+
+.. parsed-literal::
+   :class: highlight
+
+   zcl ping [--no-echo] [--aps-ack] *h:dst_addr* *d:payload_size*
+
+Example:
+
+.. code-block::
+
+   zcl ping 0b010eaafd745dfa 32
+
+.. note::
+    |precondition4|
+
+Issue a ping-style shell command to another CLI node with the given 16-bit destination address (*dst_addr*) by using a payload equal to *payload_size* bytes.
+The command is sent and received on endpoints with the same ID.
+
+This shell command uses a custom ZCL frame, which is constructed as a ZCL frame of a custom ping ZCL cluster with the cluster ID ``0xBEEF``.
+For details, see the implementation of :c:func:`ping_request_send` in :file:`subsys/zigbee/cli/zigbee_cli_cmd_ping.c`.
+
+The command measures the time needed for a Zigbee frame to travel between two nodes in the network (there and back again).
+The shell command sends a ping request ZCL command, which is followed by a ping reply ZCL command.
+The IDs of the ping request change depending on optional arguments.
+The ping reply ID stays the same (``0x01``).
+
+The following optional argument are available:
+
+* ``--aps-ack`` requests an APS acknowledgment
+* ``--no-echo`` asks the destination node not to send the ping reply
+
+Both arguments can be used at the same time.
+See the following graphs for use cases.
+
+Case 1: Ping with echo, but without the APS acknowledgment
+    This is the default case, without optional arguments.
+
+        .. msc::
+            hscale = "1.3";
+            App1 [label="Application 1"],Node1 [label="Node 1"],Node2 [label="Node 2"];
+            App1 rbox Node2     [label="Command ID: 0x02 - Ping request without the APS acknowledgment"];
+            App1>>Node1         [label="ping"];
+            Node1>>Node2        [label="ping request"];
+            Node1<<Node2        [label="MAC ACK"];
+            App1 rbox Node2     [label="Command ID: 0x01 - Ping reply"];
+            Node1<<Node2        [label="ping reply"];
+            Node1>>Node2        [label="MAC ACK"];
+            App1<<Node1         [label="Done"];
+        ..
+
+    In this default case, the ``zcl ping`` command measures the time between sending the ping request and receiving the ping reply.
+
+Case 2: Ping with echo and with the APS acknowledgment
+    This is a case with the ``--aps-ack`` optional argument.
+
+        .. msc::
+            hscale = "1.3";
+            App1 [label="Application 1"],Node1 [label="Node 1"],Node2 [label="Node 2"];
+            App1 rbox Node2     [label="Command ID: 0x00 - Ping request with the APS acknowledgment"];
+            App1>>Node1         [label="ping"];
+            Node1>>Node2        [label="ping request"];
+            Node1<<Node2        [label="MAC ACK"];
+            Node1<<Node2        [label="APS ACK"];
+            Node1>>Node2        [label="MAC ACK"];
+            App1 rbox Node2     [label="Command ID: 0x01 - Ping reply"];
+            Node1<<Node2        [label="ping reply"];
+            Node1>>Node2        [label="MAC ACK"];
+            Node1>>Node2        [label="APS ACK"];
+            Node1<<Node2        [label="MAC ACK"];
+            App1<<Node1         [label="Done"];
+        ..
+
+     In this case, the ``zcl ping`` command measures the time between sending the ping request and receiving the ping reply.
+
+Case 3: Ping without echo, but with the APS acknowledgment
+    This is a case with both optional arguments provided, ``--aps-ack`` and ``--no-echo``.
+
+        .. msc::
+            hscale = "1.3";
+            App1 [label="Application 1"],Node1 [label="Node 1"],Node2 [label="Node 2"];
+            App1 rbox Node2     [label="Command ID: 0x03 - Ping request without echo"];
+            App1>>Node1         [label="ping"];
+            Node1>>Node2        [label="ping request"];
+            Node1<<Node2        [label="MAC ACK"];
+            Node1<<Node2        [label="APS ACK"];
+            Node1>>Node2        [label="MAC ACK"];
+            App1<<Node1         [label="Done"];
+        ..
+
+    In this case, the ``zcl ping`` command measures the time between sending the ping request and receiving the APS acknowledgment.
+
+Case 4: Ping without echo and without the APS acknowledgment
+    This is a case with the ``--no-echo`` optional argument.
+
+        .. msc::
+            hscale = "1.3";
+            App1 [label="Application 1"],Node1 [label="Node 1"],Node2 [label="Node 2"];
+            App1 rbox Node2     [label="Command ID: 0x03 - Ping request without echo"];
+            App1>>Node1         [label="ping"];
+            Node1>>Node2        [label="ping request"];
+            App1<<Node1         [label="Done"];
+            Node1<<Node2        [label="MAC ACK"];
+        ..
+
+    In this case, the ``zcl ping`` command does not measure time after sending the ping request.
+
 .. _zdo_simple_desc_req:
 
 zdo simple_desc_req
@@ -320,11 +450,12 @@ zdo simple_desc_req
 
 Send Simple Descriptor Request.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo simple_desc_req <h:16-bit destination address> <d:endpoint>
+   zdo simple_desc_req *h:dst_addr* *d:ep*
 
-Send Simple Descriptor Request to the given node and endpoint.
+Send Simple Descriptor Request to the given 16-bit destination address of the node (*dst_addr*) and the endpoint *ep*.
 
 Example:
 
@@ -344,11 +475,12 @@ zdo active_ep
 
 Send Active Endpoint Request.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo active_ep <h:16-bit destination address> *
+   zdo active_ep *h:dst_addr*
 
-Send Active Endpoint Request to the node addressed by the short address.
+Send Active Endpoint Request to the 16-bit destination address of the node (*dst_addr*).
 
 Example:
 
@@ -367,14 +499,15 @@ zdo match_desc
 
 Send match descriptor request.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo match_desc <h:16-bit destination address>
-                  <h:requested address/type> <h:profile ID>
-                  <d:number of input clusters> [<h:input cluster IDs> ...]
-                  <d:number of output clusters> [<h:output cluster IDs> ...]
+   zdo match_desc *h:dst_addr*
+                  *h:req_addr* *h:prof_id*
+                  *d:n_input_clusters* [*h:input cluster IDs* ...]
+                  *d:n_output_clusters* [*h:output cluster IDs* ...]
 
-Send Match Descriptor Request to the ``dst_addr`` node that is a query about the ``req_addr`` node of the ``prof_id`` profile ID, which must have at least one of ``n_input_clusters``(whose IDs are listed in ``{...}``) or ``n_output_clusters`` (whose IDs are listed in ``{...}``).
+Send Match Descriptor Request to the 16-bit destination address of the node (*dst_addr*) that is a query about the requested address/type node (*req_addr*) of the *prof_id* profile ID, which must have at least one of input clusters (*n_input_clusters*), whose IDs are listed in ``[...]``, or at least one of output clusters (*n_output_clusters*), whose IDs are listed in ``[...]``.
 The IDs can be either decimal values or hexadecimal strings.
 
 Example:
@@ -395,13 +528,14 @@ zdo bind on
 
 Create a binding between two endpoints on two nodes.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo bind on <h:source eui64> <d:source ep> <h:destination addr>
-               <d:destination ep> <h:source cluster id> <h:request dst addr>
+   zdo bind on *h:source_eui64* *d:source_ep* *h:dst_addr*
+               *d:dst_ep* *h:source_cluster_id* *h:request_dst_addr*
 
-Create bound connection between a device identified by ``source eui64`` and endpoint ``source ep``, and a device identified by ``destination addr`` and endpoint ``destination ep``.
-The connection is created for ZCL commands and attributes assigned to the ZCL cluster ``source cluster id`` on the ``request dst addr`` node (usually short address corresponding to ``source eui64`` argument).
+Create bound connection between a device identified by *source_eui64* and endpoint *source_ep*, and a device identified by destination address *dst_addr* and destination endpoint *dst_ep*.
+The connection is created for ZCL commands and attributes assigned to the ZCL cluster *source_cluster_id* on the *request_dst_addr* node (usually short address corresponding to *source_eui64* argument).
 
 Example:
 
@@ -418,13 +552,14 @@ zdo bind off
 
 Remove a binding between two endpoints on two nodes.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo bind off <h:source eui64> <d:source ep> <h:destination eui64>
-                <d:destination ep> <h:source cluster id> <h:request dst addr>
+   zdo bind off *h:source_eui64* *d:source_ep* *h:dst_eui64*
+                *d:destination_ep* *h:source_cluster_id* *h:request_dst_addr*
 
-Remove bound connection between a device identified by ``source eui64`` and endpoint ``source ep``, and a device identified by ``destination eui64`` and endpoint ``destination ep``.
-The connection is removed for ZCL commands and attributes assigned to the ZCL cluster ``source cluster id`` on the ``request dst addr`` node (usually, the same address as for the ``source eui64`` device).
+Remove bound connection between a device identified by *source_eui64* and endpoint *source_ep*, and a device identified by destination address *dst_eui64* and destination endpoint *dst_ep*.
+The connection is removed for ZCL commands and attributes assigned to the ZCL cluster *source_cluster_id* on the *request_dst_addr* node (usually, the same address as for the *source_eui64* device).
 
 ----
 
@@ -435,13 +570,14 @@ zdo mgmt_bind
 
 Read the binding table from a node.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo mgmt_bind <h:16-bit dst_addr> [d:start_index]
+   zdo mgmt_bind *h:dst_addr* [*d:start_index*]
 
-Send a request to the remote device identified by ``dst_addr`` to read the binding table through ``zdo mgmt_bind_req`` (see spec. 2.4.3.3.4).
+Send a request to the remote device identified by the 16-bit destination address (*dst_addr*) to read the binding table through ``zdo mgmt_bind_req`` (see spec. 2.4.3.3.4).
 If the whole binding table does not fit into a single ``mgmt_bind_resp frame``, the request initiates a series of ``mgmt_bind_req`` requests to perform the full download of the binding table.
-``start_index`` is the index of the first entry in the binding table where the reading starts.
+*start_index* is the index of the first entry in the binding table where the reading starts.
 It is zero by default.
 
 Example:
@@ -469,11 +605,15 @@ Sample output:
 zdo mgmt_lqi
 ============
 
-Send a ZDO Mgmt_Lqi_Req command to a remote device.
+Send a ZDO Mgmt_Lqi_Req command to a remote device with the short address *short*.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo mgmt_lqi <h:short> [d:start index]
+   zdo mgmt_lqi *h:short* [*d:start_index*]
+
+*start_index* is the index of the first entry in the binding table where the reading starts.
+It is zero by default.
 
 Example:
 
@@ -490,11 +630,12 @@ This command sends ``mgmt_lqi_req`` to the device with short address ``0x1234``,
 zdo nwk_addr
 ============
 
-Resolve the EUI64 address to a short network address.
+Resolve the EUI64 address *eui64* to a short network address.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo nwk_addr <h:eui64>
+   zdo nwk_addr *h:eui64*
 
 Example:
 
@@ -509,11 +650,12 @@ Example:
 zdo ieee_addr
 =============
 
-Resolve the EUI64 address by sending the IEEE address request.
+Resolve the EUI64 address *short_addr* by sending the IEEE address request.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo ieee_addr <h:short_addr>
+   zdo ieee_addr *h:short_addr*
 
 ----
 
@@ -554,13 +696,14 @@ zdo mgmt_leave
 
 Send a request to a remote device to leave the network through ``zdo mgmt_leave_req`` (see the specification section 2.4.3.3.5).
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   zdo mgmt_leave <h:16-bit dst_addr> [h:device_address eui64] [--children] [--rejoin]
+   zdo mgmt_leave *h:dst_addr* [*h:device_address*] [--children] [--rejoin]
 
-Send ``mgmt_leave_req`` to a remote node specified by ``dst_addr``.
-If ``device_address`` is omitted or it has value ``0000000000000000``, the remote device at address ``dst_addr`` will remove itself from the network.
-If ``device_address`` has other value, it must be a long address corresponding to ``dst_addr`` or a long address of child node of ``dst_addr``.
+Send ``mgmt_leave_req`` to a remote node specified by 16-bit destination address *dst_addr*.
+If the EUI64 *device_address* is omitted or it has a value equal to ``0000000000000000``, the remote device at address *dst_addr* will remove itself from the network.
+If *device_address* has other value, it must be a long address corresponding to *dst_addr* or a long address of child node of *dst_addr*.
 The request is sent with `Remove Children` and `Rejoin` flags set to ``0`` by default.
 Use options ``\--children`` or ``\--rejoin`` to change the respective flags to ``1``.
 For more details, see the section 2.4.3.3.5 of the specification.
@@ -625,13 +768,14 @@ debug
 
 Enable or disable the debug mode in the CLI.
 
-.. code-block::
+.. parsed-literal::
+   :class: highlight
 
-   debug <on|off>
+   debug *on|off*
 
 This command unblocks several additional commands in the CLI.
 
-.. warning::
+.. note::
     When used, the additional commands can render the device unstable.
 
 ----
@@ -667,3 +811,5 @@ Resume Zigbee scheduler processing.
 
 .. |precondition3| replace:: Setting and defining policy only before :ref:`bdb_start`.
    Adding only after :ref:`bdb_start`.
+
+.. |precondition4| replace:: Use only after :ref:`bdb_start`.

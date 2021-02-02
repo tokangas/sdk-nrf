@@ -32,9 +32,6 @@ struct bt_mesh_battery_cli;
 #define BT_MESH_BATTERY_CLI_INIT(_status_handler)                              \
 	{                                                                      \
 		.status_handler = _status_handler,                             \
-		.pub = {.msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(           \
-				BT_MESH_BATTERY_OP_GET,                        \
-				BT_MESH_BATTERY_MSG_LEN_GET)) }                \
 	}
 
 /** @def BT_MESH_MODEL_BATTERY_CLI
@@ -71,6 +68,11 @@ struct bt_mesh_battery_cli {
 	struct bt_mesh_model_ack_ctx ack_ctx;
 	/** Publish parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(BT_MESH_BATTERY_OP_GET,
+					       BT_MESH_BATTERY_MSG_LEN_GET)];
 	/** Composition data model entry pointer. */
 	struct bt_mesh_model *model;
 };
@@ -88,8 +90,6 @@ struct bt_mesh_battery_cli {
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -110,4 +110,4 @@ extern const struct bt_mesh_model_cb _bt_mesh_battery_cli_cb;
 
 #endif /* BT_MESH_GEN_BATTERY_CLI_H__ */
 
-/* @} */
+/** @} */

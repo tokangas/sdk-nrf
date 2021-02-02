@@ -10,6 +10,11 @@
 #include <logging/log.h>
 #include <init.h>
 
+#include <hal/nrf_power.h>
+#if !NRF_POWER_HAS_RESETREAS
+#include <hal/nrf_reset.h>
+#endif
+
 #ifdef CONFIG_ZIGBEE_SHELL
 #include <zigbee_cli.h>
 #endif
@@ -138,18 +143,13 @@ static void zb_app_cb_process(zb_bufid_t bufid)
 		case ZB_CALLBACK_TYPE_SINGLE_PARAM:
 			ret_code = zb_schedule_app_callback(
 					new_app_cb.func,
-					(zb_uint8_t)new_app_cb.param,
-					ZB_FALSE,
-					0,
-					ZB_FALSE);
+					(zb_uint8_t)new_app_cb.param);
 			break;
 		case ZB_CALLBACK_TYPE_TWO_PARAMS:
-			ret_code = zb_schedule_app_callback(
-					(zb_callback_t)(new_app_cb.func2),
+			ret_code = zb_schedule_app_callback2(
+					new_app_cb.func2,
 					(zb_uint8_t)new_app_cb.param,
-					ZB_TRUE,
-					new_app_cb.user_param,
-					ZB_FALSE);
+					new_app_cb.user_param);
 			break;
 		case ZB_CALLBACK_TYPE_ALARM_SET:
 		{
@@ -239,8 +239,7 @@ static void zb_app_cb_process_schedule(struct k_work *item)
 	 *
 	 * Note: the ZB_SCHEDULE_APP_CALLBACK is thread-safe.
 	 */
-	while (zb_schedule_app_callback(zb_app_cb_process,
-					0, ZB_FALSE, 0, ZB_FALSE) != RET_OK) {
+	while (zb_schedule_app_callback(zb_app_cb_process, 0) != RET_OK) {
 		k_sleep(K_MSEC(1000));
 	}
 	zigbee_event_notify(ZIGBEE_EVENT_APP);
@@ -264,7 +263,7 @@ int zigbee_init(void)
 #endif /* CONFIG_ZBOSS_TRAF_DUMP */
 #endif /* ZB_TRACE_LEVEL */
 
-#ifndef CONFIG_ZB_TEST_MODE
+#ifndef CONFIG_ZB_TEST_MODE_MAC
 	/* Initialize Zigbee stack. */
 	ZB_INIT("zigbee_thread");
 
@@ -299,7 +298,7 @@ int zigbee_init(void)
 #error Zigbee device role undefined!
 #endif
 
-#endif /* CONFIG_ZB_TEST_MODE */
+#endif /* CONFIG_ZB_TEST_MODE_MAC */
 
 	return 0;
 }
@@ -571,4 +570,44 @@ void zigbee_enable(void)
 				    CONFIG_ZBOSS_DEFAULT_THREAD_PRIORITY,
 				    0, K_NO_WAIT);
 	k_thread_name_set(&zboss_thread_data, "zboss");
+}
+
+/**
+ * @brief Get the reason that triggered the last reset
+ *
+ * @return @ref reset_source
+ * */
+zb_uint8_t zb_get_reset_source(void)
+{
+	uint32_t reas;
+
+#if NRF_POWER_HAS_RESETREAS
+
+	reas = nrf_power_resetreas_get(NRF_POWER);
+	nrf_power_resetreas_clear(NRF_POWER, reas);
+	if (reas & NRF_POWER_RESETREAS_RESETPIN_MASK) {
+		return ZB_RESET_SRC_RESET_PIN;
+	} else if (reas & NRF_POWER_RESETREAS_SREQ_MASK) {
+		return ZB_RESET_SRC_SW_RESET;
+	} else if (reas) {
+		return ZB_RESET_SRC_OTHER;
+	} else {
+		return ZB_RESET_SRC_POWER_ON;
+	}
+
+#else
+
+	reas = nrf_reset_resetreas_get(NRF_RESET);
+	nrf_reset_resetreas_clear(NRF_RESET, reas);
+	if (reas & NRF_RESET_RESETREAS_RESETPIN_MASK) {
+		return ZB_RESET_SRC_RESET_PIN;
+	} else if (reas & NRF_RESET_RESETREAS_SREQ_MASK) {
+		return ZB_RESET_SRC_SW_RESET;
+	} else if (reas) {
+		return ZB_RESET_SRC_OTHER;
+	} else {
+		return ZB_RESET_SRC_POWER_ON;
+	}
+
+#endif
 }

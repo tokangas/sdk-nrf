@@ -97,7 +97,7 @@ static int parse_psm_cfg(struct at_param_list *at_params,
 static lte_lc_evt_handler_t evt_handler;
 static bool is_initialized;
 
-#if defined(CONFIG_BSD_LIBRARY_TRACE_ENABLED)
+#if defined(CONFIG_NRF_MODEM_LIB_TRACE_ENABLED)
 /* Enable modem trace */
 static const char mdm_trace[] = "AT%XMODEMTRACE=1,2";
 #endif
@@ -176,14 +176,14 @@ static const char *const system_mode_params[] = {
 	[LTE_LC_SYSTEM_MODE_NBIOT_GPS]	= "0,1,1,0",
 };
 
-#if !defined(CONFIG_BSD_LIBRARY_SYS_INIT) && \
+#if !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT) && \
 	defined(CONFIG_BOARD_THINGY91_NRF9160NS)
 static const char thingy91_magpio[] = {
 	"AT%XMAGPIO=1,1,1,7,1,746,803,2,698,748,"
 	"2,1710,2200,3,824,894,4,880,960,5,791,849,"
 	"7,1565,1586"
 };
-#endif /* !CONFIG_BSD_LIBRARY_SYS_INIT && CONFIG_BOARD_THINGY91_NRF9160NS */
+#endif /* !CONFIG_NRF_MODEM_LIB_SYS_INIT && CONFIG_BOARD_THINGY91_NRF9160NS */
 
 static struct k_sem link;
 
@@ -265,7 +265,8 @@ static int parse_cereg(const char *notification,
 
 	*reg_status = status;
 
-	if (*reg_status != LTE_LC_NW_REG_UICC_FAIL) {
+	if ((*reg_status != LTE_LC_NW_REG_UICC_FAIL) &&
+	    (at_params_valid_count_get(&resp_list) > AT_CEREG_CELL_ID_INDEX)) {
 		/* Parse tracking area code */
 		err = at_params_string_get(&resp_list,
 					AT_CEREG_TAC_INDEX,
@@ -297,8 +298,9 @@ static int parse_cereg(const char *notification,
 	}
 
 	/* Parse PSM configuration only when registered */
-	if ((*reg_status == LTE_LC_NW_REG_REGISTERED_HOME) ||
-	    (*reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+	if (((*reg_status == LTE_LC_NW_REG_REGISTERED_HOME) ||
+	    (*reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING)) &&
+	     (at_params_valid_count_get(&resp_list) > AT_CEREG_TAU_INDEX)) {
 		err = parse_psm_cfg(&resp_list, true, psm_cfg);
 		if (err) {
 			LOG_ERR("Failed to parse PSM configuration, error: %d",
@@ -380,6 +382,11 @@ static void at_handler(void *context, const char *response)
 			memcpy(&prev_cell, &cell, sizeof(struct lte_lc_cell));
 			memcpy(&evt.cell, &cell, sizeof(struct lte_lc_cell));
 			evt_handler(&evt);
+		}
+
+		if ((reg_status != LTE_LC_NW_REG_REGISTERED_HOME) &&
+		    (reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+			return;
 		}
 
 		/* PSM configuration update event */
@@ -546,7 +553,7 @@ static int w_lte_lc_init(void)
 			sys_mode_current);
 	}
 
-#if !defined(CONFIG_BSD_LIBRARY_SYS_INIT) && \
+#if !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT) && \
 	defined(CONFIG_BOARD_THINGY91_NRF9160NS)
 	/* Configuring MAGPIO, so that the correct antenna
 	 * matching network is used for each LTE band and GPS.
@@ -562,7 +569,7 @@ static int w_lte_lc_init(void)
 		return -EIO;
 	}
 #endif
-#if defined(CONFIG_BSD_LIBRARY_TRACE_ENABLED)
+#if defined(CONFIG_NRF_MODEM_LIB_TRACE_ENABLED)
 	if (at_cmd_write(mdm_trace, NULL, 0, NULL) != 0) {
 		return -EIO;
 	}
@@ -1543,8 +1550,10 @@ int lte_lc_system_mode_get(enum lte_lc_system_mode *mode)
 
 	/* We skip the first parameter, as that's the response prefix,
 	 * "%XSYSTEMMODE:" in this case."
+	 * The last parameter sets the preferred mode, and is not implemented
+	 * yet on the modem side, so we ignore it.
 	 */
-	for (size_t i = 1; i < AT_XSYSTEMMODE_PARAMS_COUNT; i++) {
+	for (size_t i = 1; i < AT_XSYSTEMMODE_PARAMS_COUNT - 1; i++) {
 		int param;
 
 		err = at_params_int_get(&resp_list, i, &param);
@@ -1661,8 +1670,7 @@ clean_exit:
 }
 
 #if defined(CONFIG_LTE_AUTO_INIT_AND_CONNECT)
-DEVICE_DECLARE(lte_link_control);
-DEVICE_AND_API_INIT(lte_link_control, "LTE_LINK_CONTROL",
-		    w_lte_lc_init_and_connect, NULL, NULL, APPLICATION,
-		    CONFIG_APPLICATION_INIT_PRIORITY, NULL);
+SYS_DEVICE_DEFINE("LTE_LINK_CONTROL", w_lte_lc_init_and_connect,
+		  device_pm_control_nop,
+		  APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 #endif /* CONFIG_LTE_AUTO_INIT_AND_CONNECT */

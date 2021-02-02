@@ -42,10 +42,6 @@ struct bt_mesh_ponoff_srv;
 			&_bt_mesh_ponoff_onoff_intercept),                     \
 		.dtt = BT_MESH_DTT_SRV_INIT(_dtt_change_handler),              \
 		.onoff_handlers = _onoff_handlers,                             \
-		.pub = { .update = _bt_mesh_ponoff_srv_update_handler,         \
-			 .msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(          \
-				 BT_MESH_PONOFF_OP_STATUS,                     \
-				 BT_MESH_PONOFF_MSG_LEN_STATUS)) },            \
 		.update = _on_power_up_change_handler,                         \
 	}
 
@@ -83,6 +79,11 @@ struct bt_mesh_ponoff_srv {
 	struct bt_mesh_model *ponoff_model;
 	/** Model publication parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(BT_MESH_PONOFF_OP_STATUS,
+					       BT_MESH_PONOFF_MSG_LEN_STATUS)];
 	/** Handlers for the Generic OnOff Server. */
 	const struct bt_mesh_onoff_srv_handlers *const onoff_handlers;
 
@@ -122,16 +123,14 @@ void bt_mesh_ponoff_srv_set(struct bt_mesh_ponoff_srv *srv,
  * Publishes a Generic Power OnOff status message with the configured publish
  * parameters, or using the given message context.
  *
- * @note This API is only used publishing unprompted status messages. Response
- * messages for get and set messages are handled internally.
+ * @note This API is only used for publishing unprompted status messages.
+ * Response messages for get and set messages are handled internally.
  *
  * @param[in] srv Server instance to publish with.
  * @param[in] ctx Message context, or NULL to publish with the configured
  * parameters.
  *
  * @return 0 Successfully published the current OnPowerUp state.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -144,7 +143,6 @@ extern const struct bt_mesh_model_cb _bt_mesh_ponoff_srv_cb;
 extern const struct bt_mesh_model_op _bt_mesh_ponoff_srv_op[];
 extern const struct bt_mesh_model_op _bt_mesh_ponoff_setup_srv_op[];
 extern const struct bt_mesh_onoff_srv_handlers _bt_mesh_ponoff_onoff_intercept;
-int _bt_mesh_ponoff_srv_update_handler(struct bt_mesh_model *model);
 /** @endcond */
 
 #ifdef __cplusplus

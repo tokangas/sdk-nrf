@@ -18,9 +18,9 @@ The nRF CoAP Client sample performs the following actions:
 #. Send periodic GET request for a test resource (specified by the Kconfig parameter ``CONFIG_COAP_RESOURCE``) that is available on the server.
 #. Display the received data about the resource on a terminal emulator.
 
-The public CoAP server used in this sample is Californium CoAP server (``coap://californium.eclipse.org:5683``).
+The public CoAP server used in this sample is Californium CoAP server (``coap://californium.eclipseprojects.io:5683``).
 This server runs Eclipse Californium, which is an open source implementation of the CoAP protocol that is targeted at the development and testing of IoT applications.
-An nRF9160 DK board is used as the CoAP client.
+An nRF9160 DK is used as the CoAP client.
 
 This sample uses the resource **obs** (Californium observable resource) in the communication between the CoAP client and the public CoAP server.
 The communication follows the standard request/response pattern and is based on the change in the state of the value of the resource.
@@ -51,7 +51,7 @@ Building and running
 Testing
 =======
 
-After programming the sample and all prerequisites to the board, test it by performing the following steps:
+After programming the sample and all prerequisites to the development kit, test it by performing the following steps:
 
 1. Connect your nRF9160 DK to the PC using a USB cable and power on or reset your nRF9160 DK.
 #. Open a terminal emulator and observe that the following information is displayed::
@@ -85,21 +85,21 @@ For the above sample output, the information displayed on the terminal conveys t
 Dependencies
 ************
 
-This sample uses the following libraries:
+This sample uses the following |NCS| libraries:
 
-From |NCS|
-  * ``drivers/lte_link_control``
+* :ref:`lte_lc_readme`
 
-From nrfxlib
-  * :ref:`nrfxlib:bsdlib`
+It uses the following `sdk-nrfxlib`_ library:
 
-From Zephyr
-  * :ref:`CoAP <zephyr:networking_api>`
+* :ref:`nrfxlib:nrf_modem`
 
-In addition, it uses the following samples:
+It uses the following Zephyr library:
 
-From |NCS|
-  * :ref:`secure_partition_manager`
+* :ref:`CoAP <zephyr:networking_api>`
+
+In addition, it uses the following sample:
+
+* :ref:`secure_partition_manager`
 
 References
 **********

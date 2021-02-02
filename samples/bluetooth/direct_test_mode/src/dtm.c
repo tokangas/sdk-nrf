@@ -14,10 +14,23 @@
 #include <drivers/clock_control.h>
 #include <drivers/clock_control/nrf_clock_control.h>
 
-#include <nrfx/hal/nrf_nvmc.h>
-#include <nrfx/hal/nrf_radio.h>
-#include <nrfx/helpers/nrfx_gppi.h>
+#include <hal/nrf_nvmc.h>
+#include <hal/nrf_radio.h>
+#include <helpers/nrfx_gppi.h>
 #include <nrfx_timer.h>
+
+#if defined(CONFIG_HAS_HW_NRF_PPI)
+#include <nrfx_ppi.h>
+#define gppi_channel_t nrf_ppi_channel_t
+#define gppi_channel_alloc nrfx_ppi_channel_alloc
+#elif defined(CONFIG_HAS_HW_NRF_DPPIC)
+#include <nrfx_dppi.h>
+#define gppi_channel_t uint8_t
+#define gppi_channel_alloc nrfx_dppi_channel_alloc
+#else
+#error "No PPI or DPPI"
+#endif
+
 
 /* DT definition for clock required in DT_INST_LABEL macro */
 #define DT_DRV_COMPAT nordic_nrf_clock
@@ -315,6 +328,9 @@ static struct dtm_instance {
 
 	/* Constant Tone Extension configuration. */
 	struct dtm_cte_info cte_info;
+
+	/* Radio TX Enable PPI channel. */
+	gppi_channel_t ppi_radio_txen;
 } dtm_inst = {
 	.state = STATE_UNINITIALIZED,
 	.packet_hdr_plen = NRF_RADIO_PREAMBLE_LENGTH_8BIT,
@@ -548,9 +564,22 @@ static int anomaly_timer_init(void)
 	return 0;
 }
 
+static int gppi_init(void)
+{
+	nrfx_err_t err;
+
+	err = gppi_channel_alloc(&dtm_inst.ppi_radio_txen);
+	if (err != NRFX_SUCCESS) {
+		printk("gppi_channel_alloc failed with: %d\n", err);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
 static void radio_reset(void)
 {
-	nrfx_gppi_channels_disable_all();
+	nrfx_gppi_channels_disable(BIT(dtm_inst.ppi_radio_txen));
 
 	nrf_radio_shorts_set(NRF_RADIO, 0);
 	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED);
@@ -644,6 +673,11 @@ int dtm_init(void)
 		return err;
 	}
 
+	err = gppi_init();
+	if (err) {
+		return err;
+	}
+
 	err = radio_init();
 	if (err) {
 		return err;
@@ -652,11 +686,6 @@ int dtm_init(void)
 	dtm_inst.state = STATE_IDLE;
 	dtm_inst.new_event = false;
 	dtm_inst.packet_len = 0;
-
-	if (IS_ENABLED(NVMC_FEATURE_CACHE_PRESENT)) {
-		/* Enable cache. */
-		nrf_nvmc_icache_config_set(NRF_NVMC, NRF_NVMC_ICACHE_ENABLE);
-	}
 
 	return 0;
 }
@@ -982,13 +1011,13 @@ uint32_t dtm_wait(void)
 
 static void dtm_test_done(void)
 {
-	nrfx_gppi_channels_disable(0x01);
+	nrfx_gppi_channels_disable(BIT(dtm_inst.ppi_radio_txen));
 	/* Break connection from timer to radio to stop transmit loop */
-	nrfx_gppi_event_endpoint_clear(0,
+	nrfx_gppi_event_endpoint_clear(dtm_inst.ppi_radio_txen,
 			(uint32_t) nrf_timer_event_address_get(
 			       dtm_inst.timer.p_reg,
 			       NRF_TIMER_EVENT_COMPARE0));
-	nrfx_gppi_task_endpoint_clear(0,
+	nrfx_gppi_task_endpoint_clear(dtm_inst.ppi_radio_txen,
 			nrf_radio_task_address_get(NRF_RADIO,
 				NRF_RADIO_TASK_TXEN));
 
@@ -1022,7 +1051,7 @@ static void radio_prepare(bool rx)
 		NRF_RADIO_SHORT_READY_START_MASK |
 		(dtm_inst.cte_info.mode == DTM_CTE_MODE_OFF ?
 		 NRF_RADIO_SHORT_END_DISABLE_MASK :
-		 NRF_RADIO_SHORT_PHYEND_START_MASK));
+		 NRF_RADIO_SHORT_PHYEND_DISABLE_MASK));
 #else
 	nrf_radio_shorts_set(NRF_RADIO,
 			     NRF_RADIO_SHORT_READY_START_MASK |
@@ -1776,13 +1805,13 @@ static enum dtm_err_code on_test_transmit_cmd(uint32_t length, uint32_t freq)
 	 * 625 us
 	 */
 	nrfx_gppi_channel_endpoints_setup(
-			0,
+			dtm_inst.ppi_radio_txen,
 			(uint32_t) nrf_timer_event_address_get(
 						dtm_inst.timer.p_reg,
 						NRF_TIMER_EVENT_COMPARE0),
 			nrf_radio_task_address_get(NRF_RADIO,
 						   NRF_RADIO_TASK_TXEN));
-	nrfx_gppi_channels_enable(0x01);
+	nrfx_gppi_channels_enable(BIT(dtm_inst.ppi_radio_txen));
 
 	dtm_inst.state = STATE_TRANSMITTER_TEST;
 

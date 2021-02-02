@@ -5,12 +5,8 @@
 #
 cmake_minimum_required(VERSION 3.13.1)
 
-set(NRF_SUPPORTED_BOARDS
-  nrf5340pdk_nrf5340_cpunet
-)
-
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(entropy_nrf53_cpuapp)
+project(entropy_nrf53_cpunet)
 
 # NORDIC SDK APP START
 target_sources(app PRIVATE

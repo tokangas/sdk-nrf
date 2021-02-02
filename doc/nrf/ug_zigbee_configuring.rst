@@ -69,8 +69,8 @@ With the sleepy behavior enabled, the unused part of RAM memory is powered off, 
 The sleep current of MCU can be lowered to about 1.8 uA by completing the following steps:
 
 1. Turn off UART by setting :option:`CONFIG_SERIAL` to ``n``.
-#. Enable Zephyr's tickless kernel by setting :option:`CONFIG_TICKLESS_KERNEL` to ``y``.
-#. For current measurements for |nRF52840DK| or |nRF52833DK|, set **SW6** to ``nRF ONLY`` position to get the desired results.
+#. For current measurements for nRF52840 DK board (PCA10056) or nRF52833 DK board (PCA10100), set **SW6** to ``nRF ONLY`` position to get the desired results.
+   See :ref:`ug_nrf52` for more information about these kits.
 
 Optional configuration
 **********************
@@ -91,9 +91,6 @@ You can enable the following additional configuration options:
 
 * :option:`CONFIG_IEEE802154_VENDOR_OUI_ENABLE` - MAC Address Block Large is set to Nordic Semiconductor's MA-L block (f4-ce-36) by default.
   To set a different MA-L, enable this option and edit the :option:`CONFIG_IEEE802154_VENDOR_OUI` to the desired value.
-* :option:`CONFIG_ZIGBEE_SHELL_LOG_ENABLED` - Enables logging of the incoming ZCL frames.
-  This option is enabled by default, and it uses the logging level set in :option:`CONFIG_ZIGBEE_SHELL_LOG_LEVEL`.
-  See :ref:`zigbee_ug_logging_logger_options` for more information.
 
 ZBOSS stack start options
 =========================
@@ -144,7 +141,8 @@ To do this, configure the related Kconfig option for one or more modules that yo
 * :option:`CONFIG_ZBOSS_TRACE_LOG_LEVEL`
 * :option:`CONFIG_ZBOSS_OSIF_LOG_LEVEL`
 * :option:`CONFIG_ZIGBEE_SHELL_LOG_LEVEL`
-* :option:`CONFIG_ZIGBEE_HELPERS_LOG_LEVEL`
+* :option:`CONFIG_ZIGBEE_APP_UTILS_LOG_LEVEL`
+* :option:`CONFIG_ZIGBEE_LOGGER_EP_LOG_LEVEL`
 
 For each of the modules, you can set the following logging options:
 

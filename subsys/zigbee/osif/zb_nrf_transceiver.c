@@ -296,28 +296,36 @@ zb_bool_t zb_trans_transmit(zb_uint8_t wait_type, zb_time_t tx_at,
 	ack_frame = NULL;
 
 	switch (wait_type) {
-	case ZB_MAC_TX_WAIT_CSMACA:
+	case ZB_MAC_TX_WAIT_CSMACA: {
 		state_cache.radio_state = RADIO_802154_STATE_TRANSMIT;
-		err = radio_api->tx(radio_dev,
-				    IEEE802154_TX_MODE_CSMA_CA,
-				    NULL,
-				    &frag);
+		enum ieee802154_tx_mode mode;
+		if (radio_api->get_capabilities(radio_dev)
+		    & IEEE802154_HW_CSMA) {
+			mode = IEEE802154_TX_MODE_CSMA_CA;
+		} else {
+			mode = IEEE802154_TX_MODE_CCA;
+		}
+
+		err = radio_api->tx(radio_dev, mode, NULL, &frag);
 		break;
+	}
 
 #ifdef ZB_ENABLE_ZGP_DIRECT
 	case ZB_MAC_TX_WAIT_ZGP: {
-		struct net_pkt *pkt = net_pkt_alloc(K_NO_WAIT);
+		struct net_pkt *pkt = NULL;
 
+		if (!(radio_api->get_capabilities(radio_dev)
+		      & IEEE802154_HW_TXTIME)) {
+			return ZB_FALSE;
+		}
+
+		pkt = net_pkt_alloc(K_NO_WAIT);
 		if (!pkt) {
 			ZB_ASSERT(0);
 			return ZB_FALSE;
 		}
 
-		struct net_ptp_time timestamp = {
-			.second = tx_at / USEC_PER_SEC,
-			.nanosecond = (tx_at % USEC_PER_SEC) * NSEC_PER_USEC
-		};
-		net_pkt_set_timestamp(pkt, &timestamp);
+		net_pkt_set_txtime(pkt, (uint64_t)tx_at * NSEC_PER_USEC);
 		state_cache.radio_state = RADIO_802154_STATE_TRANSMIT;
 		err = radio_api->tx(radio_dev,
 				    IEEE802154_TX_MODE_TXTIME,
@@ -472,6 +480,20 @@ zb_uint8_t zb_trans_get_next_packet(zb_bufid_t buf)
 	net_pkt_unref(pkt);
 
 	return 1;
+}
+
+zb_ret_t zb_trans_cca(void)
+{
+	int cca_result = radio_api->cca(radio_dev);
+
+	switch (cca_result) {
+	case 0:
+		return RET_OK;
+	case -EBUSY:
+		return RET_BUSY;
+	default:
+		return RET_ERROR;
+	}
 }
 
 void zb_osif_get_ieee_eui64(zb_ieee_addr_t ieee_eui64)

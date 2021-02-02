@@ -19,40 +19,45 @@ LOG_MODULE_REGISTER(at_host, CONFIG_SLM_LOG_LEVEL);
 
 #include "slm_util.h"
 #include "slm_at_host.h"
-#include "slm_at_tcpip.h"
-#include "slm_at_icmp.h"
-#include "slm_at_gps.h"
-#include "slm_at_ftp.h"
-#include "slm_at_fota.h"
-#if defined(CONFIG_SLM_TCP_PROXY)
 #include "slm_at_tcp_proxy.h"
-#endif
-#if defined(CONFIG_SLM_UDP_PROXY)
 #include "slm_at_udp_proxy.h"
-#endif
-#include "slm_at_mqtt.h"
-#include "slm_at_httpc.h"
+#include "slm_at_tcpip.h"
 #if defined(CONFIG_SLM_NATIVE_TLS)
 #include "slm_at_cmng.h"
 #endif
+#include "slm_at_icmp.h"
+#include "slm_at_fota.h"
+#if defined(CONFIG_SLM_GPS)
+#include "slm_at_gps.h"
+#endif
+#if defined(CONFIG_SLM_FTPC)
+#include "slm_at_ftp.h"
+#endif
+#if defined(CONFIG_SLM_MQTTC)
+#include "slm_at_mqtt.h"
+#endif
+#if defined(CONFIG_SLM_HTTPC)
+#include "slm_at_httpc.h"
+#endif
 
-#define OK_STR		"OK\r\n"
-#define ERROR_STR	"ERROR\r\n"
+#define OK_STR		"\r\nOK\r\n"
+#define ERROR_STR	"\r\nERROR\r\n"
 #define FATAL_STR	"FATAL ERROR\r\n"
+#define OVERFLOW_STR	"Buffer overflow\r\n"
 #define SLM_SYNC_STR	"Ready\r\n"
 
-#define SLM_VERSION	"#XSLMVER: 1.4\r\n"
+#define SLM_VERSION	"#XSLMVER: 1.5\r\n"
 #define AT_CMD_SLMVER	"AT#XSLMVER"
 #define AT_CMD_SLEEP	"AT#XSLEEP"
 #define AT_CMD_RESET	"AT#XRESET"
 #define AT_CMD_CLAC	"AT#XCLAC"
 #define AT_CMD_SLMUART	"AT#XSLMUART"
 
-#define SLM_UART_BAUDRATE                                           \
-	"#XSLMUART: (1200, 2400, 4800, 9600, 14400, 19200, 38400, " \
-	"57600, 115200, 230400, 460800, 921600, 1000000)\r\n"
+/** The maximum allowed length of an AT command passed through the SLM
+ *  The space is allocated statically. This limit is in turn limited by
+ *  Modem library's NRF_MODEM_AT_MAX_CMD_SIZE */
+#define AT_MAX_CMD_LEN	4096
 
-#define AT_MAX_CMD_LEN	CONFIG_AT_CMD_RESPONSE_MAX_LEN
 #define UART_RX_BUF_NUM	2
 #define UART_RX_LEN	256
 #define UART_RX_TIMEOUT 1
@@ -77,8 +82,8 @@ static enum term_modes term_mode;
 static const struct device *uart_dev;
 static uint8_t at_buf[AT_MAX_CMD_LEN];
 static size_t at_buf_len;
+static bool at_buf_overflow;
 static struct k_work cmd_send_work;
-static const char termination[3] = { '\0', '\r', '\n' };
 
 static uint8_t uart_rx_buf[UART_RX_BUF_NUM][UART_RX_LEN];
 static uint8_t *next_buf = uart_rx_buf[1];
@@ -92,6 +97,7 @@ void enter_sleep(bool wake_up);
 
 /* global variable defined in different files */
 extern struct at_param_list at_param_list;
+extern char rsp_buf[CONFIG_SLM_SOCKET_RX_MAX * 2];
 
 /* forward declaration */
 void slm_at_host_uninit(void);
@@ -99,6 +105,10 @@ void slm_at_host_uninit(void);
 void rsp_send(const uint8_t *str, size_t len)
 {
 	int ret;
+
+	if (len == 0) {
+		return;
+	}
 
 	k_sem_take(&tx_done, K_FOREVER);
 
@@ -179,21 +189,25 @@ static void handle_at_clac(void)
 	rsp_send("\r\n", 2);
 	rsp_send(AT_CMD_CLAC, sizeof(AT_CMD_CLAC) - 1);
 	rsp_send("\r\n", 2);
-#if defined(CONFIG_SLM_TCP_PROXY)
 	slm_at_tcp_proxy_clac();
-#endif
-#if defined(CONFIG_SLM_UDP_PROXY)
 	slm_at_udp_proxy_clac();
-#endif
 	slm_at_tcpip_clac();
-	slm_at_icmp_clac();
-	slm_at_gps_clac();
-	slm_at_mqtt_clac();
-	slm_at_ftp_clac();
-	slm_at_httpc_clac();
-	slm_at_fota_clac();
 #if defined(CONFIG_SLM_NATIVE_TLS)
 	slm_at_cmng_clac();
+#endif
+	slm_at_icmp_clac();
+	slm_at_fota_clac();
+#if defined(CONFIG_SLM_GPS)
+	slm_at_gps_clac();
+#endif
+#if defined(CONFIG_SLM_FTPC)
+	slm_at_ftp_clac();
+#endif
+#if defined(CONFIG_SLM_MQTTC)
+	slm_at_mqtt_clac();
+#endif
+#if defined(CONFIG_SLM_HTTPC)
+	slm_at_httpc_clac();
 #endif
 }
 
@@ -236,11 +250,9 @@ static int handle_at_sleep(const char *at_cmd, enum shutdown_modes *mode)
 	}
 
 	if (type == AT_CMD_TYPE_TEST_COMMAND) {
-		char buf[64];
-
-		sprintf(buf, "#XSLEEP: (%d, %d)\r\n", SHUTDOWN_MODE_IDLE,
+		sprintf(rsp_buf, "#XSLEEP: (%d,%d)\r\n", SHUTDOWN_MODE_IDLE,
 			SHUTDOWN_MODE_SLEEP);
-		rsp_send(buf, strlen(buf));
+		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
 	}
 
@@ -291,17 +303,16 @@ static int handle_at_slmuart(const char *at_cmd, uint32_t *baudrate)
 	}
 
 	if (type == AT_CMD_TYPE_READ_COMMAND) {
-		char buf[32];
-
-		sprintf(buf, "#SLMUART: %d\r\n", get_uart_baudrate());
-		rsp_send(buf, strlen(buf));
+		sprintf(rsp_buf, "#XSLMUART: %d\r\n", get_uart_baudrate());
+		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
 	}
 
 	if (type == AT_CMD_TYPE_TEST_COMMAND) {
-		char buf[] = SLM_UART_BAUDRATE;
-
-		rsp_send(buf, sizeof(buf));
+		sprintf(rsp_buf, "#XSLMUART: (1200,2400,4800,9600,14400,"
+				 "19200,38400,57600,115200,230400,460800,"
+				 "921600,1000000)\r\n");
+		rsp_send(rsp_buf, strlen(rsp_buf));
 		ret = 0;
 	}
 
@@ -310,16 +321,17 @@ static int handle_at_slmuart(const char *at_cmd, uint32_t *baudrate)
 
 static void cmd_send(struct k_work *work)
 {
-	size_t chars;
-	char str[24];
-	static char buf[AT_MAX_CMD_LEN];
+	char str[32];
 	enum at_cmd_state state;
 	int err;
 
 	ARG_UNUSED(work);
 
-	/* Make sure the string is 0-terminated */
-	at_buf[MIN(at_buf_len, AT_MAX_CMD_LEN - 1)] = 0;
+	if (at_buf_overflow) {
+		rsp_send(OVERFLOW_STR, sizeof(OVERFLOW_STR) - 1);
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
 
 	LOG_HEXDUMP_DBG(at_buf, at_buf_len, "RX");
 
@@ -377,7 +389,6 @@ static void cmd_send(struct k_work *work)
 		}
 	}
 
-#if defined(CONFIG_SLM_TCP_PROXY)
 	err = slm_at_tcp_proxy_parse(at_buf, at_buf_len);
 	if (err > 0) {
 		goto done;
@@ -388,9 +399,7 @@ static void cmd_send(struct k_work *work)
 		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
 		goto done;
 	}
-#endif
 
-#if defined(CONFIG_SLM_UDP_PROXY)
 	err = slm_at_udp_proxy_parse(at_buf, at_buf_len);
 	if (err > 0) {
 		goto done;
@@ -401,62 +410,8 @@ static void cmd_send(struct k_work *work)
 		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
 		goto done;
 	}
-#endif
 
 	err = slm_at_tcpip_parse(at_buf);
-	if (err == 0) {
-		rsp_send(OK_STR, sizeof(OK_STR) - 1);
-		goto done;
-	} else if (err != -ENOENT) {
-		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
-		goto done;
-	}
-
-	err = slm_at_icmp_parse(at_buf);
-	if (err == 0) {
-		goto done;
-	} else if (err != -ENOENT) {
-		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
-		goto done;
-	}
-
-	err = slm_at_gps_parse(at_buf);
-	if (err == 0) {
-		rsp_send(OK_STR, sizeof(OK_STR) - 1);
-		goto done;
-	} else if (err != -ENOENT) {
-		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
-		goto done;
-	}
-
-	err = slm_at_mqtt_parse(at_buf);
-	if (err == 0) {
-		rsp_send(OK_STR, sizeof(OK_STR) - 1);
-		goto done;
-	} else if (err != -ENOENT) {
-		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
-		goto done;
-	}
-
-	err = slm_at_ftp_parse(at_buf);
-	if (err == 0) {
-		rsp_send(OK_STR, sizeof(OK_STR) - 1);
-		goto done;
-	} else if (err != -ENOENT) {
-		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
-		goto done;
-	}
-
-	err = slm_at_httpc_parse(at_buf, at_buf_len);
-	if (err == 0) {
-		rsp_send(OK_STR, sizeof(OK_STR) - 1);
-		goto done;
-	} else if (err != -ENOENT) {
-		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
-		goto done;
-	}
-
-	err = slm_at_fota_parse(at_buf);
 	if (err == 0) {
 		rsp_send(OK_STR, sizeof(OK_STR) - 1);
 		goto done;
@@ -476,8 +431,69 @@ static void cmd_send(struct k_work *work)
 	}
 #endif
 
+	err = slm_at_icmp_parse(at_buf);
+	if (err == 0) {
+		goto done;
+	} else if (err != -ENOENT) {
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
+
+	err = slm_at_fota_parse(at_buf);
+	if (err == 0) {
+		rsp_send(OK_STR, sizeof(OK_STR) - 1);
+		goto done;
+	} else if (err != -ENOENT) {
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
+
+#if defined(CONFIG_SLM_GPS)
+	err = slm_at_gps_parse(at_buf);
+	if (err == 0) {
+		rsp_send(OK_STR, sizeof(OK_STR) - 1);
+		goto done;
+	} else if (err != -ENOENT) {
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
+#endif
+
+#if defined(CONFIG_SLM_FTPC)
+	err = slm_at_ftp_parse(at_buf);
+	if (err == 0) {
+		rsp_send(OK_STR, sizeof(OK_STR) - 1);
+		goto done;
+	} else if (err != -ENOENT) {
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
+#endif
+
+#if defined(CONFIG_SLM_MQTTC)
+	err = slm_at_mqtt_parse(at_buf);
+	if (err == 0) {
+		rsp_send(OK_STR, sizeof(OK_STR) - 1);
+		goto done;
+	} else if (err != -ENOENT) {
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
+#endif
+
+#if defined(CONFIG_SLM_HTTPC)
+	err = slm_at_httpc_parse(at_buf, at_buf_len);
+	if (err == 0) {
+		rsp_send(OK_STR, sizeof(OK_STR) - 1);
+		goto done;
+	} else if (err != -ENOENT) {
+		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
+		goto done;
+	}
+#endif
+
 	/* Send to modem */
-	err = at_cmd_write(at_buf, buf, AT_MAX_CMD_LEN, &state);
+	err = at_cmd_write(at_buf, at_buf, sizeof(at_buf), &state);
 	if (err < 0) {
 		LOG_ERR("AT command error: %d", err);
 		state = AT_CMD_ERROR;
@@ -485,25 +501,26 @@ static void cmd_send(struct k_work *work)
 
 	switch (state) {
 	case AT_CMD_OK:
-		rsp_send(buf, strlen(buf));
+		rsp_send(at_buf, strlen(at_buf));
 		rsp_send(OK_STR, sizeof(OK_STR) - 1);
 		break;
 	case AT_CMD_ERROR:
 		rsp_send(ERROR_STR, sizeof(ERROR_STR) - 1);
 		break;
 	case AT_CMD_ERROR_CMS:
-		chars = sprintf(str, "+CMS: %d\r\n", err);
-		rsp_send(str, ++chars);
+		sprintf(str, "\r\n+CMS ERROR: %d\r\n", err);
+		rsp_send(str, strlen(str));
 		break;
 	case AT_CMD_ERROR_CME:
-		chars = sprintf(str, "+CME: %d\r\n", err);
-		rsp_send(str, ++chars);
+		sprintf(str, "\r\n+CME ERROR: %d\r\n", err);
+		rsp_send(str, strlen(str));
 		break;
 	default:
 		break;
 	}
 
 done:
+	at_buf_overflow = false;
 	err = uart_rx_enable(uart_dev, uart_rx_buf[0],
 				sizeof(uart_rx_buf[0]), UART_RX_TIMEOUT);
 	if (err) {
@@ -512,81 +529,82 @@ done:
 	}
 }
 
-static void uart_rx_handler(uint8_t character)
+static int uart_rx_handler(uint8_t character)
 {
 	static bool inside_quotes;
-	static size_t cmd_len;
-	size_t pos;
+	static size_t at_cmd_len;
 
-	cmd_len += 1;
-	pos = cmd_len - 1;
-
-	/* Handle special characters. */
+	/* Handle control characters */
 	switch (character) {
 	case 0x08: /* Backspace. */
 		/* Fall through. */
 	case 0x7F: /* DEL character */
-		pos = pos ? pos - 1 : 0;
-		at_buf[pos] = 0;
-		cmd_len = cmd_len <= 1 ? 0 : cmd_len - 2;
-		break;
-	case '"':
-		inside_quotes = !inside_quotes;
-		 /* Fall through. */
-	default:
-		/* Detect AT command buffer overflow or zero length */
-		if (cmd_len > AT_MAX_CMD_LEN) {
-			LOG_ERR("Buffer overflow, dropping '%c'\n", character);
-			cmd_len = AT_MAX_CMD_LEN;
-			return;
-		} else if (cmd_len < 1) {
-			LOG_ERR("Invalid AT command length: %d", cmd_len);
-			cmd_len = 0;
-			return;
+		if (at_cmd_len > 0) {
+			at_cmd_len--;
 		}
-
-		at_buf[pos] = character;
-		break;
+		return 0;
 	}
 
-	if (inside_quotes) {
-		return;
+	/* Handle termination characters, if outside quotes. */
+	if (!inside_quotes) {
+		switch (character) {
+		case '\0':
+			if (term_mode == MODE_NULL_TERM) {
+				goto send;
+			}
+			LOG_WRN("Ignored null; would terminate string early.");
+			return 0;
+		case '\r':
+			if (term_mode == MODE_CR) {
+				goto send;
+			}
+			break;
+		case '\n':
+			if (term_mode == MODE_LF) {
+				goto send;
+			}
+			if (term_mode == MODE_CR_LF &&
+			    at_cmd_len > 0 &&
+			    at_buf[at_cmd_len - 1] == '\r') {
+				at_cmd_len -= 1;  /* for data mode support */
+				goto send;
+			}
+			break;
+		}
 	}
 
-	/* Check if the character marks line termination. */
-	switch (term_mode) {
-	case MODE_NULL_TERM:
+	/* Write character to AT buffer */
+	at_buf[at_cmd_len] = character;
+	at_cmd_len++;
+
+	/* Detect AT command buffer overflow, leaving space for null */
+	if (at_cmd_len > sizeof(at_buf) - 1) {
+		LOG_ERR("Buffer overflow");
+		at_cmd_len--;
+		at_buf_overflow = true;
 		goto send;
-	case MODE_CR:
-		if (character == termination[term_mode]) {
-			cmd_len--;
-			goto send;
-		}
-		break;
-	case MODE_LF:
-		if ((at_buf[pos - 1]) &&
-			character == termination[term_mode]) {
-			cmd_len--;
-			goto send;
-		}
-		break;
-	case MODE_CR_LF:
-		if ((at_buf[pos - 1] == '\r') && (character == '\n')) {
-			cmd_len -= 2;
-			goto send;
-		}
-		break;
-	default:
-		LOG_ERR("Invalid termination mode: %d", term_mode);
-		break;
 	}
 
-	return;
+	/* Handle special written character */
+	if (character == '"') {
+		inside_quotes = !inside_quotes;
+	}
+
+	return 0;
+
 send:
 	uart_rx_disable(uart_dev);
+
+	at_buf[at_cmd_len] = '\0';
+	at_buf_len = at_cmd_len;
 	k_work_submit(&cmd_send_work);
-	at_buf_len = cmd_len;
-	cmd_len = 0;
+
+	inside_quotes = false;
+	at_cmd_len = 0;
+	if (at_buf_overflow) {
+		return -1;
+	}
+	return 0;
 }
 
 static void uart_callback(const struct device *dev, struct uart_event *evt,
@@ -611,7 +629,10 @@ static void uart_callback(const struct device *dev, struct uart_event *evt,
 		break;
 	case UART_RX_RDY:
 		for (int i = pos; i < (pos + evt->data.rx.len); i++) {
-			uart_rx_handler(evt->data.rx.buf[i]);
+			err = uart_rx_handler(evt->data.rx.buf[i]);
+			if (err) {
+				return;
+			}
 		}
 		pos += evt->data.rx.len;
 		break;
@@ -690,22 +711,25 @@ int slm_at_host_init(void)
 		return err;
 	}
 
-	err = slm_at_tcpip_init();
-	if (err) {
-		LOG_ERR("TCPIP could not be initialized: %d", err);
-		return -EFAULT;
-	}
-#if defined(CONFIG_SLM_TCP_PROXY)
 	err = slm_at_tcp_proxy_init();
 	if (err) {
 		LOG_ERR("TCP Server could not be initialized: %d", err);
 		return -EFAULT;
 	}
-#endif
-#if defined(CONFIG_SLM_UDP_PROXY)
 	err = slm_at_udp_proxy_init();
 	if (err) {
 		LOG_ERR("UDP Server could not be initialized: %d", err);
+		return -EFAULT;
+	}
+	err = slm_at_tcpip_init();
+	if (err) {
+		LOG_ERR("TCPIP could not be initialized: %d", err);
+		return -EFAULT;
+	}
+#if defined(CONFIG_SLM_NATIVE_TLS)
+	err = slm_at_cmng_init();
+	if (err) {
+		LOG_ERR("TLS could not be initialized: %d", err);
 		return -EFAULT;
 	}
 #endif
@@ -714,41 +738,39 @@ int slm_at_host_init(void)
 		LOG_ERR("ICMP could not be initialized: %d", err);
 		return -EFAULT;
 	}
-	err = slm_at_gps_init();
-	if (err) {
-		LOG_ERR("GPS could not be initialized: %d", err);
-		return -EFAULT;
-	}
-	err = slm_at_mqtt_init();
-	if (err) {
-		LOG_ERR("MQTT could not be initialized: %d", err);
-		return -EFAULT;
-	}
-	err = slm_at_ftp_init();
-	if (err) {
-		LOG_ERR("FTP could not be initialized: %d", err);
-		return -EFAULT;
-	}
-	err = slm_at_httpc_init();
-	if (err) {
-		LOG_ERR("HTTP could not be initialized: %d", err);
-		return -EFAULT;
-	}
-
 	err = slm_at_fota_init();
 	if (err) {
 		LOG_ERR("FOTA could not be initialized: %d", err);
 		return -EFAULT;
 	}
-
-#if defined(CONFIG_SLM_NATIVE_TLS)
-	err = slm_at_cmng_init();
+#if defined(CONFIG_SLM_GPS)
+	err = slm_at_gps_init();
 	if (err) {
-		LOG_ERR("TLS could not be initialized: %d", err);
+		LOG_ERR("GPS could not be initialized: %d", err);
 		return -EFAULT;
 	}
 #endif
-
+#if defined(CONFIG_SLM_FTPC)
+	err = slm_at_ftp_init();
+	if (err) {
+		LOG_ERR("FTP could not be initialized: %d", err);
+		return -EFAULT;
+	}
+#endif
+#if defined(CONFIG_SLM_MQTTC)
+	err = slm_at_mqtt_init();
+	if (err) {
+		LOG_ERR("MQTT could not be initialized: %d", err);
+		return -EFAULT;
+	}
+#endif
+#if defined(CONFIG_SLM_HTTPC)
+	err = slm_at_httpc_init();
+	if (err) {
+		LOG_ERR("HTTP could not be initialized: %d", err);
+		return -EFAULT;
+	}
+#endif
 	k_work_init(&cmd_send_work, cmd_send);
 	k_sem_give(&tx_done);
 	rsp_send(SLM_SYNC_STR, sizeof(SLM_SYNC_STR)-1);
@@ -761,45 +783,17 @@ void slm_at_host_uninit(void)
 {
 	int err;
 
-	err = slm_at_tcpip_uninit();
-	if (err) {
-		LOG_WRN("TCPIP could not be uninitialized: %d", err);
-	}
-#if defined(CONFIG_SLM_TCP_PROXY)
 	err = slm_at_tcp_proxy_uninit();
 	if (err) {
 		LOG_WRN("TCP Server could not be uninitialized: %d", err);
 	}
-#endif
-#if defined(CONFIG_SLM_UDP_PROXY)
 	err = slm_at_udp_proxy_uninit();
 	if (err) {
 		LOG_WRN("UDP Server could not be uninitialized: %d", err);
 	}
-#endif
-	err = slm_at_icmp_uninit();
+	err = slm_at_tcpip_uninit();
 	if (err) {
-		LOG_WRN("ICMP could not be uninitialized: %d", err);
-	}
-	err = slm_at_gps_uninit();
-	if (err) {
-		LOG_WRN("GPS could not be uninitialized: %d", err);
-	}
-	err = slm_at_mqtt_uninit();
-	if (err) {
-		LOG_WRN("MQTT could not be uninitialized: %d", err);
-	}
-	err = slm_at_ftp_uninit();
-	if (err) {
-		LOG_WRN("FTP could not be uninitialized: %d", err);
-	}
-	err = slm_at_httpc_uninit();
-	if (err) {
-		LOG_WRN("HTTP could not be uninitialized: %d", err);
-	}
-	err = slm_at_fota_uninit();
-	if (err) {
-		LOG_WRN("FOTA could not be uninitialized: %d", err);
+		LOG_WRN("TCPIP could not be uninitialized: %d", err);
 	}
 #if defined(CONFIG_SLM_NATIVE_TLS)
 	err = slm_at_cmng_uninit();
@@ -807,11 +801,43 @@ void slm_at_host_uninit(void)
 		LOG_WRN("TLS could not be uninitialized: %d", err);
 	}
 #endif
+	err = slm_at_icmp_uninit();
+	if (err) {
+		LOG_WRN("ICMP could not be uninitialized: %d", err);
+	}
+	err = slm_at_fota_uninit();
+	if (err) {
+		LOG_WRN("FOTA could not be uninitialized: %d", err);
+	}
+#if defined(CONFIG_SLM_GPS)
+	err = slm_at_gps_uninit();
+	if (err) {
+		LOG_WRN("GPS could not be uninitialized: %d", err);
+	}
+#endif
+#if defined(CONFIG_SLM_FTPC)
+	err = slm_at_ftp_uninit();
+	if (err) {
+		LOG_WRN("FTP could not be uninitialized: %d", err);
+	}
+#endif
+#if defined(CONFIG_SLM_MQTTC)
+	err = slm_at_mqtt_uninit();
+	if (err) {
+		LOG_WRN("MQTT could not be uninitialized: %d", err);
+	}
+#endif
+#if defined(CONFIG_SLM_HTTPC)
+	err = slm_at_httpc_uninit();
+	if (err) {
+		LOG_WRN("HTTP could not be uninitialized: %d", err);
+	}
+
 	err = at_notif_deregister_handler(NULL, response_handler);
 	if (err) {
 		LOG_WRN("Can't deregister handler: %d", err);
 	}
-
+#endif
 	/* Power off UART module */
 	uart_rx_disable(uart_dev);
 	k_sleep(K_MSEC(100));

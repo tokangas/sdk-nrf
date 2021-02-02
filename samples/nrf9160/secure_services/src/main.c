@@ -99,14 +99,19 @@ void main(void)
 	printk("\n");
 #endif
 
+#if defined(PM_S0_ADDRESS) && !defined(PM_S0_IMAGE_ADDRESS)
+	#define PM_S0_IMAGE_ADDRESS PM_S0_ADDRESS
+#endif
+
 #if defined(PM_S0_ADDRESS) && defined(CONFIG_SPM_SERVICE_PREVALIDATE)
-	int valid = spm_prevalidate_b1_upgrade(PM_S0_ADDRESS, PM_S0_ADDRESS);
+	int valid = spm_prevalidate_b1_upgrade(PM_S0_IMAGE_ADDRESS,
+		PM_S0_IMAGE_ADDRESS);
 
 	if (valid < 0 && valid != -ENOTSUP) {
 		printk("Unexpected error from spm_prevalidate_b1_upgrade: %d\n",
 			valid);
 	} else {
-		printk("S0 valid? %s\n",
+		printk("S0 (0x%x) valid? %s\n", PM_S0_IMAGE_ADDRESS,
 			valid == 1 ? "True" : valid == 0 ? "False" : "Unknown");
 	}
 	printk("\n");
@@ -124,6 +129,18 @@ void main(void)
 	if (read_ficr_word(&ficr_info, &NRF_FICR_S->INFO.VARIANT) == 0) {
 		printk("FICR.INFO.VARIANT (+0x210) = 0x%08X\n\n", ficr_info);
 	}
+
+#ifdef PM_S1_ADDRESS
+	bool s0_active;
+
+	ret = spm_s0_active(PM_S0_ADDRESS, PM_S1_ADDRESS, &s0_active);
+	if (ret != 0) {
+		printk("Unexpected failure from spm_s0_active: %d\n", ret);
+	}
+
+	printk("S0 active? %s\n", s0_active ? "True" : "False");
+
+#endif /*  PM_S1_ADDRESS */
 
 	printk("Reboot in %d seconds.\n", sleep_time_s);
 	k_sleep(K_SECONDS(5));

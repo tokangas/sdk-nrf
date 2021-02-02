@@ -10,15 +10,17 @@
 #include <drivers/uart.h>
 #include <drivers/gpio.h>
 #include <string.h>
-#include <bsd.h>
+#include <nrf_modem.h>
 #include <modem/lte_lc.h>
 #include <hal/nrf_gpio.h>
 #include <hal/nrf_power.h>
 #include <hal/nrf_regulators.h>
 #include <modem/modem_info.h>
-#include <modem/bsdlib.h>
+#include <modem/nrf_modem_lib.h>
 #include <dfu/mcuboot.h>
 #include <power/reboot.h>
+#include <drivers/clock_control.h>
+#include <drivers/clock_control/nrf_clock_control.h>
 #include "slm_at_host.h"
 
 LOG_MODULE_REGISTER(app, CONFIG_SLM_LOG_LEVEL);
@@ -33,14 +35,14 @@ static struct k_work exit_idle_work;
 
 /* global variable used across different files */
 struct at_param_list at_param_list;
-struct modem_param_info modem_param;
-char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
 struct k_work_q slm_work_q;
+char rsp_buf[CONFIG_SLM_SOCKET_RX_MAX * 2]; /* SLM URC and socket data */
+uint8_t rx_data[CONFIG_SLM_SOCKET_RX_MAX];  /* socket RX raw data */
 
-/**@brief Recoverable BSD library error. */
-void bsd_recoverable_error_handler(uint32_t err)
+/**@brief Recoverable modem library error. */
+void nrf_modem_recoverable_error_handler(uint32_t err)
 {
-	LOG_ERR("bsdlib recoverable error: %u", err);
+	LOG_ERR("Modem library recoverable error: %u", err);
 }
 
 static void exit_idle(struct k_work *work)
@@ -128,9 +130,9 @@ void enter_sleep(bool wake_up)
 #endif	/* CONFIG_SLM_GPIO_WAKEUP */
 }
 
-void handle_bsdlib_init_ret(void)
+void handle_nrf_modem_lib_init_ret(void)
 {
-	int ret = bsdlib_get_init_ret();
+	int ret = nrf_modem_lib_get_init_ret();
 
 	/* Handle return values relating to modem firmware update */
 	switch (ret) {
@@ -156,18 +158,26 @@ void handle_bsdlib_init_ret(void)
 void start_execute(void)
 {
 	int err;
+#if defined(CONFIG_SLM_EXTERNAL_XTAL)
+	struct onoff_manager *clk_mgr;
+	struct onoff_client cli = {};
+#endif
 
 	LOG_INF("Serial LTE Modem");
 
-	handle_bsdlib_init_ret();
-
-	err = modem_info_init();
+#if defined(CONFIG_SLM_EXTERNAL_XTAL)
+	/* request external XTAL for UART */
+	clk_mgr = z_nrf_clock_control_get_onoff(CLOCK_CONTROL_NRF_SUBSYS_HF);
+	sys_notify_init_spinwait(&cli.notify);
+	err = onoff_request(clk_mgr, &cli);
 	if (err) {
-		LOG_ERR("Modem info could not be established: %d", err);
+		LOG_ERR("Clock request failed: %d", err);
 		return;
 	}
+#endif
 
-	modem_info_params_init(&modem_param);
+	/* check FOTA result */
+	handle_nrf_modem_lib_init_ret();
 
 	/* Initialize AT Parser */
 	err = at_params_list_init(&at_param_list, CONFIG_SLM_AT_MAX_PARAM);

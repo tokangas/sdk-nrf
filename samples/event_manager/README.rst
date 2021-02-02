@@ -34,11 +34,11 @@ Statistics (``stats.c``):
 Requirements
 ************
 
-* One of the following development boards:
+The sample supports the following development kits:
 
-  * |nRF9160DK|
-  * |nRF52840DK|
-  * |nRF52DK|
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf9160dk_nrf9160ns, nrf52dk_nrf52832, nrf52840dk_nrf52840
 
 
 Building and running
@@ -51,10 +51,10 @@ Building and running
 Testing
 =======
 
-After programming the sample to your board, test it by performing the following steps:
+After programming the sample to your development kit, test it by performing the following steps:
 
 1. |connect_terminal|
-#. Reset the board.
+#. Reset the kit.
 #. Observe that output similar to the following is logged on UART::
 
       ***** Booting Zephyr OS v1.13.99-ncs1-4741-g1d6219f *****

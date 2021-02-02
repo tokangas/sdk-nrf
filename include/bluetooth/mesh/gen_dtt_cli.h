@@ -33,9 +33,6 @@ struct bt_mesh_dtt_cli;
  */
 #define BT_MESH_DTT_CLI_INIT(_status_handler)                                  \
 	{                                                                      \
-		.pub = { .msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(          \
-				 BT_MESH_DTT_OP_SET,                           \
-				 BT_MESH_DTT_MSG_LEN_SET)) },                  \
 		.status_handler = _status_handler,                             \
 	}
 
@@ -73,6 +70,11 @@ struct bt_mesh_dtt_cli {
 	struct bt_mesh_model_ack_ctx ack_ctx;
 	/** Model publish parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(BT_MESH_DTT_OP_SET,
+					       BT_MESH_DTT_MSG_LEN_SET)];
 	/** Composition data model entry pointer. */
 	struct bt_mesh_model *model;
 };
@@ -134,8 +136,6 @@ int bt_mesh_dtt_set(struct bt_mesh_dtt_cli *cli, struct bt_mesh_msg_ctx *ctx,
  *
  * @retval 0 Successfully sent the message.
  * @retval -EINVAL The given transition time is invalid.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
