@@ -21,12 +21,13 @@ Next, the service is deselected.
 Requirements
 ************
 
-One of the following boards:
+The sample supports the following development kits:
 
-  * |nRF5340DK|
-  * |nRF52840DK|
-  * |nRF52DK|
-  * |nRF52833DK|
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340dk_nrf5340_cpuapp, nrf52840dk_nrf52840, nrf52dk_nrf52832, nrf52833dk_nrf52833
+
+The sample has the following additional requirements:
 
 * NFC Reader ST25R3911B Nucleo expansion board (X-NUCLEO-NFC05A1)
 * NFC Type 4 Tag TNEP device
@@ -41,10 +42,10 @@ Building and running
 Testing
 =======
 
-After programming the sample to your board, you can test it with an NFC-A Tag device that supports NFC's TNEP.
+After programming the sample to your development kit, you can test it with an NFC-A Tag device that supports NFC's TNEP.
 
 1. |connect_terminal|
-#. Reset the board.
+#. Reset the kit.
 #. Put the NFC Tag device anntena in the range of the NFC polling device.
    The NFC polling device selects the first service and exchanges basic data with it.
    After that, the service is deselected.

@@ -50,7 +50,27 @@ static void api_event_handler(struct azure_iot_hub_evt *evt)
 		cloud_evt.type = CLOUD_EVT_DATA_RECEIVED;
 		cloud_evt.data.msg.buf = evt->data.msg.ptr;
 		cloud_evt.data.msg.len = evt->data.msg.len;
-		cloud_evt.data.msg.endpoint.type = CLOUD_EP_TOPIC_MSG;
+		cloud_evt.data.msg.endpoint.type = CLOUD_EP_MSG;
+		cloud_evt.data.msg.endpoint.str = evt->topic.str;
+		cloud_evt.data.msg.endpoint.len = evt->topic.len;
+		cloud_notify_event(azure_iot_hub_backend, &cloud_evt,
+				   config->user_data);
+		break;
+	case AZURE_IOT_HUB_EVT_TWIN_RECEIVED:
+		cloud_evt.type = CLOUD_EVT_DATA_RECEIVED;
+		cloud_evt.data.msg.buf = evt->data.msg.ptr;
+		cloud_evt.data.msg.len = evt->data.msg.len;
+		cloud_evt.data.msg.endpoint.type = CLOUD_EP_STATE;
+		cloud_evt.data.msg.endpoint.str = evt->topic.str;
+		cloud_evt.data.msg.endpoint.len = evt->topic.len;
+		cloud_notify_event(azure_iot_hub_backend, &cloud_evt,
+				   config->user_data);
+		break;
+	case AZURE_IOT_HUB_EVT_TWIN_DESIRED_RECEIVED:
+		cloud_evt.type = CLOUD_EVT_DATA_RECEIVED;
+		cloud_evt.data.msg.buf = evt->data.msg.ptr;
+		cloud_evt.data.msg.len = evt->data.msg.len;
+		cloud_evt.data.msg.endpoint.type = CLOUD_EP_STATE;
 		cloud_evt.data.msg.endpoint.str = evt->topic.str;
 		cloud_evt.data.msg.endpoint.len = evt->topic.len;
 		cloud_notify_event(azure_iot_hub_backend, &cloud_evt,
@@ -73,6 +93,12 @@ static void api_event_handler(struct azure_iot_hub_evt *evt)
 		break;
 	case AZURE_IOT_HUB_EVT_FOTA_ERASE_DONE:
 		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_DONE;
+		cloud_notify_event(azure_iot_hub_backend, &cloud_evt,
+				   config->user_data);
+		break;
+	case AZURE_IOT_HUB_EVT_ERROR:
+		cloud_evt.type = CLOUD_EVT_ERROR;
+		cloud_evt.data.err = evt->data.err;
 		cloud_notify_event(azure_iot_hub_backend, &cloud_evt,
 				   config->user_data);
 		break;
@@ -151,10 +177,13 @@ static int api_send(const struct cloud_backend *const backend,
 	};
 
 	switch (msg->endpoint.type) {
-	case CLOUD_EP_TOPIC_STATE:
+	case CLOUD_EP_STATE_GET:
+		tx_data.topic.type = AZURE_IOT_HUB_TOPIC_TWIN_REQUEST;
+		break;
+	case CLOUD_EP_STATE:
 		tx_data.topic.type = AZURE_IOT_HUB_TOPIC_TWIN_REPORTED;
 		break;
-	case CLOUD_EP_TOPIC_MSG:
+	case CLOUD_EP_MSG:
 		tx_data.topic.type = AZURE_IOT_HUB_TOPIC_EVENT;
 		break;
 	default:

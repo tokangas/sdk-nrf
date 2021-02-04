@@ -381,9 +381,9 @@ typedef bool (*fw_info_ext_api_provide_t)(const struct fw_info *fwinfo,
 
 /**Invalidate an image by manipulating its fw_info.
  *
- * @details Invalidation happens by setting the @c valid value to 0x0.
+ * @details Invalidation happens by setting the @c valid value to INVALID_VAL.
  *
- * @note This function needs to have CONFIG_NRF_NVMC enabled.
+ * @note This function needs to have @option{CONFIG_NRFX_NVMC} enabled.
  *
  * @param[in]  fw_info  The info structure to invalidate.
  *                      This memory will be modified directly in flash.

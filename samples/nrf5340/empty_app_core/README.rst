@@ -34,7 +34,7 @@ The sample supports the following development kit:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf5340pdk_nrf5340_cpuapp_and_cpuappns
+   :rows: nrf5340dk_nrf5340_cpuapp
 
 Building and running
 ********************
@@ -47,7 +47,7 @@ Testing
 =======
 1. Program this sample to the application core.
 #. Program the Zephyr's :ref:`zephyr:blinky-sample` to the network core.
-#. Observe the LEDs on the board.
+#. Observe the LEDs on the kit.
 
 Dependencies
 ************

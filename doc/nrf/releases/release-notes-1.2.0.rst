@@ -119,7 +119,7 @@ nRF9160
   * :ref:`lib_aws_iot` - enables applications to connect to and exchange messages with the AWS IoT message broker.
     The library supports TLS-secured MQTT transmissions and firmware over-the-air upgrades.
   * :ref:`modem_key_mgmt` - provides functions to provision security credentials to the nRF9160 modem.
-    The library replaces the ``nrf_inbuilt_key`` APIs from the :ref:`nrfxlib:bsdlib`.
+    The library replaces the ``nrf_inbuilt_key`` APIs from the BSD library.
   * :ref:`lib_zzhc` - implements the self-registration functionality that is required to connect to the China Telecom network.
   * :ref:`supl_client` - integrates the externally hosted SUPL client library.
     This library implements A-GPS data downloading from a SUPL server.
@@ -131,10 +131,10 @@ Updated samples and applications
 * :ref:`asset_tracker`:
 
   * Added functionality to configure high/low thresholds for sensor data, so that only data below/above the threshold is sent to the cloud.
-  * Modified the command format to match the format that is used by nRF Cloud.
+  * Modified the command format to match the format that is used by nRF Connect for Cloud.
   * Implemented support for receiving modem AT commands from the cloud and returning the modem's response.
   * Added functionality to configure the interval at which sensor data is sent to the cloud.
-    This makes it possible to change the poll/send interval for environmental and light sensors from the terminal card in nRF Cloud.
+    This makes it possible to change the poll/send interval for environmental and light sensors from the terminal card in nRF connect for Cloud.
   * Replaced ``printk`` calls with calls to the :ref:`zephyr:logging_api` subsystem.
   * Added a separate workqueue for the application, instead of using the system workqueue.
 
@@ -203,13 +203,13 @@ Updated drivers
 BSD library
 -----------
 
-* Updated the :ref:`nrfxlib:bsdlib` to version 0.6.1.
+* Updated the BSD library to version 0.6.1.
 
 
 nRF5340
 =======
 
-This release demonstrates a dual-core solution with the Bluetooth LE Controller running on the network core and the Bluetooth LE Host and application running on the application core of the nRF5340.
+This release demonstrates a dual-core solution with the Bluetooth LE Controller running on the network core and the Bluetooth Host and application running on the application core of the nRF5340.
 
 Both Nordic Semiconductor's nRF Bluetooth LE Controller and Zephyr's Bluetooth LE Controller have been ported to run on the network core (nrf5340_dk_nrf5340_cpunet).
 The application core (nrf5340_dk_nrf5340_cpuapp) can run Bluetooth LE samples from both the |NCS| and Zephyr.
@@ -267,7 +267,7 @@ Updated libraries
 
 * :ref:`lib_dfu_target`:
 
-  * Added the configuration option :option:`CONFIG_DFU_TARGET_MCUBOOT_SAVE_PROGRESS`, which uses Zephyr's :ref:`zephyr:settings_api` subsystem.
+  * Added the configuration option ``CONFIG_DFU_TARGET_MCUBOOT_SAVE_PROGRESS``, which uses Zephyr's :ref:`zephyr:settings_api` subsystem.
     When this option is enabled, the write progress of an MCUboot style upgrade is stored, so that the progress is retained when the device reboots.
   * Fixed a bug where :c:func:`dfu_target_done` logged the error message ``unable to deinitialize dfu resource`` when no target was initialized.
 
@@ -344,7 +344,7 @@ Bluetooth Low Energy
 * Enabled UART flow control in the :ref:`peripheral_uart` sample to avoid data loss.
 
 * Changed the :ref:`ble_throughput` sample to prevent it from running Bluetooth LE scanning and advertising in parallel.
-  The feature to establish a connection in both master and slave role at the same time is not supported by the Zephyr Bluetooth LE Host.
+  The feature to establish a connection in both master and slave role at the same time is not supported by the Zephyr Bluetooth Host.
 
 * :ref:`nrf_bt_scan_readme`:
 
@@ -518,7 +518,7 @@ Documentation
 
   * nrfxlib:
 
-    * :ref:`nrfxlib:bsdlib` - extended and restructured the content
+    * BSD library - extended and restructured the content
     * :ref:`nrfxlib:mpsl` - added
     * :ref:`nrfxlib:softdevice_controller_readme` - updated to match current version of the nRF Bluetooth LE Controller
 
@@ -530,7 +530,7 @@ Known issues
 nRF9160
 =======
 
-* The :c:func:`nrf_send` function in the :ref:`nrfxlib:bsdlib` might be blocking for several minutes, even if the socket is configured for non-blocking operation.
+* The :c:func:`nrf_send` function in the BSD library might be blocking for several minutes, even if the socket is configured for non-blocking operation.
   The behavior depends on the cellular network connection.
 * The :ref:`gps_with_supl_support_sample` sample stops working if :ref:`supl_client` support is enabled, but the SUPL host name cannot be resolved.
   As a workaround, insert a delay (``k_sleep()``) of a few seconds after the ``printf`` on line 294 in :file:`main.c`.

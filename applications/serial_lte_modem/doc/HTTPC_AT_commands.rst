@@ -1,6 +1,6 @@
 .. _SLM_AT_HTTPC:
 
-HTTP client AT Commands
+HTTP client AT commands
 ***********************
 
 .. contents::
@@ -28,8 +28,8 @@ Syntax
 
 * The ``<op>`` parameter can accept one of the following values:
 
-  * ``0`` - Connect to the HTTP server
-  * ``1`` - Disconnect from the HTTP server
+  * ``0`` - Disconnect from the HTTP server
+  * ``1`` - Connect to the HTTP server
 
 * The ``<host>`` parameter is a string.
   It represents the HTTP server hostname.
@@ -99,7 +99,7 @@ Example
 ::
 
    AT#XHTTPCCON=?
-   #XHTTPCCON: (0, 1),<host>,<port>,<sec_tag>
+   #XHTTPCCON: (0,1),<host>,<port>,<sec_tag>
    OK
 
 HTTP request #XHTTPCREQ
@@ -154,8 +154,8 @@ The following example sends a GET request to retrieve data from the server witho
 
    AT#XHTTPCREQ="GET","/get?foo1=bar1&foo2=bar2",""
    OK
-   #XHTTPCREQ:0
-   #XHTTPCRSP:576,0
+   #XHTTPCREQ: 0
+   #XHTTPCRSP: 576,0
    HTTP/1.1 200 OK
    Date: Wed, 09 Sep 2020 08:08:45 GMT
    Content-Type: application/json; charset=utf-8
@@ -214,11 +214,11 @@ The following example sends a POST request to send data to the server with an op
    Content-Length: 20
    ",20
    OK
-   #XHTTPCREQ:1
+   #XHTTPCREQ: 1
    12345678901234567890
    OK
-   #XHTTPCREQ:0
-   #XHTTPCRSP:576,1
+   #XHTTPCREQ: 0
+   #XHTTPCRSP: 576,1
    HTTP/1.1 200 OK
    Date: Wed, 09 Sep 2020 08:21:03 GMT
    Content-Type: application/json; charset=utf-8

@@ -109,12 +109,12 @@ nRF9160
   * :ref:`lwm2m_carrier` - demonstrates how to use the :ref:`liblwm2m_carrier_readme` library to connect to the operator LwM2M network.
   * :ref:`lwm2m_client` - demonstrates how to use Zephyr's :ref:`zephyr:lwm2m_interface` interface to implement a sample LwM2M application.
     This sample can run against an LwM2M demo server, but cannot connect to the operator network.
-  * :ref:`usb_uart_bridge_sample` - acts as a serial adapter for Thingy:91, providing USB serial ports for debug output and the ability to send AT commands to the modem.
+  * USB-UART bridge sample - acts as a serial adapter for Thingy:91, providing USB serial ports for debug output and the ability to send AT commands to the modem.
     This sample runs on the nRF52840 SoC on Thingy:91.
 
 * Added the following libraries:
 
-  * Cloud API (``include/net/cloud.h``) - provides a generic cloud API with an implementation for the nRF Cloud.
+  * Cloud API (``include/net/cloud.h``) - provides a generic cloud API with an implementation for nRF Connect for Cloud.
   * :ref:`liblwm2m_carrier_readme` (version 0.8.0) - provides support for the Verizon Wireless network support.
   * :ref:`at_notif_readme` - dispatches AT command notifications to registered modules.
 
@@ -132,7 +132,7 @@ Updated samples and applications
   * Updated to use the generic cloud API.
   * Added a user interface module to the application to facilitate the use of buttons, LEDs, buzzer, and NMOS transistors.
   * Added a cloud command decoder module that parses incoming JSON strings.
-  * Added an application reboot in the case that MQTT CONNACK is missing from the nRF Cloud server.
+  * Added an application reboot in the case that MQTT CONNACK is missing from the nRF Connect for Cloud server.
   * Fixed a bug where invalid RSRP values (not known / not detectable) were sent to the cloud.
   * Added service information JSON to the device information shadow data.
   * Added light sensor handling.
@@ -141,8 +141,8 @@ Updated samples and applications
 * :ref:`aws_fota_sample`:
 
   * Added a warning message when provisioning certificates stating that the certificates are stored in application core flash (readable flash) and are visible on modem traces.
-  * Changed the default security tag to not be the same as nRF Cloud's security tag, to ensure that users do not overwrite their nRF Cloud certificates.
-  * Created a separate nRF Cloud configuration option for the sample.
+  * Changed the default security tag to not be the same as nRF Connect for Cloud's security tag, to ensure that users do not overwrite their nRF Connect for Cloud certificates.
+  * Created a separate nRF Connect for Cloud configuration option for the sample.
   * Added device shadow update to the sample.
   * Added support for delta updates of the modem firmware using firmware over-the-air (FOTA).
 
@@ -224,8 +224,8 @@ Updated drivers
 BSD library
 -----------
 
-* Updated the :ref:`nrfxlib:bsdlib` to version 0.5.0.
-* Updated bsdlib_init() to return the value of :c:func:`bsd_init` instead of (only) zero.
+* Updated the BSD library to version 0.5.0.
+* Updated bsdlib_init() to return the value of bsd_init() instead of (only) zero.
 * Added functionality that overrides untranslated errnos set by the BSD library with a magic word (0xBAADBAAD), instead of EINVAL, and prints a log message.
   If ASSERTs are enabled, the application will assert.
 * Made DFU, PDN, and RAW socket available through the socket offloading mechanism.
@@ -439,7 +439,7 @@ Documentation
   * Other:
 
     * :ref:`bootloader`
-    * :ref:`usb_uart_bridge_sample`
+    * USB-UART bridge sample
 
 * Added or updated documentation for the following libraries:
 
@@ -478,12 +478,12 @@ Documentation
   * :ref:`gs_assistant`
   * :ref:`gs_installing`
   * :ref:`doc_styleguide`
-  * :ref:`ncs-app-dev`
+  * :ref:`app_build_system`
   * :ref:`ug_bootloader`
   * :ref:`dev-model`
   * :ref:`ug_nrf9160`
   * :ref:`nrfxlib:softdevice_controller`
-  * :ref:`nrfxlib:bsdlib`
+  * BSD library
   * :ref:`nrfxlib:nrf_cc310_platform_readme`
   * :ref:`nrfxlib:nrf_security`
   * :ref:`mcuboot:mcuboot_wrapper`
@@ -497,7 +497,7 @@ Known issues
 nRF9160
 =======
 
-* Deprecation warning: The nrf_inbuilt_key API in the :ref:`nrfxlib:bsdlib` will be removed in a future release.
+* Deprecation warning: The nrf_inbuilt_key API in the BSD library will be removed in a future release.
   A replacement library that wraps the AT commands for ``AT%CMNG`` will be available in the |NCS|.
 * The :ref:`asset_tracker` sample might show up to 2.5 mA current consumption in idle mode with ``CONFIG_POWER_OPTIMIZATION_ENABLE=y``.
 * The SEGGER Control Block cannot be found by automatic search by the RTT Viewer/Logger.

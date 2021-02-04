@@ -14,7 +14,7 @@ You can use it to determine the maximum throughput, or to experiment with differ
 Overview
 ********
 
-The sample transmits data between two boards, the *tester* and the *peer*, and measures the throughput performance.
+The sample transmits data between two development kits, the *tester* and the *peer*, and measures the throughput performance.
 To do so, it uses the :ref:`throughput_readme`.
 
 The sample demonstrates the interaction of the following connection parameters:
@@ -55,35 +55,31 @@ By default, the following connection parameter values are used:
 Changing connection parameter values
 ====================================
 
-You can experiment with different connection parameter values by reconfiguring the values using menuconfig and then compiling and programming the sample again to at least one of the boards.
+You can experiment with different connection parameter values by reconfiguring the values using menuconfig and then compiling and programming the sample again to at least one of the kits.
 
 .. note::
    In a *Bluetooth* Low Energy connection, the different devices negotiate the connection parameters that are used.
    If the configuration parameters for the devices differ, they agree on the lowest common denominator.
 
    By default, the sample uses the fastest connection parameters.
-   If you change them to lower values, it is sufficient to program them to one of the boards.
-   If you were to change them to higher values, you would need to program both boards again.
+   If you change them to lower values, it is sufficient to program them to one of the kits.
+   If you were to change them to higher values, you would need to program both kits again.
 
 
 Requirements
 ************
 
-* Two of the following development boards:
+The sample supports the following development kits:
 
-  * |nRF5340DK|; if you use this development kit, add the following options to the configuration of the network sample:
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340dk_nrf5340_cpuapp_and_cpuappns, nrf52840dk_nrf52840, nrf52833dk_nrf52833, nrf52dk_nrf52832
 
-    .. code-block:: none
+You can use any two of the development kits listed above and mix different development kits.
 
-       CONFIG_BT_CTLR_TX_BUFFER_SIZE=251
-       CONFIG_BT_CTLR_DATA_LENGTH_MAX=251
-       CONFIG_BT_RX_BUF_LEN=255
+.. include:: /includes/hci_rpmsg_overlay.txt
 
-  * |nRF52840DK|
-  * |nRF52DK|
-
-  You can mix different boards.
-* Connection to a computer with a serial terminal for each of the boards.
+The sample also requires a connection to a computer with a serial terminal for each of the development kits.
 
 Building and running
 ********************
@@ -95,14 +91,14 @@ Building and running
 Testing
 =======
 
-After programming the sample to both boards, test it by performing the following steps:
+After programming the sample to both kits, test it by performing the following steps:
 
-1. Connect to both boards with a terminal emulator (for example, PuTTY).
+1. Connect to both kits with a terminal emulator (for example, PuTTY).
    See :ref:`putty` for the required settings.
-#. Reset both boards.
-#. In one of the terminal emulators, type "s" to start the application on the connected board in the slave (peer) role.
+#. Reset both kits.
+#. In one of the terminal emulators, type "s" to start the application on the connected kit in the slave (peer) role.
 #. In the other terminal emulator, type "m" to start the application in the master (tester) role.
-#. Observe that the boards establish a connection.
+#. Observe that the kits establish a connection.
    The tester outputs the following information::
 
        Ready, press any key to start

@@ -1,13 +1,13 @@
 .. _peripheral_alexa_gadgets:
 
-Bluetooth: Alexa Gadgets Peripheral
+Bluetooth: Peripheral Alexa Gadgets
 ###################################
 
 .. contents::
    :local:
    :depth: 2
 
-The Alexa Gadgets Peripheral sample demonstrates how a Bluetooth LE device can connect to an Amazon Echo device using the Alexa Gadgets Bluetooth Service and Profile.
+The Peripheral Alexa Gadgets sample demonstrates how a Bluetooth LE device can connect to an Amazon Echo device using the Alexa Gadgets Bluetooth Service and Profile.
 
 Documentation for the Gadgets Service and Profile can be found at `Alexa Gadgets Bluetooth LE`_.
 
@@ -65,11 +65,11 @@ Requirements
 
 The sample supports the following development kits:
 
-.. include:: /includes/boardname_tables/sample_boardnames.txt
-   :start-after: set2_start
-   :end-before: set2_end
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf52840dk_nrf52840, nrf52dk_nrf52832, nrf52dk_nrf52810
 
-The sample also requires:
+The sample also has the following requirements:
 
 * An Amazon Echo device
 * An Amazon developer account
@@ -134,15 +134,15 @@ Building and running
 Testing
 =======
 
-After programming the sample to your board, test it by performing the following steps:
+After programming the sample to your development kit, test it by performing the following steps:
 
 1. Optionally, set up log monitoring:
 
-  a. Connect the board to the computer using a USB cable.
-     The board is assigned a COM port (Windows) or ttyACM device (Linux), which is visible in the Device Manager.
+  a. Connect the kit to the computer using a USB cable.
+     The kit is assigned a COM port (Windows) or ttyACM device (Linux), which is visible in the Device Manager.
   b. |connect_terminal|
 
-2. Reset the board.
+2. Reset the kit.
 3. Follow these instructions to pair your Echo device with the sample: `Alexa Gadgets Pairing`_.
 4. Observe that LED 1 turns on to indicate that a connection has been established.
 5. Observe that LED 2 turns on to indicate that the Alexa Gadgets handshake has completed.

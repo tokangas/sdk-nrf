@@ -29,9 +29,6 @@ struct bt_mesh_lvl_cli;
  */
 #define BT_MESH_LVL_CLI_INIT(_status_handler)                                  \
 	{                                                                      \
-		.pub = { .msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(          \
-				 BT_MESH_LVL_OP_DELTA_SET,                     \
-				 BT_MESH_LVL_MSG_MAXLEN_DELTA_SET)) },         \
 		.status_handler = _status_handler,                             \
 	}
 
@@ -58,6 +55,11 @@ struct bt_mesh_lvl_cli {
 	struct bt_mesh_model *model;
 	/** Publish parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(
+		BT_MESH_LVL_OP_DELTA_SET, BT_MESH_LVL_MSG_MAXLEN_DELTA_SET)];
 	/** Acknowledged message tracking. */
 	struct bt_mesh_model_ack_ctx ack_ctx;
 	/** Current transaction ID. */
@@ -87,8 +89,6 @@ struct bt_mesh_lvl_cli {
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -113,8 +113,6 @@ int bt_mesh_lvl_cli_get(struct bt_mesh_lvl_cli *cli,
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -134,8 +132,6 @@ int bt_mesh_lvl_cli_set(struct bt_mesh_lvl_cli *cli,
  * the server's default transition parameters.
  *
  * @retval 0 Successfully sent the message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -146,7 +142,11 @@ int bt_mesh_lvl_cli_set_unack(struct bt_mesh_lvl_cli *cli,
 
 /** @brief Trigger a differential level state change in the server.
  *
- * @copydetails bt_mesh_lvl_cli_delta_set_unack
+ * Makes the server move its level state by some delta value. If multiple
+ * delta_set messages are sent in a row (with less than 6 seconds interval),
+ * and @p delta_set::new_transaction is set to false, the server will continue
+ * using the same base value for its delta as in the first message, unless
+ * some other client made changes to the server.
  *
  * This call is blocking if the @p rsp buffer is non-NULL. Otherwise, this
  * function will return, and the response will be passed to the
@@ -161,8 +161,6 @@ int bt_mesh_lvl_cli_set_unack(struct bt_mesh_lvl_cli *cli,
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -189,8 +187,6 @@ int bt_mesh_lvl_cli_delta_set(struct bt_mesh_lvl_cli *cli,
  * use the server's default transition parameters.
  *
  * @retval 0 Successfully sent the message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -201,7 +197,16 @@ int bt_mesh_lvl_cli_delta_set_unack(
 
 /** @brief Trigger a continuous level change in the server.
  *
- * @copydetails bt_mesh_lvl_cli_move_set_unack
+ * Makes the server continuously move its level state by the set rate:
+ *
+ * @code
+ * rate_of_change = move_set->delta / move_set->transition->time
+ * @endcode
+ *
+ * The server will continue moving its level until it is told to stop, or until
+ * it reaches some application specific boundary value. The server may choose
+ * to wrap around the level value, depending on its usage. The move can be
+ * stopped by sending a new move message with a delta value of 0.
  *
  * This call is blocking if the @p rsp buffer is non-NULL. Otherwise, this
  * function will return, and the response will be passed to the
@@ -216,8 +221,6 @@ int bt_mesh_lvl_cli_delta_set_unack(
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -249,8 +252,6 @@ int bt_mesh_lvl_cli_move_set(struct bt_mesh_lvl_cli *cli,
  * use the server's default transition parameters.
  *
  * @retval 0 Successfully sent the message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.

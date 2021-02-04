@@ -164,15 +164,13 @@ If you want to view the debug messages, follow the procedure in :ref:`testing_rt
 Requirements
 ************
 
-* The following development kit:
+The sample supports the following development kit:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf5340pdk_nrf5340_cpunet
+   :rows: nrf5340dk_nrf5340_cpunet
 
-* The Network core
-
-* One of the following testing devices:
+Additionally, the sample requires one of the following testing devices:
 
   * Dedicated test equipment, like an Anritsu MT8852 tester.
     See :ref:`direct_test_mode_testing_anritsu`.
@@ -211,7 +209,7 @@ Testing
 After programming the sample to your development kit, you can test it in the three following ways.
 
 .. note::
-   For the nRF5340 development kit, see :ref:`logging_cpunet` for information on how to make the PC terminal work with the network core.
+   For the |nRF5340DKnoref|, see :ref:`logging_cpunet` for information about the COM terminals on which the logging output is available.
 
 .. _direct_test_mode_testing_anritsu:
 

@@ -106,7 +106,7 @@ void sensor_status_id_decode(struct net_buf_simple *buf, uint8_t *len, uint16_t 
 			return;
 		}
 
-		*len = (first >> 1) + 1;
+		*len = ((first >> 1) + 1) & 0x7f;
 		*id = net_buf_simple_pull_le16(buf);
 	} else if (buf->len < 1) {
 		*len = 0;
@@ -115,6 +115,63 @@ void sensor_status_id_decode(struct net_buf_simple *buf, uint8_t *len, uint16_t 
 		*len = ((first >> 1) & BIT_MASK(4)) + 1;
 		*id = (first >> 5) | (net_buf_simple_pull_u8(buf) << 3);
 	}
+}
+
+static void tolerance_decode(uint16_t encoded, struct sensor_value *tolerance)
+{
+	uint32_t toll_mill = (encoded * 100ULL * 1000000ULL) / 4095ULL;
+
+	tolerance->val1 = toll_mill / 1000000ULL;
+	tolerance->val2 = toll_mill % 1000000ULL;
+}
+static uint16_t tolerance_encode(const struct sensor_value *tol)
+{
+	uint64_t tol_mill = 1000000L * tol->val1 + tol->val2;
+
+	if (tol_mill > (1000000L * 100L)) {
+		return 0;
+	}
+	return (tol_mill * 4095L + (1000000L * 50L)) / (1000000L * 100L);
+}
+
+void sensor_descriptor_decode(struct net_buf_simple *buf,
+			struct bt_mesh_sensor_info *sensor)
+{
+	uint32_t tolerances;
+
+	sensor->id = net_buf_simple_pull_le16(buf);
+	tolerances = net_buf_simple_pull_le24(buf);
+	tolerance_decode(tolerances & BIT_MASK(12),
+			 &sensor->descriptor.tolerance.positive);
+	tolerance_decode(tolerances >> 12,
+			 &sensor->descriptor.tolerance.negative);
+	sensor->descriptor.sampling_type = net_buf_simple_pull_u8(buf);
+	sensor->descriptor.period =
+		sensor_powtime_decode(net_buf_simple_pull_u8(buf));
+	sensor->descriptor.update_interval =
+		sensor_powtime_decode(net_buf_simple_pull_u8(buf));
+}
+
+void sensor_descriptor_encode(struct net_buf_simple *buf,
+				     struct bt_mesh_sensor *sensor)
+{
+	net_buf_simple_add_le16(buf, sensor->type->id);
+
+	const struct bt_mesh_sensor_descriptor dummy = { 0 };
+	const struct bt_mesh_sensor_descriptor *d =
+		sensor->descriptor ? sensor->descriptor : &dummy;
+
+	uint16_t tol_pos = tolerance_encode(&d->tolerance.positive);
+	uint16_t tol_neg = tolerance_encode(&d->tolerance.negative);
+
+	net_buf_simple_add_u8(buf, tol_pos & 0xff);
+	net_buf_simple_add_u8(buf,
+			      ((tol_pos >> 8) & BIT_MASK(4)) | (tol_neg << 4));
+	net_buf_simple_add_u8(buf, tol_neg >> 4);
+	net_buf_simple_add_u8(buf, d->sampling_type);
+
+	net_buf_simple_add_u8(buf, sensor_powtime_encode(d->period));
+	net_buf_simple_add_u8(buf, sensor_powtime_encode(d->update_interval));
 }
 
 int sensor_value_encode(struct net_buf_simple *buf,
@@ -309,16 +366,16 @@ uint8_t sensor_powtime_encode(uint64_t raw)
 	/* Search through the lookup table to find the highest encoding lower
 	 * than the raw value.
 	 */
-	uint64_t raw_ns = raw * 1000;
+	uint64_t raw_us = raw * USEC_PER_MSEC;
 
-	if (raw_ns < powtime_lookup[0]) {
+	if (raw_us < powtime_lookup[0]) {
 		return 1;
 	}
 
 	const uint64_t *seed = &powtime_lookup[0];
 
 	for (int i = 1; i < ARRAY_SIZE(powtime_lookup); ++i) {
-		if (raw_ns < powtime_lookup[i]) {
+		if (raw_us < powtime_lookup[i]) {
 			seed = &powtime_lookup[i - 1];
 			break;
 		}
@@ -327,14 +384,14 @@ uint8_t sensor_powtime_encode(uint64_t raw)
 	int i;
 
 	for (i = 0; (i < ARRAY_SIZE(powtime_mul) &&
-		     raw_ns >= (*seed * powtime_mul[i]) / 100000);
+		     raw_us > (*seed * powtime_mul[i]) / 100000);
 	     i++) {
 	}
 
-	return ARRAY_SIZE(powtime_mul) * (seed - &powtime_lookup[0]) + i - 1;
+	return ARRAY_SIZE(powtime_mul) * (seed - &powtime_lookup[0]) + i;
 }
 
-uint64_t sensor_powtime_decode_ns(uint8_t val)
+uint64_t sensor_powtime_decode_us(uint8_t val)
 {
 	if (val == 0) {
 		return 0;
@@ -347,7 +404,7 @@ uint64_t sensor_powtime_decode_ns(uint8_t val)
 
 uint64_t sensor_powtime_decode(uint8_t val)
 {
-	return sensor_powtime_decode_ns(val) / 1000L;
+	return sensor_powtime_decode_us(val) / USEC_PER_MSEC;
 }
 
 int sensor_cadence_encode(struct net_buf_simple *buf,

@@ -128,8 +128,6 @@ struct bt_mesh_time_srv {
  *                   parameters.
  *
  * @return 0              Successfully published the current Light state.
- * @retval -ENOTSUP       A message context was not provided and publishing is
- *                        not supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  *                        not configured.
  * @retval -EAGAIN        The device has not been provisioned.
@@ -306,4 +304,4 @@ int _bt_mesh_time_srv_update_handler(struct bt_mesh_model *model);
 
 #endif /* BT_MESH_TIME_SRV_H__ */
 
-/* @} */
+/** @} */

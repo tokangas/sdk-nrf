@@ -24,14 +24,13 @@ Any changes to the NDEF message update the NDEF message file, which is stored in
 Requirements
 ************
 
-* One of the following development boards:
+The sample supports the following development kits:
 
-  * |nRF5340DK|
-  * |nRF52840DK|
-  * |nRF52DK|
-  * |nRF52833DK|
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340dk_nrf5340_cpuapp_and_cpuappns, nrf52840dk_nrf52840, nrf52dk_nrf52832, nrf52833dk_nrf52833
 
-* Smartphone or tablet with NFC Tools application (or equivalent)
+The sample also requires a smartphone or tablet with NFC Tools application (or equivalent).
 
 User interface
 **************
@@ -55,12 +54,12 @@ Building and running
 Testing
 =======
 
-After programming the sample to your board, test it by performing the following steps:
+After programming the sample to your development kit, test it by performing the following steps:
 
 1. Touch the NFC antenna with the smartphone or tablet and observe that LED 1 and LED 4 are lit.
 #. Observe that the smartphone/tablet tries to open the URL "http\://www.nordicsemi.com" in a web browser.
 #. Use a proper application (for example, NFC Tools for Android) to overwrite the existing NDEF message with your own message.
-#. Power-cycle your board and touch the antenna again.
+#. Power-cycle your kit and touch the antenna again.
    Observe that the new message is displayed.
 
 Dependencies

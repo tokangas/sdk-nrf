@@ -75,6 +75,9 @@ set(KCONFIG_BINARY_DIR ${CMAKE_BINARY_DIR}/Kconfig)
 set(HTML_DIR ${CMAKE_BINARY_DIR}/html)
 file(MAKE_DIRECTORY ${HTML_DIR})
 
+# Known issues script
+set(KI_SCRIPT ${ZEPHYR_BASE}/scripts/filter-known-issues.py)
+
 #
 # Add the 'zephyr' target for building the Zephyr documentation. We reuse
 # doc/CMakeLists.txt from the Zephyr repository, but use our own Sphinx
@@ -88,8 +91,10 @@ file(MAKE_DIRECTORY ${HTML_DIR})
 set(SPHINXOPTS -c ${NRF_BASE}/doc/zephyr)
 set(SPHINX_OUTPUT_DIR ${HTML_DIR}/zephyr)
 set(KCONFIG_OUTPUT ${HTML_DIR}/kconfig)
+set(GEN_DEVICETREE_REST_ZEPHYR_DOCSET " ")
 
 # Get access to the 'html' target from doc/CMakeLists.txt in Zephyr
+set(MODULES_EXT_ROOT ${NRF_BASE})
 add_subdirectory(${ZEPHYR_BASE}/doc ${ZEPHYR_BINARY_DIR})
 
 add_custom_target(zephyr)
@@ -132,6 +137,8 @@ set(NRF_DOC_LOG ${NRF_BINARY_DIR}/doc.log)
 set(NRF_DOXY_LOG ${NRF_BINARY_DIR}/doxy.log)
 set(NRF_SPHINX_LOG ${NRF_BINARY_DIR}/sphinx.log)
 set(NRF_CONTENT_OUTPUTS ${NRF_BINARY_DIR}/extracted-content.txt)
+set(NRF_DOC_WARN ${NRF_BINARY_DIR}/doc.warnings)
+set(NRF_KI_DIR ${NRF_BASE}/.known-issues/doc)
 
 configure_file(${NRF_DOXYFILE_IN} ${NRF_DOXYFILE_OUT} @ONLY)
 
@@ -154,12 +161,16 @@ endforeach()
 file(STRINGS ${ZEPHYR_BASE}/scripts/requirements-base.txt ZEPHYR_BASE_PACKAGE_VERSIONS REGEX "^[^#].*")
 file(STRINGS ${ZEPHYR_BASE}/scripts/requirements-doc.txt ZEPHYR_DOCS_PACKAGE_VERSIONS REGEX "^[^#].*")
 file(STRINGS ${MCUBOOT_BASE}/scripts/requirements.txt MCUBOOT_PACKAGE_VERSIONS REGEX "^[^#].*")
-file(STRINGS ${NRF_BASE}/scripts/requirements.txt NRF_PACKAGE_VERSIONS REGEX "^[^#].*")
+file(STRINGS ${NRF_BASE}/scripts/requirements-base.txt NRF_BASE_PACKAGE_VERSIONS REGEX "^[^#].*")
+file(STRINGS ${NRF_BASE}/scripts/requirements-doc.txt NRF_DOC_PACKAGE_VERSIONS REGEX "^[^#].*")
+file(STRINGS ${NRF_BASE}/scripts/requirements-build.txt NRF_BUILD_PACKAGE_VERSIONS REGEX "^[^#].*")
 
 foreach(package ${ZEPHYR_BASE_PACKAGE_VERSIONS}
                 ${ZEPHYR_DOCS_PACKAGE_VERSIONS}
                 ${MCUBOOT_PACKAGE_VERSIONS}
-                ${NRF_PACKAGE_VERSIONS}
+                ${NRF_BASE_PACKAGE_VERSIONS}
+                ${NRF_DOC_PACKAGE_VERSIONS}
+                ${NRF_BUILD_PACKAGE_VERSIONS}
 )
   string(REGEX REPLACE "(^[^>=\;]*)([\;]|([>=][^\;]*))\;*.*" "\\1" package_name "${package}")
   string(TOUPPER ${package_name} PACKAGE_NAME_UPPER)
@@ -243,6 +254,7 @@ add_custom_target(
   COMMAND ${NRF_SPHINX_BUILD_HTML_COMMAND}
   # Merge the Doxygen and Sphinx logs into a single file
   COMMAND ${CMAKE_COMMAND} -P ${ZEPHYR_BASE}/cmake/util/fmerge.cmake ${NRF_DOC_LOG} ${NRF_DOXY_LOG} ${NRF_SPHINX_LOG}
+  COMMAND ${PYTHON_EXECUTABLE} ${KI_SCRIPT} --config-dir ${NRF_KI_DIR} --errors ${NRF_DOC_WARN} --warnings ${NRF_DOC_WARN} ${NRF_DOC_LOG}
   # Copy root index file
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/static/html/index.html ${HTML_DIR}
   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -417,13 +429,14 @@ add_dependencies(nrfxlib-inventory nrfxlib-content nrfxlib-doxy)
 # Kconfig symbols regardless of where they are defined.
 #
 # We rely on the Zephyr Kconfig files pulling in the other Kconfig files, and
-# use the --modules option to genrest.py to split the documentation into a
-# separate page for each module.
+# use the --modules option to gen_kconfig_rest.py to split the documentation
+# into a separate page for each module.
 
 set(KCONFIG_RST_OUT ${KCONFIG_BINARY_DIR}/rst)
+get_directory_property(ZEPHYR_KCONFIG_MODULES DIRECTORY ${ZEPHYR_BASE}/doc DEFINITION ZEPHYR_KCONFIG_MODULES)
 
-# The 'kconfig-content' target uses genrest.py to generate .rst files for all
-# Kconfig symbols, as well as index pages that point to them
+# The 'kconfig-content' target uses gen_kconfig_rest.py to generate .rst files
+# for all Kconfig symbols, as well as index pages that point to them
 add_custom_target(
   kconfig-content
   COMMAND ${CMAKE_COMMAND} -E make_directory ${KCONFIG_RST_OUT}
@@ -439,8 +452,9 @@ add_custom_target(
     KCONFIG_WARN_UNDEF=y
     KCONFIG_TURBO_MODE=${KCONFIG_TURBO_MODE}
     KCONFIG_DOC_MODE=1
+    ${ZEPHYR_KCONFIG_MODULES}
       ${PYTHON_EXECUTABLE}
-        ${ZEPHYR_BASE}/doc/scripts/genrest.py ${KCONFIG_RST_OUT}
+        ${ZEPHYR_BASE}/doc/scripts/gen_kconfig_rest.py ${KCONFIG_RST_OUT}
         --separate-all-index
         --modules Zephyr,zephyr,${ZEPHYR_BASE}
                   nRF,nrf,${NRF_BASE}

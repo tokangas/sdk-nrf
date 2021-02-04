@@ -179,7 +179,7 @@ This means that you do not have to use one :file:`prj.conf` file for your projec
 
 .. note::
     Creating build types and selecting them is optional.
-    This is a feature specific to the :ref:`application development in nRF Connect SDK <ncs-app-dev>`.
+    This is a feature specific to the :ref:`application development in nRF Connect SDK <app_build_system>`.
 
 .. _gs_modifying_build_types_creating:
 
@@ -231,11 +231,17 @@ Selecting a build type from command line
 
 .. build_types_selection_cmd_start
 
-To select the build type when building the application from command line, specify the build type by adding the ``-- -DCMAKE_BUILD_TYPE=selected_build_type`` to the ``west build`` command.
+To select the build type when building the application from command line, specify the build type by adding the following parameter to the ``west build`` command:
 
-For example, you can build the ``ZRelease`` firmware for the PCA20041 board by running the following command in the project directory:
+.. parsed-literal::
+   :class: highlight
 
-.. code-block:: console
+   -- -DCMAKE_BUILD_TYPE=\ *selected_build_type*\
+
+For example, you can replace the *selected_build_type* variable to build the ``ZRelease`` firmware for PCA20041 by running the following command in the project directory:
+
+.. parsed-literal::
+   :class: highlight
 
    west build -b nrf52840_pca20041 -d build_pca20041 -- -DCMAKE_BUILD_TYPE=ZRelease
 

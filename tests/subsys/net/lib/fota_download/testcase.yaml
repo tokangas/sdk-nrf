@@ -1,4 +1,5 @@
 tests:
   net.lib.fota_download:
-    platform_allow: qemu_cortex_m3
     tags: aws fota
+    build_only: true
+    platform_allow: nrf9160dk_nrf9160

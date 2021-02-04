@@ -30,10 +30,10 @@ The sample supports any one of the following development kits:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf5340pdk_nrf5340_cpunet, nrf52840dk_nrf52840, nrf52dk_nrf52832
+   :rows: nrf5340dk_nrf5340_cpunet, nrf52840dk_nrf52840, nrf52dk_nrf52832
 
 .. note::
-   For nRF5340 PDK, this sample is only supported on the network core (nrf5340pdk_nrf5340_cpunet), and the :ref:`nrf5340_empty_app_core` sample must be programmed to the application core.
+   For nRF5340 DK, this sample is only supported on the network core (nrf5340dk_nrf5340_cpunet), and the :ref:`nrf5340_empty_app_core` sample must be programmed to the application core.
 
 Building and Running
 ********************
@@ -45,10 +45,9 @@ Building and Running
 Testing
 =======
 
-After programming the sample to your board, test it by performing the following steps:
+After programming the sample to your development kit, test it by performing the following steps:
 
-1. Connect to the board with a terminal emulator (for example, PuTTY).
-   See :ref:`putty` for the required settings.
+1. |connect_terminal|
 #. Follow the instructions in the terminal to open a session and start requesting timeslots.
    The terminal then prints the signal type for each timeslot callback:
 
@@ -63,7 +62,7 @@ After programming the sample to your board, test it by performing the following 
 Dependencies
 ************
 
-This sample uses the following `nrfxlib`_ libraries:
+This sample uses the following `sdk-nrfxlib`_ libraries:
 
 * :ref:`nrfxlib:mpsl`
 

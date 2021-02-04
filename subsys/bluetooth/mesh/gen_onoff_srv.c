@@ -154,25 +154,7 @@ static const struct bt_mesh_scene_entry_type scene_type = {
 };
 /* .. include_endpoint_scene_srv_rst_1 */
 
-static int bt_mesh_onoff_srv_init(struct bt_mesh_model *model)
-{
-	struct bt_mesh_onoff_srv *srv = model->user_data;
-
-	srv->model = model;
-	net_buf_simple_init(model->pub->msg, 0);
-
-	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
-		bt_mesh_scene_entry_add(model, &srv->scene, &scene_type, false);
-	}
-
-	return 0;
-}
-
-const struct bt_mesh_model_cb _bt_mesh_onoff_srv_cb = {
-	.init = bt_mesh_onoff_srv_init
-};
-
-int _bt_mesh_onoff_srv_update_handler(struct bt_mesh_model *model)
+static int update_handler(struct bt_mesh_model *model)
 {
 	struct bt_mesh_onoff_srv *srv = model->user_data;
 	struct bt_mesh_onoff_status status = { 0 };
@@ -182,6 +164,33 @@ int _bt_mesh_onoff_srv_update_handler(struct bt_mesh_model *model)
 
 	return 0;
 }
+
+static int bt_mesh_onoff_srv_init(struct bt_mesh_model *model)
+{
+	struct bt_mesh_onoff_srv *srv = model->user_data;
+
+	srv->model = model;
+	srv->pub.msg = &srv->pub_buf;
+	srv->pub.update = update_handler;
+	net_buf_simple_init_with_data(&srv->pub_buf, srv->pub_data,
+				      sizeof(srv->pub_data));
+
+	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+		bt_mesh_scene_entry_add(model, &srv->scene, &scene_type, false);
+	}
+
+	return 0;
+}
+
+static void bt_mesh_onoff_srv_reset(struct bt_mesh_model *model)
+{
+	net_buf_simple_reset(model->pub->msg);
+}
+
+const struct bt_mesh_model_cb _bt_mesh_onoff_srv_cb = {
+	.init = bt_mesh_onoff_srv_init,
+	.reset = bt_mesh_onoff_srv_reset,
+};
 
 int32_t bt_mesh_onoff_srv_pub(struct bt_mesh_onoff_srv *srv,
 			    struct bt_mesh_msg_ctx *ctx,

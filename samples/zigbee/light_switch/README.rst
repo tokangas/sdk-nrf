@@ -15,6 +15,33 @@ This sample supports the optional `Sleepy End Device behavior`_ and :ref:`zigbee
 It also supports :ref:`lib_zigbee_fota`.
 See :ref:`zigbee_light_switch_activating_variants` for details about how to enable these variants.
 
+Requirements
+************
+
+The sample supports the following development kits:
+
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833, nrf5340dk_nrf5340_cpuapp, nrf21540dk_nrf52840
+
+You can use one or more of the development kits listed above and mix different development kits.
+
+For this sample to work, the following samples also need to be programmed:
+
+* The :ref:`Zigbee network coordinator <zigbee_network_coordinator_sample>` sample on one separate device.
+* The :ref:`zigbee_light_bulb_sample` sample on one or more separate devices.
+
+Multiprotocol Bluetooth LE extension requirements
+=================================================
+
+.. note::
+   The multiprotocol variant is not supported on nRF53 Series devices.
+
+If you enable the :ref:`zigbee_light_switch_sample_nus`, make sure you have a phone or a tablet with the `nRF Toolbox`_ application installed.
+
+.. note::
+    The `Testing`_ instructions refer to nRF Toolbox, but similar applications can be used as well, for example `nRF Connect for Mobile`_.
+
 Overview
 ********
 
@@ -32,25 +59,32 @@ The sleepy behavior can be enabled by pressing **Button 3** while the light swit
 
 .. _zigbee_light_switch_sample_nus:
 
-Multiprotocol |BLE| extension
-=============================
+Multiprotocol Bluetooth LE extension
+====================================
 
-This optional extension demonstrates dynamic concurrent switching between two protocols, |BLE| and Zigbee.
+This optional extension demonstrates dynamic concurrent switching between two protocols, Bluetooth LE and Zigbee.
 It uses :ref:`nus_service_readme` library.
 
 When this extension is enabled, you can use:
 
 * Buttons on the light switch device to operate on the Zigbee network
-* Nordic UART Service to operate on the |BLE| network
+* Nordic UART Service to operate on the Bluetooth LE network
 
 Both networks are independent from each other.
 
-To support both protocols at the same time, the Zigbee stack uses the :ref:`zephyr:ieee802154_interface` radio during the inactive time of the |BLE| radio (using :ref:`nrfxlib:mpsl`'s Timeslot API).
-Depending on the |BLE| connection interval, the nRF52 development kits can spend up to 99% of the radio time on the Zigbee protocol.
+To support both protocols at the same time, the Zigbee stack uses the :ref:`zephyr:ieee802154_interface` radio during the inactive time of the Bluetooth LE radio (using :ref:`nrfxlib:mpsl`'s Timeslot API).
+Depending on the Bluetooth LE connection interval, the nRF52 development kits can spend up to 99% of the radio time on the Zigbee protocol.
 
-Transmitting and receiving data when using this example does not break connection from any of the used radio protocols, either |BLE| or Zigbee.
+Transmitting and receiving data when using this example does not break connection from any of the used radio protocols, either Bluetooth LE or Zigbee.
 
 For more information about the multiprotocol feature, see :ref:`ug_multiprotocol_support`.
+
+.. _zigbee_light_switch_configuration:
+
+Configuration
+*************
+
+|config|
 
 Source file setup
 =================
@@ -60,29 +94,37 @@ This sample is split into the following source files:
 * The :file:`main` file to handle initialization and light switch basic behavior.
 * An additional :file:`nus_cmd` file for handling NUS commands.
 
-Requirements
-************
+.. _zigbee_light_switch_activating_variants:
 
-The sample supports the following development kits:
+Configuration files for sample extensions
+=========================================
 
-.. table-from-rows:: /includes/sample_board_rows.txt
-   :header: heading
-   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833
+The sample provides predefined configuration files for optional extensions.
+You can find the configuration files in the :file:`samples/zigbee/light_switch` directory.
 
-You can use one or more of the development kits listed above and mix different development kits.
+Activating optional extensions
+------------------------------
 
-For this sample to work, the following samples also need to be programmed:
+To activate the optional extensions supported by this sample, modify :makevar:`OVERLAY_CONFIG` in the following manner:
 
-* The :ref:`Zigbee network coordinator <zigbee_network_coordinator_sample>` sample on one separate device.
-* The :ref:`zigbee_light_bulb_sample` sample on one or more separate devices.
+* For the variant that supports :ref:`lib_zigbee_fota`, set :file:`overlay-fota.conf`.
+  Alternatively, you can :ref:`configure Zigbee FOTA manually <ug_zigbee_configuring_components_ota>`.
 
-Multiprotocol |BLE| extension requirements
-==========================================
+  .. note::
+     The :file:`overlay-fota.conf` file can be used only for nRF52840 DK.
 
-If you enable the :ref:`zigbee_light_switch_sample_nus`, make sure you have a phone or a tablet with the `nRF Toolbox`_ application installed.
+* For the Multiprotocol Bluetooth LE extension, set :file:`overlay-multiprotocol_ble.conf`.
+  Check :ref:`gs_programming_board_names` for the board name to use instead of the ``nrf52840dk_nrf52840``.
 
-.. note::
-    The `Testing`_ instructions refer to nRF Toolbox, but similar applications can be used as well, for example `nRF Connect for Mobile`_.
+See :ref:`cmake_options` for instructions on how to add this option.
+For more information about using configuration overlay files, see :ref:`zephyr:important-build-vars` in the Zephyr documentation.
+
+FEM support
+===========
+
+.. |fem_file_path| replace:: :file:`samples/zigbee/common`
+
+.. include:: /includes/sample_fem_support.txt
 
 .. _zigbee_light_switch_user_interface:
 
@@ -113,13 +155,13 @@ Sleepy End Device behavior assignments
 ======================================
 
 Button 3:
-    When pressed while resetting the board, enable the :ref:`zigbee_ug_sed`.
+    When pressed while resetting the kit, enable the :ref:`zigbee_ug_sed`.
 
-Multiprotocol |BLE| extension assignments
-=========================================
+Multiprotocol Bluetooth LE extension assignments
+================================================
 
 LED 1:
-    On and solid when a |BLE| Central is connected to the NUS service.
+    On and solid when a Bluetooth LE Central is connected to the NUS service.
     Available when using :ref:`nus_service_readme` in the multiprotocol configuration.
 
 UART command assignments:
@@ -142,25 +184,6 @@ Building and running
 |enable_zigbee_before_testing|
 
 .. include:: /includes/build_and_run.txt
-
-.. _zigbee_light_switch_activating_variants:
-
-Activating sample extensions
-============================
-
-To activate the optional extensions supported by this sample, modify :makevar:`OVERLAY_CONFIG` in the following manner:
-
-* For the variant that supports :ref:`lib_zigbee_fota`, set :file:`overlay-fota.conf`.
-  Alternatively, you can :ref:`configure Zigbee FOTA manually <ug_zigbee_configuring_components_ota>`.
-
-  .. note::
-     The :file:`overlay-fota.conf` file can be used only for nRF52840 DK.
-
-* For the Multiprotocol Bluetooth LE extension, set :file:`overlay-multiprotocol_ble.conf`.
-  Check :ref:`gs_programming_board_names` for the board name to use instead of the ``nrf52840dk_nrf52840``.
-
-See :ref:`cmake_options` for instructions on how to add this option.
-For more information about using configuration overlay files, see :ref:`zephyr:important-build-vars` in the Zephyr documentation.
 
 .. _zigbee_light_switch_testing:
 
@@ -186,10 +209,10 @@ You can now use buttons on the development kit to control the light bulb, as des
 
 .. _zigbee_light_switch_testing_ble:
 
-Testing multiprotocol |BLE| extension
--------------------------------------
+Testing multiprotocol Bluetooth LE extension
+--------------------------------------------
 
-To test the multiprotocol |BLE| extension, complete the following steps after the standard `Testing`_ procedure:
+To test the multiprotocol Bluetooth LE extension, complete the following steps after the standard `Testing`_ procedure:
 
 #. Set up nRF Toolbox by completing the following steps:
 
@@ -235,7 +258,7 @@ To test the multiprotocol |BLE| extension, complete the following steps after th
             The UART application of nRF Toolbox after establishing the connection
 
          .. note::
-            Observe that **LED 1** on the light switch node is solid, which indicates that the |BLE| connection is established.
+            Observe that **LED 1** on the light switch node is solid, which indicates that the Bluetooth LE connection is established.
    ..
 
 #. In nRF Toolbox, tap the buttons you assigned:
@@ -257,15 +280,15 @@ Dependencies
 
 This sample uses the following |NCS| libraries:
 
+* :file:`include/zigbee/zigbee_error_handler.h`
+* :ref:`lib_zigbee_application_utilities`
 * Zigbee subsystem:
 
   * :file:`zb_nrf_platform.h`
-  * :file:`zigbee_helpers.h`
-  * :file:`zb_error_handler.h`
 
 * :ref:`dk_buttons_and_leds_readme`
 
-This sample uses the following `nrfxlib`_ libraries:
+This sample uses the following `sdk-nrfxlib`_ libraries:
 
 * :ref:`nrfxlib:zboss`
 
@@ -276,7 +299,7 @@ In addition, it uses the following Zephyr libraries:
 * :ref:`zephyr:logging_api`
 * :ref:`zephyr:pwm_api`
 
-The following dependencies are added by the multiprotocol |BLE| extension:
+The following dependencies are added by the multiprotocol Bluetooth LE extension:
 
 * :ref:`nrfxlib:softdevice_controller`
 * :ref:`nus_service_readme`

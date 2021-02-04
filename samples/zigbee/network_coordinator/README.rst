@@ -11,12 +11,6 @@ This :ref:`Zigbee <ug_zigbee>` network coordinator sample establishes the Zigbee
 
 You can use this sample together with the :ref:`Zigbee light bulb <zigbee_light_bulb_sample>` and the :ref:`Zigbee light switch <zigbee_light_switch_sample>` to set up a basic Zigbee network.
 
-Overview
-********
-
-This Zigbee network coordinator sample demonstrates the Zigbee Coordinator role.
-It is a minimal implementation that supports only the network steering commissioning mechanism.
-
 Requirements
 ************
 
@@ -24,7 +18,7 @@ The sample supports the following development kits:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833
+   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833, nrf5340dk_nrf5340_cpuapp, nrf21540dk_nrf52840
 
 You can use one of the development kits listed above.
 
@@ -34,6 +28,24 @@ Optionally, you can use this sample with one or both of the following samples:
 * The :ref:`Zigbee light switch <zigbee_light_switch_sample>` sample programmed on one or more separate devices.
 
 You can mix different development kits.
+
+Overview
+********
+
+This Zigbee network coordinator sample demonstrates the Zigbee Coordinator role.
+It is a minimal implementation that supports only the network steering commissioning mechanism.
+
+Configuration
+*************
+
+|config|
+
+FEM support
+===========
+
+.. |fem_file_path| replace:: :file:`samples/zigbee/common`
+
+.. include:: /includes/sample_fem_support.txt
 
 User interface
 **************
@@ -89,15 +101,15 @@ Dependencies
 
 This sample uses the following |NCS| libraries:
 
+* :file:`include/zigbee/zigbee_error_handler.h`
+* :ref:`lib_zigbee_application_utilities`
 * Zigbee subsystem:
 
   * :file:`zb_nrf_platform.h`
-  * :file:`zigbee_helpers.h`
-  * :file:`zb_error_handler.h`
 
 * :ref:`dk_buttons_and_leds_readme`
 
-This sample uses the following `nrfxlib`_ libraries:
+This sample uses the following `sdk-nrfxlib`_ libraries:
 
 * :ref:`nrfxlib:zboss`
 

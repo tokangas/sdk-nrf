@@ -7,7 +7,7 @@
 add_subdirectory(bin)
 
 add_subdirectory_ifdef(CONFIG_AGPS agps)
-add_subdirectory_ifdef(CONFIG_BSD_LIBRARY bsdlib)
+add_subdirectory_ifdef(CONFIG_NRF_MODEM_LIB nrf_modem_lib)
 add_subdirectory_ifdef(CONFIG_DK_LIBRARY dk_buttons_and_leds)
 add_subdirectory_ifdef(CONFIG_AT_CMD at_cmd)
 add_subdirectory_ifdef(CONFIG_AT_NOTIF at_notif)
@@ -27,3 +27,4 @@ add_subdirectory_ifdef(CONFIG_MODEM_KEY_MGMT modem_key_mgmt)
 add_subdirectory_ifdef(CONFIG_SMS sms)
 add_subdirectory_ifdef(CONFIG_SUPL_CLIENT_LIB supl)
 add_subdirectory_ifdef(CONFIG_DATE_TIME date_time)
+add_subdirectory_ifdef(CONFIG_EDGE_IMPULSE edge_impulse)
