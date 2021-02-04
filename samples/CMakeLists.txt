@@ -47,6 +47,12 @@ if (CONFIG_SECURE_BOOT)
       SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/bootloader
       )
   endif()
+  if (CONFIG_SOC_NRF5340_CPUAPP AND CONFIG_BOOTLOADER_MCUBOOT)
+      add_overlay_config(
+        mcuboot
+        ${NRF_DIR}/subsys/bootloader/image/log_minimal.conf
+        )
+  endif()
 endif()
 
 # Special handling for the nRF53 when using RPMSG HCI.
@@ -102,4 +108,22 @@ if (CONFIG_NCS_SAMPLE_EMPTY_APP_CORE_CHILD_IMAGE)
     SOURCE_DIR ${NRF_DIR}/samples/nrf5340/empty_app_core
     DOMAIN CPUAPP
     BOARD ${CONFIG_DOMAIN_CPUAPP_BOARD})
+endif()
+
+if (CONFIG_NRF_802154_SER_HOST)
+  if (CONFIG_SOC_NRF5340_CPUAPP)
+
+    message("Adding '802154_rpmsg' sample as child image since "
+      "CONFIG_NRF_802154_SER_HOST is set to y")
+
+    add_child_image(
+      NAME 802154_rpmsg
+      SOURCE_DIR ${ZEPHYR_BASE}/samples/boards/nrf/ieee802154/802154_rpmsg
+      DOMAIN CPUNET
+      BOARD ${CONFIG_DOMAIN_CPUNET_BOARD}
+    )
+  else()
+    message(FATAL_ERROR
+      "Board ${BOARD} not supported for including '802154_rpmsg' as child image")
+  endif()
 endif()

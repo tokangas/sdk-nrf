@@ -9,7 +9,7 @@
 #include <shell/shell.h>
 
 #include <zboss_api.h>
-#include <zb_error_handler.h>
+#include <zigbee/zigbee_error_handler.h>
 #include <zb_nrf_platform.h>
 #include "zigbee_cli.h"
 
@@ -122,8 +122,8 @@ static void zb_zdo_req(uint8_t idx)
 	if (ctx_entry->id == ZB_ZDO_INVALID_TSN) {
 		zb_cli_print_error(ctx_entry->shell, "Failed to send request",
 				   ZB_FALSE);
-		ctx_mgr_delete_entry(ctx_entry);
 		zb_buf_free(req_ctx->buffer_id);
+		ctx_mgr_delete_entry(ctx_entry);
 
 	} else if (req_ctx->ctx_timeout && req_ctx->timeout_cb_fn) {
 		zb_err_code = ZB_SCHEDULE_APP_ALARM(req_ctx->timeout_cb_fn,

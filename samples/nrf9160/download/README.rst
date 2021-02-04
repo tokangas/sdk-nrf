@@ -25,7 +25,7 @@ The sample supports the following development kit:
 Overview
 ********
 
-The sample first initializes the :ref:`nrfxlib:bsdlib` and AT communications.
+The sample first initializes the :ref:`nrfxlib:nrf_modem` and AT communications.
 Next, it provisions a certificate to the modem using the :ref:`modem_key_mgmt` library if the :option:`CONFIG_SAMPLE_SECURE_SOCKET` option is set.
 The provisioning of the certificates must be done before connecting to the LTE network since the certificates can only be provisioned when the device is not connected.
 The certificate file name and security tag can be configured via the :option:`CONFIG_SAMPLE_SEC_TAG` and the :option:`CONFIG_SAMPLE_CERT_FILE` options, respectively.
@@ -64,16 +64,27 @@ Check and configure the following configuration options for the sample:
 
 .. option:: CONFIG_SAMPLE_SECURE_SOCKET - Secure socket configuration
 
-   If enabled, this option provisions the certificate to the modem.
+If enabled, this option provisions the certificate to the modem.
 
 .. option:: CONFIG_SAMPLE_SEC_TAG - Security tag configuration
 
-   This option configures the security tag.
+This option configures the security tag.
 
 .. option:: CONFIG_SAMPLE_CERT_FILE - Certificate file name configuration
 
-   This option sets the certificate file name.
+This option sets the certificate file name.
 
+.. option:: CONFIG_SAMPLE_COMPUTE_HASH - Hash compute configuration
+
+If enabled, this option computes the SHA256 hash of the downloaded file.
+
+.. option:: CONFIG_SAMPLE_COMPARE_HASH - Hash compare configuration
+
+If enabled, this option compares the hash against the SHA256 hash set by :option:`CONFIG_SAMPLE_SHA256_HASH` for a match.
+
+.. option:: CONFIG_SAMPLE_SHA256_HASH - Hash configuration
+
+This option sets the SHA256 hash to be compared with :option:`CONFIG_SAMPLE_COMPUTE_HASH`.
 
 
 Building and running
@@ -87,7 +98,7 @@ Building and running
 Testing
 =======
 
-After programming the sample to your board, test it by performing the following steps:
+After programming the sample to your development kit, test it by performing the following steps:
 
 1. Connect the development kit to your PC using a USB cable and power on or reset the kit.
 #. Open a terminal emulator and observe that the sample starts, provisions certificates, and starts to download.
@@ -112,18 +123,17 @@ The following output is logged on the terminal when the sample downloads a file 
 Dependencies
 ************
 
-This sample uses the following libraries:
+This sample uses the following |NCS| libraries:
 
-From |NCS|
-  * :ref:`at_cmd_readme`
-  * :ref:`at_notif_readme`
-  * :ref:`modem_key_mgmt`
-  * ``lib/lte_link_control``
+* :ref:`at_cmd_readme`
+* :ref:`at_notif_readme`
+* :ref:`modem_key_mgmt`
+* :ref:`lte_lc_readme`
 
-From nrfxlib
-  * :ref:`nrfxlib:bsdlib`
+It uses the following `sdk-nrfxlib`_ library:
 
-In addition, it uses the following samples:
+* :ref:`nrfxlib:nrf_modem`
 
-From |NCS|
-  * :ref:`secure_partition_manager`
+In addition, it uses the following sample:
+
+* :ref:`secure_partition_manager`

@@ -74,10 +74,10 @@ nRF9160
     * Reimplemented the library to enable asynchronous handling of commands and reduce memory usage.
     * Updated all commands to only match ``OK`` or ``ERROR`` in the response if they are at the end (in case those strings are part of the response, like in certificate).
 
-  * :ref:`nrfxlib:bsdlib`:
+  * BSD library:
 
     * Updated to version 0.8.1.
-      See the :ref:`nrfxlib:bsdlib_changelog` for detailed information.
+      See the :ref:`nrfxlib:nrf_modem_changelog` for detailed information.
 
   * :ref:`coap_utils_readme` library:
 
@@ -131,13 +131,13 @@ nRF9160
 
 * :ref:`supl_client` library and :ref:`agps_sample` sample:
 
-    * Renamed the sample from nRF Cloud A-GPS.
-    * Added a common A-GPS interface for SUPL and nRF Cloud A-GPS service.
-    * Added sending of service information after a successful connection to `nRF Cloud`_ has been made.
+    * Renamed the sample from nRF Connect for Cloud A-GPS.
+    * Added a common A-GPS interface for SUPL and nRF Connect for Cloud A-GPS service.
+    * Added sending of service information after a successful connection to `nRF Connect for Cloud`_ has been made.
 
 * :ref:`asset_tracker` application:
 
-    * Added handling of sensor channel ``get`` commands received from `nRF Cloud`_.
+    * Added handling of sensor channel ``get`` commands received from `nRF Connect for Cloud`_.
     * Added event handler for :ref:`lte_lc_readme` events.
     * Added the detection feature when there is no SIM card in the slot.
     * Added support for Bosch BSEC library 1.4.8.0 (see :ref:`zephyr:bme680`).
@@ -377,18 +377,18 @@ Crypto
     * Renamed include files from :file:`nrf_cc310_platform_xxxx.h` to :file:`nrf_cc3xx_platform_xxxx.h`.
     * Added experimental support for Arm CryptoCell CC312 available on nRF5340 devices.
     * Added APIs to store cryptographic keys in the KMU hardware peripheral available on nRF9160 and nRF5340 devices.
-      For details, see :file:`crypto/nrf_cc310_platform/include/nrf_cc3xx_platform_kmu.h` in `nrfxlib`_.
+      For details, see :file:`crypto/nrf_cc310_platform/include/nrf_cc3xx_platform_kmu.h` in `sdk-nrfxlib`_.
     * Added APIs to generate CSPRNG.
-      For details, see :file:`crypto/nrf_cc310_platform/include/nrf_cc3xx_platform_ctr_drbg.h` in `nrfxlib`_.
+      For details, see :file:`crypto/nrf_cc310_platform/include/nrf_cc3xx_platform_ctr_drbg.h` in `sdk-nrfxlib`_.
 
     See the :ref:`crypto_changelog_nrf_cc3xx_platform` for detailed information.
   * nrf_cc3xx_mbedcrypto version v0.9.4, with the following highlights:
 
     * Added experimental support for Arm CryptoCell CC312 available on nRF5340 devices.
     * Added APIs to derive cryptographic key material from KDR on nRF52840 and nRF9160 devices.
-      For details, see :file:`crypto/nrf_cc310_mbedcrypto/include/mbedtls/cc3xx_kmu.h` in `nrfxlib`_.
+      For details, see :file:`crypto/nrf_cc310_mbedcrypto/include/mbedtls/cc3xx_kmu.h` in `sdk-nrfxlib`_.
     * Added APIs to use keys stored in KMU on nRF9160 and nRF5340 devices.
-      For details, see :file:`crypto/nrf_cc310_mbedcrypto/include/mbedtls/cc3xx_kmu.h` in `nrfxlib`_.
+      For details, see :file:`crypto/nrf_cc310_mbedcrypto/include/mbedtls/cc3xx_kmu.h` in `sdk-nrfxlib`_.
 
     See the :ref:`crypto_changelog_nrf_cc3xx_mbedcrypto` for detailed information.
   * RNG support in nRF5340 application core (using Secure Partition Manager's :ref:`lib_secure_services` and nrf_cc312_platform library).
@@ -521,7 +521,7 @@ Additions specific to |NCS|
 The following list contains |NCS| specific additions:
 
 * Added support for the |NCS|'s :ref:`partition_manager`, which can be used for flash partitioning.
-* Added the following network socket and address extensions to the :ref:`zephyr:bsd_sockets_interface` interface to support the functionality provided by the :ref:`nrfxlib:bsdlib`:
+* Added the following network socket and address extensions to the :ref:`zephyr:bsd_sockets_interface` interface to support the functionality provided by the BSD library:
 
   * AF_LTE
   * NPROTO_AT
@@ -616,7 +616,7 @@ Zigbee
 * :ref:`zigbee_light_switch_sample` - added a note about :file:`overlay.conf`
 * :ref:`ug_zigbee` - updated by reorganizing structure and adding new pages
 
-  * :ref:`zigbee_ug_intro` - added as a separate page (was a section of :ref:`ug_zigbee`)
+  * Zigbee overview - added as a separate page (was a section of :ref:`ug_zigbee`)
   * :ref:`ug_zigbee_architectures` - added
   * :ref:`ug_zigbee_configuring` - added as a separate page (was a section of :ref:`ug_zigbee`)
   * :ref:`ug_zigbee_configuring_libraries` - added

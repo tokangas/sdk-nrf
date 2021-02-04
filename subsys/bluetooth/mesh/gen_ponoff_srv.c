@@ -175,12 +175,26 @@ const struct bt_mesh_onoff_srv_handlers _bt_mesh_ponoff_onoff_intercept = {
 	.get = onoff_intercept_get,
 };
 
+static int update_handler(struct bt_mesh_model *model)
+{
+	struct bt_mesh_ponoff_srv *srv = model->user_data;
+
+	bt_mesh_model_msg_init(srv->ponoff_model->pub->msg,
+			       BT_MESH_PONOFF_OP_STATUS);
+	net_buf_simple_add_u8(srv->ponoff_model->pub->msg, srv->on_power_up);
+	return 0;
+}
+
+
 static int bt_mesh_ponoff_srv_init(struct bt_mesh_model *model)
 {
 	struct bt_mesh_ponoff_srv *srv = model->user_data;
 
 	srv->ponoff_model = model;
-	net_buf_simple_init(model->pub->msg, 0);
+	srv->pub.msg = &srv->pub_buf;
+	srv->pub.update = update_handler;
+	net_buf_simple_init_with_data(&srv->pub_buf, srv->pub_data,
+				      sizeof(srv->pub_data));
 
 	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
 		/* Model extensions:
@@ -209,6 +223,11 @@ static void bt_mesh_ponoff_srv_reset(struct bt_mesh_model *model)
 	struct bt_mesh_ponoff_srv *srv = model->user_data;
 
 	srv->on_power_up = BT_MESH_ON_POWER_UP_OFF;
+	net_buf_simple_reset(srv->pub.msg);
+	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+		(void)bt_mesh_model_data_store(srv->ponoff_model, false, NULL,
+					       NULL, 0);
+	}
 }
 
 #ifdef CONFIG_BT_SETTINGS
@@ -260,16 +279,6 @@ const struct bt_mesh_model_cb _bt_mesh_ponoff_srv_cb = {
 	.settings_set = bt_mesh_ponoff_srv_settings_set,
 #endif
 };
-
-int _bt_mesh_ponoff_srv_update_handler(struct bt_mesh_model *model)
-{
-	struct bt_mesh_ponoff_srv *srv = model->user_data;
-
-	bt_mesh_model_msg_init(srv->ponoff_model->pub->msg,
-			       BT_MESH_PONOFF_OP_STATUS);
-	net_buf_simple_add_u8(srv->ponoff_model->pub->msg, srv->on_power_up);
-	return 0;
-}
 
 void bt_mesh_ponoff_srv_set(struct bt_mesh_ponoff_srv *srv,
 			    enum bt_mesh_on_power_up on_power_up)

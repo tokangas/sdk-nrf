@@ -19,7 +19,7 @@ config MQTT_CLIENT_ID
 
 config MQTT_BROKER_HOSTNAME
 	string "MQTT broker hostname"
-	default "mqtt.eclipse.org"
+	default "mqtt.eclipseprojects.io"
 
 config MQTT_BROKER_PORT
 	int "MQTT broker port"
@@ -32,6 +32,22 @@ config MQTT_MESSAGE_BUFFER_SIZE
 config MQTT_PAYLOAD_BUFFER_SIZE
 	int "MQTT payload buffer size"
 	default 128
+
+config BUTTON_EVENT_PUBLISH_MSG
+	string "The message to publish on a button event"
+	default "Hello from nRF91 MQTT Simple Sample"
+
+config BUTTON_EVENT_BTN_NUM
+	int "The button number"
+	default 1
+
+config MQTT_RECONNECT_DELAY_S
+	int "Seconds to delay before attempting to reconnect to the broker."
+	default 60
+
+config LTE_CONNECT_RETRY_DELAY_S
+	int "Seconds to delay before attempting to retry LTE connection."
+	default 120
 
 config MQTT_TLS_SEC_TAG
 	int "TLS credentials security tag"
@@ -52,3 +68,7 @@ endmenu
 menu "Zephyr Kernel"
 source "Kconfig.zephyr"
 endmenu
+
+module = MQTT_SIMPLE
+module-str = MQTT Simple
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"

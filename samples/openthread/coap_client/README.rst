@@ -31,12 +31,19 @@ For example usage of the native Thread CoAP API, see the :ref:`coap_server_sampl
 
 .. _coap_client_sample_multi_ext:
 
-Multiprotocol |BLE| extension
-=============================
+Multiprotocol Bluetooth LE extension
+====================================
 
 This optional extension can demonstrate the OpenThread stack and :ref:`nrfxlib:softdevice_controller` working concurrently.
-It uses the :ref:`nus_service_readme` library to control the LED states over |BLE| in a Thread network.
+It uses the :ref:`nus_service_readme` library to control the LED states over Bluetooth LE in a Thread network.
 For more information about the multiprotocol feature, see :ref:`ug_multiprotocol_support`.
+
+FEM support
+===========
+
+.. |fem_file_path| replace:: :file:`samples/openthread/common`
+
+.. include:: /includes/sample_fem_support.txt
 
 Requirements
 ************
@@ -45,7 +52,10 @@ The sample supports the following development kits:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833
+   :rows: nrf5340dk_nrf5340_cpuapp, nrf52840dk_nrf52840, nrf52833dk_nrf52833, nrf21540dk_nrf52840
+
+.. note::
+   The multiprotocol variant is not supported on nRF53 Series devices yet.
 
 You can use one or more of the development kits listed above as the Thread CoAP Client.
 You also need one or more compatible development kits programmed with the :ref:`coap_server_sample` sample.
@@ -93,11 +103,11 @@ Button 3:
 
 For more information, see :ref:`thread_ug_device_type` in the Thread user guide.
 
-Multiprotocol |BLE| extension assignments
-=========================================
+Multiprotocol Bluetooth LE extension assignments
+================================================
 
 LED 2:
-   On when |BLE| connection is established.
+   On when Bluetooth LE connection is established.
 
 UART command assignments:
    The following command assignments are configured and used in nRF Toolbox when :ref:`coap_client_sample_testing_ble`:
@@ -167,10 +177,10 @@ Switching between SED and MED modes does not affect the standard testing procedu
 
 .. _coap_client_sample_testing_ble:
 
-Testing multiprotocol |BLE| extension
--------------------------------------
+Testing multiprotocol Bluetooth LE extension
+--------------------------------------------
 
-To test the multiprotocol |BLE| extension, complete the following steps after the standard `Testing`_ procedure:
+To test the multiprotocol Bluetooth LE extension, complete the following steps after the standard `Testing`_ procedure:
 
 #. Set up nRF Toolbox by completing the following steps:
 
@@ -234,9 +244,6 @@ Sample output
 The sample logging output can be observed through a serial port.
 For more details, see :ref:`putty`.
 
-.. note::
-     |thread_hwfc_enabled|
-
 Dependencies
 ************
 
@@ -259,7 +266,7 @@ In addition, it uses the following Zephyr libraries:
 
   * ``include/kernel.h``
 
-The following dependencies are added by the optional multiprotocol |BLE| extension:
+The following dependencies are added by the optional multiprotocol Bluetooth LE extension:
 
 * :ref:`nrfxlib:softdevice_controller`
 * :ref:`nus_service_readme`

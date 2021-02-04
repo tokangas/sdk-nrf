@@ -11,14 +11,24 @@
 #include <sys/__assert.h>
 #include <mpsl.h>
 #include <mpsl_timeslot.h>
+#include "mpsl_fem_internal.h"
 #include "multithreading_lock.h"
+#if defined(CONFIG_NRFX_DPPI)
+#include <nrfx_dppi.h>
+#endif
 
 LOG_MODULE_REGISTER(mpsl_init, CONFIG_MPSL_LOG_LEVEL);
+
+/* The following two constants are used in nrfx_glue.h for marking these PPI
+ * channels and groups as occupied and thus unavailable to other modules.
+ */
+const uint32_t z_mpsl_used_nrf_ppi_channels = MPSL_RESERVED_PPI_CHANNELS;
+const uint32_t z_mpsl_used_nrf_ppi_groups;
 
 #if IS_ENABLED(CONFIG_SOC_SERIES_NRF52X)
 	#define MPSL_LOW_PRIO_IRQn SWI5_IRQn
 #elif IS_ENABLED(CONFIG_SOC_SERIES_NRF53X)
-	#define MPSL_LOW_PRIO_IRQn EGU0_IRQn
+	#define MPSL_LOW_PRIO_IRQn SWI0_IRQn
 #endif
 #define MPSL_LOW_PRIO (4)
 
@@ -130,12 +140,38 @@ static int mpsl_lib_init(const struct device *dev)
 	int err = 0;
 	mpsl_clock_lfclk_cfg_t clock_cfg;
 
+#if !defined(CONFIG_BT_CTLR) && defined(CONFIG_NRFX_DPPI)
+	/* When the Bluetooth controller is used, it will include the DPPI
+	 * channels that MPSL uses in the mask that it provides for nrfx.
+	 * Otherwise, if additionaly the nrfx DPPI allocator is used (what
+	 * indicates that some other module will use some DPPI channels),
+	 * those channels needed by MPSL must be reserved in some other way.
+	 * Currently it is not possible to do it in nrfx_glue.h, so the below
+	 * code is used as a temporarily workaround.
+	 * Unfortunatelly, for PPI a similar workaround cannot be used.
+	 */
+	uint8_t channel;
+	nrfx_err_t err_code;
+	err_code = nrfx_dppi_channel_alloc(&channel);
+	__ASSERT_NO_MSG(err_code == NRFX_SUCCESS && channel == 0);
+	err_code = nrfx_dppi_channel_alloc(&channel);
+	__ASSERT_NO_MSG(err_code == NRFX_SUCCESS && channel == 1);
+	err_code = nrfx_dppi_channel_alloc(&channel);
+	__ASSERT_NO_MSG(err_code == NRFX_SUCCESS && channel == 2);
+#endif
+
 	clock_cfg.source = m_config_clock_source_get();
 	clock_cfg.accuracy_ppm = CONFIG_CLOCK_CONTROL_NRF_ACCURACY;
+	clock_cfg.skip_wait_lfclk_started =
+		IS_ENABLED(CONFIG_SYSTEM_CLOCK_NO_WAIT);
 
-#ifdef CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC
-	clock_cfg.rc_ctiv = MPSL_RECOMMENDED_RC_CTIV;
-	clock_cfg.rc_temp_ctiv = MPSL_RECOMMENDED_RC_TEMP_CTIV;
+#ifdef CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC_CALIBRATION
+	/* clock_cfg.rc_ctiv is given in 1/4 seconds units.
+	 * CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_PERIOD is given in ms. */
+	clock_cfg.rc_ctiv = (CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_PERIOD * 4 / 1000);
+	clock_cfg.rc_temp_ctiv = CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP + 1;
+	BUILD_ASSERT(CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_TEMP_DIFF == 2,
+		     "MPSL always uses a temperature diff threshold of 0.5 degrees");
 #else
 	clock_cfg.rc_ctiv = 0;
 	clock_cfg.rc_temp_ctiv = 0;
@@ -160,6 +196,13 @@ static int mpsl_lib_init(const struct device *dev)
 			   mpsl_rtc0_isr_wrapper, IRQ_ZERO_LATENCY);
 	IRQ_DIRECT_CONNECT(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY,
 			   mpsl_radio_isr_wrapper, IRQ_ZERO_LATENCY);
+
+#if IS_ENABLED(CONFIG_MPSL_FEM)
+	err = mpsl_fem_configure();
+	if (err) {
+		return err;
+	}
+#endif
 
 	return 0;
 }

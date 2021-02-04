@@ -31,9 +31,6 @@ struct bt_mesh_ponoff_cli;
 #define BT_MESH_PONOFF_CLI_INIT(_power_onoff_status_handler)                   \
 	{                                                                      \
 		.status_handler = _power_onoff_status_handler,                 \
-		.pub = { .msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(          \
-				 BT_MESH_PONOFF_OP_SET,                        \
-				 BT_MESH_PONOFF_MSG_LEN_SET)) },               \
 	}
 
 /** @def BT_MESH_MODEL_PONOFF_CLI
@@ -59,6 +56,11 @@ struct bt_mesh_ponoff_cli {
 	struct bt_mesh_model *model;
 	/** Publish parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(BT_MESH_PONOFF_OP_SET,
+					       BT_MESH_PONOFF_MSG_LEN_SET)];
 	/** Response context for tracking acknowledged messages. */
 	struct bt_mesh_model_ack_ctx ack_ctx;
 
@@ -88,8 +90,6 @@ struct bt_mesh_ponoff_cli {
  * @retval 0 Successfully sent a get message. If a response buffer is
  * provided, it has been populated.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -115,8 +115,6 @@ int bt_mesh_ponoff_cli_on_power_up_get(struct bt_mesh_ponoff_cli *cli,
  * @retval 0 Successfully sent a set message. If a response buffer is
  * provided, it has been populated.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -135,8 +133,6 @@ int bt_mesh_ponoff_cli_on_power_up_set(struct bt_mesh_ponoff_cli *cli,
  * @param[in] on_power_up New OnPowerUp state of the server.
  *
  * @retval 0 Successfully sent a set message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.

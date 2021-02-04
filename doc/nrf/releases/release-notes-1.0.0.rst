@@ -115,7 +115,7 @@ nRF9160
 BSD library
 -----------
 
-* Updated bsdlib to version 0.3.3.
+* Updated BSD library to version 0.3.3.
 * Introduced a new header :file:`bsdlib.h` to be used by the application to initialize and shut down the library.
 * Library initialization during system initialization (``SYS_INIT``) is now optional, and controlled via ``Kconfig``. The default behavior is unchanged.
 
@@ -262,7 +262,7 @@ Known issues
 nRF9160
 =======
 
-* The :ref:`asset_tracker` sample does not wait for connection to nRF Cloud before trying to send data.
+* The :ref:`asset_tracker` sample does not wait for connection to nRF Connect for Cloud before trying to send data.
   This causes the sample to crash if the user toggles one of the switches before the board is connected to the cloud.
 * The :ref:`asset_tracker` sample might show up to 2.5 mA current consumption in idle mode with ``CONFIG_POWER_OPTIMIZATION_ENABLE=y``.
 * If a debugger (for example, J-Link) is connected via SWD to the nRF9160, the modem firmware will reset.

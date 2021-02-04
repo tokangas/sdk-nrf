@@ -11,16 +11,17 @@ menuconfig ZIGBEE
 	select PM_SINGLE_IMAGE
 	select NET_L2_ZIGBEE
 	select NETWORKING
+	select NET_PKT_TXTIME
 	imply MPSL
 	imply COUNTER
-	imply COUNTER_TIMER3
+	imply COUNTER_TIMER2
 	imply ENTROPY_GENERATOR
 	imply POLL
 	imply FLASH
 	imply FLASH_PAGE_LAYOUT
 	imply FLASH_MAP
 	imply MPU_ALLOW_FLASH_WRITE
-	depends on (SOC_NRF52840 || SOC_NRF52833)
+	depends on (SOC_NRF52840 || SOC_NRF52833 || SOC_NRF5340_CPUAPP)
 
 if ZIGBEE
 
@@ -118,12 +119,6 @@ config ZIGBEE_ERROR_TO_STRING_ENABLED
 	help
 	  Include functions for mapping ZBOSS errors to string.
 
-config ZIGBEE_SHELL_LOG_ENABLED
-	bool "Include functions for Zigbee Shell logging"
-	default y
-	help
-	  Include functions for Zigbee Shell logging.
-
 # Configure ZBOSS_TRACE_LOG_LEVEL
 choice
 	prompt "Max compiled-in log level for ZBOSS trace"
@@ -205,11 +200,6 @@ module = ZBOSS_OSIF
 module-str = ZBOSS osif layer
 source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
-# Configure ZIGBEE_HELPERS_LOG_LEVEL
-module = ZIGBEE_HELPERS
-module-str = Zigbee helper routines
-source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
-
 endmenu #menu "Zigbee Log configuration"
 
 menu "ZBOSS osif configuration"
@@ -252,6 +242,10 @@ config ZIGBEE_UART_TX_BUF_LEN
 
 endif #ZIGBEE_HAVE_SERIAL
 
+config ZIGBEE_USE_SOFTWARE_AES
+	bool "Use software based AES"
+	select TINYCRYPT
+	default n
 
 config ZIGBEE_USE_LEDS
 	bool "LEDs abstract for ZBOSS OSIF"
@@ -278,6 +272,7 @@ if ZIGBEE_SHELL
 config ZIGBEE_SHELL_DEBUG_CMD
 	bool "Enable debug shell commands"
 	select ZIGBEE_DEBUG_FUNCTIONS
+	imply ZIGBEE_LOGGER_EP
 	help
 	  This option enables:
 

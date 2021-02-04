@@ -8,7 +8,7 @@
 #include <shell/shell.h>
 
 #include <zboss_api.h>
-#include <zb_error_handler.h>
+#include <zigbee/zigbee_error_handler.h>
 #include <zb_nrf_platform.h>
 #include "zigbee_cli.h"
 
@@ -456,7 +456,6 @@ void zb_install_code_add(zb_uint8_t param)
 	}
 	ic_add_ctx.taken = false;
 }
-
 
 /**@brief Set install code on the device, add information about the install code
  *  on the trust center, set the trust center install code policy.

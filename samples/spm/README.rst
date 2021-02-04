@@ -10,6 +10,9 @@ Secure Partition Manager
 The Secure Partition Manager sample provides a reference use of the System Protection Unit peripheral.
 This firmware is required to set up an nRF device with Trusted Execution (|trusted_execution|) so that it can run user applications in the non-secure domain.
 
+.. note::
+   An alternative for using the SPM is Trusted Firmware-M (TF-M). See :ref:`ug_tfm`.
+
 Overview
 ********
 
@@ -60,7 +63,7 @@ The sample supports the following development kits:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf5340pdk_nrf5340_cpuapp, nrf9160dk_nrf9160
+   :rows: nrf5340dk_nrf5340_cpuapp, nrf9160dk_nrf9160
 
 Building and running
 ********************
@@ -69,14 +72,14 @@ Building and running
 
 .. include:: /includes/build_and_run.txt
 
-The sample is built as a secure firmware image for the nrf9160dk_nrf9160 and nrf5340pdk_nrf5340 boards.
+The sample is built as a secure firmware image for the nrf9160dk_nrf9160 and nrf5340dk_nrf5340 build targets.
 See `Automatic building of SPM`_ if you want to program it independently from the non-secure application firmware.
 
 
 Testing
 =======
 
-Program both the sample and your application firmware to the board.
+Program both the sample and your application firmware to the development kit.
 After power-up, the sample starts your application firmware.
 
 Observe that the application firmware operates as expected.

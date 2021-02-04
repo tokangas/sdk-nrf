@@ -32,12 +32,6 @@ struct bt_mesh_battery_srv;
 #define BT_MESH_BATTERY_SRV_INIT(_get_handler)                                 \
 	{                                                                      \
 		.get = _get_handler,                                           \
-		.pub = {                                                       \
-			.update = _bt_mesh_battery_srv_update_handler,         \
-			.msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(           \
-				BT_MESH_BATTERY_OP_STATUS,                     \
-				BT_MESH_BATTERY_MSG_LEN_STATUS)),              \
-		},                                                             \
 	}
 
 /** @def BT_MESH_MODEL_BATTERY_SRV
@@ -62,6 +56,11 @@ struct bt_mesh_battery_srv {
 	struct bt_mesh_model *model;
 	/** Publication parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(BT_MESH_BATTERY_OP_STATUS,
+					       BT_MESH_BATTERY_MSG_LEN_STATUS)];
 
 	/** @brief Get the Battery state.
 	 *
@@ -84,8 +83,8 @@ struct bt_mesh_battery_srv {
  * Asynchronously publishes a Generic Battery status message with the
  * configured publish parameters.
  *
- * @note This API is only used publishing unprompted status messages. Response
- * messages for get and set messages are handled internally.
+ * @note This API is only used for publishing unprompted status messages.
+ * Response messages for get and set messages are handled internally.
  *
  * @param[in] srv Server instance to publish on.
  * @param[in] ctx Message context to send with, or NULL to send with the
@@ -93,8 +92,6 @@ struct bt_mesh_battery_srv {
  * @param[in] status Current status.
  *
  * @retval 0 Successfully published a Generic Battery Status message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -106,7 +103,6 @@ int32_t bt_mesh_battery_srv_pub(struct bt_mesh_battery_srv *srv,
 /** @cond INTERNAL_HIDDEN */
 extern const struct bt_mesh_model_op _bt_mesh_battery_srv_op[];
 extern const struct bt_mesh_model_cb _bt_mesh_battery_srv_cb;
-int _bt_mesh_battery_srv_update_handler(struct bt_mesh_model *model);
 /** @endcond */
 
 #ifdef __cplusplus

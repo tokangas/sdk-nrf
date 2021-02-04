@@ -31,9 +31,6 @@ struct bt_mesh_onoff_cli;
 #define BT_MESH_ONOFF_CLI_INIT(_status_handler)                                \
 	{                                                                      \
 		.status_handler = _status_handler,                             \
-		.pub = {.msg = NET_BUF_SIMPLE(BT_MESH_MODEL_BUF_LEN(           \
-				BT_MESH_ONOFF_OP_SET,                          \
-				BT_MESH_ONOFF_MSG_MAXLEN_SET)) }               \
 	}
 
 /** @def BT_MESH_MODEL_ONOFF_CLI
@@ -71,6 +68,11 @@ struct bt_mesh_onoff_cli {
 	struct bt_mesh_model_ack_ctx ack_ctx;
 	/** Publish parameters. */
 	struct bt_mesh_model_pub pub;
+	/* Publication buffer */
+	struct net_buf_simple pub_buf;
+	/* Publication data */
+	uint8_t pub_data[BT_MESH_MODEL_BUF_LEN(BT_MESH_ONOFF_OP_SET,
+					       BT_MESH_ONOFF_MSG_MAXLEN_SET)];
 	/** Access model pointer. */
 	struct bt_mesh_model *model;
 };
@@ -88,8 +90,6 @@ struct bt_mesh_onoff_cli {
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -111,12 +111,10 @@ int bt_mesh_onoff_cli_get(struct bt_mesh_onoff_cli *cli,
  * @param[in] set New OnOff parameters to set. @p set::transition can either
  * point to a transition structure, or be left to NULL to use the default
  * transition parameters on the server.
- * @param[in] rsp Status response buffer, or NULL to keep from blocking.
+ * @param[out] rsp Status response buffer, or NULL to keep from blocking.
  *
  * @retval 0 Successfully sent the message and populated the @p rsp buffer.
  * @retval -EALREADY A blocking request is already in progress.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -137,8 +135,6 @@ int bt_mesh_onoff_cli_set(struct bt_mesh_onoff_cli *cli,
  * transition parameters on the server.
  *
  * @retval 0 Successfully sent the message.
- * @retval -ENOTSUP A message context was not provided and publishing is not
- * supported.
  * @retval -EADDRNOTAVAIL A message context was not provided and publishing is
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
@@ -158,4 +154,4 @@ extern const struct bt_mesh_model_cb _bt_mesh_onoff_cli_cb;
 
 #endif /* BT_MESH_GEN_ONOFF_CLI_H__ */
 
-/* @} */
+/** @} */

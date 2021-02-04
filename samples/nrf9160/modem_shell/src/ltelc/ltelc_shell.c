@@ -11,9 +11,12 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include <modem/at_cmd.h>
+
 #include "ltelc.h"
 #include "ltelc_api.h"
 #include "ltelc_shell.h"
+#include "ltelc_settings.h"
 
 #define LTELC_SHELL_EDRX_VALUE_STR_LENGTH 4
 #define LTELC_SHELL_EDRX_PTW_STR_LENGTH 4
@@ -21,6 +24,8 @@
 
 typedef enum {
 	LTELC_CMD_STATUS = 0,
+	LTELC_CMD_DEFCONT,
+	LTELC_CMD_DEFCONTAUTH,
 	LTELC_CMD_RSRP,
 	LTELC_CMD_CONNECT,
 	LTELC_CMD_DISCONNECT,
@@ -59,6 +64,10 @@ const char ltelc_usage_str[] =
 	"<command> is one of the following:\n"
 	"  help:                    Show this message\n"
 	"  status:                  Show status of the current connection\n"
+	"  defcont:                 Set custom default PDP context config. Permanent between the sessions.\n"
+	"                           Effective when going to normal mode.\n"
+	"  defcontauth:             Set custom authentication parameters for the default PDP context.\n"
+	"                           Permanent between the sessions. Effective when going to normal mode.\n"
 	"  connect:                 Connect to given apn\n"
 	"  disconnect:              Disconnect from given apn\n"
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
@@ -66,6 +75,21 @@ const char ltelc_usage_str[] =
 	"  sysmode:                 Set/read system modes of the modem\n"
 	"  edrx:                    Enable/disable eDRX with default or with custom parameters\n"
 	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
+	"\n"
+	"Options for 'defcont' command:\n"
+	"  -r, --read,       [bool] Read and print current config\n"
+	"  -e, --enable,     [bool] Enable custom config for default PDP context\n"
+	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
+	"  -a, --apn,        [str]  Set default Access Point Name\n"
+	"  -f, --family,     [str]  Address family: 'ipv4v6' (default), 'ipv4', 'ipv6'\n"
+	"\n"
+	"Options for 'defcontauth' command:\n"
+	"  -r, --read,       [bool] Read and print current config\n"
+	"  -e, --enable,     [bool] Enable custom config for default PDP context\n"
+	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
+	"  -U, --uname,      [str]  Username\n"
+	"  -P, --pword,      [str]  Password\n"
+	"  -A, --aprot,      [int]  Authentication protocol (Default: 0 (None), 1 (PAP), 2 (CHAP)\n"
 	"\n"
 	"Options for 'connect' command:\n"
 	"  -a, --apn,        [str]  Access Point Name\n"
@@ -127,6 +151,9 @@ static struct option long_options[] = {
     {"disable",                 no_argument,       0,  'd' },
     {"edrx_value",              required_argument, 0,  'x' },
     {"ptw",                     required_argument, 0,  'w' },
+    {"prot",                    required_argument, 0,  'A' },
+    {"pword",                   required_argument, 0,  'P' },
+    {"uname",                   required_argument, 0,  'U' },
     {"rptau",                   required_argument, 0,  'p' },
     {"rat",                     required_argument, 0,  't' },
     {0,                         0,                 0,   0  }
@@ -197,7 +224,6 @@ static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff
 }
 
 //**************************************************************************
-
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	ltelc_shell_cmd_args_t ltelc_cmd_args;
@@ -208,6 +234,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	bool require_option = false;
 	char *apn = NULL;
 	char *family = NULL;
+	int protocol = 0;
+	bool protocol_given = false;
+	char *username = NULL;
+	char *password = NULL;
 	int pdn_cid = 0;
 
 	ltelc_shell_cmd_defaults_set(&ltelc_cmd_args);
@@ -224,12 +254,15 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		require_rsrp_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_RSRP;
 	} else if (strcmp(argv[1], "connect") == 0) {
-		//TODO: setting family for connect and print connections after connect and disconnect
 		require_apn = true;
 		ltelc_cmd_args.command = LTELC_CMD_CONNECT;
 	} else if (strcmp(argv[1], "disconnect") == 0) {
 		require_apn_or_pdn_cid = true;
 		ltelc_cmd_args.command = LTELC_CMD_DISCONNECT;
+	} else if (strcmp(argv[1], "defcont") == 0) {
+		ltelc_cmd_args.command = LTELC_CMD_DEFCONT;
+	} else if (strcmp(argv[1], "defcontauth") == 0) {
+		ltelc_cmd_args.command = LTELC_CMD_DEFCONTAUTH;
 	} else if (strcmp(argv[1], "funmode") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_FUNMODE;
@@ -256,6 +289,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
     
 	int long_index = 0;
 	int opt;
+	int apn_len = 0;
 
 	char edrx_value_str[LTELC_SHELL_EDRX_VALUE_STR_LENGTH + 1];
 	bool edrx_value_set = false;
@@ -267,9 +301,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	char psm_rat_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
 	bool psm_rat_set = false;
 
-	while ((opt = getopt_long(argc, argv, "a:I:f:x:w:p:t:su014rmngMNed", long_options, &long_index)) != -1) {
-		int apn_len = 0;
-
+	while ((opt = getopt_long(argc, argv, "a:I:f:x:w:p:t:A:P:U:su014rmngMNed", long_options, &long_index)) != -1) {
 		switch (opt) {
 		/* RSRP: */
 		case 's':
@@ -386,6 +418,22 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			family = optarg;
 			break;
 			}
+		case 'A': // defcont auth protocol
+			{
+			protocol = atoi(optarg);
+			protocol_given = true;
+			break;
+			}
+		case 'U': // defcont auth username
+			{
+			username = optarg;
+			break;
+			}
+		case 'P': // defcont auth password
+			{
+			password = optarg;
+			break;
+			}
 		case '?':
 			goto show_usage;
 			break;
@@ -419,6 +467,64 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	bool online = false;
 
 	switch (ltelc_cmd_args.command) {
+		case LTELC_CMD_DEFCONT:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				ltelc_sett_defcont_conf_shell_print(shell);
+			}
+			else {
+				if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+					ltelc_sett_save_defcont_enabled(true);
+				}
+				else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+					static char cgdcont[] = "AT+CGDCONT=0";
+
+					if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
+						shell_warn(shell, "Disabling cannot be done.");
+						shell_warn(shell, "Please note that disabling can be only done in funmode flightmode.");
+					}
+					else {
+						ltelc_sett_save_defcont_enabled(false);
+						shell_print(shell, "Custom default context config disabled.");
+					}
+				}
+				if (apn != NULL) {
+					(void)ltelc_sett_save_defcont_apn(apn);
+				}
+				if (family != NULL) {
+					(void)ltelc_sett_save_defcont_ip_family(family);
+				}
+			}
+			break;
+		case LTELC_CMD_DEFCONTAUTH:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				ltelc_sett_defcontauth_conf_shell_print(shell);
+			} 
+			else {
+				if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+					if (ltelc_sett_save_defcontauth_enabled(true) < 0) {
+						shell_warn(shell, "Cannot enable authentication.");
+					}
+				}
+				else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+					static char cgauth[] = "AT+CGAUTH=0,0";
+
+					if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
+						shell_warn(shell, "Disabling of auth cannot be done to modem.");
+					}
+					ltelc_sett_save_defcontauth_enabled(false);
+				}
+				if (protocol_given) {
+					(void)ltelc_sett_save_defcontauth_prot(protocol);
+				}
+				if (username != NULL) {
+					(void)ltelc_sett_save_defcontauth_username(username);
+				}
+				if (password != NULL) {
+					(void)ltelc_sett_save_defcontauth_password(password);
+				}
+			}
+			break;
+
 		case LTELC_CMD_STATUS:
 			ret = lte_lc_system_mode_get(&sys_mode_current);
 			if (ret >= 0)

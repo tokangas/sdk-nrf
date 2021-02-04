@@ -57,7 +57,7 @@ GATT Latency Service
      - BT_UUID_LATENCY_CHAR
      - BT_GATT_CHRC_WRITE, BT_GATT_PERM_WRITE
 
-This sample transmits data between two boards to measure the transmission latency in between.
+This sample transmits data between two development kits to measure the transmission latency in between.
 One of the devices is connected as a *master* and another is connected as a *slave*.
 The performance is evaluated with the transmission latency dividing the estimated round-trip time in half (RTT / 2).
 
@@ -79,15 +79,16 @@ By default, the following values are used to demonstrates the interaction of the
 Requirements
 ************
 
-* Two of the following development boards:
+The sample supports the following development kits:
 
-  * |nRF52840DK|
-  * |nRF52DK|
-  * |nRF5340DK|
-  * Other boards running SoftDevice Controller variants that support LLPM (see :ref:`nrfxlib:softdevice_controller` Proprietary feature support)
+.. table-from-rows:: /includes/sample_board_rows.txt
+   :header: heading
+   :rows: nrf5340dk_nrf5340_cpuapp_and_cpuappns,nrf52840dk_nrf52840, nrf52833dk_nrf52833, nrf52dk_nrf52832
 
-  You can mix different boards.
-* Connection to a computer with a serial terminal for each of the boards.
+The sample also supports other development kits running SoftDevice Controller variants that support LLPM (see :ref:`nrfxlib:softdevice_controller` Proprietary feature support).
+You can use any two of the development kits mentioned above and mix different development kits.
+
+Additionally, the sample requires a connection to a computer with a serial terminal for each of the development kits.
 
 
 Building and running
@@ -100,12 +101,12 @@ Building and running
 Testing
 =======
 
-After programming the sample to both boards, test it by performing the following steps:
+After programming the sample to both development kits, test it by performing the following steps:
 
-1. Connect to both boards with a terminal emulator (for example, PuTTY).
+1. Connect to both kits with a terminal emulator (for example, PuTTY).
    See :ref:`putty` for the required settings.
-#. Reset both boards.
-#. Observe that the boards establish a connection.
+#. Reset both kits.
+#. Observe that the kits establish a connection.
    When they are connected, one of them serves as *master* and the other one as *slave*.
 
    - The master outputs the following information::
@@ -267,7 +268,7 @@ This sample uses the following |NCS| libraries:
 * :ref:`latency_readme`
 * :ref:`latency_client_readme`
 
-This sample uses the following `nrfxlib`_ libraries:
+This sample uses the following `sdk-nrfxlib`_ libraries:
 
 * :ref:`nrfxlib:softdevice_controller`
 

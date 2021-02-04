@@ -86,6 +86,8 @@ enum azure_iot_hub_evt_type {
 	AZURE_IOT_HUB_EVT_FOTA_ERASE_DONE,
 	/** FOTA failed */
 	AZURE_IOT_HUB_EVT_FOTA_ERROR,
+	/** Internal library error */
+	AZURE_IOT_HUB_EVT_ERROR
 };
 
 /** @brief Azure IoT Hub topic type, used to route messages to the correct
@@ -160,8 +162,8 @@ struct azure_iot_hub_data {
 struct azure_iot_hub_method {
 	/** Method name, null-terminated string. */
 	const char *name;
-	/** Method request ID. */
-	uint32_t rid;
+	/** Method request ID, null-terminated string. */
+	char *rid;
 	/** Method payload. */
 	const char *payload;
 	/** Method payload length. */
@@ -176,8 +178,8 @@ struct azure_iot_hub_method {
  *	     cloud with success or failure).
  */
 struct azure_iot_hub_result {
-	/** Request ID to which the result belongs. */
-	uint32_t rid;
+	/** Request ID to which the result belongs, null-terminated string. */
+	char *rid;
 	/** Status code. */
 	uint32_t status;
 	/** Result payload. */
@@ -300,8 +302,9 @@ int azure_iot_hub_method_respond(struct azure_iot_hub_result *result);
  *	   automatically by the library.
  *
  *  @return Time in milliseconds until next keepalive ping will be sent.
+ *  @return -1 if keepalive messages are not enabled.
  */
-uint32_t azure_iot_hub_keepalive_time_left(void);
+int azure_iot_hub_keepalive_time_left(void);
 
 #ifdef __cplusplus
 }

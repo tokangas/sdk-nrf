@@ -44,7 +44,7 @@ void rsp_send(const uint8_t *str, size_t len);
 
 /* global variable defined in different files */
 extern struct at_param_list at_param_list;
-extern char rsp_buf[CONFIG_AT_CMD_RESPONSE_MAX_LEN];
+extern char rsp_buf[CONFIG_SLM_SOCKET_RX_MAX * 2];
 extern struct k_work_q slm_work_q;
 
 static int do_fota_erase(void)
@@ -147,12 +147,12 @@ static void fota_dl_handler(const struct fota_download_evt *evt)
 {
 	switch (evt->id) {
 	case FOTA_DOWNLOAD_EVT_PROGRESS:
-		sprintf(rsp_buf, "#XFOTA: %d%% downloaded\r\n",
+		sprintf(rsp_buf, "#XFOTA: \"%d%%\"\r\n",
 				evt->progress);
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		break;
 	case FOTA_DOWNLOAD_EVT_FINISHED:
-		sprintf(rsp_buf, "#XFOTA: downloaded, reset to apply.\r\n");
+		sprintf(rsp_buf, "#XFOTA: \"downloaded\",\"reset now\".\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		break;
 	case FOTA_DOWNLOAD_EVT_ERASE_PENDING:
@@ -162,7 +162,7 @@ static void fota_dl_handler(const struct fota_download_evt *evt)
 		LOG_INF("FOTA_DOWNLOAD_EVT_ERASE_DONE");
 		break;
 	case FOTA_DOWNLOAD_EVT_ERROR:
-		sprintf(rsp_buf, "#XFOTA: download error.\r\n");
+		sprintf(rsp_buf, "#XFOTA: \"download error\"\r\n");
 		rsp_send(rsp_buf, strlen(rsp_buf));
 		break;
 

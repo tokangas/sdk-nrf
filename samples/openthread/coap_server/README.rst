@@ -26,6 +26,13 @@ This sample uses the native `OpenThread CoAP API`_ for communication.
 For new application development, use :ref:`Zephyr's CoAP API<zephyr:coap_sock_interface>`.
 For example usage of the Zephyr CoAp API, see the :ref:`coap_client_sample` sample.
 
+FEM support
+===========
+
+.. |fem_file_path| replace:: :file:`samples/openthread/common`
+
+.. include:: /includes/sample_fem_support.txt
+
 Requirements
 ************
 
@@ -33,7 +40,10 @@ The sample supports the following development kits:
 
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
-   :rows: nrf52840dk_nrf52840, nrf52833dk_nrf52833
+   :rows: nrf5340dk_nrf5340_cpuapp, nrf52840dk_nrf52840, nrf52833dk_nrf52833, nrf21540dk_nrf52840
+
+.. note::
+   The multiprotocol variant is not supported on nRF53 Series devices yet.
 
 You can use one or more of the development kits listed above as the Thread CoAP Server.
 You also need one or more compatible development kits programmed with the :ref:`coap_client_sample` sample.
@@ -88,9 +98,6 @@ Running OpenThread CLI commands
 
 You can connect to any of the Simple CoAP Server or Simple CoAP Client nodes through a serial port.
 For more details, see :ref:`putty`.
-
-.. note::
-     |thread_hwfc_enabled|
 
 Once the serial connection is ready, you can run OpenThread CLI commands.
 For complete CLI documentation, refer to `OpenThread CLI Reference`_.

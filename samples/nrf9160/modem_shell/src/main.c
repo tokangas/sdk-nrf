@@ -9,7 +9,7 @@
 
 #include <zephyr.h>
 #include <init.h>
-#include <bsd.h>
+#include <nrf_modem.h>
 
 #include <sys/types.h>
 #include <nrf9160.h>
@@ -18,7 +18,7 @@
 #include <power/reboot.h>
 #include <dfu/mcuboot.h>
 
-#include <modem/bsdlib.h>
+#include <modem/nrf_modem_lib.h>
 #include <modem/at_cmd.h>
 #include <modem/at_notif.h>
 #include <modem/modem_info.h>
@@ -44,7 +44,7 @@
 /* global variables */
 struct modem_param_info modem_param;
 
-K_SEM_DEFINE(bsdlib_initialized, 0, 1);
+K_SEM_DEFINE(nrf_modem_lib_initialized, 0, 1);
 
 #if !defined (CONFIG_RESET_ON_FATAL_ERROR)
 #if 0
@@ -105,13 +105,13 @@ void main(void)
 {
 	int err;
 
-	printk("\nThe MoSH sample started\n\n");
+	printk("\nMoSH build %s\n\n", STRINGIFY(APP_VERSION));
 
 	modem_trace_enable();
 
 #if !defined(CONFIG_LWM2M_CARRIER)
-	printk("Initializing bsdlib...\n");
-	err = bsdlib_init();
+	printk("Initializing modemlib...\n");
+	err = nrf_modem_lib_init(NORMAL_MODE);
 	switch (err) {
 	case MODEM_DFU_RESULT_OK:
 		printk("Modem firmware update successful!\n");
@@ -137,14 +137,16 @@ void main(void)
 	default:
 		break;
 	}
-	printk("Initialized bsdlib\n");
+	printk("Initialized modemlib\n");
 
 	at_cmd_init();
+#if !defined (CONFIG_AT_NOTIF_SYS_INIT)
 	at_notif_init();
+#endif
 	lte_lc_init();
 #else
 	/* Wait until bsdlib has been initialized. */
-	k_sem_take(&bsdlib_initialized, K_FOREVER);
+	k_sem_take(&nrf_modem_lib_initialized, K_FOREVER);
 
 #endif
 
@@ -175,12 +177,20 @@ void main(void)
 	modem_info_params_init(&modem_param);
 #endif
 
-#if defined (CONFIG_FTA_PPP)
-	ppp_ctrl_init();
-#endif
 
 	/* Application started successfully, mark image as OK to prevent
 	 * revert at next reboot.
 	 */
+#if defined (CONFIG_BOOTLOADER_MCUBOOT )	
 	boot_write_img_confirmed();
+#endif
 }
+
+#if defined (CONFIG_FTA_PPP)
+static int fta_shell_init(const struct device *unused)
+{
+	ppp_ctrl_init();
+	return 0;
+}
+SYS_INIT(fta_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+#endif

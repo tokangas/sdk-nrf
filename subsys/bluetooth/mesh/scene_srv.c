@@ -80,11 +80,11 @@ static void scene_set(struct bt_mesh_scene_srv *srv, uint16_t scene)
 
 	srv->curr = scene;
 	if (scene) {
-		bt_mesh_model_data_store(srv->mod, false, CURR_SCENE_PATH,
-					 &srv->curr, sizeof(srv->curr));
+		(void)bt_mesh_model_data_store(srv->mod, false, CURR_SCENE_PATH,
+					       &srv->curr, sizeof(srv->curr));
 	} else {
-		bt_mesh_model_data_store(srv->mod, false, CURR_SCENE_PATH, NULL,
-					 0);
+		(void)bt_mesh_model_data_store(srv->mod, false, CURR_SCENE_PATH,
+					       NULL, 0);
 	}
 }
 
@@ -401,12 +401,12 @@ static void scene_delete(struct bt_mesh_scene_srv *srv, uint16_t *scene)
 
 	for (int i = 0; i < srv->sigpages; i++) {
 		scene_path(path, *scene, false, i);
-		bt_mesh_model_data_store(srv->mod, false, path, NULL, 0);
+		(void)bt_mesh_model_data_store(srv->mod, false, path, NULL, 0);
 	}
 
 	for (int i = 0; i < srv->vndpages; i++) {
 		scene_path(path, *scene, true, i);
-		bt_mesh_model_data_store(srv->mod, false, path, NULL, 0);
+		(void)bt_mesh_model_data_store(srv->mod, false, path, NULL, 0);
 	}
 
 	if (srv->curr == *scene) {
@@ -422,8 +422,14 @@ static void handle_store(struct bt_mesh_model *mod, struct bt_mesh_msg_ctx *ctx,
 {
 	struct bt_mesh_scene_srv *srv = mod->user_data;
 	enum bt_mesh_scene_status status;
+	uint16_t scene_number;
 
-	status = scene_store(srv, net_buf_simple_pull_le16(buf));
+	scene_number = net_buf_simple_pull_le16(buf);
+	if (scene_number == BT_MESH_SCENE_NONE) {
+		return;
+	}
+
+	status = scene_store(srv, scene_number);
 	scene_register_status_send(srv, ctx, status);
 }
 
@@ -432,8 +438,14 @@ static void handle_store_unack(struct bt_mesh_model *mod,
 			       struct net_buf_simple *buf)
 {
 	struct bt_mesh_scene_srv *srv = mod->user_data;
+	uint16_t scene_number;
 
-	(void)scene_store(srv, net_buf_simple_pull_le16(buf));
+	scene_number = net_buf_simple_pull_le16(buf);
+	if (scene_number == BT_MESH_SCENE_NONE) {
+		return;
+	}
+
+	(void)scene_store(srv, scene_number);
 }
 
 static void handle_delete(struct bt_mesh_model *mod,
@@ -643,6 +655,20 @@ static int scene_setup_srv_init(struct bt_mesh_model *mod)
 	}
 
 	srv->setup_mod = mod;
+
+	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
+		/* Model extensions:
+		 * To simplify the model extension tree, we're flipping the
+		 * relationship between the scene server and the scene
+		 * setup server. In the specification, the scene setup
+		 * server extends the scene server, which is the opposite of
+		 * what we're doing here. This makes no difference for the mesh
+		 * stack, but it makes it a lot easier to extend this model, as
+		 * we won't have to support multiple extenders.
+		 */
+		bt_mesh_model_extend(srv->mod, srv->setup_mod);
+	}
+
 	return 0;
 }
 

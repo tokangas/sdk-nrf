@@ -53,7 +53,16 @@ The interaction is possible using commands proper to wpanctl, a module installed
 Installing wpantund
 ===================
 
-For installation and initial configuration, see `wpantund Installation Guide`_.
+To ensure that the interaction with the samples works as expected, install the version of wpantund that has been used for testing the |NCS|.
+
+See the `wpantund Installation Guide`_ for general installation instructions.
+To install the verified version, replace the ``git checkout full/latest-release`` command with the following command:
+
+.. parsed-literal::
+
+   git checkout 87c90eedce0c75cb68a1cbc34ff36223400862f1
+
+When installing on macOS, follow the instructions for the manual installation and replace the above command to ensure that the correct version is installed.
 
 .. _ug_thread_tools_wpantund_configuring:
 
@@ -64,44 +73,45 @@ When working with samples that support wpantund, complete the following steps to
 
 1. Open a shell and run the wpantund process by using the following command:
 
-   .. code-block:: console
+   .. parsed-literal::
+      :class: highlight
 
-      wpantund -I <network_interface_name> -s <serial_port_name> -b <baudrate>
+      wpantund -I *network_interface_name* -s *serial_port_name* -b *baudrate*
 
-   For ``baudrate``, use value ``1000000``.
-   For ``serial_port_name``, use the value that is valid for the sample.
-   For ``network_interface_name``, use a name of your choice.
-   For example, `leader_if`.
+   For *baudrate*, use value ``1000000``.
+   For *serial_port_name*, use the value that is valid for the sample.
+   For *network_interface_name*, use a name of your choice.
+   For example, ``leader_if``.
 #. Open another shell and run the wpanctl process by using the following command:
 
    .. code-block:: console
 
       wpanctl -I leader_if
 
-   This process can be used to control the connected NCP board.
+   This process can be used to control the connected NCP kit.
 
-Once wpantund and wpanctl are started, you can start running wpanctl commands to interact with the board.
+Once wpantund and wpanctl are started, you can start running wpanctl commands to interact with the development kit.
 
 Using wpanctl commands
 ======================
 
 To issue a wpanctl command, run it in the wpanctl shell.
-For example, the following command checks the the NCP board state:
+For example, the following command checks the the NCP kit state:
 
 .. code-block:: console
 
    wpanctl:leader_if> status
 
-The output will be different depending on the board and the sample.
+The output will be different depending on the kit and the sample.
 
 The most common wpanctl commands are the following:
 
-* ``status`` - Checks the board state.
-* ``form "My_OpenThread_network"`` - Sets up a Thread network with the name ``My_OpenThread_network``.
+* ``status`` - Checks the kit state.
+* ``form "*My_OpenThread_network*"`` - Sets up a Thread network with the name ``My_OpenThread_network``.
 * ``get`` - Gets the values of all properties.
-* ``get <property>`` - Gets the value of the requested property.
+* ``get *property*`` - Gets the value of the requested property.
   For example, ``get NCP:SleepyPollInterval`` will list the value of the ``NCP:SleepyPollInterval`` property.
-* ``set <property> <value>`` - Sets the value of the requested property to the required value.
+* ``set *property* *value*`` - Sets the value of the requested property to the required value.
   For example, ``set NCP:SleepyPollInterval 1000`` will set the value of the ``NCP:SleepyPollInterval`` property to ``1000``.
 
 For the full list of commands, run the ``help`` command in wpanctl.

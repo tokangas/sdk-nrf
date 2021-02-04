@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 /** Maximum permissible transition time in milliseconds */
-#define BT_MESH_MODEL_TRANSITION_TIME_MAX_MS (K_MINUTES(10) * (0x3e))
+#define BT_MESH_MODEL_TRANSITION_TIME_MAX_MS (10 * 60 * MSEC_PER_SEC * 0x3e)
 
 /** Generic Transition parameters for the model messages. */
 struct bt_mesh_model_transition {
@@ -62,6 +62,15 @@ enum bt_mesh_model_status {
 	BT_MESH_MODEL_STATUS_INVALID,
 };
 
+/** RGB color channels */
+enum bt_mesh_rgb_ch {
+	BT_MESH_RGB_CH_RED,
+	BT_MESH_RGB_CH_GREEN,
+	BT_MESH_RGB_CH_BLUE,
+
+	BT_MESH_RGB_CHANNELS,
+};
+
 /** @cond INTERNAL_HIDDEN
  * @def BT_MESH_MODEL_USER_DATA
  *
@@ -75,7 +84,7 @@ enum bt_mesh_model_status {
  * otherwise very hard to detect, and relatively easy to make:
  *
  * As the @ref bt_mesh_model::user_data is a void pointer, it does not have
- * any type checking. The Mesh model implementations wrap this macro, often
+ * any type checking. The mesh model implementations wrap this macro, often
  * taking a pointer parameter to a context structure, passing it to the model
  * user data. As the @c BT_MESH_MODEL_ macros are used in listing of models,
  * users are likely to copy and paste them, but only change the suffix.

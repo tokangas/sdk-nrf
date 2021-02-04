@@ -1,13 +1,16 @@
 .. _ug_nrf9160:
 
-Working with nRF9160
-####################
+Working with nRF9160 DK
+#######################
 
 .. contents::
    :local:
    :depth: 2
 
 The |NCS| provides support for developing on the nRF9160 System in Package (SiP) using the nRF9160 DK (PCA10090), and :ref:`offers samples <nrf9160_ug_drivs_libs_samples>` dedicated to this device.
+
+See the `nRF9160 DK Hardware`_ guide for detailed information about the nRF9160 DK hardware.
+To get started with the nRF9160 DK, follow the steps in the `nRF9160 DK Getting Started`_ guide.
 
 .. _nrf9160_ug_intro:
 
@@ -16,7 +19,8 @@ Introduction
 
 The nRF9160 SiP integrates an application MCU, a full LTE modem, RF front end, and power management.
 With built-in GPS support, it is dedicated to asset tracking applications.
-For more details on the SiP, see the `nRF9160 product website`_.
+
+For more details on the SiP, see the `nRF9160 product website`_ and the `nRF9160 Product Specification`_.
 
 .. figure:: images/nrf9160_ug_overview.svg
    :alt: Overview of nRF91 application architecture
@@ -60,6 +64,10 @@ This firmware is required to set up the nRF9160 DK so that it can run user appli
 The Secure Partition Manager sample is automatically included in the build for the ``nrf9160dk_nrf9160ns`` build target.
 To disable the automatic inclusion of the Secure Partition Manager sample, set the option :option:`CONFIG_SPM` to "n" in the project configuration.
 
+.. include:: ug_nrf5340.rst
+   :start-after: tfm_support_start
+   :end-before: tfm_support_finish
+
 Application
 -----------
 
@@ -72,14 +80,14 @@ Depending on the configuration, all these images can be built at the same time i
 All nRF9160 samples include the :ref:`secure_partition_manager` sample, which can be enabled or disabled with the :option:`CONFIG_SPM` option.
 Some also include the :ref:`bootloader` sample (:option:`CONFIG_SECURE_BOOT`) and :doc:`mcuboot:index` (:option:`CONFIG_BOOTLOADER_MCUBOOT`).
 
-BSD socket
+Socket API
 ----------
 
-All nRF9160 applications must include the BSD library.
-The BSD library is the primary interface for operating the nRF9160 modem to establish LTE-M, NBIOT, and GNSS connections.
+All nRF9160 applications must include the Modem library.
+The Modem library is the primary interface for operating the nRF9160 modem to establish LTE-M, NBIOT, and GNSS connections.
 
-The BSD library is Nordic Semiconductor's implementation of the BSD Socket API.
-See :ref:`nrfxlib:bsdlib` for detailed information.
+The Modem library is Nordic Semiconductor's implementation of the Socket API.
+See :ref:`nrfxlib:nrf_modem` for detailed information.
 
 LTE modem
 =========
@@ -92,7 +100,7 @@ You can download the firmware from the `nRF9160 product website (compatible down
 The zip file contains both the full firmware and patches to upgrade from one version to another.
 
 Different versions of the LTE modem firmware are available and these versions are certified for the mobile network operators who have their own certification programs.
-See the `nRF9160 compatibility matrix`_ for more information.
+See the `Mobile network operator certifications`_ for more information.
 
 .. note::
 

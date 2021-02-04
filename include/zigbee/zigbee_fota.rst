@@ -79,7 +79,7 @@ To configure the Zigbee FOTA library, use the following options:
 * :option:`CONFIG_ENABLE_ZIGBEE_FOTA_MAX_HW_VERSION`
 * :option:`CONFIG_ZIGBEE_FOTA_MAX_HW_VERSION`
 
-For detailed steps about configuring the Zigbee FOTA in a Zigbee sample or application, see :ref:`ug_zigbee_configuring_components_ota`.
+For detailed steps about configuring the library in a Zigbee sample or application, see :ref:`ug_zigbee_configuring_components_ota`.
 
 Limitations
 ***********
@@ -88,7 +88,7 @@ The Zigbee FOTA library has the following limitations:
 
 * The endpoint definition in the library includes the endpoint ID, defined with :option:`CONFIG_ZIGBEE_FOTA_ENDPOINT`.
   When using the Zigbee FOTA library, this endpoint ID cannot be used for other endpoints.
-* The Zigbee FOTA upgrades are currently only supported on the nRF52840 DK board (PCA10056).
+* The Zigbee FOTA upgrades are currently only supported on the nRF52840 DK (PCA10056).
 * The Zigbee FOTA library does not currently support bootloader upgrades.
 * In case of an MCU reset between the completion of the OTA image transfer and a postponed firmware upgrade, the upgrade will be applied immediately.
 

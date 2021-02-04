@@ -20,7 +20,7 @@
 #include <modem/at_cmd_parser.h>
 #include <modem/lte_lc.h>
 #endif
-#include <modem/bsdlib.h>
+#include <modem/nrf_modem_lib.h>
 
 LOG_MODULE_REGISTER(nrf9160_gps, CONFIG_NRF9160_GPS_LOG_LEVEL);
 
@@ -69,6 +69,7 @@ struct nrf9160_gps_config {
 	nrf_gnss_nmea_mask_t nmea_mask;
 	nrf_gnss_delete_mask_t delete_mask;
 	nrf_gnss_power_save_mode_t power_mode;
+	nrf_gnss_use_case_t use_case;
 	bool priority;
 };
 
@@ -117,6 +118,12 @@ static void copy_pvt(struct gps_pvt *dest, nrf_gnss_pvt_data_frame_t *src)
 		dest->sv[i].elevation = src->sv[i].elevation;
 		dest->sv[i].azimuth = src->sv[i].azimuth;
 		dest->sv[i].signal = src->sv[i].signal;
+		dest->sv[i].in_fix =
+			(src->sv[i].flags & NRF_GNSS_SV_FLAG_USED_IN_FIX) ==
+			NRF_GNSS_SV_FLAG_USED_IN_FIX;
+		dest->sv[i].unhealthy =
+			(src->sv[i].flags & NRF_GNSS_SV_FLAG_UNHEALTHY) ==
+			NRF_GNSS_SV_FLAG_UNHEALTHY;
 	}
 }
 
@@ -303,7 +310,7 @@ wait:
 				atomic_set(&drv_data->is_shutdown, 1);
 				nrf_close(drv_data->socket);
 
-				bsdlib_shutdown_wait();
+				nrf_modem_lib_shutdown_wait();
 				if (open_socket(drv_data) != 0) {
 					LOG_ERR("Failed to open socket after "
 						"shutdown sleep, killing thread");
@@ -561,7 +568,7 @@ static int parse_cfg(struct gps_config *cfg_src,
 	}
 
 	if (cfg_src->delete_agps_data) {
-		cfg_dst->delete_mask = 0xFF;
+		cfg_dst->delete_mask = 0x7F;
 	}
 
 	set_nmea_mask(&cfg_dst->nmea_mask);
@@ -573,6 +580,18 @@ static int parse_cfg(struct gps_config *cfg_src,
 	}
 
 	cfg_dst->priority = cfg_src->priority;
+
+	if (cfg_src->use_case == GPS_USE_CASE_SINGLE_COLD_START) {
+		cfg_dst->use_case = NRF_GNSS_USE_CASE_SINGLE_COLD_START;
+	} else if (cfg_src->use_case == GPS_USE_CASE_MULTIPLE_HOT_START) {
+		cfg_dst->use_case = NRF_GNSS_USE_CASE_MULTIPLE_HOT_START;
+	}
+
+	if (cfg_src->accuracy == GPS_ACCURACY_NORMAL) {
+		cfg_dst->use_case |= NRF_GNSS_USE_CASE_NORMAL_ACCURACY;
+	} else if (cfg_src->accuracy == GPS_ACCURACY_LOW) {
+		cfg_dst->use_case |= NRF_GNSS_USE_CASE_LOW_ACCURACY;
+	}
 
 	return 0;
 }
@@ -671,9 +690,21 @@ set_configuration:
 		}
 	}
 
+	if (gps_cfg.use_case) {
+		retval = nrf_setsockopt(drv_data->socket,
+					NRF_SOL_GNSS,
+					NRF_SO_GNSS_USE_CASE,
+					&gps_cfg.use_case,
+					sizeof(gps_cfg.use_case));
+		if (retval) {
+			LOG_ERR("Failed to set use case and accuracy");
+			return -EIO;
+		}
+	}
+
 	/* The GPS is started before setting NRF_SO_GNSS_ENABLE_PRIORITY or
 	 * NRF_SO_GNSS_DISABLE_PRIORITY as that's currently a requirement
-	 * by bsdlib.
+	 * in Modem library.
 	 */
 	retval = nrf_setsockopt(drv_data->socket,
 				NRF_SOL_GNSS,
@@ -910,7 +941,9 @@ static int init(const struct device *dev, gps_event_handler_t handler)
 	return 0;
 }
 
-static struct gps_drv_data gps_drv_data;
+static struct gps_drv_data gps_drv_data = {
+	.socket = -1,
+};
 
 static const struct gps_driver_api gps_api_funcs = {
 	.init = init,
@@ -919,6 +952,7 @@ static const struct gps_driver_api gps_api_funcs = {
 	.agps_write = agps_write,
 };
 
-DEVICE_AND_API_INIT(nrf9160_gps, CONFIG_NRF9160_GPS_DEV_NAME, setup,
-		    &gps_drv_data, NULL, APPLICATION,
-		    CONFIG_NRF9160_GPS_INIT_PRIO, &gps_api_funcs);
+DEVICE_DEFINE(nrf9160_gps, CONFIG_NRF9160_GPS_DEV_NAME,
+	      setup, device_pm_control_nop,
+	      &gps_drv_data, NULL, POST_KERNEL,
+	      CONFIG_NRF9160_GPS_INIT_PRIO, &gps_api_funcs);

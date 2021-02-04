@@ -24,6 +24,7 @@ config FTA_PING
 config FTA_LTELC
 	bool  "Enable FTA LTE link control support"
     depends on LTE_LINK_CONTROL
+    depends on SETTINGS
     default y
 
 config FTA_LTELC_AUTO_CONNECT

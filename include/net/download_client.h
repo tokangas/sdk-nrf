@@ -43,6 +43,7 @@ enum download_client_evt_id {
 	 *
 	 * Error reason may be one of the following:
 	 * - ECONNRESET: socket error, peer closed connection
+	 * - ETIMEDOUT: socket error, connection timed out
 	 * - EHOSTDOWN: host went down during download
 	 * - EBADMSG: HTTP response header not as expected
 	 * - E2BIG: HTTP response header could not fit in buffer
@@ -99,6 +100,8 @@ struct download_client_cfg {
 	 *  values shall be used.
 	 */
 	size_t frag_size_override;
+	/** Set hostname for TLS Server Name Indication extension */
+	bool set_tls_hostname;
 };
 
 /**

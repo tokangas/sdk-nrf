@@ -40,14 +40,25 @@ static int bt_mesh_dtt_init(struct bt_mesh_model *mod)
 	struct bt_mesh_dtt_cli *cli = mod->user_data;
 
 	cli->model = mod;
-	net_buf_simple_init(mod->pub->msg, 0);
+	cli->pub.msg = &cli->pub_buf;
+	net_buf_simple_init_with_data(&cli->pub_buf, cli->pub_data,
+				      sizeof(cli->pub_data));
 	model_ack_init(&cli->ack_ctx);
 
 	return 0;
 }
 
+static void bt_mesh_dtt_reset(struct bt_mesh_model *mod)
+{
+	struct bt_mesh_dtt_cli *cli = mod->user_data;
+
+	net_buf_simple_reset(mod->pub->msg);
+	model_ack_reset(&cli->ack_ctx);
+}
+
 const struct bt_mesh_model_cb _bt_mesh_dtt_cli_cb = {
 	.init = bt_mesh_dtt_init,
+	.reset = bt_mesh_dtt_reset,
 };
 
 int bt_mesh_dtt_get(struct bt_mesh_dtt_cli *cli, struct bt_mesh_msg_ctx *ctx,
@@ -65,6 +76,10 @@ int bt_mesh_dtt_get(struct bt_mesh_dtt_cli *cli, struct bt_mesh_msg_ctx *ctx,
 int bt_mesh_dtt_set(struct bt_mesh_dtt_cli *cli, struct bt_mesh_msg_ctx *ctx,
 		    uint32_t transition_time, int32_t *rsp_transition_time)
 {
+	if (transition_time > BT_MESH_MODEL_TRANSITION_TIME_MAX_MS) {
+		return -EINVAL;
+	}
+
 	BT_MESH_MODEL_BUF_DEFINE(msg, BT_MESH_DTT_OP_SET,
 				 BT_MESH_DTT_MSG_LEN_SET);
 	bt_mesh_model_msg_init(&msg, BT_MESH_DTT_OP_SET);
@@ -79,6 +94,10 @@ int bt_mesh_dtt_set(struct bt_mesh_dtt_cli *cli, struct bt_mesh_msg_ctx *ctx,
 int bt_mesh_dtt_set_unack(struct bt_mesh_dtt_cli *cli,
 			  struct bt_mesh_msg_ctx *ctx, uint32_t transition_time)
 {
+	if (transition_time > BT_MESH_MODEL_TRANSITION_TIME_MAX_MS) {
+		return -EINVAL;
+	}
+
 	BT_MESH_MODEL_BUF_DEFINE(msg, BT_MESH_DTT_OP_SET_UNACK,
 				 BT_MESH_DTT_MSG_LEN_SET);
 	bt_mesh_model_msg_init(&msg, BT_MESH_DTT_OP_SET_UNACK);

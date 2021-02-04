@@ -6,13 +6,13 @@
 
 #include <zephyr.h>
 #include <stdio.h>
-#include <bsd.h>
+#include <nrf_modem.h>
 #include <drivers/flash.h>
 #include <dfu/dfu_target.h>
 #include <dfu/mcuboot.h>
 #include <logging/log_ctrl.h>
 #include <net/lwm2m.h>
-#include <modem/bsdlib.h>
+#include <modem/nrf_modem_lib.h>
 #include <power/reboot.h>
 
 #include "settings.h"
@@ -38,8 +38,12 @@ static void reboot_work_handler(struct k_work *work)
 }
 
 #if defined(CONFIG_LWM2M_FIRMWARE_UPDATE_OBJ_SUPPORT)
-static int firmware_update_cb(uint16_t obj_inst_id)
+static int firmware_update_cb(uint16_t obj_inst_id, uint8_t *args,
+			    uint16_t args_len)
 {
+	ARG_UNUSED(args);
+	ARG_UNUSED(args_len);
+
 	struct update_counter update_counter;
 	int ret = 0;
 
@@ -192,7 +196,7 @@ int lwm2m_init_firmware(void)
 
 void lwm2m_verify_modem_fw_update(void)
 {
-	int ret = bsdlib_get_init_ret();
+	int ret = nrf_modem_lib_get_init_ret();
 	struct update_counter counter;
 
 	/* Handle return values relating to modem firmware update */
