@@ -1803,6 +1803,8 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         my_setopt_str(curl, CURLOPT_INTERFACE, config->iface);
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
         my_setopt_str(curl, CURLOPT_INTERFACE_CID, config->cid);
+        if (config->upload_buffsize)
+          my_setopt(curl, CURLOPT_UPLOAD_BUFFERSIZE, config->upload_buffsize);
 #endif
         my_setopt_str(curl, CURLOPT_KRBLEVEL, config->krblevel);
         progressbarinit(&per->progressbar, config);

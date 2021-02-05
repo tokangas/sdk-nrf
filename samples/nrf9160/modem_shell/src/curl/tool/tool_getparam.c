@@ -113,6 +113,9 @@ static const struct LongShort aliases[]= {
   {"*q", "ftp-create-dirs",          ARG_BOOL},
   {"*r", "create-dirs",              ARG_BOOL},
   {"*s", "max-redirs",               ARG_STRING},
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+  {"*S", "upload-buff-size",          ARG_STRING},  
+#endif
   {"*t", "proxy-ntlm",               ARG_BOOL},
   {"*u", "crlf",                     ARG_BOOL},
   {"*v", "stderr",                   ARG_FILENAME},
@@ -789,6 +792,16 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         if(config->maxredirs < -1)
           return PARAM_BAD_NUMERIC;
         break;
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+      case 'S': /* --upload-buff-size */
+        err = str2num(&config->upload_buffsize, nextarg);
+        if(err)
+          return err;
+        if(config->upload_buffsize < -1) {
+          return PARAM_BAD_NUMERIC;
+        }
+        break;
+#endif
 
       case 't': /* --proxy-ntlm */
         if(curlinfo->features & CURL_VERSION_NTLM)

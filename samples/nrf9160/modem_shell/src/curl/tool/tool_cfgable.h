@@ -86,6 +86,7 @@ struct OperationConfig {
   char *iface;
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
   char *cid;
+  long upload_buffsize;
 #endif
   long localport;
   long localportrange;

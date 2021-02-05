@@ -2102,13 +2102,27 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
      * Cap it to sensible.
      */
     arg = va_arg(param, long);
-
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+    if(arg > UPLOADBUFFER_MAX) {
+      arg = UPLOADBUFFER_MAX;
+      printf("CURLOPT_UPLOAD_BUFFERSIZE: maximum upload_buffer_size %d set", arg);
+    }
+    else if(arg < UPLOADBUFFER_MIN) {
+      arg = UPLOADBUFFER_MIN;
+      printf("CURLOPT_UPLOAD_BUFFERSIZE: minimum upload_buffer_size %d set", arg);
+    }
+    else {
+      printf("CURLOPT_UPLOAD_BUFFERSIZE: set upload_buffer_size %d", arg);
+    }
+#else
     if(arg > UPLOADBUFFER_MAX)
       arg = UPLOADBUFFER_MAX;
     else if(arg < UPLOADBUFFER_MIN)
       arg = UPLOADBUFFER_MIN;
+#endif
 
     data->set.upload_buffer_size = arg;
+
     Curl_safefree(data->state.ulbuf); /* force a realloc next opportunity */
     break;
 
