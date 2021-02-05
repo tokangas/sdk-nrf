@@ -62,6 +62,7 @@ typedef struct {
 	int64_t recv_end_time_ms;
 	uint32_t recv_data_len;
 	bool recv_start_throughput;
+	enum sock_recv_print_format recv_print_format;
 	struct addrinfo *addrinfo;
 	struct data_transfer_info send_info;
 } sock_info_t;
@@ -88,6 +89,7 @@ static void sock_info_clear(sock_info_t* socket_info) {
 	socket_info->id = SOCK_ID_NONE;
 	socket_info->fd = SOCK_FD_NONE;
 	socket_info->log_receive_data = true;
+	socket_info->recv_print_format = SOCK_RECV_PRINT_FORMAT_STR;
 }
 
 static int get_socket_id_by_fd(int fd)
@@ -685,10 +687,27 @@ static void sock_receive_handler()
 
 						if (socket_info->log_receive_data) {
 							shell_print(shell_global,
-								"Received data for socket socket_id=%d, buffer_size=%d:\n\t%s",
+								"Received data for socket socket_id=%d, buffer_size=%d:",
 								socket_id,
-								buffer_size,
-								receive_buffer);
+								buffer_size);
+							if (socket_info->recv_print_format == SOCK_RECV_PRINT_FORMAT_HEX) {
+								/* Print received data in hexadecimal format having 8 bytes per line.
+								   This is not made with single shell_print because we would need to
+								   reserve a lot bigger buffer fro converting all data into hexadecimal string. */
+								char hex_data[81];
+								int data_printed = 0;
+								while (data_printed < buffer_size) {
+									int data_left = buffer_size - data_printed;
+									int print_chars = data_left <= 8 ? data_left : 8;
+									for (int i = 0; i < print_chars; i++) {
+										sprintf(hex_data + i * 5, "0x%02X ", receive_buffer[data_printed + i]);
+									}
+									shell_print(shell_global, "\t%s", hex_data);
+									data_printed += print_chars;
+								}
+							} else { /* SOCK_RECV_PRINT_FORMAT_STR */
+								shell_print(shell_global, "\t%s", receive_buffer);
+							}
 						}
 						memset(receive_buffer, '\0', SOCK_RECEIVE_BUFFER_SIZE);
 					}
@@ -718,14 +737,33 @@ K_THREAD_DEFINE(sock_receive_thread, SOCK_RECEIVE_STACK_SIZE,
                 sock_receive_handler, NULL, NULL, NULL,
                 SOCK_RECEIVE_PRIORITY, 0, 0);
 
-int sock_recv(int socket_id, bool receive_start, bool blocking)
+int sock_recv(int socket_id, bool receive_start, bool blocking, enum sock_recv_print_format print_format)
 {
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
 		return -EINVAL;
 	}
 
-	if (receive_start) {
+	if (print_format != SOCK_RECV_PRINT_FORMAT_NONE) {
+		switch (print_format) {
+		case SOCK_RECV_PRINT_FORMAT_STR:
+		case SOCK_RECV_PRINT_FORMAT_HEX:
+			shell_print(
+				shell_global,
+				"Receive print format changed for socket id=%d",
+				socket_info->id);
+			socket_info->recv_print_format = print_format;
+			break;
+		default:
+			shell_error(
+				shell_global,
+				"Receive data print format (%d) must be %d or %d",
+				print_format,
+				SOCK_RECV_PRINT_FORMAT_STR,
+				SOCK_RECV_PRINT_FORMAT_HEX);
+			return -EINVAL;
+		}
+	} else if (receive_start) {
 		shell_print(shell_global, "Receive data calculation start socket id=%d", socket_info->id);
 		// Set any leftover blocking sockets to non-blocking
 		sock_all_set_nonblocking();

@@ -80,6 +80,7 @@ const char sock_usage_str[] =
 	"  -r, --start, [bool]       Initialize variables for receive throughput calculation\n"
 	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
 	"                            This only accounts when -r is given. Default value is 0.\n"
+	"  -P, --print_format, [str] Set receive data print format: 'str' (default) or 'hex'\n"
 	"\n"
 	"Options for 'help' command:\n"
 	"  -v, --verbose, [bool]     Show examples\n"
@@ -140,6 +141,7 @@ static struct option long_options[] = {
     {"buffer_size",    required_argument, 0,  's' },
     {"start",          no_argument,       0,  'r' },
     {"blocking",       required_argument, 0,  'B' },
+    {"print_format",   required_argument, 0,  'P' },
     {"verbose",        no_argument,       0,  'v' },
     {0,                0,                 0,   0  }
 };
@@ -206,6 +208,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_receive_start = false;
 	bool arg_blocking_send = true;
 	bool arg_blocking_recv = false;
+	enum sock_recv_print_format arg_recv_print_format =
+		SOCK_RECV_PRINT_FORMAT_NONE;
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
@@ -213,7 +217,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 
 	// Parse command line
 	int flag = 0;
-	while ((flag = getopt_long(argc, argv, "i:I:a:p:f:t:b:d:l:e:s:rB:v", long_options, NULL)) != -1) {
+	while ((flag = getopt_long(argc, argv, "i:I:a:p:f:t:b:d:l:e:s:rB:P:v", long_options, NULL)) != -1) {
 		int addr_len = 0;
 		int send_data_len = 0;
 
@@ -312,7 +316,18 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			arg_blocking_send = blocking;
 			break;
 		}
-		case 'v': // Start monitoring received data
+		case 'P': /* Receive data print format: "str" or "hex" */
+			if (!strcmp(optarg, "str")) {
+				arg_recv_print_format = SOCK_RECV_PRINT_FORMAT_STR;
+			} else if (!strcmp(optarg, "hex")) {
+				arg_recv_print_format = SOCK_RECV_PRINT_FORMAT_HEX;
+			} else {
+				shell_error(shell, "Receive data print format (%s) must be 'str' or 'hex'",
+					optarg);
+				return -EINVAL;
+			}
+			break;
+		case 'v': /* Longer help text with examples */
 			arg_verbose = true;
 			break;
 		}
@@ -327,7 +342,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sock_send_data(arg_socket_id, arg_send_data, arg_data_length, arg_data_interval, arg_blocking_send, arg_buffer_size);
 			break;
 		case SOCK_CMD_RECV:
-			err = sock_recv(arg_socket_id, arg_receive_start, arg_blocking_recv);
+			err = sock_recv(arg_socket_id, arg_receive_start, arg_blocking_recv, arg_recv_print_format);
 			break;
 		case SOCK_CMD_CLOSE:
 			err = sock_close(arg_socket_id);
