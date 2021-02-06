@@ -17,9 +17,12 @@ enum sock_recv_print_format {
 	SOCK_RECV_PRINT_FORMAT_HEX,
 };
 
-int sock_open_and_connect(int family, int type, char* address, int port, int bind_port, int pdn_cid);
-int sock_send_data(int socket_id, char* data, int data_length, int interval, bool blocking, int buffer_size);
-int sock_recv(int socket_id, bool receive_start, bool blocking, enum sock_recv_print_format print_format);
+int sock_open_and_connect(int family, int type, char* address, int port,
+	int bind_port, int pdn_cid);
+int sock_send_data(int socket_id, char* data, int data_length, int interval,
+	bool blocking, int buffer_size);
+int sock_recv(int socket_id, bool receive_start, bool blocking,
+	enum sock_recv_print_format print_format);
 int sock_close(int socket_id);
 int sock_list();
 

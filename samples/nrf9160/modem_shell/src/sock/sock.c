@@ -23,16 +23,18 @@
 #include "ltelc_api.h"
 #include "utils/fta_net_utils.h"
 
-// Maximum number of sockets set to CONFIG_POSIX_MAX_FDS-1 as AT commands reserve one
+/* Maximum number of sockets takes into account AT command socket */
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
 #define SOCK_SEND_BUFFER_SIZE_UDP 1200
-#define SOCK_SEND_BUFFER_SIZE_TCP 3540 // This should be multiple of TCP window size (708) to make it more efficient
+/* This should be multiple of TCP window size (708) to make it more efficient */
+#define SOCK_SEND_BUFFER_SIZE_TCP 3540 
 #define SOCK_RECEIVE_BUFFER_SIZE 1536
 #define SOCK_RECEIVE_STACK_SIZE 1280
 #define SOCK_RECEIVE_PRIORITY 5
-// Timeout for polling socket events such as receive data, permission to send more, disconnected socket etc.
-// This limits how quickly data can be received after socket creation.
-#define SOCK_POLL_TIMEOUT_MS 1000 // Milliseconds
+/* Timeout (in ms) for polling socket events such as receive data,
+   permission to send more, disconnected socket etc.
+   This limits how quickly data can be received after socket creation. */
+#define SOCK_POLL_TIMEOUT_MS 1000
 #define SOCK_FD_NONE -1
 
 
@@ -67,8 +69,8 @@ typedef struct {
 	struct data_transfer_info send_info;
 } sock_info_t;
 
-sock_info_t sockets[MAX_SOCKETS] = {0}; /* Reserve this from heap */
-extern const struct shell* shell_global; // TODO: Get rid of this variable here
+sock_info_t sockets[MAX_SOCKETS] = {0};
+extern const struct shell* shell_global;
 
 
 static void sock_info_clear(sock_info_t* socket_info) {
@@ -175,7 +177,8 @@ static bool sock_send_buffer_calloc(sock_info_t* socket_info, uint32_t size)
 {
 	if (socket_info->send_buffer != NULL) {
 		if (socket_info->send_buffer_size == size) {
-			memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
+			memset(socket_info->send_buffer, 0,
+				socket_info->send_buffer_size);
 		} else {
 			free(socket_info->send_buffer);
 		}
@@ -183,7 +186,10 @@ static bool sock_send_buffer_calloc(sock_info_t* socket_info, uint32_t size)
 	socket_info->send_buffer_size = size;
 	socket_info->send_buffer = calloc(size + 1, 1);
 	if (socket_info->send_buffer == NULL) {
-		shell_error(shell_global, "Out of memory while reserving send buffer of size %d bytes", socket_info->send_buffer_size);
+		shell_error(
+			shell_global,
+			"Out of memory while reserving send buffer of size %d bytes",
+			socket_info->send_buffer_size);
 		return false;
 	}
 	return true;
@@ -197,32 +203,42 @@ static void sock_send_buffer_free(sock_info_t* socket_info)
 	}
 }
 
-int sock_open_and_connect(int family, int type, char* address, int port, int bind_port, int pdn_cid)
+int sock_open_and_connect(
+	int family,
+	int type,
+	char* address,
+	int port,
+	int bind_port,
+	int pdn_cid)
 {
 	int err = -EINVAL;
 
-	shell_print(shell_global, "Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
+	shell_print(shell_global,
+		"Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
 		family, type, port, bind_port, pdn_cid, address);
 
-	// TODO: TLS support
-	// TODO: Check that LTE link is connected because errors are not very descriptive if it's not.
-
-	// Reserve socket ID and structure for a new connection
+	/* Reserve socket ID and structure for a new connection */
 	sock_info_t* socket_info = reserve_socket_id();
 	if (socket_info == NULL) {
-		shell_error(shell_global, "Socket creation failed. MAX_SOCKETS=%d exceeded", MAX_SOCKETS);
+		shell_error(
+			shell_global,
+			"Socket creation failed. MAX_SOCKETS=%d exceeded",
+			MAX_SOCKETS);
 		goto connect_error;
 	}
 
-	// VALIDATE PARAMETERS
+	/* VALIDATE PARAMETERS */
 
-	// Validate family parameter
+	/* Validate family parameter */
 	if (family != AF_INET && family != AF_INET6 && family != AF_PACKET) {
-		shell_error(shell_global, "Unsupported address family=%d", family);
+		shell_error(
+			shell_global,
+			"Unsupported address family=%d",
+			family);
 		goto connect_error;
 	}
 
-	// Validate type parameter and map it to protocol
+	/* Validate type parameter and map it to protocol */
 	int proto = 0;
 	if (type == SOCK_STREAM) {
 		proto = IPPROTO_TCP;
@@ -235,19 +251,25 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		goto connect_error;
 	}
 
-	// Validate port
+	/* Validate port */
 	if (type != SOCK_RAW && (port < 1 || port > 65535)) {
-		shell_error(shell_global, "Port (%d) must be bigger than 0 and smaller than 65536", port);
+		shell_error(
+			shell_global,
+			"Port (%d) must be bigger than 0 and smaller than 65536",
+			port);
 		goto connect_error;
 	}
 
-	// Validate bind port. Zero means that binding is not done.
+	/* Validate bind port. Zero means that binding is not done. */
 	if (bind_port > 65535) {
-		shell_error(shell_global, "Bind port (%d) must be smaller than 65536", bind_port);
+		shell_error(
+			shell_global,
+			"Bind port (%d) must be smaller than 65536",
+			bind_port);
 		goto connect_error;
 	}
 
-	// GET ADDRESS
+	/* GET ADDRESS */
 	if ((address == NULL) || (strlen(address) == 0)) {
 		if (type != SOCK_RAW) {
 			shell_error(shell_global, "Address not given");
@@ -260,38 +282,49 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		};
 		err = getaddrinfo(address, NULL, &hints, &socket_info->addrinfo);
 		if (err) {
-			shell_error(shell_global, "getaddrinfo() failed, err %d errno %d", err, errno);
+			shell_error(
+				shell_global,
+				"getaddrinfo() failed, err %d errno %d",
+				err,
+				errno);
 			err = errno;
 			goto connect_error;
 		}
 
-		// Set port to address info
+		/* Set port to address info */
 		if (family == AF_INET) {
-			((struct sockaddr_in *)socket_info->addrinfo->ai_addr)->sin_port = htons(port);
+			((struct sockaddr_in *)socket_info->addrinfo->ai_addr)
+				->sin_port = htons(port);
 		} else if (family == AF_INET6) {
-			((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)->sin6_port = htons(port);
+			((struct sockaddr_in6 *)socket_info->addrinfo->ai_addr)
+				->sin6_port = htons(port);
 		} else {
 			assert(0);
 		}
 	}
-	// CREATE SOCKET
-	// If proto is set to zero to let lower stack select it,
-	// socket creation fails with errno=43 (PROTONOSUPPORT)
+	/* CREATE SOCKET */
+	/* If proto is set to zero to let lower stack select it,
+	   socket creation fails with errno=43 (PROTONOSUPPORT) */
 	int fd = socket(family, type, proto);
 	if (fd < 0) {
 		if (errno == ENFILE || errno == EMFILE) {
-			shell_error(shell_global,
+			shell_error(
+				shell_global,
 				"Socket creation failed due to maximum number of sockets in the system exceeded (%d). "
 				"Notice that all file descriptors in the system are taken into account and "
-				"not just sockets created through this application.", CONFIG_POSIX_MAX_FDS);
+				"not just sockets created through this application.",
+				CONFIG_POSIX_MAX_FDS);
 		} else {
-			shell_error(shell_global, "Socket create failed, err %d", errno);
+			shell_error(
+				shell_global,
+				"Socket create failed, err %d",
+				errno);
 		}
 		err = errno;
 		goto connect_error;
 	}
 
-	// Socket has been created so populate its structure with information
+	/* Socket has been created so populate its structure with information */
 	socket_info->in_use = true;
 	socket_info->fd = fd;
 	socket_info->family = family;
@@ -330,7 +363,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 		err = fta_net_utils_socket_apn_set(fd, apn_str);
 		if (err != 0) {
 			shell_error(shell_global, "Cannot bind socket id=%d to apn %s", socket_info->id, apn_str);
-			shell_error(shell_global, "probably due to https://projecttools.nordicsemi.no/jira/browse/NCSDK-6645");
+			shell_error(shell_global, "probably due to bug NCSDK-6645");
 
 			if (pdp_context_info_tbl.array != NULL)
 				free(pdp_context_info_tbl.array);
@@ -342,7 +375,7 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 			free(pdp_context_info_tbl.array);
 	}
 
-	// BIND SOCKET
+	/* BIND SOCKET */
 	if (bind_port > 0) {
 		struct sockaddr_in sa_local;
 		struct sockaddr_in6 sa_local6;
@@ -377,19 +410,30 @@ int sock_open_and_connect(int family, int type, char* address, int port, int bin
 	}
 
 	if (type == SOCK_STREAM) {
-		// Connect TCP socket
-		err = connect(fd, socket_info->addrinfo->ai_addr, socket_info->addrinfo->ai_addrlen);
+		/* Connect TCP socket */
+		err = connect(
+			fd,
+			socket_info->addrinfo->ai_addr,
+			socket_info->addrinfo->ai_addrlen);
 		if (err) {
-			shell_error(shell_global, "Unable to connect, errno %d", errno);
+			shell_error(
+				shell_global,
+				"Unable to connect, errno %d",
+				errno);
 			err = errno;
 			goto connect_error;
 		}
 	}
 
-	// Set socket to non-blocking mode to make sure receiving is not blocking polling of all sockets.
+	/* Set socket to non-blocking mode to make sure receiving
+	   is not blocking polling of all sockets */
 	set_sock_blocking_mode(socket_info->fd, false);
 
-	shell_print(shell_global, "Socket created socket_id=%d, fd=%d", socket_info->id, fd);
+	shell_print(
+		shell_global,
+		"Socket created socket_id=%d, fd=%d",
+		socket_info->id,
+		fd);
 
 	return 0;
 
@@ -400,8 +444,9 @@ connect_error:
 
 static double calculate_throughput(uint32_t data_len, int64_t time_ms)
 {
-	// 8 for bits in one byte, and 1000 for ms->s conversion.
-	// Parenthesis used to change order of multiplying so that intermediate values do not overflow from 32bit integer.
+	/* 8 for bits in one byte, and 1000 for ms->s conversion.
+	   Parenthesis used to change order of multiplying so that
+	   intermediate values do not overflow from 32bit integer. */
 	double throughput = 8 * 1000 * ((double)data_len / time_ms);
 
 	return throughput;
@@ -434,7 +479,7 @@ static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 	}
 
 	if (socket_info->type == SOCK_DGRAM) {
-		// UDP
+		/* UDP */
 		int dest_addr_len = 0;
 		if (socket_info->family == AF_INET) {
 			dest_addr_len = sizeof(struct sockaddr_in);
@@ -444,16 +489,20 @@ static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 		bytes = sendto(socket_info->fd, data, strlen(data), 0,
 			socket_info->addrinfo->ai_addr, dest_addr_len);
 	} else {
-		// TCP and raw socket
+		/* TCP and raw socket */
 		bytes = send(socket_info->fd, data, strlen(data), 0);
 	}
 	if (bytes < 0) {
-		// Ideally we'd like to log the failure here but non-blocking socket causes huge number of failures
-		// due to incorrectly set POLLOUT flag:
-		// https://devzone.nordicsemi.com/f/nordic-q-a/65392/bug-nrf9160-tcp-send-flow-control-seems-entirely-broken
-		// Hence, we'll log only if we have blocking socket
+		/* Ideally we'd like to log the failure here but non-blocking
+		   socket causes huge number of failures due to incorrectly
+		   set POLLOUT flag:
+		   https://devzone.nordicsemi.com/f/nordic-q-a/65392/bug-nrf9160-tcp-send-flow-control-seems-entirely-broken
+		   Hence, we'll log only if we have blocking socket */
 		if (sock_get_blocking_mode(socket_info->fd)) {
-			shell_print(shell_global, "socket send failed, err %d", errno);
+			shell_print(
+				shell_global,
+				"socket send failed, err %d",
+				errno);
 		}
 		return -1;
 	}
@@ -467,10 +516,11 @@ static void data_send_work_handler(struct k_work *item)
 	sock_info_t* socket_info = data_send_info_ptr->parent;
 
 	if (!socket_info->in_use) {
-		shell_print(shell_global,
+		shell_print(
+			shell_global,
 			"Socket id=%d not in use. Fatal error and sending won't work.",
 			socket_info->id);
-			// TODO: stop timer
+			/* TODO: stop timer */
 		return;
 	}
 
@@ -487,40 +537,53 @@ static void data_send_timer_handler(struct k_timer *dummy)
 }
 
 static void sock_send_data_length(sock_info_t* socket_info) {
-		char output_buffer[50];
-		while (socket_info->send_bytes_left > 0) {
-			if (socket_info->send_bytes_left < socket_info->send_buffer_size) {
-				memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
-				memset(socket_info->send_buffer, 'l', socket_info->send_bytes_left);
-			}
-			int bytes = sock_send(socket_info, socket_info->send_buffer, false);
-			if (bytes < 0) { // && errno == EAGAIN) {
-				//shell_error(shell_global, "Send flow control when send_bytes_sent=%d, bytes_left=%d, errno=%d", socket_info->send_bytes_sent, socket_info->send_bytes_left, errno);
-				socket_info->send_poll = true;
-				return;
-			}
-			socket_info->send_bytes_sent += bytes;
-			socket_info->send_bytes_left -= strlen(socket_info->send_buffer);
-
-			// Print throughput stats every 10 seconds
-			int64_t time_intermediate = k_uptime_get();
-			int64_t ul_time_intermediate_ms = time_intermediate - socket_info->start_time_ms;
-
-			if ((ul_time_intermediate_ms / (double)1000) > socket_info->send_print_interval) {
-				double throughput = calculate_throughput(socket_info->send_bytes_sent, ul_time_intermediate_ms);
-				sprintf(output_buffer, "%7u bytes, %6.2fs, %6.0f bit/s",
-					socket_info->send_bytes_sent, (float)ul_time_intermediate_ms / 1000, throughput);
-				shell_print(shell_global, "%s", output_buffer);
-				socket_info->send_print_interval += 10;
-			}
+	while (socket_info->send_bytes_left > 0) {
+		if (socket_info->send_bytes_left < socket_info->send_buffer_size) {
+			memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
+			memset(socket_info->send_buffer, 'l', socket_info->send_bytes_left);
 		}
-		socket_info->send_poll = false;
-		int64_t ul_time_ms = k_uptime_delta(&socket_info->start_time_ms);
-		sock_send_buffer_free(socket_info);
-		print_throughput_summary(socket_info->send_bytes_sent, ul_time_ms);
+		int bytes = sock_send(socket_info, socket_info->send_buffer, false);
+		if (bytes < 0) {
+			/* Wait for socket to allow sending again */
+			socket_info->send_poll = true;
+			return;
+		}
+		socket_info->send_bytes_sent += bytes;
+		socket_info->send_bytes_left -= strlen(socket_info->send_buffer);
+
+		/* Print throughput stats every 10 seconds */
+		int64_t time_intermediate = k_uptime_get();
+		int64_t ul_time_intermediate_ms =
+			time_intermediate - socket_info->start_time_ms;
+
+		if ((ul_time_intermediate_ms / (double)1000) >
+			socket_info->send_print_interval) {
+			double throughput = calculate_throughput(
+				socket_info->send_bytes_sent,
+				ul_time_intermediate_ms);
+			char print_buffer[50];
+			sprintf(print_buffer,
+				"%7u bytes, %6.2fs, %6.0f bit/s",
+				socket_info->send_bytes_sent,
+				(float)ul_time_intermediate_ms / 1000,
+				throughput);
+			shell_print(shell_global, "%s", print_buffer);
+			socket_info->send_print_interval += 10;
+		}
+	}
+	socket_info->send_poll = false;
+	int64_t ul_time_ms = k_uptime_delta(&socket_info->start_time_ms);
+	sock_send_buffer_free(socket_info);
+	print_throughput_summary(socket_info->send_bytes_sent, ul_time_ms);
 }
 
-int sock_send_data(int socket_id, char* data, int data_length, int interval, bool blocking, int buffer_size)
+int sock_send_data(
+	int socket_id,
+	char* data,
+	int data_length,
+	int interval,
+	bool blocking,
+	int buffer_size)
 {
 	sock_all_set_nonblocking();
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
@@ -528,14 +591,17 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 		return -EINVAL;
 	}
 
-	// Enable receive data logging as previous commands might have left it disabled
+	/* Enable receive data logging as previous commands might
+	   have left it disabled */
 	socket_info->log_receive_data = true;
 	if (data_length > 0) {
-		// Send given amount of data
+		/* Send given amount of data */
 
-		// Interval is not supported with data length
+		/* Interval is not supported with data length */
 		if (interval != SOCK_SEND_DATA_INTERVAL_NONE) {
-			shell_error(shell_global, "Data length and interval cannot be specified at the same time");
+			shell_error(
+				shell_global,
+				"Data length and interval cannot be specified at the same time");
 			return -EINVAL;
 		}
 
@@ -549,14 +615,22 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 			return -ENOMEM;
 		}
 
-		shell_print(shell_global, "Sending %d bytes of data with buffer_size=%d, blocking=%d",
-			data_length, send_buffer_size, blocking);
+		shell_print(
+			shell_global,
+			"Sending %d bytes of data with buffer_size=%d, blocking=%d",
+			data_length,
+			send_buffer_size,
+			blocking);
 		
-		// Warn about big buffer sizes as lower levels gets stuck when buffer size increases.
-		// Not necessarily right above these values you cannot use much bigger send buffer.
-		if ((socket_info->type == SOCK_STREAM && send_buffer_size > 4096) ||
-			(socket_info->type == SOCK_DGRAM && send_buffer_size > 1200)) {
-			shell_warn(shell_global, "Sending %d bytes of data with buffer_size=%d, blocking=%d",
+		/* Warn about big buffer sizes as lower levels gets stuck when buffer size increases .
+		   Not necessarily right above these values you cannot use much bigger send buffer. */
+		if ((socket_info->type == SOCK_STREAM &&
+					send_buffer_size > 4096) ||
+		    (socket_info->type == SOCK_DGRAM &&
+		    			send_buffer_size > 1200)) {
+			shell_warn(
+				shell_global,
+				"Sending %d bytes of data with buffer_size=%d, blocking=%d",
 				data_length, send_buffer_size, blocking);
 		}
 
@@ -564,7 +638,7 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 		socket_info->send_bytes_left = data_length;
 		socket_info->log_receive_data = false;
 		socket_info->send_print_interval = 10;
-		// Set requested blocking mode for the duration of data sending
+		/* Set requested blocking mode for duration of data sending */
 		set_sock_blocking_mode(socket_info->fd, blocking);
 
 		memset(socket_info->send_buffer, 'd', socket_info->send_buffer_size);
@@ -573,14 +647,16 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 
 		sock_send_data_length(socket_info);
 
-		// Keep default mode of the socket in non-blocking mode
+		/* Keep default mode of the socket in non-blocking mode */
 		set_sock_blocking_mode(socket_info->fd, false);
 
 	} else if (interval != SOCK_SEND_DATA_INTERVAL_NONE) {
 
 		if (interval == 0 ) {
-			// Stop periodic data sending
-			if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
+			/* Stop periodic data sending */
+			if (k_timer_remaining_get(
+				&socket_info->send_info.timer) > 0) {
+
 				k_timer_stop(&socket_info->send_info.timer);
 				shell_print(shell_global, "Socket data send periodic stop");
 			} else {
@@ -588,9 +664,9 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 				return -EINVAL;
 			}
 		} else if (interval > 0 ) {
-			// Send data with given interval
+			/* Send data with given interval */
 
-			// Data to be sent must also be specified
+			/* Data to be sent must also be specified */
 			if (strlen(data) < 1) {
 				shell_error(shell_global, "Data sending interval is specified without data to be send");
 				return -EINVAL;
@@ -601,14 +677,25 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval, boo
 			}
 			memcpy(socket_info->send_buffer, data, strlen(data));
 
-			shell_print(shell_global, "Socket data send periodic with interval=%d", interval);
-			k_timer_init(&socket_info->send_info.timer, data_send_timer_handler, NULL);
-			k_work_init(&socket_info->send_info.work, data_send_work_handler);
-			k_timer_start(&socket_info->send_info.timer, K_NO_WAIT, K_SECONDS(interval));
+			shell_print(
+				shell_global,
+				"Socket data send periodic with interval=%d",
+				interval);
+			k_timer_init(
+				&socket_info->send_info.timer,
+				data_send_timer_handler,
+				NULL);
+			k_work_init(
+				&socket_info->send_info.work,
+				data_send_work_handler);
+			k_timer_start(
+				&socket_info->send_info.timer,
+				K_NO_WAIT,
+				K_SECONDS(interval));
 		}
 
 	} else if (data != NULL && strlen(data) > 0) {
-		// Send data if it's given and is not zero length
+		/* Send data if it's given and is not zero length */
 		sock_send(socket_info, data, true);
 	} else {
 		shell_print(shell_global, "No send parameters given");
@@ -653,9 +740,9 @@ static void sock_receive_handler()
 			for (int i = 0; i < count; i++) {
 				int socket_id = get_socket_id_by_fd(fds[i].fd);
 				if (socket_id == SOCK_ID_NONE) {
-					// Socket has been already deleted from internal structures.
-					// This occurs at least when we close socket after which
-					// there will be notification for it.
+					/* Socket has been already deleted from internal structures.
+					   This occurs at least when we close socket after which
+					   there will be notification for it. */
 					continue;
 				}
 				sock_info_t* socket_info = &(sockets[socket_id]);
@@ -765,7 +852,7 @@ int sock_recv(int socket_id, bool receive_start, bool blocking, enum sock_recv_p
 		}
 	} else if (receive_start) {
 		shell_print(shell_global, "Receive data calculation start socket id=%d", socket_info->id);
-		// Set any leftover blocking sockets to non-blocking
+		/* Set any leftover blocking sockets to non-blocking */
 		sock_all_set_nonblocking();
 		socket_info->recv_start_throughput = true;
 		socket_info->recv_data_len = 0;
