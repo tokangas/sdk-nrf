@@ -254,8 +254,8 @@ typedef int (*curl_xferinfo_callback)(void *clientp,
      400 bytes since libcurl uses a buffer of this size as a scratch area
      (unrelated to network send operations). */
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
-/* In embedded this needs to be a lot of smaller */
-#define CURL_MAX_WRITE_SIZE 4096
+/* In embedded this needs to be a lot of smaller: no real impact on plain http? */
+#define CURL_MAX_WRITE_SIZE (708)
 #else
 #define CURL_MAX_WRITE_SIZE 16384
 #endif

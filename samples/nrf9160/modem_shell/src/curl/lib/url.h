@@ -23,10 +23,15 @@
  ***************************************************************************/
 #include "curl_setup.h"
 
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#define READBUFFER_SIZE (5*708)
+#define READBUFFER_MAX  CURL_MAX_READ_SIZE
+#define READBUFFER_MIN  100
+#else
 #define READBUFFER_SIZE CURL_MAX_WRITE_SIZE
 #define READBUFFER_MAX  CURL_MAX_READ_SIZE
 #define READBUFFER_MIN  1024
-
+#endif
 /* The default upload buffer size, should not be smaller than
    CURL_MAX_WRITE_SIZE, as it needs to hold a full buffer as could be sent in
    a write callback.
@@ -36,10 +41,11 @@
    larger buffers can help further, but this is deemed a fair memory/speed
    compromise. */
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#include <nrf_modem_limits.h>
 /* In embedded this needs to be a lot of smaller */
-#define UPLOADBUFFER_DEFAULT (5 * 708)
-#define UPLOADBUFFER_MAX (2 * CURL_MAX_WRITE_SIZE)
-#define UPLOADBUFFER_MIN (708)
+#define UPLOADBUFFER_DEFAULT (708)
+#define UPLOADBUFFER_MAX (NRF_MODEM_IP_MAX_MESSAGE_SIZE)
+#define UPLOADBUFFER_MIN (CURL_MAX_WRITE_SIZE)
 #else
 #define UPLOADBUFFER_DEFAULT 65536
 #define UPLOADBUFFER_MAX (2*1024*1024)
