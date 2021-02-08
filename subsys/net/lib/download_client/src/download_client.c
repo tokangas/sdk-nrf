@@ -74,7 +74,7 @@ static int socket_timeout_set(int fd, int type)
 	};
 
 #if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
-	LOG_INF("Configuring socket timeout (%lld s)", timeo.tv_sec);
+	LOG_INF("Configuring socket timeout (%d s)", (int32_t)timeo.tv_sec);
 #else
 	LOG_INF("Configuring socket timeout (%ld s)", timeo.tv_sec);
 #endif

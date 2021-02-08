@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <zephyr.h>
 #include <modem/sms.h>
 #include <logging/log.h>
@@ -39,7 +40,7 @@ struct pdu_deliver_header {
 struct pdu_do_field {
 	uint8_t length;   /** Address-Length */
 	uint8_t adr_type; /** Type-of-Address */
-	uint8_t adr[10];  /** Address */
+	uint8_t adr[SMS_MAX_ADDRESS_LEN_OCTETS];  /** Address-Value */
 };
 
 /**
@@ -105,6 +106,13 @@ static int decode_pdu_do_field(struct parser *parser, uint8_t *buf)
 
 	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_do.length);
 	LOG_DBG("Type-of-Address: %02X", DELIVER_DATA(parser)->field_do.adr_type);
+
+	if (DELIVER_DATA(parser)->field_do.length > SMS_MAX_ADDRESS_LEN_CHARS) {
+		LOG_ERR("Maximum address length (%d) exceeded %d. Aborting decoding.",
+			SMS_MAX_ADDRESS_LEN_OCTETS,
+			DELIVER_DATA(parser)->field_do.length);
+		return -EINVAL;
+	}
 
 	uint8_t length = DELIVER_DATA(parser)->field_do.length / 2;
 	if (DELIVER_DATA(parser)->field_do.length % 2 == 1) {
@@ -497,6 +505,50 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	memcpy(sms_header->service_center_address.address,
 	       &parser->buf[1],
 	       parser->buf[0]);
+
+	/* Copy and log address string */
+	uint8_t length = DELIVER_DATA(parser)->field_do.length / 2;
+	bool fill_bits = false;
+	if (DELIVER_DATA(parser)->field_do.length % 2 == 1) {
+		/* There is an extra number in semi-octet and fill bits*/
+		length++;
+		fill_bits = true;
+	}
+
+	LOG_DBG("Address length octets: %d", length);
+
+	if (DELIVER_DATA(parser)->field_do.length > SMS_MAX_ADDRESS_LEN_CHARS) {
+		LOG_ERR("Maximum number length (%d) exceeded: %d", 
+			SMS_MAX_ADDRESS_LEN_CHARS,
+			DELIVER_DATA(parser)->field_do.length);
+	} else {
+		char encoded_number[SMS_MAX_ADDRESS_LEN_CHARS];
+		uint8_t hex_str_number = 0;
+		for (int i = 0; i < length; i++) {
+			uint8_t number = (DELIVER_DATA(parser)->field_do.adr[i] & 0xF0) >> 4;
+			if (number >= 10) {
+				LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
+			}
+			sprintf(encoded_number + hex_str_number, "%d", number);
+
+			if (i < length - 1 || !fill_bits) {
+				uint8_t number = DELIVER_DATA(parser)->field_do.adr[i] & 0x0F;
+				if (number >= 10) {
+					LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
+				}
+				sprintf(encoded_number + hex_str_number + 1,
+					"%d", number);
+			}
+			hex_str_number += 2;
+		}
+
+		LOG_DBG("Address-Value: %s", log_strdup(encoded_number));
+
+		memset(sms_header->orginator_address.address_str, 0,
+			SMS_MAX_ADDRESS_LEN_CHARS + 1);
+		memcpy(sms_header->orginator_address.address_str, encoded_number,
+			DELIVER_DATA(parser)->field_do.length);
+	}
 
 	sms_header->orginator_address.length =
 		DELIVER_DATA(parser)->field_do.length;
