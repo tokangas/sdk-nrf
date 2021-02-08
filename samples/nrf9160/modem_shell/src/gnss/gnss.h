@@ -161,6 +161,25 @@ int gnss_set_nmea_mask(uint16_t nmea_mask);
 int gnss_set_priority_time_windows(bool value);
 
 /**
+ * @brief Sets whether AGPS data is automatically fetched whenever requested
+ *        by GNSS.
+ *
+ * @param value True if AGPS data is fetched automatically, false if not.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_agps_automatic(bool value);
+
+/**
+ * @brief Fetches and injects AGPS data to GNSS.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_inject_agps_data();
+
+/**
  * @brief Configures how much PVT information is printed out.
  *
  * @param level 0 = PVT output disabled

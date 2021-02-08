@@ -336,9 +336,7 @@ static int cmd_gnss_priority_enable(const struct shell *shell, size_t argc, char
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_NOT_RUNNING();
 
-    gnss_set_priority_time_windows(true);
-
-    return 0;
+    return gnss_set_priority_time_windows(true);
 }
 
 static int cmd_gnss_priority_disable(const struct shell *shell, size_t argc, char **argv)
@@ -346,11 +344,43 @@ static int cmd_gnss_priority_disable(const struct shell *shell, size_t argc, cha
     GNSS_SET_GLOBAL_SHELL();
     GNSS_CMD_FAIL_IF_NOT_RUNNING();
 
-    gnss_set_priority_time_windows(false);
-
-    return 0;
+    return gnss_set_priority_time_windows(false);
 }
 
+static int cmd_gnss_agps_automatic(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return print_help(shell, argc, argv);
+}
+
+static int cmd_gnss_agps_automatic_enable(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return gnss_set_agps_automatic(true);
+}
+
+static int cmd_gnss_agps_automatic_disable(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return gnss_set_agps_automatic(false);
+}
+
+static int cmd_gnss_agps(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return print_help(shell, argc, argv);
+}
+
+static int cmd_gnss_agps_inject(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    return gnss_inject_agps_data();
+}
 
 static int cmd_gnss_lna(const struct shell *shell, size_t argc, char **argv)
 {
@@ -453,6 +483,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_priority,
     SHELL_SUBCMD_SET_END
 );
 
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_agps_automatic,
+    SHELL_CMD_ARG(enable, NULL, "Enable automatic fetching of AGPS data.", cmd_gnss_agps_automatic_enable, 1, 0),
+    SHELL_CMD_ARG(disable, NULL, "Disable automatic fetching of AGPS data.", cmd_gnss_agps_automatic_disable, 1, 0),
+    SHELL_SUBCMD_SET_END
+);
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_agps,
+    SHELL_CMD(automatic, &sub_gnss_agps_automatic, "Enable/disable automatic fetching of AGPS data.", cmd_gnss_agps_automatic),
+    SHELL_CMD_ARG(inject, NULL, "Fetch and inject AGPS data to GNSS.", cmd_gnss_agps_inject, 1, 0),
+    SHELL_SUBCMD_SET_END
+);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_lna,
     SHELL_CMD_ARG(enable, NULL, "Enable LNA.", cmd_gnss_lna_enable, 1, 0),
     SHELL_CMD_ARG(disable, NULL, "Disable LNA.", cmd_gnss_lna_disable, 1, 0),
@@ -465,6 +507,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss,
     SHELL_CMD(mode, &sub_gnss_mode, "Set tracking mode.", cmd_gnss_mode),
     SHELL_CMD(config, &sub_gnss_config, "Set GNSS configuration.", cmd_gnss_config),
     SHELL_CMD(priority, &sub_gnss_priority, "Enable/disable priority time window requests.", cmd_gnss_priority),
+    SHELL_CMD(agps, &sub_gnss_agps, "AGPS configuration and commands.", cmd_gnss_agps),
     SHELL_CMD(lna, &sub_gnss_lna, "Enable or disable LNA.", cmd_gnss_lna),
     SHELL_CMD(output, NULL, "<pvt level> <nmea level> <event level>\nSet output levels.", cmd_gnss_output),
     SHELL_SUBCMD_SET_END

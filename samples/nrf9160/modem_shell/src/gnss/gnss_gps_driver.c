@@ -279,7 +279,7 @@ int gnss_set_data_delete(gnss_data_delete value)
 		gnss_conf.delete_agps_data = false;
 		break;
 	case GNSS_DATA_DELETE_EPHEMERIDES:
-		shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+		shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
 		return -EOPNOTSUPP;
 		break;
 	case GNSS_DATA_DELETE_ALL:
@@ -295,25 +295,37 @@ int gnss_set_data_delete(gnss_data_delete value)
 
 int gnss_set_elevation_threshold(uint8_t elevation)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_low_accuracy(bool value)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_nmea_mask(uint16_t mask)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_priority_time_windows(bool value)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported by GPS driver");
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	return -EOPNOTSUPP;
+}
+
+int gnss_set_agps_automatic(bool value)
+{
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	return -EOPNOTSUPP;
+}
+
+int gnss_inject_agps_data()
+{
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 

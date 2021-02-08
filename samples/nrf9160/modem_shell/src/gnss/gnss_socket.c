@@ -8,13 +8,34 @@
 #include <string.h>
 
 #include <zephyr.h>
+#include <init.h>
 #include <shell/shell.h>
 #include <nrf_socket.h>
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+#include <supl_session.h>
+#include <supl_os_client.h>
+#endif
 
 #include "gnss.h"
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+#include "gnss_supl_support.h"
+#endif
 
 #define GNSS_THREAD_STACK_SIZE 768
 #define GNSS_THREAD_PRIORITY 5
+
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+/* AGPS work queue and work */
+#define GNSS_AGPS_THREAD_STACK_SIZE 2048
+#define GNSS_AGPS_THREAD_PRIORITY 5
+
+K_THREAD_STACK_DEFINE(agps_stack_area, GNSS_AGPS_THREAD_STACK_SIZE);
+
+static struct k_work_q agps_work_q;
+static struct k_work get_agps_data_work;
+
+static nrf_gnss_agps_data_frame_t agps_data;
+#endif
 
 typedef enum {
 	GNSS_OP_MODE_CONTINUOUS,
@@ -27,24 +48,26 @@ extern const struct shell *gnss_shell_global;
 static int fd = -1;
 
 /* GNSS configuration */
-gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
-uint16_t fix_interval;
-uint16_t fix_retry;
-gnss_data_delete data_delete = GNSS_DATA_DELETE_NONE;
-bool delete_data = false;
-int8_t elevation_threshold = -1;
-bool low_accuracy = false;
-nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
-				 NRF_GNSS_NMEA_GLL_MASK | \
-				 NRF_GNSS_NMEA_GSA_MASK | \
-				 NRF_GNSS_NMEA_GSV_MASK | \
-				 NRF_GNSS_NMEA_RMC_MASK;
-gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
+static gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
+static uint16_t fix_interval;
+static uint16_t fix_retry;
+static gnss_data_delete data_delete = GNSS_DATA_DELETE_NONE;
+static int8_t elevation_threshold = -1;
+static bool low_accuracy = false;
+static nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
+					NRF_GNSS_NMEA_GLL_MASK | \
+					NRF_GNSS_NMEA_GSA_MASK | \
+					NRF_GNSS_NMEA_GSV_MASK | \
+					NRF_GNSS_NMEA_RMC_MASK;
+static gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+static bool agps_automatic = false;
+#endif
 
 /* Output configuration */
-uint8_t pvt_output_level = 2;
-uint8_t nmea_output_level = 0;
-uint8_t event_output_level = 0;
+static uint8_t pvt_output_level = 2;
+static uint8_t nmea_output_level = 0;
+static uint8_t event_output_level = 0;
 
 K_SEM_DEFINE(gnss_sem, 0, 1);
 
@@ -153,6 +176,12 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
                 if (event_output_level > 0) {
                         shell_print(gnss_shell_global, "GNSS: AGPS data needed");
                 }
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+                if (agps_automatic) {
+	                agps_data = gnss_data->agps;
+			k_work_submit_to_queue(&agps_work_q, &get_agps_data_work);
+                }
+#endif
 		break;
 	}
 }
@@ -181,14 +210,46 @@ K_THREAD_DEFINE(gnss_socket_thread, GNSS_THREAD_STACK_SIZE,
                 gnss_thread, NULL, NULL, NULL,
                 K_PRIO_PREEMPT(GNSS_THREAD_PRIORITY), 0, 0);
 
-static void gnss_init(void)
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+void get_agps_data(struct k_work *item)
 {
-	if (fd > -1) {
-		return;
+	ARG_UNUSED(item);
+
+	shell_print(gnss_shell_global, "GNSS: Getting AGPS data...");
+
+	if (open_supl_socket() == 0) {
+		supl_session(&agps_data);
+		close_supl_socket();
+	}
+}
+
+int inject_agps_data(void *agps,
+		     size_t agps_size,
+		     nrf_gnss_agps_data_type_t type,
+		     void *user_data)
+{
+	ARG_UNUSED(user_data);
+
+	int err;
+
+	err = nrf_sendto(fd, agps, agps_size, 0, &type, sizeof(type));
+
+	if (err) {
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to send AGPS data, type: %d (err: %d)",
+			    type,
+			    errno);
+		return err;
 	}
 
-	fd = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_DGRAM, NRF_PROTO_GNSS);
+	shell_print(gnss_shell_global,
+		    "GNSS: Injected AGPS data, flags: %d, size: %d",
+		    type,
+		    agps_size);
+
+	return 0;
 }
+#endif
 
 int gnss_start(void)
 {
@@ -200,7 +261,10 @@ int gnss_start(void)
 	nrf_gnss_elevation_mask_t elevation_mask;
 	nrf_gnss_use_case_t use_case;
 
-	gnss_init();
+	if (fd < 0) {
+		shell_error(gnss_shell_global, "GNSS: Not yet initialized");
+		return -EFAULT;
+	}
 
 	/* Configure GNSS */
 	switch (operation_mode) {
@@ -344,7 +408,10 @@ int gnss_stop(void)
 	int ret;
 	nrf_gnss_delete_mask_t delete_mask;
 
-	gnss_init();
+	if (fd < 0) {
+		shell_error(gnss_shell_global, "GNSS: Not yet initialized");
+		return -EFAULT;
+	}
 
 	delete_mask = 0x0;
 	ret = nrf_setsockopt(fd,
@@ -460,6 +527,46 @@ int gnss_set_priority_time_windows(bool value)
 	return err;
 }
 
+int gnss_set_agps_automatic(bool value)
+{
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+	agps_automatic = value;
+
+	return 0;
+#else
+	shell_error(gnss_shell_global, "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
+	return -EOPNOTSUPP;
+#endif
+}
+
+int gnss_inject_agps_data()
+{
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+	if (fd < 0) {
+		shell_error(gnss_shell_global, "GNSS: Not yet initialized");
+		return -EFAULT;
+	}
+
+	/* TODO: Add support for selecting which data is requested */
+	agps_data.sv_mask_ephe = 0xffffffff;
+	agps_data.sv_mask_alm = 0xffffffff;
+	agps_data.data_flags =
+		BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST) |
+		BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST) |
+		BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST) |
+		BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST) |
+		BIT(NRF_GNSS_AGPS_POSITION_REQUEST) |
+		BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
+
+	k_work_submit_to_queue(&agps_work_q, &get_agps_data_work);
+
+	return 0;
+#else
+	shell_error(gnss_shell_global, "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
+	return -EOPNOTSUPP;
+#endif
+}
+
 int gnss_set_pvt_output_level(uint8_t level)
 {
 	if (level < 0 || level > 2) {
@@ -492,3 +599,34 @@ int gnss_set_event_output_level(uint8_t level)
 
 	return 0;
 }
+
+static int gnss_init(const struct device *dev)
+{
+	ARG_UNUSED(dev);
+
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+	k_work_q_start(
+		&agps_work_q,
+		agps_stack_area,
+		K_THREAD_STACK_SIZEOF(agps_stack_area),
+		GNSS_AGPS_THREAD_PRIORITY);
+
+	k_work_init(&get_agps_data_work, get_agps_data);
+
+	static struct supl_api supl_api = {
+		.read       = supl_read,
+		.write      = supl_write,
+		.handler    = inject_agps_data,
+		.logger     = NULL, /* set to "supl_logger" to enable logging */
+		.counter_ms = k_uptime_get
+	};
+
+	(void)supl_init(&supl_api);
+#endif
+
+	fd = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_DGRAM, NRF_PROTO_GNSS);
+
+	return 0;
+}
+
+SYS_INIT(gnss_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
