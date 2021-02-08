@@ -466,6 +466,10 @@ Nwrite(int fd, const char *buf, size_t count, int prot)
 #if (EAGAIN != EWOULDBLOCK)
 		case EWOULDBLOCK:
 #endif
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
+        /* Also EINPROGRESS handled as EWOULDBLOCK/EAGAIN */
+        case EINPROGRESS:
+#endif
 		return count - nleft;
 
 		case ENOBUFS:

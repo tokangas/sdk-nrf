@@ -44,7 +44,7 @@ const char sock_usage_str[] =
 	"Usage: sock <command> [options]\n"
 	"\n"
 	"<command> is one of the following:\n"
-	"  connect: Open socket and connect to given host. Mandatory options: -a, -p\n"
+	"  connect: Open socket and connect to given host. No mandatory options.\n"
 	"  close:   Close socket connection. Mandatory options: -i\n"
 	"  send:    Send data. Mandatory options: -i\n"
 	"  recv:    Initialize and query receive throughput metrics. Without -r option,\n"

@@ -13,8 +13,8 @@
 #include "sms.h"
 #include "fta_defines.h"
 
-// Maximum length of the data that can be specified with -d option
-#define SMS_MAX_MESSAGE_LEN 200
+/* Maximum length of the message data that can be specified with -m option */
+#define SMS_MAX_MESSAGE_LEN CONFIG_SHELL_CMD_BUFF_SIZE
 
 typedef enum {
 	SMS_CMD_REGISTER = 0,
@@ -114,34 +114,39 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 	memset(arg_number, 0, SMS_MAX_MESSAGE_LEN+1);
 	memset(arg_message, 0, SMS_MAX_MESSAGE_LEN+1);
 
-	// Parse command line
+	/* Parse command line */
 	int flag = 0;
-	while ((flag = getopt_long(argc, argv, "m:n:r", long_options, NULL)) != -1) {
+	while ((flag = getopt_long(argc, argv, "m:n:r", long_options, NULL))
+			!= -1) {
 		int send_data_len = 0;
 
 		switch (flag) {
-		case 'n': // Phone number
+		case 'n': /* Phone number */
 			strcpy(arg_number, optarg);
 			break;
-		case 'm': // Message text
+		case 'm': /* Message text */
 			send_data_len = strlen(optarg);
 			if (send_data_len > SMS_MAX_MESSAGE_LEN) {
-				shell_error(shell, "Data length %d exceeded. Maximum is %d. Given data: %s",
-					send_data_len, SMS_MAX_MESSAGE_LEN, optarg);
+				shell_error(
+					shell,
+					"Data length %d exceeded. Maximum is %d. Given data: %s",
+					send_data_len,
+					SMS_MAX_MESSAGE_LEN,
+					optarg);
 				return -EINVAL;
 			}
 			strcpy(arg_message, optarg);
 			break;
-		case 'r': // Start monitoring received messages
+		case 'r': /* Start monitoring received messages */
 			arg_receive_start = true;
 			break;
-		case 'v': // Longer help text with examples
+		case 'v': /* Longer help text with examples */
 			arg_verbose = true;
 			break;
 		}
 	}
 
-	// Run given command with it's arguments
+	/* Run given command with it's arguments */
 	switch (command) {
 		case SMS_CMD_REGISTER:
 			err = sms_register();
@@ -159,7 +164,10 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sms_help(arg_verbose);
 			break;
 		default:
-			shell_error(shell, "Internal error. Unknown sms command=%d", command);
+			shell_error(
+				shell,
+				"Internal error. Unknown sms command=%d",
+				command);
 			err = -EINVAL;
 			break;
 	}
