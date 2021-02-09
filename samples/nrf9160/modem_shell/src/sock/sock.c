@@ -549,7 +549,7 @@ static void sock_send_data_length(sock_info_t* socket_info) {
 			return;
 		}
 		socket_info->send_bytes_sent += bytes;
-		socket_info->send_bytes_left -= strlen(socket_info->send_buffer);
+		socket_info->send_bytes_left -= bytes;
 
 		/* Print throughput stats every 10 seconds */
 		int64_t time_intermediate = k_uptime_get();
