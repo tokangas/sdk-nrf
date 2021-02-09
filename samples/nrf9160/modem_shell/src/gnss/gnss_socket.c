@@ -163,6 +163,39 @@ static void print_nmea(nrf_gnss_nmea_data_frame_t *nmea)
 	shell_print(gnss_shell_global, "%s", nmea);
 }
 
+static void get_agps_data_flags_string(char *flags_string, uint32_t data_flags)
+{
+	size_t len;
+
+	*flags_string = '\0';
+
+	if (data_flags && BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST)) {
+		(void)strcat(flags_string, "utc | ");
+	}
+	if (data_flags && BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST)) {
+		(void)strcat(flags_string, "klob | ");
+	}
+	if (data_flags && BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST)) {
+		(void)strcat(flags_string, "neq | ");
+	}
+	if (data_flags && BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST)) {
+		(void)strcat(flags_string, "time | ");
+	}
+	if (data_flags && BIT(NRF_GNSS_AGPS_POSITION_REQUEST)) {
+		(void)strcat(flags_string, "pos | ");
+	}
+	if (data_flags && BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST)) {
+		(void)strcat(flags_string, "int | ");
+	}
+
+	len = strlen(flags_string);
+	if (len == 0) {
+		(void)strcpy(flags_string, "none");
+	} else {
+		flags_string[len - 3] = '\0';
+	}
+}
+
 static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 {
 	switch (gnss_data->data_id) {
@@ -174,7 +207,16 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 		break;
 	case NRF_GNSS_AGPS_DATA_ID:
                 if (event_output_level > 0) {
-                        shell_print(gnss_shell_global, "GNSS: AGPS data needed");
+			char flags_string[48];
+
+			get_agps_data_flags_string(flags_string, gnss_data->agps.data_flags);
+
+			shell_print(
+				gnss_shell_global,
+				"GNSS: AGPS data needed (ephe: 0x%08x, alm: 0x%08x, flags: %s)",
+				gnss_data->agps.sv_mask_ephe,
+				gnss_data->agps.sv_mask_alm,
+				flags_string);
                 }
 #if defined (CONFIG_SUPL_CLIENT_LIB)
                 if (agps_automatic) {
@@ -211,7 +253,7 @@ K_THREAD_DEFINE(gnss_socket_thread, GNSS_THREAD_STACK_SIZE,
                 K_PRIO_PREEMPT(GNSS_THREAD_PRIORITY), 0, 0);
 
 #if defined (CONFIG_SUPL_CLIENT_LIB)
-void get_agps_data(struct k_work *item)
+static void get_agps_data(struct k_work *item)
 {
 	ARG_UNUSED(item);
 
@@ -223,7 +265,40 @@ void get_agps_data(struct k_work *item)
 	}
 }
 
-int inject_agps_data(void *agps,
+static void get_agps_data_type_string(char *type_string, nrf_gnss_agps_data_type_t type)
+{
+	switch (type) {
+	case NRF_GNSS_AGPS_UTC_PARAMETERS:
+		(void)strcpy(type_string, "utc");
+		break;
+	case NRF_GNSS_AGPS_EPHEMERIDES:
+		(void)strcpy(type_string, "ephe");
+		break;
+	case NRF_GNSS_AGPS_ALMANAC:
+		(void)strcpy(type_string, "alm");
+		break;
+	case NRF_GNSS_AGPS_KLOBUCHAR_IONOSPHERIC_CORRECTION:
+		(void)strcpy(type_string, "klob");
+		break;
+	case NRF_GNSS_AGPS_NEQUICK_IONOSPHERIC_CORRECTION:
+		(void)strcpy(type_string, "neq");
+		break;
+	case NRF_GNSS_AGPS_GPS_SYSTEM_CLOCK_AND_TOWS:
+		(void)strcpy(type_string, "time");
+		break;
+	case NRF_GNSS_AGPS_LOCATION:
+		(void)strcpy(type_string, "pos");
+		break;
+	case NRF_GNSS_AGPS_INTEGRITY:
+		(void)strcpy(type_string, "int");
+		break;
+	default:
+		(void)strcpy(type_string, "UNKNOWN");
+		break;
+	}
+}
+
+static int inject_agps_data(void *agps,
 		     size_t agps_size,
 		     nrf_gnss_agps_data_type_t type,
 		     void *user_data)
@@ -231,20 +306,23 @@ int inject_agps_data(void *agps,
 	ARG_UNUSED(user_data);
 
 	int err;
+	char type_string[16];
 
 	err = nrf_sendto(fd, agps, agps_size, 0, &type, sizeof(type));
 
+	get_agps_data_type_string(type_string, type);
+
 	if (err) {
 		shell_error(gnss_shell_global,
-			    "GNSS: Failed to send AGPS data, type: %d (err: %d)",
-			    type,
+			    "GNSS: Failed to send AGPS data, type: %s (err: %d)",
+			    type_string,
 			    errno);
 		return err;
 	}
 
 	shell_print(gnss_shell_global,
-		    "GNSS: Injected AGPS data, flags: %d, size: %d",
-		    type,
+		    "GNSS: Injected AGPS data, type: %s, size: %d",
+		    type_string,
 		    agps_size);
 
 	return 0;
