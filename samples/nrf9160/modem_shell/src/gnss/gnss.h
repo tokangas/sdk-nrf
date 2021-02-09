@@ -161,6 +161,25 @@ int gnss_set_nmea_mask(uint16_t nmea_mask);
 int gnss_set_priority_time_windows(bool value);
 
 /**
+ * @brief Sets which AGPS data is allowed to be injected to the modem (either
+ *        automatically or manually). By default all types are enabled.
+ *
+ * @param ephe True if ephemerides are enabled, false if not.
+ * @param alm True if almanacs are enabled, false if not.
+ * @param utc True if UTC assistance is enabled, false if not.
+ * @param klob True if Klobuchar is enabled, false if not.
+ * @param neq True if NeQuick is enabled, false if not.
+ * @param time True if system time is enabled, false if not.
+ * @param pos True if position is enabled, false if not.
+ * @param integrity True if integrity data is enabled, false if not.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_agps_data_enabled(bool ephe, bool alm, bool utc, bool klob,
+			       bool neq, bool time, bool pos, bool integrity);
+
+/**
  * @brief Sets whether AGPS data is automatically fetched whenever requested
  *        by GNSS.
  *

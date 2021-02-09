@@ -382,6 +382,47 @@ static int cmd_gnss_agps_inject(const struct shell *shell, size_t argc, char **a
     return gnss_inject_agps_data();
 }
 
+static int cmd_gnss_agps_filter(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+
+    bool ephe_enabled;
+    bool alm_enabled;
+    bool utc_enabled;
+    bool klob_enabled;
+    bool neq_enabled;
+    bool time_enabled;
+    bool pos_enabled;
+    bool int_enabled;
+
+    if (argc != 9) {
+        shell_error(shell, "filter: wrong parameter count");
+        shell_print(shell, "filter: <ephe> <alm> <utc> <klob> <neq> <time> <pos> <integrity>");
+        shell_print(shell, "ephe:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "alm:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "utc:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "klob:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "neq:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "time:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "pos:\n  0 = disabled\n  1 = enabled");
+        shell_print(shell, "integrity:\n  0 = disabled\n  1 = enabled");
+        return -EINVAL;
+    }
+
+    ephe_enabled = atoi(argv[1]) == 1 ? true : false;
+    alm_enabled  = atoi(argv[2]) == 1 ? true : false;
+    utc_enabled  = atoi(argv[3]) == 1 ? true : false;
+    klob_enabled = atoi(argv[4]) == 1 ? true : false;
+    neq_enabled  = atoi(argv[5]) == 1 ? true : false;
+    time_enabled = atoi(argv[6]) == 1 ? true : false;
+    pos_enabled  = atoi(argv[7]) == 1 ? true : false;
+    int_enabled  = atoi(argv[8]) == 1 ? true : false;
+
+    return gnss_set_agps_data_enabled(ephe_enabled, alm_enabled, utc_enabled,
+                                      klob_enabled, neq_enabled, time_enabled,
+                                      pos_enabled, int_enabled);
+}
+
 static int cmd_gnss_lna(const struct shell *shell, size_t argc, char **argv)
 {
     GNSS_SET_GLOBAL_SHELL();
@@ -492,6 +533,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_agps_automatic,
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_agps,
     SHELL_CMD(automatic, &sub_gnss_agps_automatic, "Enable/disable automatic fetching of AGPS data.", cmd_gnss_agps_automatic),
     SHELL_CMD_ARG(inject, NULL, "Fetch and inject AGPS data to GNSS.", cmd_gnss_agps_inject, 1, 0),
+    SHELL_CMD(filter, NULL, "<ephe> <alm> <utc> <klob> <neq> <time> <pos> <integrity>\nSet filter for allowed AGPS data. 0 = disabled, 1 = enabled.", cmd_gnss_agps_filter),
     SHELL_SUBCMD_SET_END
 );
 

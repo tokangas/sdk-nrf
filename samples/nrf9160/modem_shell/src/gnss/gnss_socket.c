@@ -61,7 +61,15 @@ static nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
 					NRF_GNSS_NMEA_RMC_MASK;
 static gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
 #if defined (CONFIG_SUPL_CLIENT_LIB)
-static bool agps_automatic = false;
+static bool agps_automatic    = false;
+static bool agps_inject_ephe = true;
+static bool agps_inject_alm  = true;
+static bool agps_inject_utc  = true;
+static bool agps_inject_klob = true;
+static bool agps_inject_neq  = true;
+static bool agps_inject_time = true;
+static bool agps_inject_pos  = true;
+static bool agps_inject_int  = true;
 #endif
 
 /* Output configuration */
@@ -169,22 +177,22 @@ static void get_agps_data_flags_string(char *flags_string, uint32_t data_flags)
 
 	*flags_string = '\0';
 
-	if (data_flags && BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST)) {
+	if (data_flags & BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST)) {
 		(void)strcat(flags_string, "utc | ");
 	}
-	if (data_flags && BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST)) {
+	if (data_flags & BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST)) {
 		(void)strcat(flags_string, "klob | ");
 	}
-	if (data_flags && BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST)) {
+	if (data_flags & BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST)) {
 		(void)strcat(flags_string, "neq | ");
 	}
-	if (data_flags && BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST)) {
+	if (data_flags & BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST)) {
 		(void)strcat(flags_string, "time | ");
 	}
-	if (data_flags && BIT(NRF_GNSS_AGPS_POSITION_REQUEST)) {
+	if (data_flags & BIT(NRF_GNSS_AGPS_POSITION_REQUEST)) {
 		(void)strcat(flags_string, "pos | ");
 	}
-	if (data_flags && BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST)) {
+	if (data_flags & BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST)) {
 		(void)strcat(flags_string, "int | ");
 	}
 
@@ -219,8 +227,38 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 				flags_string);
                 }
 #if defined (CONFIG_SUPL_CLIENT_LIB)
-                if (agps_automatic) {
-	                agps_data = gnss_data->agps;
+		if (agps_automatic) {
+			(void)memset(&agps_data, 0, sizeof(agps_data));
+			if (agps_inject_ephe) {
+				agps_data.sv_mask_ephe = gnss_data->agps.sv_mask_ephe;
+			}
+			if (agps_inject_alm) {
+				agps_data.sv_mask_alm = gnss_data->agps.sv_mask_alm;
+			}
+			if (agps_inject_utc) {
+				agps_data.data_flags |=
+					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST);
+			}
+			if (agps_inject_klob) {
+				agps_data.data_flags |=
+					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST);
+			}
+			if (agps_inject_neq) {
+				agps_data.data_flags |=
+					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST);
+			}
+			if (agps_inject_time) {
+				agps_data.data_flags |=
+					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST);
+			}
+			if (agps_inject_pos) {
+				agps_data.data_flags |=
+					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_POSITION_REQUEST);
+			}
+			if (agps_inject_int) {
+				agps_data.data_flags |=
+					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
+			}
 			k_work_submit_to_queue(&agps_work_q, &get_agps_data_work);
                 }
 #endif
@@ -257,7 +295,16 @@ static void get_agps_data(struct k_work *item)
 {
 	ARG_UNUSED(item);
 
-	shell_print(gnss_shell_global, "GNSS: Getting AGPS data...");
+	char flags_string[48];
+
+	get_agps_data_flags_string(flags_string, agps_data.data_flags);
+
+	shell_print(
+		gnss_shell_global,
+		"GNSS: Getting AGPS data (ephe: 0x%08x, alm: 0x%08x, flags: %s)...",
+		agps_data.sv_mask_ephe,
+		agps_data.sv_mask_alm,
+		flags_string);
 
 	if (open_supl_socket() == 0) {
 		supl_session(&agps_data);
@@ -605,6 +652,26 @@ int gnss_set_priority_time_windows(bool value)
 	return err;
 }
 
+int gnss_set_agps_data_enabled(bool ephe, bool alm, bool utc, bool klob,
+			       bool neq, bool time, bool pos, bool integrity)
+{
+#if defined (CONFIG_SUPL_CLIENT_LIB)
+	agps_inject_ephe = ephe;
+	agps_inject_alm = alm;
+	agps_inject_utc = utc;
+	agps_inject_klob = klob;
+	agps_inject_neq = neq;
+	agps_inject_time = time;
+	agps_inject_pos = pos;
+	agps_inject_int = integrity;
+
+	return 0;
+#else
+	shell_error(gnss_shell_global, "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
+	return -EOPNOTSUPP;
+#endif
+}
+
 int gnss_set_agps_automatic(bool value)
 {
 #if defined (CONFIG_SUPL_CLIENT_LIB)
@@ -625,16 +692,31 @@ int gnss_inject_agps_data()
 		return -EFAULT;
 	}
 
-	/* TODO: Add support for selecting which data is requested */
-	agps_data.sv_mask_ephe = 0xffffffff;
-	agps_data.sv_mask_alm = 0xffffffff;
-	agps_data.data_flags =
-		BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST) |
-		BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST) |
-		BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST) |
-		BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST) |
-		BIT(NRF_GNSS_AGPS_POSITION_REQUEST) |
-		BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
+	(void)memset(&agps_data, 0, sizeof(agps_data));
+	if (agps_inject_ephe) {
+		agps_data.sv_mask_ephe = 0xffffffff;
+	}
+	if (agps_inject_alm) {
+		agps_data.sv_mask_alm = 0xffffffff;
+	}
+	if (agps_inject_utc) {
+		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST);
+	}
+	if (agps_inject_klob) {
+		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST);
+	}
+	if (agps_inject_neq) {
+		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST);
+	}
+	if (agps_inject_time) {
+		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST);
+	}
+	if (agps_inject_pos) {
+		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_POSITION_REQUEST);
+	}
+	if (agps_inject_int) {
+		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
+	}
 
 	k_work_submit_to_queue(&agps_work_q, &get_agps_data_work);
 

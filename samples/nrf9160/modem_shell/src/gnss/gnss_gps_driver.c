@@ -317,6 +317,13 @@ int gnss_set_priority_time_windows(bool value)
 	return -EOPNOTSUPP;
 }
 
+int gnss_set_agps_data_enabled(bool ephe, bool alm, bool utc, bool klob,
+			       bool neq, bool time, bool pos, bool integrity)
+{
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	return -EOPNOTSUPP;
+}
+
 int gnss_set_agps_automatic(bool value)
 {
 	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
