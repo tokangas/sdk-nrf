@@ -106,7 +106,7 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 	uint8_t concat_seq_number = 1;
 	char *text_index = text;
 	while (text_encoded_size < text_size) {
-		uint8_t text_part_size = strlen(text_index);
+		uint16_t text_part_size = strlen(text_index);
 		if (text_part_size > 153) {
 			text_part_size = 153;
 		}
@@ -119,7 +119,7 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 		text_index += size - sizeof(udh);
 
 		/* Create hexadecimal string representation of GSM 7bit encoded text 
-			which starts after user data header bytes in the encoded data */
+		   which starts after user data header bytes in the encoded data */
 		uint8_t encoded_data_hex_str[SMS_MAX_DATA_LEN_CHARS * 2 + 1];
 		memset(encoded_data_hex_str, 0, SMS_MAX_DATA_LEN_CHARS * 2 + 1);
 		for (int i = SMS_UDH_CONCAT_SIZE_OCTETS; i < encoded_size; i++) {
