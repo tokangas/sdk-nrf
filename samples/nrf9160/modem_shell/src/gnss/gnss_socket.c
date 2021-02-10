@@ -79,6 +79,8 @@ static uint8_t event_output_level = 0;
 
 K_SEM_DEFINE(gnss_sem, 0, 1);
 
+static void gnss_init(void);
+
 static void print_pvt_flags(nrf_gnss_pvt_data_frame_t *pvt)
 {
 	shell_print(gnss_shell_global, "\nFix valid:          %s",
@@ -386,10 +388,7 @@ int gnss_start(void)
 	nrf_gnss_elevation_mask_t elevation_mask;
 	nrf_gnss_use_case_t use_case;
 
-	if (fd < 0) {
-		shell_error(gnss_shell_global, "GNSS: Not yet initialized");
-		return -EFAULT;
-	}
+	gnss_init();
 
 	/* Configure GNSS */
 	switch (operation_mode) {
@@ -533,10 +532,7 @@ int gnss_stop(void)
 	int ret;
 	nrf_gnss_delete_mask_t delete_mask;
 
-	if (fd < 0) {
-		shell_error(gnss_shell_global, "GNSS: Not yet initialized");
-		return -EFAULT;
-	}
+	gnss_init();
 
 	delete_mask = 0x0;
 	ret = nrf_setsockopt(fd,
@@ -687,10 +683,7 @@ int gnss_set_agps_automatic(bool value)
 int gnss_inject_agps_data()
 {
 #if defined (CONFIG_SUPL_CLIENT_LIB)
-	if (fd < 0) {
-		shell_error(gnss_shell_global, "GNSS: Not yet initialized");
-		return -EFAULT;
-	}
+	gnss_init();
 
 	(void)memset(&agps_data, 0, sizeof(agps_data));
 	if (agps_inject_ephe) {
@@ -760,9 +753,11 @@ int gnss_set_event_output_level(uint8_t level)
 	return 0;
 }
 
-static int gnss_init(const struct device *dev)
+static void gnss_init(void)
 {
-	ARG_UNUSED(dev);
+	if (fd > -1) {
+		return;
+	}
 
 #if defined (CONFIG_SUPL_CLIENT_LIB)
 	k_work_q_start(
@@ -785,8 +780,4 @@ static int gnss_init(const struct device *dev)
 #endif
 
 	fd = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_DGRAM, NRF_PROTO_GNSS);
-
-	return 0;
 }
-
-SYS_INIT(gnss_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
