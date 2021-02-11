@@ -11,9 +11,9 @@
 # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/west/index.html
 
 manifest:
-  # This west.yml requires west 0.7 or later, because the "import"
+  # This west.yml requires west 0.9 or later, because the "submodules"
   # feature used below was introduced then.
-  version: 0.7
+  version: 0.9
 
   # "remotes" is a list of locations where git repositories are cloned
   # and fetched from.
@@ -35,11 +35,15 @@ manifest:
       url-base: https://github.com/nanopb
     - name: alexa
       url-base: https://github.com/alexa
+    - name: nordicsemi
+      url-base: https://github.com/NordicSemiconductor
 
   # If not otherwise specified, the projects below should be obtained
   # from the ncs remote.
   defaults:
     remote: ncs
+
+  group-filter: [-homekit]
 
   # "projects" is a list of git repositories which make up the NCS
   # source code.
@@ -68,7 +72,6 @@ manifest:
         # Please keep this list sorted alphabetically.
         name-whitelist:
           - canopennode
-          - ci-tools
           - cmsis
           - civetweb
           - edtt
@@ -89,7 +92,6 @@ manifest:
           - segger
           - tinycbor
           - tinycrypt
-          - tfm-mcuboot
 
     # NCS repositories.
     #
@@ -97,24 +99,39 @@ manifest:
     # changes.
     - name: mcuboot
       repo-path: sdk-mcuboot
-      revision: 78fc1d62edc9d639059fa5fdf7b39ef8a9e3f1a3
+      revision: 858dd034f6565bcab5ed780e48aa713994ca1b7d
       path: bootloader/mcuboot
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: pull/393/head
+      revision: a21b5e298e5b22340b9dfbd489e8c00483868284
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tfm
-      revision: dcfa70e66e91d9bf31fd6f083e2fba19b4305f4e
+      revision: 96ef980add272be24442d9140d7c90c80f89e663
+    - name: tfm-mcuboot # This is used by the trusted-firmware-m module.
+      repo-path: sdk-mcuboot
+      path: modules/tee/tfm-mcuboot
+      revision: 81d19f017f18f1bc6bea906d96fd45fba3672064
+    - name: connectedhomeip
+      repo-path: sdk-connectedhomeip
+      path: modules/lib/connectedhomeip
+      revision: 3e9c650c91cde7833586acb217fbb6c3ef6a95b0
+      submodules:
+        - name: nlio
+          path: third_party/nlio/repo
+        - name: nlassert
+          path: third_party/nlassert/repo
+        - name: pigweed
+          path: third_party/pigweed/repo
     # Other third-party repositories.
     - name: cmock
       path: test/cmock
-      revision: c243b9a7a7b3c471023193992b46cf1bd1910450
+      revision: 9d092898ef26ece140d9225e037274b64d4f851e
       remote: throwtheswitch
     - name: unity
       path: test/cmock/vendor/unity
-      revision: 031f3bbe45f8adf504ca3d13e6f093869920b091
+      revision: cf949f45ca6d172a177b00da21310607b97bc7a7
       remote: throwtheswitch
     - name: mbedtls-nrf
       path: mbedtls
@@ -129,6 +146,15 @@ manifest:
       path: modules/alexa-embedded
       revision: face92d8c62184832793f518bb1f19379538c5c1
       remote: alexa
+    - name: cddl-gen
+      remote: nordicsemi
+      revision: 24f1b2b0c64c694b7f9ac1b7eab60b39236ca0bf
+      path: modules/lib/cddl-gen
+    - name: homekit
+      repo-path: sdk-homekit
+      revision: 8d68bb07b9217960767f7c5030ea9a4ec37af5df
+      groups:
+      - homekit
 
   # West-related configuration for the nrf repository.
   self:

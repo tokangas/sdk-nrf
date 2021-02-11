@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <logging/log.h>
@@ -232,17 +232,17 @@ static int socket_timeout_set(int fd)
 
 static int server_connect(const char *host, int sec_tag)
 {
-	int fd = -1;
+	int fd;
 	int err;
 
 	if (host == NULL) {
 		LOG_ERR("Empty remote host.");
-		return -EINVAL;
+		return INVALID_SOCKET;
 	}
 
 	if ((httpc.sec_transport == true) && (sec_tag == -1)) {
 		LOG_ERR("Empty secure tag.");
-		return -EINVAL;
+		return INVALID_SOCKET;
 	}
 
 	/* Attempt IPv6 connection if configured, fallback to IPv4 */
@@ -253,16 +253,15 @@ static int server_connect(const char *host, int sec_tag)
 
 	if (fd < 0) {
 		LOG_ERR("Fail to resolve and connect");
-		return -EINVAL;
+		return INVALID_SOCKET;
 	}
 	LOG_INF("Connected to %s", log_strdup(host));
 
 	/* Set socket timeout, if configured */
 	err = socket_timeout_set(fd);
 	if (err) {
-		close(httpc.fd);
-		httpc.fd = INVALID_SOCKET;
-		return err;
+		close(fd);
+		return INVALID_SOCKET;
 	}
 
 	return fd;
@@ -376,9 +375,8 @@ static int do_http_connect(void)
 	/* Connect to server if it is not connected yet. */
 	if (httpc.fd == INVALID_SOCKET) {
 		httpc.fd = server_connect(httpc.host, httpc.sec_tag);
-		if (httpc.fd < 0) {
+		if (httpc.fd == INVALID_SOCKET) {
 			LOG_ERR("server_connect fail.");
-			httpc.fd = INVALID_SOCKET;
 			sprintf(rsp_buf, "#XHTTPCCON: 0\r\n");
 			rsp_send(rsp_buf, strlen(rsp_buf));
 		} else {
@@ -510,14 +508,13 @@ static int handle_AT_HTTPC_CONNECT(enum at_cmd_type cmd_type)
 			if (httpc.fd != INVALID_SOCKET) {
 				return -EINPROGRESS;
 			}
-			err = at_params_string_get(&at_param_list, 2,
+			err = util_string_get(&at_param_list, 2,
 							httpc.host, &host_sz);
 			if (err < 0) {
 				LOG_ERR("Fail to get host: %d", err);
 				return err;
 			}
 
-			httpc.host[host_sz] = '\0';
 			err = at_params_int_get(&at_param_list, 3, &httpc.port);
 			if (err < 0) {
 				LOG_ERR("Fail to get port: %d", err);
@@ -605,36 +602,30 @@ static int handle_AT_HTTPC_REQUEST(enum at_cmd_type cmd_type)
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
 		param_count = at_params_valid_count_get(&at_param_list);
-		if (param_count < 3) {
-			return -EINVAL;
-		}
-		err = at_params_string_get(&at_param_list, 1,
+		err = util_string_get(&at_param_list, 1,
 					   data_buf, &method_sz);
 		if (err < 0) {
 			LOG_ERR("Fail to get method string: %d", err);
 			return err;
 		}
-		data_buf[method_sz] = '\0';
 		httpc.method_str = data_buf;
 		offset = method_sz + 1;
 		/* Get resource path string */
-		err = at_params_string_get(&at_param_list, 2,
+		err = util_string_get(&at_param_list, 2,
 					   data_buf + offset, &resource_sz);
 		if (err < 0) {
 			LOG_ERR("Fail to get resource string: %d", err);
 			return err;
 		}
-		data_buf[offset + resource_sz] = '\0';
 		httpc.resource = data_buf + offset;
 		offset = offset + resource_sz + 1;
 		/* Get header string */
-		err = at_params_string_get(&at_param_list, 3,
+		err = util_string_get(&at_param_list, 3,
 					   data_buf + offset, &headers_sz);
 		if (err < 0) {
 			LOG_ERR("Fail to get option string: %d", err);
 			return err;
 		}
-		data_buf[offset + headers_sz] = '\0';
 		httpc.headers = data_buf + offset;
 		if (param_count >= 5) {
 			err = at_params_int_get(&at_param_list, 4,

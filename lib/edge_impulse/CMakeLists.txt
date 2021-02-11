@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 Nordic Semiconductor ASA
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 cmake_minimum_required(VERSION 3.13)
@@ -93,8 +93,8 @@ add_dependencies(edge_impulse
                  edge_impulse_project_download
 )
 
-if(CONFIG_EI_NCS)
-  zephyr_library_named(ei_ncs)
-  zephyr_library_sources(ei_ncs.cpp)
+if(CONFIG_EI_WRAPPER)
+  zephyr_library_named(ei_wrapper)
+  zephyr_library_sources(ei_wrapper.cpp)
   zephyr_library_link_libraries(edge_impulse)
 endif()

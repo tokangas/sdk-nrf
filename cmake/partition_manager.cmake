@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2019 Nordic Semiconductor
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 macro(add_region)
@@ -304,6 +304,12 @@ foreach(container ${containers} ${merged})
     list(APPEND ${container}elf_files ${${part}_PM_ELF_FILE})
     list(APPEND ${container}targets ${${part}_PM_TARGET})
   endforeach()
+
+  # Do not merge hex files for empty partitions
+  if(NOT ${container}hex_files)
+    list(REMOVE_ITEM PM_${MERGED}_SPAN ${container})
+    continue()
+  endif()
 
   # If overlapping is enabled, add the appropriate argument.
   if(${${container}_overlap})

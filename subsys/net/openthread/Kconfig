@@ -1,6 +1,6 @@
 # Copyright (c) 2020 Nordic Semiconductor
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 # The purpose of this file is to override and extend settings related to
@@ -23,6 +23,8 @@ config OPENTHREAD_NRF_SECURITY
 	select MBEDTLS_CTR_DRBG_C
 	select MBEDTLS_ECDH_C if OPENTHREAD_ECDSA
 	select MBEDTLS_ECDSA_C if OPENTHREAD_ECDSA
+	select MBEDTLS_PK_C if OPENTHREAD_ECDSA
+	select MBEDTLS_PK_WRITE_C if OPENTHREAD_ECDSA
 	select MBEDTLS_ECJPAKE_C
 	select MBEDTLS_ECP_C
 	select MBEDTLS_ECP_DP_SECP256R1_ENABLED

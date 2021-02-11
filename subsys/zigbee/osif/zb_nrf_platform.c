@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <stdlib.h>
@@ -277,6 +277,9 @@ int zigbee_init(void)
 	 */
 	zb_set_nvram_erase_at_start(ZB_FALSE);
 
+	/* Don't set zigbee role for NCP device */
+#ifndef CONFIG_ZIGBEE_LIBRARY_NCP_DEV
+
 	/* Set channels on which the coordinator will try
 	 * to create a new network
 	 */
@@ -288,6 +291,7 @@ int zigbee_init(void)
 #error Channel mask undefined!
 #endif
 
+
 #if defined(CONFIG_ZIGBEE_ROLE_COORDINATOR)
 	zb_set_network_coordinator_role(channel_mask);
 #elif defined(CONFIG_ZIGBEE_ROLE_ROUTER)
@@ -297,6 +301,8 @@ int zigbee_init(void)
 #else
 #error Zigbee device role undefined!
 #endif
+
+#endif /* CONFIG_ZIGBEE_LIBRARY_NCP_DEV */
 
 #endif /* CONFIG_ZB_TEST_MODE_MAC */
 
@@ -610,4 +616,18 @@ zb_uint8_t zb_get_reset_source(void)
 	}
 
 #endif
+}
+
+ZB_WEAK_PRE zb_uint32_t ZB_WEAK zb_osif_get_fw_version(void)
+{
+	return 0x01;
+}
+
+ZB_WEAK_PRE zb_uint32_t ZB_WEAK zb_osif_get_ncp_protocol_version(void)
+{
+#ifdef ZB_NCP_PROTOCOL_VERSION
+	return ZB_NCP_PROTOCOL_VERSION;
+#else /* ZB_NCP_PROTOCOL_VERSION */
+	return 0x01;
+#endif /* ZB_NCP_PROTOCOL_VERSION */
 }

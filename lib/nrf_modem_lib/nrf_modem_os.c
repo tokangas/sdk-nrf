@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <string.h>
@@ -500,7 +500,7 @@ void nrf_modem_lib_shm_tx_diagnose(void)
 }
 
 #if defined(CONFIG_NRF_MODEM_LIB_SHM_TX_DUMP_PERIODIC) || \
-    defined(CONFIG_NRF_MODEM_LIB_HEAP_DUMP_PERIODIC)
+	defined(CONFIG_NRF_MODEM_LIB_HEAP_DUMP_PERIODIC)
 
 static K_THREAD_STACK_DEFINE(work_q_stack_area, 512);
 static struct k_work_q modem_diag_worqk;
@@ -565,7 +565,7 @@ void nrf_modem_os_init(void)
 		    CONFIG_NRF_MODEM_LIB_SHMEM_TX_SIZE);
 
 #if defined(CONFIG_NRF_MODEM_LIB_SHM_TX_DUMP_PERIODIC) || \
-    defined(CONFIG_NRF_MODEM_LIB_HEAP_DUMP_PERIODIC)
+	defined(CONFIG_NRF_MODEM_LIB_HEAP_DUMP_PERIODIC)
 	k_work_q_start(&modem_diag_worqk, work_q_stack_area,
 		       K_THREAD_STACK_SIZEOF(work_q_stack_area),
 		       K_LOWEST_APPLICATION_THREAD_PRIO);

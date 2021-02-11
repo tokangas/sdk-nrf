@@ -32,18 +32,29 @@ nRF52832 SoC
     * Removed support for nRF52832 revision 1 workarounds for Errata 102, Errata 106, and Errata 107.
     * Removed support for nRF52832 revision 2 workarounds for Errata 143.
 
-
 nRF5340 SoC
 -----------
 
 * Added:
 
-  * ``esb`` subsystem - Added support for nRF5340 SoC (CPUNET) in ESB subsystem.
+  * ``esb`` subsystem - Added support for nRF5340 (CPUNET) in the ESB subsystem.
+  * ``spm`` subsystem - Added support for nRF5340 peripherals in non-secure applications.
 
 * Updated:
 
   * ``bl_boot`` library - Disabled clock interrupts before booting the application.
     This change fixes an issue where the :ref:`bootloader` sample would not be able to boot a Zephyr application on the nRF5340 SoC.
+
+Connected Home over IP (CHIP)
+-----------------------------
+
+* CHIP is now supported for development as an |NCS| submodule for Windows, Linux, and macOS.
+* Added:
+
+  * :ref:`ug_chip` protocol user guide
+  * :ref:`Bolt lock <chip_lock_sample>` sample
+  * :ref:`Light switch <chip_light_switch_sample>` sample
+  * :ref:`Light bulb <chip_light_bulb_sample>` sample
 
 DFU Target
 ----------
@@ -70,6 +81,8 @@ Thread
 * Added:
 
   * Development support for the nRF5340 DK in single-protocol configuration for the :ref:`ot_cli_sample`, :ref:`coap_client_sample`, and :ref:`coap_server_sample` samples.
+  * Development support for the nRF5340 DK in the multiprotocol configuration for the :ref:`ot_cli_sample` and :ref:`coap_client_sample` samples.
+  * Development support for nRF21540 FEM (front-end module) in the Thread samples.
 
 * Optimized ROM and RAM used by Thread samples.
 * Disabled Hardware Flow Control on the serial port in :ref:`coap_client_sample` and :ref:`coap_server_sample` samples.
@@ -79,7 +92,10 @@ Zigbee
 
 * Added:
 
-  * Development support for the nRF5340 DK in single-protocol configuration for the :ref:`zigbee_light_switch_sample`, :ref:`zigbee_light_bulb_sample`, and :ref:`zigbee_network_coordinator_sample` samples.
+  * Development support for the nRF5340 DK in the single-protocol configuration for the :ref:`zigbee_light_switch_sample`, :ref:`zigbee_light_bulb_sample`, and :ref:`zigbee_network_coordinator_sample` samples.
+  * Development support for the nRF5340 DK in the multiprotocol configuration for the :ref:`zigbee_light_switch_sample` sample.
+  * Development support for :ref:`NCP (Network Co-Processor) <ug_zigbee_platform_design_ncp_details>`.
+  * New sample :ref:`zigbee_ncp_sample`.
   * New ``zcl ping`` command in the :ref:`lib_zigbee_shell` library.
   * New libraries there were extracted from common code under :file:`subsys/zigbee/common`:
 
@@ -98,9 +114,17 @@ Bluetooth Mesh
 
   * Time client model callbacks for all message types.
   * Support for the nRF52833 DK in the :ref:`bluetooth_mesh_light` and :ref:`bluetooth_mesh_light_switch` samples.
+  * Support for :ref:`bt_mesh_light_xyl_readme`.
+
+* Updated the :ref:`bt_mesh_lightness_srv_readme` to disable the light control server when manual control has taken effect.
+  This follows the Mesh Model Specification section 6.2.3.
 
 nRF9160
 =======
+
+* Added:
+
+  * Asset Tracker v2 application for nRF9160 DK and Thingy:91, which is a low-power asset tracking example.
 
 * Updated:
 
@@ -121,6 +145,12 @@ nRF9160
     * Fixed an issue with overflowing HTTP request buffers.
     * Fixed issues with TCP/UDP server restart.
     * Added support for allowing only specified TCP/TLS client IP addresses (using the #XTCPFILTER command).
+    * Fixed the unsolicited result code (URC) message format following the 3GPP TS27.007 specification.
+    * Fixed a bug that occurred when the size of an AT command was exactly the maximum buffer size.
+    * Optimized SRAM usage.
+    * Disabled external XTAL usage for UARTE by default.
+    * Added a recovery mechanism for cases where a UART frame error happens.
+    * Enhanced data mode support for TCP/UDP proxy.
 
   * :ref:`lib_fota_download` library:
 
@@ -156,6 +186,10 @@ nRF9160
   * :ref:`mqtt_simple_sample` sample:
 
     * Updated the default server URL to ``mqtt.eclipseprojects.io``.
+
+  * :ref:`lte_lc_readme` library:
+
+    * Added support for manufacturer-specific default eDRX/PSM values.
 
 Common
 ======
@@ -200,11 +234,26 @@ Trusted Firmware-M:
 
 * Added a simple sample that demonstrates how to integrate TF-M in an application.
 
+Partition Manager:
+------------------
+
+* Changed naming convention for partition names in ``pm.yml`` and ``pm_static.yml``.
+* Updated Partition Manager to prevent users from using partition names in ``pm.yml`` and ``pm_static.yml`` that match the names of the child images that define them in ``CMakeLists.txt``:
+
+  * If the invalid naming scheme is used in ``pm.yml`` files, Partition Manager will now fail the builds.
+  * If the invalid naming scheme is used in ``pm_static.yml`` files, the build will instead print a warning prompting the user to change this, if possible.
+* Renamed ``b0`` and ``b0n`` container partitions to ``b0_container`` and ``b0n_container``, respectively.
+* Renamed ``b0_image`` and ``b0n_image`` image partitions to appropriately match their child image name, ``b0`` and ``b0n``, respectively.
+
+  **Migration notes:** While in development, you should rename partitions appropriately.
+  You can still build firmware updates under the invalid scheme, but they will still be built with the improper sizes for the related partitions.
 
 MCUboot
 =======
 
-The MCUboot fork in |NCS| (``sdk-mcuboot``) contains all commits from the upstream MCUboot repository up to and including ``c74c551ed6``, plus some |NCS| specific additions.
+The MCUboot fork in |NCS| (``sdk-mcuboot``) contains all commits from the upstream MCUboot repository up to and including ``3fc59410b6``, plus some |NCS| specific additions.
+
+The code for integrating MCUboot into |NCS| is located in :file:`ncs/nrf/modules/mcuboot`.
 
 The following list summarizes the most important changes inherited from upstream MCUboot:
 
@@ -226,6 +275,13 @@ The following list summarizes the most important changes inherited from upstream
   * Updated the ARM core configuration to only be initialized when selected by the user.
     See the ``CONFIG_MCUBOOT_CLEANUP_ARM_CORE`` option.
   * Allowed the final data chunk in the image to be unaligned in the serial-recovery protocol.
+  * Updated the ``CONFIG_BOOT_DIRECT_XIP_REVERT`` option to be valid only in xip-mode.
+  * Added an offset parameter to the tinycrypt ctr mode so that it can be properly used as a streaming cipher.
+  * Configured the bootloader to use a minimal CBPRINTF (:option:`CONFIG_CBPRINTF_NANO`) implementation.
+  * Configured logging to use :option:`CONFIG_LOG_MINIMAL` by default.
+  * Fixed a vulnerability with nokogiri<=1.11.0.rc4.
+  * Introduced a bootutil_public library that contains code common to MCUboot and the DFU application.
+    See :option:`CONFIG_MCUBOOT_BOOTUTIL_LIB`.
 
 * Image tool:
 
@@ -233,18 +289,21 @@ The following list summarizes the most important changes inherited from upstream
   * Added a possibility to set a confirm flag for HEX files as well.
   * Updated the usage of ``--confirm`` to imply ``--pad``.
   * Fixed the argument handling of ``custom_tlvs``.
+  * Added support for setting a fixed ROM address in the image header.
 
 
 Mcumgr
 ======
 
-The mcumgr library fork in |NCS| (``sdk-mcumgr``) contains all commits from the upstream mcumgr repository up to and including snapshot ``a3d5117b08``.
+The mcumgr library contains all commits from the upstream mcumgr repository up to and including snapshot ``74e77ad08``.
 
 The following list summarizes the most important changes inherited from upstream mcumgr:
 
 * Fixed an issue with devices running MCUboot v1.6.0 or earlier where a power outage during erase of a corrupted image in slot 1 could result in the device not being able to boot.
   In this case, it was not possible to update the device and mcumgr would return error code 6 (``MGMT_ERR_EBADSTATE``).
 * Added support for invoking shell commands (shell management) from the mcumgr command line.
+* Added optional verification of an uploaded direct-xip binary, which will reject any binary that cannot boot from the base address of the offered upload slot.
+  This verification can be enabled through :option:`CONFIG_IMG_MGMT_REJECT_DIRECT_XIP_MISMATCHED_SLOT`.
 
 
 Zephyr
@@ -252,19 +311,19 @@ Zephyr
 
 .. NOTE TO MAINTAINERS: The latest Zephyr commit appears in multiple places; make sure you update them all.
 
-The Zephyr fork in |NCS| (``sdk-zephyr``) contains all commits from the upstream Zephyr repository up to and including ``35264cc214fd``, plus some |NCS| specific additions.
+The Zephyr fork in |NCS| (``sdk-zephyr``) contains all commits from the upstream Zephyr repository up to and including ``ff720cd9b343``, plus some |NCS| specific additions.
 
 For a complete list of upstream Zephyr commits incorporated into |NCS| since the most recent release, run the following command from the :file:`ncs/zephyr` repository (after running ``west update``):
 
 .. code-block:: none
 
-   git log --oneline 35264cc214fd ^v2.4.0-ncs1
+   git log --oneline ff720cd9b343 ^v2.4.0-ncs1
 
 For a complete list of |NCS| specific commits, run:
 
 .. code-block:: none
 
-   git log --oneline manifest-rev ^35264cc214fd
+   git log --oneline manifest-rev ^ff720cd9b343
 
 The current |NCS| release is based on Zephyr v2.4.99.
 
@@ -277,6 +336,8 @@ The following list summarizes the most important changes inherited from upstream
 
 * Boards:
 
+  * Added support for :ref:`board versioning <zephyr:application_board_version>`.
+    With this concept, multiple board revisions can now share a single folder and board name.
   * Fixed arguments for the J-Link runners for nRF5340 DK and added the DAP Link (CMSIS-DAP) interface to the OpenOCD runner for nRF5340.
   * Marked the nRF5340 PDK as deprecated and updated the nRF5340 documentation to point to the :ref:`zephyr:nrf5340dk_nrf5340`.
   * Added enabling of LFXO pins (XL1 and XL2) for nRF5340.
@@ -288,10 +349,6 @@ The following list summarizes the most important changes inherited from upstream
   * Restricted thread-local storage, which is now available only when the toolchain supports it.
     Toolchain support is initially limited to the toolchains bundled with the Zephyr SDK.
   * Added support for gathering basic thread runtime statistics.
-  * Fixed a race condition between :c:func:`k_queue_append` and :c:func:`k_queue_alloc_append`.
-  * Updated the kernel to no longer try to resume threads that are not suspended.
-  * Updated the kernel to no longer attempt to queue threads that are already in the run queue.
-  * Updated :c:func:`k_busy_wait` to return immediately on a zero time-out, and improved accuracy on nonzero time-outs.
   * Removed the following deprecated `kernel APIs <https://github.com/nrfconnect/sdk-zephyr/commit/c8b94f468a94c9d8d6e6e94013aaef00b914f75b>`_:
 
     * ``k_enable_sys_clock_always_on()``
@@ -319,7 +376,24 @@ The following list summarizes the most important changes inherited from upstream
     * ``SYS_CLOCK_HW_CYCLES_TO_NS64()``
     * ``SYS_CLOCK_HW_CYCLES_TO_NS()``
 
+  * Removed the deprecated ``CONFIG_LEGACY_TIMEOUT_API`` option.
+    All time-outs must now be specified using the ``k_timeout_t`` type.
+
   * Updated :c:func:`k_timer_user_data_get` to take a ``const struct k_timer *timer`` instead of a non-\ ``const`` pointer.
+  * Added a :c:macro:`K_DELAYED_WORK_DEFINE` macro.
+  * Added a :option:`CONFIG_MEM_SLAB_TRACE_MAX_UTILIZATION` option.
+    If enabled, :c:func:`k_mem_slab_max_used_get` can be used to get a memory slab's maximum utilization in blocks.
+
+  * Bug fixes:
+
+    * Fixed a race condition between :c:func:`k_queue_append` and :c:func:`k_queue_alloc_append`.
+    * Updated the kernel to no longer try to resume threads that are not suspended.
+    * Updated the kernel to no longer attempt to queue threads that are already in the run queue.
+    * Updated :c:func:`k_busy_wait` to return immediately on a zero time-out, and improved accuracy on nonzero time-outs.
+    * The idle loop no longer unlocks and locks IRQs.
+      This avoids a race condition; see `Zephyr issue 30573 <https://github.com/zephyrproject-rtos/zephyr/issues/30573>`_.
+    * An arithmetic overflow that prevented long sleep times or absolute time-outs from working properly has been fixed; see `Zephyr issue #29066 <https://github.com/zephyrproject-rtos/zephyr/issues/29066>`_.
+    * A logging issue where some kernel debug logs could not be removed was fixed; see `Zephyr issue #28955 <https://github.com/zephyrproject-rtos/zephyr/issues/28955>`_.
 
 * Devicetree:
 
@@ -331,23 +405,30 @@ The following list summarizes the most important changes inherited from upstream
 
   * Deprecated the ``DEVICE_INIT()`` macro.
     Use :c:macro:`DEVICE_DEFINE` instead.
+  * Introduced macros (:c:macro:`DEVICE_DT_DEFINE` and related ones) that allow defining devices using information from devicetree nodes directly and referencing structures of such devices at build time.
+    Most drivers have been updated to use these new macros for creating their instances.
 
   * ADC:
 
     * Improved the default routine that provides sampling intervals, to allow intervals shorter than 1 millisecond.
+    * Reworked, extended, and improved the ``adc_shell`` driver to make testing an ADC peripheral simpler.
 
   * Bluetooth Controller:
 
     * Fixed and improved an issue where a connection event closed too early when more data could have been sent in the same connection event.
     * Fixed missing slave latency cancellation when initiating control procedures.
       Connection terminations are faster now.
-    * Added experimental support for non-connectable non-scannable Extended Advertising with 255 byte PDU (without chaining).
-    * Added experimental support for non-connectable scannable Extended Advertising with 255 byte PDU (without chaining).
+    * Added experimental support for non-connectable scannable Extended Advertising with 255 byte PDU (without chaining and privacy support).
+    * Added experimental support for connectable non-scannable Extended Advertising with 255 byte PDU (without chaining and privacy support).
+    * Added experimental support for non-connectable non-scannable Extended Advertising with 255 byte PDU (without chaining and privacy support).
     * Added experimental support for Extended Scanning with duration and period parameters (without active scanning for scan response or chained PDU).
     * Added experimental support for Periodic Advertising and Periodic Advertising Synchronization Establishment.
 
   * Bluetooth Host:
 
+    * Added an API to unregister scanner callbacks.
+    * Fixed an issue where ATT activity after the ATT time-out expired led to invalid memory access.
+    * Added support for LE Secure connections pairing in parallel on multiple connections.
     * Updated the :c:enumerator:`BT_LE_ADV_OPT_DIR_ADDR_RPA` option.
       It must now be set when advertising towards a privacy-enabled peer, independent of whether privacy has been enabled or disabled.
     * Updated the signature of the :c:type:`bt_gatt_indicate_func_t` callback type by replacing the ``attr`` pointer with a pointer to the :c:struct:`bt_gatt_indicate_params` struct that was used to start the indication.
@@ -359,6 +440,16 @@ The following list summarizes the most important changes inherited from upstream
     * Fixed a regression in lazy loading of the Client Configuration Characteristics.
     * Fixed an issue where a security procedure failure could terminate the current GATT transaction when the transaction did not require security.
 
+  * Clock control:
+
+    * Changed the definition (parameters and return values) of the API function :c:func:`clock_control_async_on`.
+    * Added support for the audio clock in nRF53 Series SoCs.
+    * Added missing handling of the HFCLK192M_STARTED event in nRF53 Series SoCs.
+
+  * Counter:
+
+    * Excluded selection of nRF TIMER0 and RTC0 when the Bluetooth Controller is enabled.
+
   * Display:
 
     * Added support for the ILI9488 display.
@@ -366,13 +457,26 @@ The following list summarizes the most important changes inherited from upstream
       Configuration of the driver instances is now done in devicetree.
     * Enhanced the SSD1306 driver to support communication via both SPI and I2C.
 
+  * Ethernet:
+
+    * Added driver for the W5500 Ethernet controller.
+
   * Flash:
 
     * Modified the nRF QSPI NOR driver so that it supports also nRF53 Series SoCs.
+    * Added missing selection of :option:`CONFIG_FLASH_HAS_PAGE_LAYOUT` for the SPI NOR and AT45 family flash drivers.
+    * Refactored the nRF QSPI NOR driver so that it no longer depends on :option:`CONFIG_MULTITHREADING`.
+    * Removed ``CONFIG_NORDIC_QSPI_NOR_QE_BIT``.
+      Use the ``quad-enable-requirements`` devicetree property instead.
 
   * IEEE 802.15.4:
 
     * Updated the nRF5 IEEE 802.15.4 driver to version 1.9.
+    * Production support for IEEE 802.15.4 in single-protocol configuration on nRF5340.
+    * Development support for IEEE 802.15.4 in multi-protocol configuration on nRF5340.
+    * Added reservation of the TIMER peripheral used by the nRF5 IEEE 802.15.4 driver.
+    * Added support for sending packets with specified TX time using the nRF5 IEEE 802.15.4 driver.
+    * Implemented the RX failed notification for the nRF5 IEEE 802.15.4 driver.
 
   * LED PWM:
 
@@ -383,10 +487,19 @@ The following list summarizes the most important changes inherited from upstream
     * Reworked the command handler reading routine, to prevent data loss and reduce RAM usage.
     * Added the possibility of locking TX in the command handler.
     * Improved handling of HW flow control on the RX side of the UART interface.
+    * Added the possibility of defining commands with a variable number of arguments.
+    * Introduced :c:func:`gsm_ppp_start` and :c:func:`gsm_ppp_stop` functions to allow restarting the networking stack without rebooting the device.
+    * Added support for Quectel BG9x modems.
 
   * Power:
 
     * Added multiple ``nrfx_power``-related fixes to reduce power consumption.
+
+  * PWM:
+
+    * Changed the GPIO configuration to use Nordic HAL, which allows support for GPIO pins above 31.
+    * Added a check to ensure that the PWM period does not exceed a 16-bit value to prevent erroneous behavior.
+    * Changed the PWM DT configuration to use a timer phandle instead of the previously used timer instance.
 
   * Regulator:
 
@@ -397,6 +510,7 @@ The following list summarizes the most important changes inherited from upstream
     * Added support for the IIS2ICLX 2-axis digital inclinometer.
     * Enhanced the BMI160 driver to support communication via both SPI and I2C.
     * Added device power management in the LIS2MDL magnetometer driver.
+    * Refactored the FXOS8700 driver to support multiple instances.
 
   * Serial:
 
@@ -411,9 +525,15 @@ The following list summarizes the most important changes inherited from upstream
       * ``LINE_CTRL_DCD``
       * ``LINE_CTRL_DSR``
 
+    * Refactored the :c:func:`uart_poll_out` implementation in the nRF UARTE driver to fix incorrect handling of HW flow control and power management.
+
   * SPI:
 
     * Added support for SPI emulators.
+
+  * Timer:
+
+    * Extended the nRF RTC Timer driver with vendor-specific API that allows using the remaining compare channels of the RTC that provides the system clock.
 
   * USB:
 
@@ -422,7 +542,6 @@ The following list summarizes the most important changes inherited from upstream
     * Fixed handling of the SUSPEND and RESUME events in the Bluetooth classes.
     * Made the USB DFU class compatible with the target configuration that does not have a secondary image slot.
     * Added support for using USB DFU within MCUboot with single application slot mode.
-
 
 * Networking:
 
@@ -434,6 +553,8 @@ The following list summarizes the most important changes inherited from upstream
     * Added network management events for DHCPv4.
     * Added periodic throughput printout to the :ref:`zephyr:sockets-echo-server-sample` sample.
     * Added an experimental option to set preemptive priority for networking threads (:option:`CONFIG_NET_TC_THREAD_PREEMPTIVE`).
+    * Added a Kconfig option that enables a hostname update on link address change (:option:`CONFIG_NET_HOSTNAME_UNIQUE_UPDATE`).
+    * Added multiple fixes to the DHCP implementation.
 
   * LwM2M:
 
@@ -450,10 +571,11 @@ The following list summarizes the most important changes inherited from upstream
     * Fixed buffer length check in :c:func:`lwm2m_engine_set`.
     * Added a possibility to acknowledge LwM2M requests early from the callback (:c:func:`lwm2m_acknowledge`).
     * Reworked the Bootstrap Delete operation to support all cases defined by the LwM2M specification.
+    * Added support for Bootstrap Discovery.
 
   * OpenThread:
 
-    * Updated the OpenThread version to commit ``69e97581e71a340776493dd9f5b65e11caec7954``.
+    * Updated the OpenThread version to commit ``f7825b96476989ae506a79963613f971095c8ae0``.
     * Removed obsolete flash driver from the OpenThread platform.
     * Added new OpenThread options:
 
@@ -467,14 +589,16 @@ The following list summarizes the most important changes inherited from upstream
       * :option:`CONFIG_OPENTHREAD_MAC_SOFTWARE_ACK_TIMEOUT_ENABLE`
       * :option:`CONFIG_OPENTHREAD_MAC_SOFTWARE_RETRANSMIT_ENABLE`
       * :option:`CONFIG_OPENTHREAD_PLATFORM_USEC_TIMER_ENABLE`
-      * :option:`CONFIG_OPENTHREAD_CONFIG_PLATFORM_INFO`
       * :option:`CONFIG_OPENTHREAD_RADIO_LINK_IEEE_802_15_4_ENABLE`
       * :option:`CONFIG_OPENTHREAD_RADIO_LINK_TREL_ENABLE`
       * :option:`CONFIG_OPENTHREAD_CSL_SAMPLE_WINDOW`
       * :option:`CONFIG_OPENTHREAD_CSL_RECEIVE_TIME_AHEAD`
       * :option:`CONFIG_OPENTHREAD_MAC_SOFTWARE_CSMA_BACKOFF_ENABLE`
+      * :option:`CONFIG_OPENTHREAD_PLATFORM_INFO`
+      * :option:`CONFIG_OPENTHREAD_RADIO_WORKQUEUE_STACK_SIZE`
 
     * Added support for RCP co-processor mode.
+    * Fixed multicast packet reception.
 
   * MQTT:
 
@@ -488,6 +612,12 @@ The following list summarizes the most important changes inherited from upstream
     * Added a :c:macro:`TLS_ALPN_LIST` socket option for TLS sockets.
     * Fixed a ``tls_context`` leak on ``ztls_socket()`` failure.
     * Fixed ``getaddrinfo()`` hints handling with AI_PASSIVE flag.
+
+  * CoAP:
+
+    * Added a retransmission counter to the :c:struct:`coap_pending` structure to simplify the retransmission logic.
+    * Added a Kconfig option to randomize the initial ACK time-out, as specified in RFC 7252 (:option:`CONFIG_COAP_RANDOMIZE_ACK_TIMEOUT`).
+    * Fixed encoding of long options (larger than 268 bytes).
 
 * Bluetooth Mesh:
 
@@ -523,6 +653,12 @@ The following list summarizes the most important changes inherited from upstream
     * Added support for the following :c:func:`fs_mount` flags: :c:macro:`FS_MOUNT_FLAG_READ_ONLY`, :c:macro:`FS_MOUNT_FLAG_NO_FORMAT`
     * Updated the FS API to not perform a runtime check of a driver interface when the :option:`CONFIG_NO_RUNTIME_CHECKS` option is enabled.
 
+  * DFU:
+
+    * Added shell module for MCUboot enabled application.
+      See :option:`CONFIG_MCUBOOT_SHELL`.
+    * Reworked the implementation to use MCUboot's bootutil_public library instead of the Zephyr implementation of the same API.
+
 * Build system:
 
   * Ensured that shields can be placed in other BOARD_ROOT folders.
@@ -546,6 +682,7 @@ The following list summarizes the most important changes inherited from upstream
   * :ref:`zephyr:led_ws2812_sample`: Updated to force SPIM on nRF52 DK.
   * :ref:`zephyr:cfb_custom_fonts`: Added support for ssd1306fb.
   * :ref:`zephyr:gsm-modem-sample`: Added suspend/resume shell commands.
+  * :ref:`zephyr:updatehub_fota_sample`: Added support for Bluetooth LE IPSP, 802.15.4, modem, and Wi-Fi.
 
 * Logging:
 
@@ -559,11 +696,31 @@ The following list summarizes the most important changes inherited from upstream
   * Updated nrfx in hal-nordic to version 2.4.0.
   * Updated the Trusted Firmware-M (TF-M) module to include support for the nRF5340 and nRF9160 platforms.
 
-
 * Other:
 
+  * Renamed the ``sanitycheck`` script to ``twister``.
   * Added initial LoRaWAN support.
   * Updated ``west flash`` support for ``nrfjprog`` to fail if a HEX file has UICR data and ``--erase`` was not specified.
+
+* Power management:
+
+  * Overhauled the naming and did some general cleanup.
+
+* Shell:
+
+  * Updated documentation.
+  * Optimized the tab feature and the select command.
+  * Enhanced and improved the help command.
+
+* Toolchain:
+
+  * Added initial support for LLVM/Clang (version 10, on the x86 architecture).
+  * Added the environment variable ``LLVM_TOOLCHAIN_PATH`` for locating the LLVM toolchain.
+
+* USB:
+
+  * Fixed the handling of zero-length packet (ZLP) in the nRF USB Device Controller Driver.
+  * Changed the USB DFU wait delay to be configurable with Kconfig (:option:`CONFIG_USB_DFU_WAIT_DELAY_MS`).
 
 Documentation
 =============
@@ -574,6 +731,11 @@ Samples
 -------
 
 * :ref:`zigbee_samples` - updated the structure to match the template
+
+User guides
+-----------
+
+* :ref:`ug_nrf52` - updated with information about support for CHIP
 
 Known issues
 ************

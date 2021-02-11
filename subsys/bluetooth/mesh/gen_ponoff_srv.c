@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <bluetooth/mesh/gen_ponoff_srv.h>
@@ -238,6 +238,7 @@ static int bt_mesh_ponoff_srv_settings_set(struct bt_mesh_model *model,
 					   void *cb_arg)
 {
 	struct bt_mesh_ponoff_srv *srv = model->user_data;
+	struct bt_mesh_onoff_status dummy;
 	struct ponoff_settings_data data;
 
 	if (name) {
@@ -266,7 +267,7 @@ static int bt_mesh_ponoff_srv_settings_set(struct bt_mesh_model *model,
 		return -EINVAL;
 	}
 
-	srv->onoff.handlers->set(&srv->onoff, NULL, &onoff_set, NULL);
+	srv->onoff.handlers->set(&srv->onoff, NULL, &onoff_set, &dummy);
 
 	return 0;
 }

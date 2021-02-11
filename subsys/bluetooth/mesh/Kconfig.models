@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2019 - 2020 Nordic Semiconductor ASA
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 menu "nRF BT mesh models"
@@ -605,3 +605,18 @@ config BT_MESH_SCENE_CLI
 	  Enable mesh Scene Client model.
 
 endmenu
+
+config BT_MESH_SCHEDULER_CLI
+	bool "Scheduler Client"
+	select BT_MESH_NRF_MODELS
+	help
+	  Enable Mesh Scheduler Client model.
+
+config BT_MESH_SCHEDULER_SRV
+	bool "Scheduler Server"
+	select BT_MESH_NRF_MODELS
+	select BT_MESH_ONOFF_SRV
+	select BT_MESH_SCENE_SRV
+	select BT_MESH_TIME_SRV
+	help
+	  Enable Mesh Scheduler Server model.

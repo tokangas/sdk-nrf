@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2019 Nordic Semiconductor
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 function(preprocess_pm_yml in_file out_file)
@@ -71,14 +71,10 @@ endif()
 
 if (CONFIG_BUILD_WITH_TFM)
   ncs_add_partition_manager_config(pm.yml.tfm)
+endif()
 
-  if (NOT CONFIG_TFM_BL2_FALSE)
-    # Add the mcuboot hex file built by TFM as the contents of the bl2 partitions,
-    # so it can be flashed together with the app/tfm hex files.
-    set_property(GLOBAL PROPERTY
-      bl2_PM_HEX_FILE ${CMAKE_BINARY_DIR}/tfm/bin/bl2.hex
-      )
-  endif()
+if (CONFIG_TRUSTED_EXECUTION_NONSECURE OR CONFIG_TRUSTED_EXECUTION_SECURE)
+  ncs_add_partition_manager_config(pm.yml.trustzone)
 endif()
 
 # We are using partition manager if we are a child image or if we are
