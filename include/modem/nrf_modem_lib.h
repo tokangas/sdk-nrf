@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #ifdef __cplusplus
@@ -27,8 +27,8 @@ extern "C" {
  * are reserverd for the firmware update operation, and no other functionality
  * can be used. In particular, sockets won't be available to the application.
  *
- * To switch between the full DFU mode and and normal mode,
- * shutdown the modem with @ref nrf_modem_shutdown() and re-initialize
+ * To switch between the full DFU mode and normal mode,
+ * shutdown the modem with @ref nrf_modem_lib_shutdown() and re-initialize
  * it in the desired operation mode.
  *
  * @param[in] mode Library mode.

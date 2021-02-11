@@ -81,6 +81,11 @@
 
 .. _`SMP over Bluetooth`: https://github.com/apache/mynewt-mcumgr/blob/master/transport/smp-bluetooth.md
 
+.. _`Android CHIPTool`: https://github.com/nrfconnect/sdk-connectedhomeip/tree/ff13bd/src/android/CHIPTool
+.. _`Commissioning nRF Connect Accessory using Android CHIPTool`: https://github.com/nrfconnect/sdk-connectedhomeip/blob/ff13bd/docs/guides/nrfconnect_android_commissioning.md
+.. _`CHIP Protocol Overview`: https://github.com/nrfconnect/sdk-connectedhomeip/blob/ff13bd/README.md
+.. _`nRF Connect platform overview`: https://github.com/nrfconnect/sdk-connectedhomeip/blob/ff13bd/docs/guides/nrfconnect_platform_overview.md
+
 .. ### Source: developer.nordicsemi.com
 
 .. _`nRF Connect SDK v1.4.0 documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.4.0/nrf/index.html
@@ -146,6 +151,7 @@
 .. _`Managing credentials`: https://infocenter.nordicsemi.com/topic/ug_link_monitor/UG/link_monitor/lm_certificate_manager.html
 
 .. _`nRF Connect Programmer`: https://infocenter.nordicsemi.com/topic/ug_nc_programmer/UG/nrf_connect_programmer/ncp_introduction.html
+.. _`Programming the nRF52840 Dongle`: https://infocenter.nordicsemi.com/topic/ug_nc_programmer/UG/nrf_connect_programmer/ncp_programming_dongle.html
 
 .. _`nRF9160 Product Specification`: https://infocenter.nordicsemi.com/topic/ps_nrf9160/nRF9160_html5_keyfeatures.html
 
@@ -219,6 +225,9 @@
 .. _`Power Profiler Kit II (PPK2)`: https://infocenter.nordicsemi.com/topic/ug_ppk2/UG/ppk/PPK_user_guide_Intro.html
 
 .. _`anomaly 19`: https://infocenter.nordicsemi.com/topic/errata_nRF5340_EngA/ERR/nRF5340/EngineeringA/latest/anomaly_340_19.html
+
+.. _`nRF5 SDK Bootloader`: https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.0.2/lib_bootloader.html
+.. _`nRF5 Bootloader DFU Mode`: https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.0.2/lib_bootloader.html#lib_bootloader_dfu_mode
 
 .. ### Source: devzone.nordicsemi.com
 
@@ -358,6 +367,7 @@
 .. _`AWS Simple Storage Service (S3)`: https://docs.aws.amazon.com/s3/index.html
 .. _`AWS S3 Developer Guide: Using Bucket Policies and User Policies`: https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html
 .. _`AWS S3 Developer Guide: Bucket Policy Examples`: https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html
+.. _`AWS IoT Core`: https://aws.amazon.com/iot-core/
 
 .. ### Source: developer.amazon.com & www.amazon.com
 
@@ -428,6 +438,16 @@
 .. _`Easyfit Single/Double Rocker Wall Switch for Bluetooth LE - EWSSB/EWSDB`: https://www.enocean.com/en/products/enocean_modules_24ghz_ble/easyfit-single-double-rocker-wall-switch-for-ble-ewssb-ewsdb/
 .. _`Easyfit Single/Double Rocker Pad for Bluetooth LE - ESRPB/EDRPB`: https://www.enocean.com/en/products/enocean_modules_24ghz_ble/easyfit-single-double-rocker-pad-for-ble-esrpb-edrpb/
 .. _`Easyfit Motion Detector with Illumination Sensor - EMDCB`: https://www.enocean.com/en/products/enocean_modules_24ghz_ble/easyfit-motion-detector-with-illumination-sensor-emdcb/
+
+.. ### Source: edgeimpulse.com
+
+.. _`Edge Impulse`: https://www.edgeimpulse.com/
+.. _`Edge Impulse studio`: https://studio.edgeimpulse.com/login
+.. _`Edge Impulse getting started guide`: https://docs.edgeimpulse.com/docs/getting-started
+.. _`embedded machine learning`: https://docs.edgeimpulse.com/docs/what-is-embedded-machine-learning-anyway
+.. _`Continuous motion recognition tutorial`: https://docs.edgeimpulse.com/docs/continuous-motion-recognition
+.. _`Edge Impulse's data forwarder`: https://docs.edgeimpulse.com/docs/cli-data-forwarder
+.. _`Edge Impulse CLI installation guide`: https://docs.edgeimpulse.com/docs/cli-installation
 
 .. ### Source: other
 
@@ -507,8 +527,6 @@
 
 .. _`TinyCBOR`: https://intel.github.io/tinycbor/current/
 
-.. _`Connected Home over IP`: https://www.connectedhomeip.com/
-
 .. _`BH1749NUC-E`: https://www.rohm.com/datasheet/BH1749NUC/bh1749nuc-e
 
 .. _`GNU Arm Embedded Toolchain`: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
@@ -524,4 +542,23 @@
 
 .. _`SKY66112-11 page`: https://www.skyworksinc.com/en/Products/Front-end-Modules/SKY66112-11
 
-.. _`GN` : https://gn.googlesource.com/gn/
+.. _`Connected Home over IP`: https://www.connectedhomeip.com/
+
+.. _`GN`: https://gn.googlesource.com/gn/
+.. _`GN website`: https://gn.googlesource.com/gn/#getting-a-binary
+
+.. _`Timestamping`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/device-cloud-protocol/FourKindsOfData.html#timestamping
+
+.. _`Power Saving Mode (PSM)`: https://www.sharetechnote.com/html/Handbook_LTE_PSM.html
+
+.. _`MQTT`: https://en.wikipedia.org/wiki/MQTT
+
+.. ### Source: Asset Tracker Cloud Example
+
+.. _`Asset Tracker Cloud Example for AWS`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/aws/Index.html
+
+.. _`Asset Tracker Cloud Example web application`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/app/Index.html
+
+.. _`Getting started guide for Asset Tracker Cloud Example for AWS`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/aws/GettingStarted.html
+
+.. _`Azure support for Asset Tracker v2`: https://github.com/NordicSemiconductor/asset-tracker-cloud-docs/discussions/12

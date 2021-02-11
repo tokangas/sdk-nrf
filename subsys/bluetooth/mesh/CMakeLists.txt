@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2018 Nordic Semiconductor
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 zephyr_library()
@@ -67,5 +67,8 @@ zephyr_library_sources_ifdef(CONFIG_BT_MESH_SCENE_CLI scene_cli.c)
 
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHT_XYL_CLI light_xyl_cli.c)
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHT_XYL_SRV light_xyl_srv.c)
+
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SCHEDULER_CLI scheduler_cli.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SCHEDULER_SRV scheduler_srv.c)
 
 zephyr_linker_sources(SECTIONS sensor_types.ld)

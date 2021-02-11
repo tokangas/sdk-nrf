@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2019 Nordic Semiconductor ASA
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 
 import argparse
 import yaml
@@ -45,7 +45,9 @@ def remove_item_not_in_list(list_to_remove_from, list_to_check, dp):
 
 def item_is_placed(d, item, after_or_before):
     assert after_or_before in ['after', 'before']
-    return after_or_before in d['placement'] and d['placement'][after_or_before][0] == item
+    return (('placement' in d) and
+            (after_or_before in d['placement']) and
+            (d['placement'][after_or_before][0] == item))
 
 
 def resolve_one_of(reqs, partitions, invalid=False):
@@ -203,17 +205,6 @@ def solve_direction(reqs, sub_partitions, unsolved, solution, ab):
             current = pool[current_index]
 
 
-def solve_first_last(reqs, unsolved, solution):
-    for fl in [('after', 'start', lambda x: solution.insert(0, x)), ('before', 'end', solution.append)]:
-        first_or_last = [x for x in reqs.keys() if 'placement' in reqs[x]
-                         and fl[0] in reqs[x]['placement'].keys()
-                         and fl[1] in reqs[x]['placement'][fl[0]]]
-        if first_or_last:
-            fl[2](first_or_last[0])
-            if first_or_last[0] in unsolved:
-                unsolved.remove(first_or_last[0])
-
-
 def solve_inside(reqs, sub_partitions):
     for key, value in reqs.items():
         if 'inside' in value.keys():
@@ -289,7 +280,7 @@ def resolve_ambiguous_requirements(reqs, unsolved):
 
 def resolve(reqs, dp):
     convert_str_to_list(reqs)
-    solution = list([dp])
+    solution = ["start", dp, "end"]
 
     remove_irrelevant_requirements(reqs, dp)
     sub_partitions = {k: v for k, v in reqs.items() if 'span' in v}
@@ -302,11 +293,22 @@ def resolve(reqs, dp):
 
     unsolved = get_images_which_need_resolving(reqs, sub_partitions)
     resolve_ambiguous_requirements(reqs, unsolved)
-    solve_first_last(reqs, unsolved, solution)
+
+    for name, req in reqs.items():
+        if (item_is_placed(req, "start", "before") or item_is_placed(req, "end", "after")):
+            raise PartitionError(f'Partition "{name}" was placed before start or after end.')
 
     while unsolved:
+        current_len = len(unsolved)
         solve_direction(reqs, sub_partitions, unsolved, solution, 'before')
         solve_direction(reqs, sub_partitions, unsolved, solution, 'after')
+        if current_len == len(unsolved):
+            raise PartitionError('Unable to solve the following partitions (endless loop):\n'
+                                 + pformat(unsolved))
+
+    assert(solution[0] == "start" and solution[-1] == "end"), "invalid solution wrt. start and end."
+    solution.remove("start")
+    solution.remove("end")
 
     # Validate partition spanning.
     for sub in sub_partitions:
@@ -1619,6 +1621,32 @@ def test():
     }
     s, _ = resolve(td, 'app')
     expect_list(['app', '1', '2'], s)
+
+    # Verify that partitions cannot be placed after end.
+    td = {
+        '2': {'placement': {'before': ['end']}},
+        '1': {'placement': {'after': ['end']}},
+        'app': {'region': 'flash_primary'}
+    }
+    try:
+        resolve(td, 'app')
+    except PartitionError:
+        failed = True
+
+    assert failed
+
+    # Verify that partitions cannot be placed before start.
+    td = {
+        '2': {'placement': {'before': ['start']}},
+        '1': {'placement': {'before': ['end']}},
+        'app': {'region': 'flash_primary'}
+    }
+    try:
+        resolve(td, 'app')
+    except PartitionError:
+        failed = True
+
+    assert failed
 
     td = {
         '6': {'placement': {'after': ['3']}},

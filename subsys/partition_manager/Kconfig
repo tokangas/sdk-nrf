@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 Nordic Semiconductor ASA
 #
-# SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 menu "Partition Manager"
@@ -133,40 +133,38 @@ config BUILD_WITH_TFM
 
 if BUILD_WITH_TFM
 
-config PM_PARTITION_SIZE_TFM_RAM
-	hex
+config PM_PARTITION_SIZE_TFM_SRAM
+	hex "Memory reserved for TFM_RAM."
+	default 0x10000 if NRF_MODEM_LIB
 	default 0x16000 if SOC_NRF9160
 	default 0x40000 if SOC_NRF5340_CPUAPP
 	help
-	  Memory set aside for the TFM_RAM partition.
-	  The prompt has been removed since the value is dictated by TFM and
-	  cannot be changed.
+	  Memory set aside for the TFM_SRAM partition.
 
-config PM_PARTITION_SIZE_BL2
-	hex
-	default 0x10000
+partition=BL2
+partition-size=0x8000
+rsource "Kconfig.template.partition_size"
+
+partition=TFM
+partition-size=0x40000
+rsource "Kconfig.template.partition_size"
+
+partition=TFM_EXTRA
+partition-size=0x10000
+rsource "Kconfig.template.partition_size"
+
+if NRF_MODEM_LIB
+
+config TFM_PROFILE
+	string "The build profile used for TFM Secure image."
+	default "profile_small"
 	help
-	  Memory set aside for the BL2 partition.
-	  The prompt has been removed since the value is dictated by TFM and
-	  cannot be changed.
+	  Use profile_small when the modem is enabled to get the RAM usage below
+	  64 kB, so the Modem's IPC RAM area can fit at 0x10000.
+	  This overrides the default TFM_PROFILE.
 
-config PM_PARTITION_SIZE_TFM
-	hex
-	default 0x40000
-	help
-	  Memory set aside for the TFM partition.
-	  The prompt has been removed since the value is dictated by TFM and
-	  cannot be changed.
-
-config PM_PARTITION_SIZE_TFM_EXTRA
-	hex
-	default 0x10000
-	help
-	  Memory set aside for the TFM_EXTRA partition.
-	  The prompt has been removed since the value is dictated by TFM and
-	  cannot be changed.
-
-endif
+endif # TFM_PROFILE
+endif # BUILD_WITH_TFM
 
 config PM_IMAGE_NOT_BUILT_FROM_SOURCE
 	bool

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 #include <string.h>
 #include <stdio.h>
@@ -342,8 +342,9 @@ static int exp_1_1_encode(const struct bt_mesh_sensor_format *format,
 		return -ENOMEM;
 	}
 
-	net_buf_simple_add_u8(buf, sensor_powtime_encode((val->val1 * 1000) +
-							 (val->val2 / 1000)));
+	net_buf_simple_add_u8(buf,
+			      sensor_powtime_encode((val->val1 * 1000ULL) +
+						    (val->val2 / 1000ULL)));
 	return 0;
 }
 

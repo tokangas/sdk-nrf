@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 #include <logging/log.h>
 #include <zephyr.h>
@@ -466,25 +466,26 @@ static int do_listen(void)
 
 static int do_accept(void)
 {
-	int ret;
+	int fd;
 	char peer_addr[INET_ADDRSTRLEN];
 	socklen_t len = sizeof(struct sockaddr_in);
 
-	ret = accept(client.sock, (struct sockaddr *)&remote, &len);
-	if (ret < 0) {
-		LOG_ERR("accept() failed: %d/%d", -errno, ret);
+	fd = accept(client.sock, (struct sockaddr *)&remote, &len);
+	if (fd == -1) {
+		LOG_ERR("accept() failed: %d", -errno);
 		do_socket_close(-errno);
 		return -errno;
 	}
 	if (inet_ntop(AF_INET, &remote.sin_addr, peer_addr, INET_ADDRSTRLEN)
 		== NULL) {
 		LOG_WRN("Parse peer IP address failed: %d", -errno);
+		close(fd);
 		return -EINVAL;
 	}
 	sprintf(rsp_buf, "#XACCEPT: \"connected with %s\"\r\n",
 		peer_addr);
 	rsp_send(rsp_buf, strlen(rsp_buf));
-	client.sock_peer = ret;
+	client.sock_peer = fd;
 	client.connected = true;
 
 	sprintf(rsp_buf, "#XACCEPT: %d\r\n", client.sock_peer);
@@ -716,9 +717,6 @@ static int handle_at_socket(enum at_cmd_type cmd_type)
 
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
-		if (at_params_valid_count_get(&at_param_list) < 2) {
-			return -EINVAL;
-		}
 		err = at_params_short_get(&at_param_list, 1, &op);
 		if (err) {
 			return err;
@@ -727,9 +725,6 @@ static int handle_at_socket(enum at_cmd_type cmd_type)
 			uint16_t type;
 			sec_tag_t sec_tag = INVALID_SEC_TAG;
 
-			if (at_params_valid_count_get(&at_param_list) < 4) {
-				return -EINVAL;
-			}
 			err = at_params_short_get(&at_param_list, 2, &type);
 			if (err) {
 				return err;
@@ -806,9 +801,6 @@ static int handle_at_socketopt(enum at_cmd_type cmd_type)
 			LOG_ERR("Invalid role");
 			return err;
 		}
-		if (at_params_valid_count_get(&at_param_list) < 3) {
-			return -EINVAL;
-		}
 		err = at_params_short_get(&at_param_list, 1, &op);
 		if (err) {
 			return err;
@@ -820,9 +812,6 @@ static int handle_at_socketopt(enum at_cmd_type cmd_type)
 		if (op == AT_SOCKETOPT_SET) {
 			int value;
 
-			if (at_params_valid_count_get(&at_param_list) < 4) {
-				return -EINVAL;
-			}
 			err = at_params_int_get(&at_param_list, 3, &value);
 			if (err) {
 				return err;
@@ -863,9 +852,6 @@ static int handle_at_bind(enum at_cmd_type cmd_type)
 
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
-		if (at_params_valid_count_get(&at_param_list) < 2) {
-			return -EINVAL;
-		}
 		err = at_params_short_get(&at_param_list, 1, &port);
 		if (err < 0) {
 			return err;
@@ -903,14 +889,10 @@ static int handle_at_connect(enum at_cmd_type cmd_type)
 
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
-		if (at_params_valid_count_get(&at_param_list) < 3) {
-			return -EINVAL;
-		}
-		err = at_params_string_get(&at_param_list, 1, url, &size);
+		err = util_string_get(&at_param_list, 1, url, &size);
 		if (err) {
 			return err;
 		}
-		url[size] = '\0';
 		err = at_params_short_get(&at_param_list, 2, &port);
 		if (err) {
 			return err;
@@ -1035,14 +1017,11 @@ static int handle_at_send(enum at_cmd_type cmd_type)
 
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
-		if (at_params_valid_count_get(&at_param_list) < 3) {
-			return -EINVAL;
-		}
 		err = at_params_short_get(&at_param_list, 1, &datatype);
 		if (err) {
 			return err;
 		}
-		err = at_params_string_get(&at_param_list, 2, data, &size);
+		err = util_string_get(&at_param_list, 2, data, &size);
 		if (err) {
 			return err;
 		}
@@ -1107,10 +1086,10 @@ static int handle_at_sendto(enum at_cmd_type cmd_type)
 {
 	int err = -EINVAL;
 	char url[TCPIP_MAX_URL];
+	int size = TCPIP_MAX_URL;
 	uint16_t port;
 	uint16_t datatype;
 	char data[NET_IPV4_MTU];
-	int size;
 
 	if (client.sock < 0) {
 		LOG_ERR("Socket not opened yet");
@@ -1124,15 +1103,10 @@ static int handle_at_sendto(enum at_cmd_type cmd_type)
 
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
-		if (at_params_valid_count_get(&at_param_list) < 5) {
-			return -EINVAL;
-		}
-		size = TCPIP_MAX_URL;
-		err = at_params_string_get(&at_param_list, 1, url, &size);
+		err = util_string_get(&at_param_list, 1, url, &size);
 		if (err) {
 			return err;
 		}
-		url[size] = '\0';
 		err = at_params_short_get(&at_param_list, 2, &port);
 		if (err) {
 			return err;
@@ -1142,7 +1116,7 @@ static int handle_at_sendto(enum at_cmd_type cmd_type)
 			return err;
 		}
 		size = NET_IPV4_MTU;
-		err = at_params_string_get(&at_param_list, 4, data, &size);
+		err = util_string_get(&at_param_list, 4, data, &size);
 		if (err) {
 			return err;
 		}
@@ -1222,14 +1196,10 @@ static int handle_at_getaddrinfo(enum at_cmd_type cmd_type)
 
 	switch (cmd_type) {
 	case AT_CMD_TYPE_SET_COMMAND:
-		if (at_params_valid_count_get(&at_param_list) < 2) {
-			return -EINVAL;
-		}
-		err = at_params_string_get(&at_param_list, 1, url, &size);
+		err = util_string_get(&at_param_list, 1, url, &size);
 		if (err) {
 			return err;
 		}
-		url[size] = '\0';
 		if (check_for_ipv4(url, strlen(url))) {
 			LOG_ERR("already IPv4 address");
 			return -EINVAL;
