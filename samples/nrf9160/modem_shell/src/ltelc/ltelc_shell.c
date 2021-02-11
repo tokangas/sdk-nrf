@@ -546,7 +546,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				if (ret < 0) {
 					shell_error(shell, "Cannot read system mode of the modem: %d", ret);
 				} else {
-					shell_print(shell, "System mode read successfully: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
+					shell_print(shell, "System mode read successfully from modem: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
 				}
 			} else {
 				ret = lte_lc_system_mode_set(ltelc_cmd_args.sysmode_option);
@@ -557,7 +557,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 						shell_info(shell, "Setting 1st to flightmode might help by using: \"ltelc funmode --flightmode\"");
 					}
 				} else {
-					shell_print(shell, "System mode set successfully: %s", ltelc_shell_sysmode_to_string(ltelc_cmd_args.sysmode_option, snum));
+					shell_print(shell, "System mode set successfully to modem: %s", ltelc_shell_sysmode_to_string(ltelc_cmd_args.sysmode_option, snum));
 				}
 			}
 			break;
@@ -580,19 +580,23 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case LTELC_CMD_EDRX:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+				char *value = NULL; /* Set with the defaults if not given */
 				if (edrx_value_set) {
-					ret = lte_lc_edrx_param_set(edrx_value_str);
-					if (ret < 0) {
-						shell_error(shell, "Cannot set eDRX value: %d", ret);
-						return -EINVAL;
-					}
+					value = edrx_value_str;
 				}
+				ret = lte_lc_edrx_param_set(value);
+				if (ret < 0) {
+					shell_error(shell, "Cannot set eDRX value %s, error: %d", ((value == NULL)? "NULL" : value), ret);
+					return -EINVAL;
+				}
+				value = NULL;  /* Set with the defaults if not given */
 				if (edrx_ptw_set) {
-					ret = lte_lc_ptw_set(edrx_ptw_bit_str);
-					if (ret < 0) {
-						shell_error(shell, "Cannot set PTW value: %d", ret);
-						return -EINVAL;
-					}
+					value = edrx_ptw_bit_str;
+				}
+				ret = lte_lc_ptw_set(value);
+				if (ret < 0) {
+					shell_error(shell, "Cannot set PTW value %s, error: %d", ((value == NULL)? "NULL" : value), ret);
+					return -EINVAL;
 				}
 
 				ret = lte_lc_edrx_req(true);
@@ -617,19 +621,23 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case LTELC_CMD_PSM:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
-				if (psm_rptau_set && psm_rat_set) {
-					ret = lte_lc_psm_param_set(psm_rptau_bit_str, psm_rat_bit_str);
-					if (ret < 0) {
-						shell_error(shell, "Cannot set PSM parameters: %d", ret);
-						return -EINVAL;
-					}
-				} 
-				else {
-					if ((psm_rptau_set && !psm_rat_set) ||
-					    (!psm_rptau_set && psm_rat_set)) {
-							shell_error(shell, "Both PSM parameters needs to be set");
-							return -EINVAL;
-						}
+				/* Set with the defaults if not given */
+				char *rptau_bit_value = NULL;
+				char *rat_bit_value = NULL;
+
+				if (psm_rptau_set)
+					rptau_bit_value = psm_rptau_bit_str;
+
+				if (psm_rat_set)
+					rat_bit_value = psm_rat_bit_str;
+
+				ret = lte_lc_psm_param_set(rptau_bit_value, rat_bit_value);
+				if (ret < 0) {
+					shell_error(shell, "Cannot set PSM parameters: error %d", ret);
+					shell_error(shell, "  rptau %s, rat %s", 
+						((rptau_bit_value == NULL)? "NULL" : rptau_bit_value),
+						((rat_bit_value == NULL)? "NULL" : rat_bit_value));
+					return -EINVAL;
 				}
 
 				ret = lte_lc_psm_req(true);
