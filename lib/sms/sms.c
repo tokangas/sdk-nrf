@@ -172,7 +172,18 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
-static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
+/** 
+ * @brief Decode received SMS message, i.e., SMS-DELIVER message as specified
+ * in 3GPP TS 23.040 Section 9.2.2.1.
+ * 
+ * @param pdu SMS-DELIVER PDU.
+ * @param out SMS message decoded into a structure.
+ * 
+ * @retval -EINVAL Invalid parameter.
+ * @retval -ENOMEM No memory to register new observers.
+ * @return Zero on success, otherwise error code.
+ */
+int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 {
 	struct  parser sms_deliver;
 	int     err=0;
@@ -229,22 +240,6 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 	return 0;
 }
 
-int sms_get_header(struct sms_data *in, struct sms_deliver_header *out)
-{
-	/* TODO: Right now this returns payload too in out->ud */
-	if (in == NULL || out == NULL) {
-		LOG_ERR("sms_get_header with NULL input\n");
-		return -EINVAL;
-	}
-
-	int err = sms_deliver_pdu_parse(in->pdu, out);
-	if (err != 0) {
-		return err;
-	}
-
-	return 0;
-}
-
 /** @brief Handler for AT responses and unsolicited events. */
 void sms_at_handler(void *context, const char *at_notif)
 {
@@ -262,6 +257,26 @@ void sms_at_handler(void *context, const char *at_notif)
 		/* Extract and save the SMS notification parameters. */
 		int valid_notif = sms_cmt_at_parse(at_notif, &cmt_rsp);
 		if (valid_notif != 0) {
+			return;
+		}
+
+		/* Parse SMS-DELIVER PDU */
+		if (cmt_rsp.header != NULL) {
+			if (cmt_rsp.header->ud != NULL) {
+				k_free(cmt_rsp.header->ud);
+				cmt_rsp.header->ud = NULL;
+			}
+			k_free(cmt_rsp.header);
+			cmt_rsp.header = NULL;
+		}
+		cmt_rsp.header = k_malloc(sizeof(struct sms_deliver_header));
+		if (cmt_rsp.header == NULL) {
+			LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
+			return;
+		}
+		int err = sms_deliver_pdu_parse(cmt_rsp.pdu, cmt_rsp.header);
+		if (err) {
+			LOG_ERR("sms_deliver_pdu_parse error: %d\n", err);
 			return;
 		}
 	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
