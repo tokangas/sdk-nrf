@@ -27,8 +27,6 @@ static int sms_recv_counter = 0;
 
 static void sms_callback(struct sms_data *const data, void *context)
 {
-	struct sms_deliver_header sms_header;
-
 	if (data == NULL) {
 		printk("sms_callback with NULL data\n");
 	}
@@ -39,41 +37,32 @@ static void sms_callback(struct sms_data *const data, void *context)
 		return;
 	}
 
-	int err = sms_get_header(data, &sms_header);
-	if (err) {
-		printf("sms_get_header returned err: %d\n", err);
-		return;
-	}
-
 	shell_print(shell_global, "Number: %s", data->alpha);
 	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
-		sms_header.time.year,
-		sms_header.time.month,
-		sms_header.time.day,
-		sms_header.time.hour,
-		sms_header.time.minute,
-		sms_header.time.second);
+		data->header->time.year,
+		data->header->time.month,
+		data->header->time.day,
+		data->header->time.hour,
+		data->header->time.minute,
+		data->header->time.second);
 
-	shell_print(shell_global, "Text:   '%s'", sms_header.ud);
-	shell_print(shell_global, "Length: %d", sms_header.ud_len);
+	shell_print(shell_global, "Text:   '%s'", data->header->ud);
+	shell_print(shell_global, "Length: %d", data->header->data_len);
 	shell_print(shell_global, "PDU:    %s", data->pdu);
 
-	if (sms_header.app_port.present) {
+	if (data->header->app_port.present) {
 		shell_print(shell_global,
 			"Application port addressing scheme: dest_port=%d, src_port=%d",
-			sms_header.app_port.dest_port,
-			sms_header.app_port.src_port);
+			data->header->app_port.dest_port,
+			data->header->app_port.src_port);
 	}
-	if (sms_header.concatenated.present) {
+	if (data->header->concatenated.present) {
 		shell_print(shell_global,
 			"Concatenated short messages: ref_number=%d, msg %d/%d",
-			sms_header.concatenated.ref_number,
-			sms_header.concatenated.seq_number,
-			sms_header.concatenated.total_msgs);
+			data->header->concatenated.ref_number,
+			data->header->concatenated.seq_number,
+			data->header->concatenated.total_msgs);
 	}
-
-	/* TODO: Handle memory in a better way */
-	k_free(sms_header.ud);
 
 	sms_recv_counter++;
 }
