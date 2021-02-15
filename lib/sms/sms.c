@@ -60,6 +60,19 @@ static bool sms_client_registered;
 /** @brief SMS event. */
 static struct sms_data cmt_rsp = {0};
 
+/** @brief SMS send info structure to handle work queue. */
+struct sms_send_info_t {
+	struct k_work work;
+	/* 1 for NUL termination and 1 for potential '+' char */
+	char number[SMS_MAX_ADDRESS_LEN_CHARS+2];
+	char *text;
+};
+
+static struct sms_send_info_t sms_send_info = {0};
+/* Mutex to block sending until it's completely sent so that two requests
+   are not accessing the same internal send variables at the same time. */
+K_MUTEX_DEFINE(sms_send_mutex);
+
 struct sms_subscriber {
 	/* Listener user context. */
 	void *ctx;
@@ -139,10 +152,12 @@ static int sms_cds_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 
 	if (cmt_rsp->alpha != NULL) {
 		k_free(cmt_rsp->alpha);
+		cmt_rsp->alpha = NULL;
 	}
 
 	if (cmt_rsp->pdu != NULL) {
 		k_free(cmt_rsp->pdu);
+		cmt_rsp->pdu = NULL;
 	}
 
 	/* Length field saved as number. */
@@ -172,7 +187,18 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
-static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
+/** 
+ * @brief Decode received SMS message, i.e., SMS-DELIVER message as specified
+ * in 3GPP TS 23.040 Section 9.2.2.1.
+ * 
+ * @param pdu SMS-DELIVER PDU.
+ * @param out SMS message decoded into a structure.
+ * 
+ * @retval -EINVAL Invalid parameter.
+ * @retval -ENOMEM No memory to register new observers.
+ * @return Zero on success, otherwise error code.
+ */
+int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 {
 	struct  parser sms_deliver;
 	int     err=0;
@@ -229,22 +255,6 @@ static int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 	return 0;
 }
 
-int sms_get_header(struct sms_data *in, struct sms_deliver_header *out)
-{
-	/* TODO: Right now this returns payload too in out->ud */
-	if (in == NULL || out == NULL) {
-		LOG_ERR("sms_get_header with NULL input\n");
-		return -EINVAL;
-	}
-
-	int err = sms_deliver_pdu_parse(in->pdu, out);
-	if (err != 0) {
-		return err;
-	}
-
-	return 0;
-}
-
 /** @brief Handler for AT responses and unsolicited events. */
 void sms_at_handler(void *context, const char *at_notif)
 {
@@ -262,6 +272,26 @@ void sms_at_handler(void *context, const char *at_notif)
 		/* Extract and save the SMS notification parameters. */
 		int valid_notif = sms_cmt_at_parse(at_notif, &cmt_rsp);
 		if (valid_notif != 0) {
+			return;
+		}
+
+		/* Parse SMS-DELIVER PDU */
+		if (cmt_rsp.header != NULL) {
+			if (cmt_rsp.header->ud != NULL) {
+				k_free(cmt_rsp.header->ud);
+				cmt_rsp.header->ud = NULL;
+			}
+			k_free(cmt_rsp.header);
+			cmt_rsp.header = NULL;
+		}
+		cmt_rsp.header = k_malloc(sizeof(struct sms_deliver_header));
+		if (cmt_rsp.header == NULL) {
+			LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
+			return;
+		}
+		int err = sms_deliver_pdu_parse(cmt_rsp.pdu, cmt_rsp.header);
+		if (err) {
+			LOG_ERR("sms_deliver_pdu_parse error: %d\n", err);
 			return;
 		}
 	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
@@ -294,11 +324,39 @@ void sms_at_handler(void *context, const char *at_notif)
 	k_work_submit(&sms_ack_work);
 }
 
+static void sms_send_work_handler(struct k_work *item)
+{
+	struct sms_send_info_t *sms_send_info_ptr =
+		CONTAINER_OF(item, struct sms_send_info_t, work);
+
+	sms_submit_send(sms_send_info_ptr->number, sms_send_info_ptr->text);
+
+	k_mutex_unlock(&sms_send_mutex);
+
+	k_free(sms_send_info_ptr->text);
+	sms_send_info_ptr->text = NULL;
+}
+
+int sms_send(char* number, char* text)
+{
+	k_mutex_lock(&sms_send_mutex, K_FOREVER);
+
+	memset(sms_send_info.number, 0, SMS_MAX_ADDRESS_LEN_CHARS+2);
+	strcpy(sms_send_info.number, number);
+
+	sms_send_info.text = k_malloc(strlen(text) + 1);
+	strcpy(sms_send_info.text, text);
+	k_work_submit(&sms_send_info.work);
+	
+	return 0;
+}
+
 int sms_init(void)
 {
 	int ret = at_params_list_init(&resp_list, AT_SMS_PARAMS_COUNT_MAX);
 
 	k_work_init(&sms_ack_work, &sms_ack);
+	k_work_init(&sms_send_info.work, &sms_send_work_handler);
 
 	if (ret) {
 		LOG_ERR("AT params error, err: %d", ret);
@@ -428,9 +486,4 @@ void sms_uninit(void)
 	(void)at_notif_deregister_handler(NULL, sms_at_handler);
 
 	sms_client_registered = false;
-}
-
-int sms_send(char* number, char* text)
-{
-	return sms_submit_send(number, text);
 }
