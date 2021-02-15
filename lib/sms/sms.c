@@ -139,10 +139,12 @@ static int sms_cds_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 
 	if (cmt_rsp->alpha != NULL) {
 		k_free(cmt_rsp->alpha);
+		cmt_rsp->alpha = NULL;
 	}
 
 	if (cmt_rsp->pdu != NULL) {
 		k_free(cmt_rsp->pdu);
+		cmt_rsp->pdu = NULL;
 	}
 
 	/* Length field saved as number. */
