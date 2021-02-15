@@ -13,10 +13,13 @@
 
 #include <settings/settings.h>
 
+#include <modem/lte_lc.h>
+
 #include "fta_defines.h"
 #include "ltelc_settings.h"
 
 #define LTELC_SETT_KEY			                  "mosh_ltelc_settings"
+
 /* ****************************************************************************/
 
 #define LTELC_SETT_DEFCONT_ENABLED		          "defcont_enabled"
@@ -28,6 +31,7 @@
 #define LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY "IPV4V6"
 
 /* ****************************************************************************/
+
 #define LTELC_SETT_DEFCONTAUTH_ENABLED		      "defcontauth_enabled"
 #define LTELC_SETT_DEFCONTAUTH_USERNAME_KEY       "defcontauth_username"
 #define LTELC_SETT_DEFCONTAUTH_PASSWORD_KEY       "defcontauth_password"
@@ -39,6 +43,11 @@
 #define LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME   "username"
 #define LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD   "password"
 
+/* ****************************************************************************/
+
+#define LTELC_SETT_SYSMODE_KEY		              "sysmode"
+
+/* ****************************************************************************/
 enum ltelc_sett_defcontauth_prot {
 	LTELC_SETT_DEFCONTAUTH_PROT_NONE = 0,
 	LTELC_SETT_DEFCONTAUTH_PROT_PAP  = 1,
@@ -57,6 +66,8 @@ struct ltelc_sett_t {
 	char defcontauth_pword_str[LTELC_SETT_DEFCONTAUTH_MAX_PWORD_STR_LEN + 1];
 	enum ltelc_sett_defcontauth_prot defcontauth_prot;
 	bool defcontauth_enabled;
+
+	enum lte_lc_system_mode sysmode;
 };
 static struct ltelc_sett_t ltelc_settings;
 /* ****************************************************************************/
@@ -133,6 +144,15 @@ static int ltelc_sett_handler(const char *key, size_t len,
 		if (err < 0) {
 			shell_error(uart_shell, "Failed to read defcontauth password, error: %d",
 				err);
+			return err;
+		}
+		return 0;
+	}
+	else if (strcmp(key, LTELC_SETT_SYSMODE_KEY) == 0) {
+		err = read_cb(cb_arg, &ltelc_settings.sysmode,
+			      sizeof(ltelc_settings.sysmode));
+		if (err < 0) {
+			shell_error(uart_shell, "Failed to read syhsmode, error: %d", err);
 			return err;
 		}
 		return 0;
@@ -374,6 +394,27 @@ void ltelc_sett_defcontauth_conf_shell_print(const struct shell *shell)
 	shell_print(shell, "  Username: %s", ltelc_settings.defcontauth_uname_str);
 	shell_print(shell, "  Password: %s", ltelc_settings.defcontauth_pword_str);
 	shell_print(shell, "  Authentication protocol: %s", prot_type_str[ltelc_settings.defcontauth_prot]);
+}
+/* ****************************************************************************/
+int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode)
+{
+	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_SYSMODE_KEY;
+	int err;
+
+	err = settings_save_one(key, &mode, sizeof(mode));
+	if (err) {
+		shell_error(uart_shell, "ltelc_sett_save_sysmode: erro %d from settings_save_one()\n", err);
+		return err;
+	}
+	ltelc_settings.sysmode = mode;
+	shell_info(uart_shell, "sysmode %d saved succesfully to settings", mode);
+
+	return 0;
+}
+
+int ltelc_sett_sysmode_get()
+{
+	return ltelc_settings.sysmode;
 }
 /* ****************************************************************************/
 

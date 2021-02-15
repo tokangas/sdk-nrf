@@ -73,6 +73,7 @@ const char ltelc_usage_str[] =
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
+    "                           Permanent between the sessions. Effective when going to normal mode."
 	"  edrx:                    Enable/disable eDRX with default or with custom parameters\n"
 	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
@@ -558,6 +559,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					}
 				} else {
 					shell_print(shell, "System mode set successfully to modem: %s", ltelc_shell_sysmode_to_string(ltelc_cmd_args.sysmode_option, snum));
+					
+					/* Save system modem: */
+					(void)ltelc_sett_sysmode_save(ltelc_cmd_args.sysmode_option);
 				}
 			}
 			break;

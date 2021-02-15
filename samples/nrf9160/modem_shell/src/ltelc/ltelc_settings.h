@@ -27,4 +27,7 @@ char *ltelc_sett_defcontauth_username_get();
 int ltelc_sett_save_defcontauth_password(const char *password_str);
 char *ltelc_sett_defcontauth_password_get();
 
+int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode);
+int ltelc_sett_sysmode_get();
+
 #endif /* LTELC_SETTINGS_H */

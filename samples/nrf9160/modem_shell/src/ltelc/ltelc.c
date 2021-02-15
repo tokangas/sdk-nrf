@@ -265,6 +265,7 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 int ltelc_func_mode_set(int fun)
 {
 	int return_value = 0;
+	int sysmode;
 
 	switch (fun) {
 	case LTELC_FUNMODE_PWROFF:
@@ -277,6 +278,13 @@ int ltelc_func_mode_set(int fun)
 	default:
 		ltelc_default_pdp_context_set();
 		ltelc_default_pdp_context_auth_set();
+
+		/* Set saved system mode (if set) to modem: */
+		sysmode = ltelc_sett_sysmode_get();
+		if (sysmode != LTE_LC_SYSTEM_MODE_NONE) {
+			(void)lte_lc_system_mode_set(sysmode);
+		}
+
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 			return_value = lte_lc_normal();
 		}
