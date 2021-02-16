@@ -6,9 +6,9 @@
 
 menuconfig SMS
 	bool "SMS subscriber"
-	select AT_CMD
-	select AT_CMD_PARSER
-	select AT_NOTIF
+	imply AT_CMD
+	imply AT_CMD_PARSER
+	imply AT_NOTIF
 	help
 	  A library for managing SMS subscriptions.
 

@@ -32,12 +32,16 @@ enum sms_type {
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
+/* Forward declaration */
+struct sms_deliver_header;
+
 /** @brief SMS PDU data. */
 struct sms_data {
-	enum sms_type type;
 	char *alpha;
 	uint16_t length;
 	char *pdu;
+	enum sms_type type;
+	struct sms_deliver_header *header;
 };
 
 enum sms_deliver_alphabet {
@@ -97,21 +101,6 @@ struct sms_deliver_header {
 	int			    data_len; /* TODO: Check if this is needed */
 	char 			    *ud;
 };
-
-/** TODO: The function name is not good at the moment. It's a leftover when
- *        there was a plan to have sms_get_header() and sms_get_payload().
- *        Maybe this should be sms_decode.
- * 
- * @brief Decode received SMS message.
- * 
- * @param in Received SMS PDU that is still decoded.
- * @param out SMS message decoded into a structure.
- * 
- * @retval -EINVAL Invalid parameter.
- * @retval -ENOMEM No memory to register new observers.
- * @return Zero on success, otherwise error code.
- */
-int sms_get_header(struct sms_data *in, struct sms_deliver_header *out);
 
 /** @brief SMS listener callback function. */
 typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
