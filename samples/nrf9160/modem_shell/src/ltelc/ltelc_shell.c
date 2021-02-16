@@ -31,6 +31,7 @@ typedef enum {
 	LTELC_CMD_DISCONNECT,
 	LTELC_CMD_FUNMODE,
 	LTELC_CMD_SYSMODE,
+	LTELC_CMD_NORMAL_MODE_AT,
 	LTELC_CMD_EDRX,
 	LTELC_CMD_PSM,
 	LTELC_CMD_HELP
@@ -73,7 +74,8 @@ const char ltelc_usage_str[] =
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
-    "                           Permanent between the sessions. Effective when going to normal mode."
+    "                           When set: permanent between the sessions. Effective when going to normal mode."
+	"  nmodeat:                 Set custom AT commmands that are run when going to normal mode\n"
 	"  edrx:                    Enable/disable eDRX with default or with custom parameters\n"
 	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
@@ -110,6 +112,11 @@ const char ltelc_usage_str[] =
 	"  -1, --normal,     [bool] Set modem normal mode\n"
 	"  -4, --flightmode, [bool] Set modem offline\n"
 	"\n"
+	"Options for 'nmodeat' command:\n"
+	"  -r, --read,       [bool] Read all set custom normal mode at commands\n"
+	"      --mem[1-3],   [str]  Set at cmd to given memory slot, e.g. \"ltelc nmodeat --mem1 \"at%xbandlock=2,\\\"100\\\"\"\"\n"
+	"                           To clear the given memslot by given the empty string: \"ltelc nmodeat --mem2 \"\"\"\n"
+	"\n"
 	"Options for 'sysmode' command:\n"
 	"  -r, --read,       [bool] Read modem functional mode\n"
 	"  -m, --ltem,       [bool] LTE-M (LTE Cat-M1) system mode\n"
@@ -131,6 +138,11 @@ const char ltelc_usage_str[] =
 	"  -t, --rat,        [str]  Sets custom requested active time (RAT) value to be requested when enabling PSM -e option.\n"
 	"\n"
 	;
+
+/* Following are not having short options: */
+#define LTELC_SHELL_OPT_MEM_SLOT_1 1001
+#define LTELC_SHELL_OPT_MEM_SLOT_2 1002
+#define LTELC_SHELL_OPT_MEM_SLOT_3 1003
 
  /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
@@ -157,6 +169,9 @@ static struct option long_options[] = {
     {"uname",                   required_argument, 0,  'U' },
     {"rptau",                   required_argument, 0,  'p' },
     {"rat",                     required_argument, 0,  't' },
+    {"mem1",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_1 },
+    {"mem2",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_2 },
+    {"mem3",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_3 },
     {0,                         0,                 0,   0  }
 };
 
@@ -270,6 +285,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "sysmode") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_SYSMODE;
+	} else if (strcmp(argv[1], "nmodeat") == 0) {
+		ltelc_cmd_args.command = LTELC_CMD_NORMAL_MODE_AT;
 	} else if (strcmp(argv[1], "edrx") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_EDRX;
@@ -301,6 +318,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	bool psm_rptau_set = false;
 	char psm_rat_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
 	bool psm_rat_set = false;
+
+	char *normal_mode_at_str = NULL;
+	uint8_t normal_mode_at_mem_slot = 0;
 
 	while ((opt = getopt_long(argc, argv, "a:I:f:x:w:p:t:A:P:U:su014rmngMNed", long_options, &long_index)) != -1) {
 		switch (opt) {
@@ -415,26 +435,32 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			apn = optarg;
 			break;
 		case 'f': // Address family
-			{
 			family = optarg;
 			break;
-			}
 		case 'A': // defcont auth protocol
-			{
 			protocol = atoi(optarg);
 			protocol_given = true;
 			break;
-			}
 		case 'U': // defcont auth username
-			{
 			username = optarg;
 			break;
-			}
 		case 'P': // defcont auth password
-			{
 			password = optarg;
 			break;
-			}
+		
+		/* Options without short option: */
+		case LTELC_SHELL_OPT_MEM_SLOT_1:
+			normal_mode_at_str = optarg;
+			normal_mode_at_mem_slot = 1;
+			break;
+		case LTELC_SHELL_OPT_MEM_SLOT_2:
+			normal_mode_at_str = optarg;
+			normal_mode_at_mem_slot = 2;
+			break;
+		case LTELC_SHELL_OPT_MEM_SLOT_3:
+			normal_mode_at_str = optarg;
+			normal_mode_at_mem_slot = 3;
+			break;
 		case '?':
 			goto show_usage;
 			break;
@@ -582,6 +608,27 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				}
 			}
 			break;
+		case LTELC_CMD_NORMAL_MODE_AT:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				ltelc_sett_normal_mode_at_cmds_shell_print(shell);
+			}
+			else {
+				if (normal_mode_at_str != NULL) {
+					ret = ltelc_sett_save_normal_mode_at_cmd_str(normal_mode_at_str, normal_mode_at_mem_slot);
+					if (ret < 0) {
+						shell_error(shell, "Cannot set normal mode AT-command: \"%s\"", normal_mode_at_str);
+					} else {
+						shell_print(
+							shell, 
+							"Normal mode AT-command \"%s\" set successfully to memory slot %d.", 
+								((strlen(normal_mode_at_str)) ? normal_mode_at_str: "<empty>"), 
+							normal_mode_at_mem_slot);
+					}
+				}
+			}
+
+			break;
+
 		case LTELC_CMD_EDRX:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
 				char *value = NULL; /* Set with the defaults if not given */
