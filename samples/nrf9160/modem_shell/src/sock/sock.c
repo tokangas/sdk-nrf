@@ -69,11 +69,15 @@ typedef struct {
 	struct data_transfer_info send_info;
 } sock_info_t;
 
+K_MUTEX_DEFINE(sock_info_mutex);
+
 sock_info_t sockets[MAX_SOCKETS] = {0};
 extern const struct shell* shell_global;
 
 
 static void sock_info_clear(sock_info_t* socket_info) {
+	k_mutex_lock(&sock_info_mutex, K_FOREVER);
+
 	if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 		k_timer_stop(&socket_info->send_info.timer);
 		shell_print(shell_global, "Socket data send periodic stop");
@@ -92,6 +96,8 @@ static void sock_info_clear(sock_info_t* socket_info) {
 	socket_info->fd = SOCK_FD_NONE;
 	socket_info->log_receive_data = true;
 	socket_info->recv_print_format = SOCK_RECV_PRINT_FORMAT_STR;
+
+	k_mutex_unlock(&sock_info_mutex);
 }
 
 static int get_socket_id_by_fd(int fd)
