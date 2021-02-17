@@ -47,27 +47,12 @@ static void sms_callback(struct sms_data *const data, void *context)
 
 	struct sms_deliver_header *sms_header = data->header;
 
-	// TODO: FIX time from hexa to characters
-	printf("Time: %02x-%02x-%02x %02x:%02x:%02x\n",
-		sms_header->time.year,
-		sms_header->time.month,
-		sms_header->time.day,
-		sms_header->time.hour,
-		sms_header->time.minute,
-		sms_header->time.second);
-	printf("Time: %02d-%02d-%02d %02d:%02d:%02d\n",
-		sms_header->time.year,
-		sms_header->time.month,
-		sms_header->time.day,
-		sms_header->time.hour,
-		sms_header->time.minute,
-		sms_header->time.second);
-	/*TEST_ASSERT_EQUAL(test_sms_header->time.year, sms_header->time.year);
-	TEST_ASSERT_EQUAL(test_sms_header->time.month, sms_header->time.month);
-	TEST_ASSERT_EQUAL(test_sms_header->time.day, sms_header->time.day);
-	TEST_ASSERT_EQUAL(test_sms_header->time.hour, sms_header->time.hour);
-	TEST_ASSERT_EQUAL(test_sms_header->time.minute, sms_header->time.minute);
-	TEST_ASSERT_EQUAL(test_sms_header->time.second, sms_header->time.second);*/
+	TEST_ASSERT_EQUAL(test_sms_header.time.year, sms_header->time.year);
+	TEST_ASSERT_EQUAL(test_sms_header.time.month, sms_header->time.month);
+	TEST_ASSERT_EQUAL(test_sms_header.time.day, sms_header->time.day);
+	TEST_ASSERT_EQUAL(test_sms_header.time.hour, sms_header->time.hour);
+	TEST_ASSERT_EQUAL(test_sms_header.time.minute, sms_header->time.minute);
+	TEST_ASSERT_EQUAL(test_sms_header.time.second, sms_header->time.second);
 
 	TEST_ASSERT_EQUAL_STRING("Moi", sms_header->ud);
 	TEST_ASSERT_EQUAL(3, sms_header->ud_len);
