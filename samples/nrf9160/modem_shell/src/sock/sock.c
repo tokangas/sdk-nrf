@@ -16,6 +16,7 @@
 #else
 #include <net/socket.h>
 #endif
+#include <net/tls_credentials.h>
 #include <fcntl.h>
 
 #include "sock.h"
@@ -215,13 +216,23 @@ int sock_open_and_connect(
 	char* address,
 	int port,
 	int bind_port,
-	int pdn_cid)
+	int pdn_cid,
+	bool secure,
+	int sec_tag,
+	bool session_cache,
+	int peer_verify,
+	char* peer_hostname)
 {
 	int err = -EINVAL;
 
 	shell_print(shell_global,
 		"Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
 		family, type, port, bind_port, pdn_cid, address);
+	if (secure) {
+		shell_print(shell_global,
+		"                        secure=%d, sec_tag=%d, session_cache=%d, peer_verify=%d, peer_hostname=%s",
+		secure, sec_tag, session_cache, peer_verify, peer_hostname);
+	}
 
 	/* Reserve socket ID and structure for a new connection */
 	sock_info_t* socket_info = reserve_socket_id();
@@ -255,6 +266,23 @@ int sock_open_and_connect(
 	} else {
 		shell_error(shell_global, "Unsupported address type=%d", type);
 		goto connect_error;
+	}
+
+	if (secure) {
+		if (type == SOCK_STREAM) {
+			proto = IPPROTO_TLS_1_2;
+		} else if (type == SOCK_DGRAM) {
+			proto = IPPROTO_DTLS_1_2;
+		} else {
+			shell_error(shell_global, "Security not supported with address type=%d",
+				    type);
+		}
+
+		if (sec_tag < 0) {
+			shell_error(shell_global,
+				    "Security tag must be given when security is enabled");
+			goto connect_error;
+		}
 	}
 
 	/* Validate port */
@@ -412,6 +440,66 @@ int sock_open_and_connect(
 			shell_error(shell_global, "Unable to bind, errno %d", errno);
 			err = errno;
 			goto connect_error;
+		}
+	}
+
+	/* Set (D)TLS options */
+	if (secure) {
+		/* Security tag */
+		sec_tag_t sec_tag_list[] = { sec_tag };
+		err = setsockopt(fd, SOL_TLS, TLS_SEC_TAG_LIST, sec_tag_list,
+			         sizeof(sec_tag_t) * ARRAY_SIZE(sec_tag_list));
+		if (err) {
+			shell_error(shell_global, "Unable to set security tag, errno %d", errno);
+			err = errno;
+			goto connect_error;
+		}
+
+		/* Session cache */
+		uint8_t cache;
+		if (session_cache) {
+			cache = TLS_SESSION_CACHE_ENABLED;
+		} else {
+			cache = TLS_SESSION_CACHE_DISABLED;
+		}
+		err = setsockopt(fd, SOL_TLS, TLS_SESSION_CACHE, &cache, sizeof(cache));
+		if (err) {
+			shell_error(shell_global, "Unable to set session cache, errno %d", errno);
+			err = errno;
+			goto connect_error;
+		}
+
+		/* Peer verify */
+		uint32_t verify;
+		switch (peer_verify) {
+		case 0:
+			verify = TLS_PEER_VERIFY_NONE;
+			break;
+		case 2:
+			verify = TLS_PEER_VERIFY_REQUIRED;
+			break;
+		case 1:
+		default:
+			verify = TLS_PEER_VERIFY_OPTIONAL;
+			break;
+		}
+		err = setsockopt(fd, SOL_TLS, TLS_PEER_VERIFY, &verify, sizeof(verify));
+		if (err) {
+			shell_error(shell_global, "Unable to set peer verify, errno %d", errno);
+			err = errno;
+			goto connect_error;
+		}
+
+		/* Peer hostname */
+		if (strlen(peer_hostname) > 0) {
+			err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, &peer_hostname,
+				         strlen(peer_hostname));
+			if (err) {
+				shell_error(shell_global, "Unable to set peer hostname, errno %d",
+					    errno);
+				err = errno;
+				goto connect_error;
+			}
 		}
 	}
 
