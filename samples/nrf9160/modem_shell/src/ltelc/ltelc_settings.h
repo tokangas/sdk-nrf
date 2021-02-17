@@ -30,4 +30,13 @@ char *ltelc_sett_defcontauth_password_get();
 int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode);
 int ltelc_sett_sysmode_get();
 
+
+#define LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START 1
+#define LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_END 3
+
+char *ltelc_sett_normal_mode_at_cmd_str_get(uint8_t mem_slot);
+int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot);
+int ltelc_sett_clear_normal_mode_at_cmd_str(uint8_t mem_slot);
+void ltelc_sett_normal_mode_at_cmds_shell_print(const struct shell *shell);
+
 #endif /* LTELC_SETTINGS_H */

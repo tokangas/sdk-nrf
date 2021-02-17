@@ -52,6 +52,16 @@ config FTA_FOTA
 	bool "Enable FOTA support"
 	default y
 
+if FTA_LTELC
+menu "MoSH LTELC command selections"
+
+config FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN
+	int "configure string length for custom AT cmds stored in settings and used when going to normal mode"
+	default 127
+
+endmenu	
+endif #FTA_LTELC
+
 if FTA_CURL
 menu "FTA CURL selections"
 
