@@ -38,7 +38,7 @@ static void sms_callback(struct sms_data *const data, void *context)
 	}
 
 	shell_print(shell_global, "Number: %s", data->alpha);
-	shell_print(shell_global, "Time:   %02x-%02x-%02x %02x:%02x:%02x",
+	shell_print(shell_global, "Time:   %02d-%02d-%02d %02d:%02d:%02d",
 		data->header->time.year,
 		data->header->time.month,
 		data->header->time.day,
