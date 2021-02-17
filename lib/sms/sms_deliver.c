@@ -77,6 +77,28 @@ static uint8_t swap_nibbles(uint8_t value)
 	return ((value&0x0f)<<4) | ((value&0xf0)>>4);
 }
 
+/**
+ * @brief Converts an octet having two semi-octets into a decimal.
+ * 
+ * Semi-octet representation is explained in 3GPP TS 23.040 Section 9.1.2.3.
+ * An octet has semi-octets in the following order:
+ *   semi-octet-digit2, semi-octet-digit1
+ * Octet for decimal number '21' is hence represented as semi-octet bits:
+ *   00010010
+ * This function is needed in timestamp (TP SCTS) conversion that is specified
+ * in 3GPP TS 23.040 Section 9.2.3.11.
+ * 
+ * @param value Octet to be converted.
+ * 
+ * @return Decimal value.
+ */
+static uint8_t semioctet_to_dec(uint8_t value)
+{
+	/* 4 LSBs represent decimal that should be multiplied by 10. */
+	/* 4 MSBs represent decimal that should be add as is. */
+	return ((value & 0xf0) >> 4) + ((value & 0x0f) * 10);
+}
+
 static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 {
 	uint8_t smsc_size = *buf;
@@ -154,12 +176,12 @@ static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 {
 	int tmp_tz;
 	
-	DELIVER_DATA(parser)->timestamp.year   = swap_nibbles(*(buf++));
-	DELIVER_DATA(parser)->timestamp.month  = swap_nibbles(*(buf++));
-	DELIVER_DATA(parser)->timestamp.day    = swap_nibbles(*(buf++));
-	DELIVER_DATA(parser)->timestamp.hour   = swap_nibbles(*(buf++));
-	DELIVER_DATA(parser)->timestamp.minute = swap_nibbles(*(buf++));
-	DELIVER_DATA(parser)->timestamp.second = swap_nibbles(*(buf++));
+	DELIVER_DATA(parser)->timestamp.year   = semioctet_to_dec(*(buf++));
+	DELIVER_DATA(parser)->timestamp.month  = semioctet_to_dec(*(buf++));
+	DELIVER_DATA(parser)->timestamp.day    = semioctet_to_dec(*(buf++));
+	DELIVER_DATA(parser)->timestamp.hour   = semioctet_to_dec(*(buf++));
+	DELIVER_DATA(parser)->timestamp.minute = semioctet_to_dec(*(buf++));
+	DELIVER_DATA(parser)->timestamp.second = semioctet_to_dec(*(buf++));
 
 	tmp_tz = ((*buf&0xf7) * 15) / 60;
 
