@@ -61,8 +61,8 @@ iperf_tcp_recv(struct iperf_stream *sp)
 {
     int r;
 #if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
-    #define MAX_READ_COUNT 4 /* in case of very small buffers, 
-                                let's not stuck here more that count */
+    #define MAX_READ_COUNT 20 /* in case of very small buffers, 
+                                let's not stuck here more than count */
     int count = 0;
     int total_received = 0;
     /* In embedded world, we need to read all from rcv buffer: 
