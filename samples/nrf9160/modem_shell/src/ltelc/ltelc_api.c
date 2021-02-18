@@ -392,7 +392,7 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 		coneval_resp.rsrp, (coneval_resp.rsrp - MODEM_INFO_RSRP_OFFSET_VAL));
 	shell_print(shell, "  rsrq:           %d", coneval_resp.rsrq);
 	shell_print(shell, "  snr:            %d: %ddB",
-		coneval_resp.snr, (coneval_resp.rsrp - LTELC_API_SNR_OFFSET_VALUE));
+		coneval_resp.snr, (coneval_resp.snr - LTELC_API_SNR_OFFSET_VALUE));
 
 	shell_print(shell, "  cell_id:        \"%s\"", coneval_resp.cell_id_str);
 	shell_print(shell, "  plmn:           \"%s\"", coneval_resp.plmn_str);
