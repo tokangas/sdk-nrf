@@ -40,10 +40,33 @@ typedef struct
     size_t size;
 } pdp_context_info_array_t;
 
+#define AT_CMD_CONEVAL_RESP_MAX_STR_LEN 32
+typedef struct {
+	uint8_t result;
+	uint8_t rrc_state;
+	uint8_t quality;
+	int16_t rsrp;
+	int16_t rsrq;
+	int8_t snr;
+	char cell_id_str[AT_CMD_CONEVAL_RESP_MAX_STR_LEN + 1];
+	char plmn_str[AT_CMD_CONEVAL_RESP_MAX_STR_LEN + 1];
+	int16_t phy_cell_id;
+	int16_t earfcn;
+	uint8_t band;
+	uint8_t tau_triggered;
+	uint8_t ce_level;
+	int8_t tx_power;
+	uint16_t tx_repetitions;
+	uint16_t rx_repetitions;
+	uint16_t dl_pathloss;
+} lte_coneval_resp_t;
+
 #if defined(CONFIG_MODEM_INFO)
 void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
 #endif
 #if defined(CONFIG_AT_CMD)
+void ltelc_api_coneval_read_for_shell(const struct shell *shell);
+
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info);
 
 /**

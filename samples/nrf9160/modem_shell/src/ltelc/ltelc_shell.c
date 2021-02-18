@@ -24,6 +24,7 @@
 
 typedef enum {
 	LTELC_CMD_STATUS = 0,
+	LTELC_CMD_CONEVAL,
 	LTELC_CMD_DEFCONT,
 	LTELC_CMD_DEFCONTAUTH,
 	LTELC_CMD_RSRP,
@@ -65,6 +66,7 @@ const char ltelc_usage_str[] =
 	"<command> is one of the following:\n"
 	"  help:                    Show this message\n"
 	"  status:                  Show status of the current connection\n"
+	"  coneval:                 Evaluate connection parameters.\n"
 	"  defcont:                 Set custom default PDP context config. Permanent between the sessions.\n"
 	"                           Effective when going to normal mode.\n"
 	"  defcontauth:             Set custom authentication parameters for the default PDP context.\n"
@@ -92,7 +94,7 @@ const char ltelc_usage_str[] =
 	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
 	"  -U, --uname,      [str]  Username\n"
 	"  -P, --pword,      [str]  Password\n"
-	"  -A, --aprot,      [int]  Authentication protocol (Default: 0 (None), 1 (PAP), 2 (CHAP)\n"
+	"  -A, --prot,       [int]  Authentication protocol (Default: 0 (None), 1 (PAP), 2 (CHAP)\n"
 	"\n"
 	"Options for 'connect' command:\n"
 	"  -a, --apn,        [str]  Access Point Name\n"
@@ -266,6 +268,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	// sub-command = argv[1]
 	if (strcmp(argv[1], "status") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_STATUS;
+	} else if (strcmp(argv[1], "coneval") == 0) {
+		ltelc_cmd_args.command = LTELC_CMD_CONEVAL;
 	} else if (strcmp(argv[1], "rsrp") == 0) {
 		require_rsrp_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_RSRP;
@@ -566,6 +570,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 			ltelc_api_modem_info_get_for_shell(shell, online);
 			break;
+		case LTELC_CMD_CONEVAL:
+			ltelc_api_coneval_read_for_shell(shell);
+			break;
+
 		case LTELC_CMD_SYSMODE:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 
