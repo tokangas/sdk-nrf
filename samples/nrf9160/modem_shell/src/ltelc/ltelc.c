@@ -294,6 +294,9 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 			if (modem_rsrp != LTELC_RSRP_VALUE_NOT_KNOWN)
 				shell_print(uart_shell, "RSRP: %d", modem_rsrp);
 		}
+		else {
+			shell_print(uart_shell, "RSRP unsubscribed");
+		}
 	}
 }
 
