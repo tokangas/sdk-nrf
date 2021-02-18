@@ -344,6 +344,9 @@ static int ltelc_api_coneval_read(lte_coneval_resp_t *coneval)
 	return 0;
 }
 
+/** SNR offset value that is used when mapping to dBs  */
+#define LTELC_API_SNR_OFFSET_VALUE 25
+
 void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 {
 	lte_coneval_resp_t coneval_resp;
@@ -355,7 +358,19 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
         "4: Evaluation failed, busy (e.g. GNSS activity)",
 		"5: Evaluation failed, aborted because of higher priority operation",
 		"6: Evaluation failed, unspecified"
-	};	
+	};
+	static const char *coneval_rrc_state_strs[] = {
+		"0: RRC connection in idle state during measurements",
+		"1: RRC connection in connected state during measurements"
+	};
+	static const char *coneval_quality_strs[] = {
+		"5: Radio link quality -2",
+		"6: Radio link quality -1",
+		"7: Radio link quality normal",
+		"8: Radio link quality +1",
+		"9: Radio link quality +2"
+	};
+
 	int ret = ltelc_api_coneval_read(&coneval_resp);
 
 	if (ret) {
@@ -366,12 +381,19 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 
 	shell_print(shell, "Evaluated connection parameters:");
 	shell_print(shell, "  result:         \"%s\"", 
-		((coneval_resp.result <= 6)?coneval_result_strs[coneval_resp.result]:"unknown"));
-	shell_print(shell, "  rrc_state:      %d", coneval_resp.rrc_state);
-	shell_print(shell, "  quality:        %d", coneval_resp.quality);
-	shell_print(shell, "  rsrp:           %d", coneval_resp.rsrp);
+		((coneval_resp.result <= 6) ? coneval_result_strs[coneval_resp.result] : "unknown"));
+	shell_print(shell, "  rrc_state:      %s", 
+		((coneval_resp.rrc_state == 0 || coneval_resp.rrc_state == 1) ? 
+			coneval_rrc_state_strs[coneval_resp.rrc_state] : "unknown"));
+	shell_print(shell, "  quality:        %s", 
+		((coneval_resp.quality >= 5 && coneval_resp.quality <= 9) ? 
+			coneval_quality_strs[coneval_resp.quality - 5] : "unknown"));
+	shell_print(shell, "  rsrp:           %d: %ddBm", 
+		coneval_resp.rsrp, (coneval_resp.rsrp - MODEM_INFO_RSRP_OFFSET_VAL));
 	shell_print(shell, "  rsrq:           %d", coneval_resp.rsrq);
-	shell_print(shell, "  snr:            %d", coneval_resp.snr);
+	shell_print(shell, "  snr:            %d: %ddB",
+		coneval_resp.snr, (coneval_resp.rsrp - LTELC_API_SNR_OFFSET_VALUE));
+
 	shell_print(shell, "  cell_id:        \"%s\"", coneval_resp.cell_id_str);
 	shell_print(shell, "  plmn:           \"%s\"", coneval_resp.plmn_str);
 	shell_print(shell, "  phy_cell_id:    %d", coneval_resp.phy_cell_id);
