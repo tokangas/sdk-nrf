@@ -59,9 +59,16 @@ Connected Home over IP (CHIP)
 DFU Target
 ----------
 
-* Renamed ``dfu_target_modem`` to ``dfu_target_modem_delta``.
-* Moved all ``dfu_target`` code up one directory from :file:`subsys/dfu` to :file:`subsys/dfu/dfu_target`.
-* Extracted stream flash functionality from ``dfu_target_mcuboot`` into ``dfu_target_stream_flash`` to facilitate code re-use for other ``dfu_targets`` which writes large objects to flash.
+* Added:
+
+  * New target ``dfu_target_full_modem`` which is used for full modem firmware updates.
+    Note that this requires an external flash memory of a minimum of 2MB to work.
+
+* Updated:
+
+  * Renamed ``dfu_target_modem`` to ``dfu_target_modem_delta``.
+  * Moved all ``dfu_target`` code up one directory from :file:`subsys/dfu` to :file:`subsys/dfu/dfu_target`.
+  * Extracted the stream flash memory functionality from ``dfu_target_mcuboot`` to ``dfu_target_stream_flash`` to facilitate code re-use for other ``dfu_targets`` which write large objects to the flash memory.
 
 HTTP Update
 -----------
@@ -69,11 +76,21 @@ HTTP Update
 * Added:
 
   * New sample :ref:`http_modem_delta_update_sample` which shows how to add modem delta upgrade support to an application.
+  * New sample :ref:`http_full_modem_update_sample` which shows how to add full modem upgrade support to an application.
+    Note that this requires an external flash memory of a minimum of 2MB to work, hence the sample will only work on the nRF9160 DK version ``0.14.0`` or later.
 
 * Updated:
 
   * Extracted certificate, button, and LED handling functionality from :ref:`http_application_update_sample` to :file:`samples/nrf9160/http_update/common`, to share them with :ref:`http_modem_delta_update_sample`.
   * Moved the :ref:`http_application_update_sample` sample from :file:`samples/nrf9160/http_application_update/` to :file:`samples/nrf9160/http_update/application_update`
+
+Full modem serial update
+------------------------
+
+* Added:
+
+  * New sample :ref:`fmfu_smp_svr_sample` which shows how to add the full modem serial update functionality to an application.
+  * New module called :ref:`lib_fmfu_mgmt` which implements parts of the MCUMgr management protocol for doing full modem serial updates.
 
 Thread
 ------
@@ -233,6 +250,9 @@ Trusted Firmware-M:
 -------------------
 
 * Added a simple sample that demonstrates how to integrate TF-M in an application.
+* Enabled using platform code that resides outside of the Trusted Firmware-M repository.
+  This allows for providing configurable memory partitioning in the nRF Connect SDK.
+* Added support for running the nRF9160 Download Client sample with TF-M.
 
 Partition Manager:
 ------------------
@@ -333,6 +353,7 @@ The following list summarizes the most important changes inherited from upstream
 
   * Enabled interrupts before ``main()`` in single-thread kernel mode for Cortex-M architecture.
   * Introduced functionality for forcing core architecture HW initialization during system boot, for chain-loadable images.
+  * Fixed inline assembly code in Cortex-M system calls.
 
 * Boards:
 
@@ -472,8 +493,8 @@ The following list summarizes the most important changes inherited from upstream
   * IEEE 802.15.4:
 
     * Updated the nRF5 IEEE 802.15.4 driver to version 1.9.
-    * Production support for IEEE 802.15.4 in single-protocol configuration on nRF5340.
-    * Development support for IEEE 802.15.4 in multi-protocol configuration on nRF5340.
+    * Production support for IEEE 802.15.4 in the single-protocol configuration on nRF5340.
+    * Development support for IEEE 802.15.4 in the multi-protocol configuration on nRF5340.
     * Added reservation of the TIMER peripheral used by the nRF5 IEEE 802.15.4 driver.
     * Added support for sending packets with specified TX time using the nRF5 IEEE 802.15.4 driver.
     * Implemented the RX failed notification for the nRF5 IEEE 802.15.4 driver.
@@ -694,7 +715,7 @@ The following list summarizes the most important changes inherited from upstream
   * Updated LVGL to v7.6.1.
   * Updated libmetal and openamp to v2020.10.
   * Updated nrfx in hal-nordic to version 2.4.0.
-  * Updated the Trusted Firmware-M (TF-M) module to include support for the nRF5340 and nRF9160 platforms.
+  * Updated the Trusted Firmware-M (TF-M) module to v1.2.0.
 
 * Other:
 
