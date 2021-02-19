@@ -82,6 +82,11 @@
 #include <Windows.h>
 #endif /* HAVE_SETPROCESSAFFINITYMASK */
 
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
+#include <modem/at_cmd.h>
+#endif
+
 #include "net.h"
 #include "iperf.h"
 #include "iperf_api.h"
@@ -1008,6 +1013,10 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		  OPT_CONNECT_TIMEOUT },
 		{ "debug", no_argument, NULL, 'd' },
 		{ "manual", no_argument, NULL, 'm' },/* NRF_IPERF3_INTEGRATION_CHANGE: -m or --manual instead of help, because shell is stoling -h and --help */
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+		/* NRF_IPERF3_INTEGRATION_CHANGE: added */
+		{ "def-mdm-traces", no_argument, NULL, NRF_OPT_DEFAULT_MDM_TRACES },
+#endif		
 		{ NULL, 0, NULL, 0 }
 	};
 	int flag;
@@ -1449,6 +1458,20 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->settings->connect_timeout = unit_atoi(optarg);
 			client_flag = 1;
 			break;
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+		case NRF_OPT_DEFAULT_MDM_TRACES:
+		{
+			static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+
+			if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
+				printf("error when setting default modem traces\n");
+			}
+			else {
+				printf("note: modem traces set %s\n", default_mdm_trace);
+			}
+			break;
+		}
+#endif
 		case 'm':
 			//usage_long(stdout);
 			nrf_iperf3_usage();

@@ -10,6 +10,11 @@
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 #include <modem/lte_lc.h>
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
+#include <modem/at_cmd.h>
+#endif
+
 #if defined (CONFIG_LWM2M_CARRIER)
 #include <lwm2m_carrier.h>
 #endif
@@ -168,7 +173,29 @@ int lwm2m_carrier_event_handler(const lwm2m_carrier_event_t *event)
 #if defined (CONFIG_FTA_IPERF3)	
 static int cmd_iperf3(const struct shell *shell, size_t argc, char **argv)
 {
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+	static const char lightweight_mdm_trace[] = "AT%XMODEMTRACE=1,5";
+			
+	if (at_cmd_write(lightweight_mdm_trace, NULL, 0, NULL) != 0) {
+		shell_error(shell, "error when setting lightweight modem traces\n");
+	}
+	else {
+		shell_warn(shell, "note: set custom traces \"%s\" for testing", lightweight_mdm_trace);
+		shell_info(shell, "note: use --def-mdm-traces hook for the defaults");
+	}
+#endif	
 	(void)iperf_main(argc, argv);
+
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+	static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+	/* We cannot know what race set was enabled, thus just setting the "default": */
+	if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
+		shell_error(shell, "error when setting default modem traces \"%s\"\n", default_mdm_trace);
+	}
+	else {
+		shell_warn(shell, "note: default traces \"%s\" was set", default_mdm_trace);
+	}
+#endif
 	return 0;
 }
 #endif
