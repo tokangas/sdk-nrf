@@ -59,14 +59,15 @@ typedef struct {
 	int sysmode_option;
 } ltelc_shell_cmd_args_t;
 
-//**************************************************************************
+/******************************************************************************/
 const char ltelc_usage_str[] =
-	"Usage: ltelc <command> [options]\n"
+	"Usage: ltelc <subcommand> [options]\n"
 	"\n"
-	"<command> is one of the following:\n"
-	"  help:                    Show this message\n"
-	"  status:                  Show status of the current connection\n"
-	"  coneval:                 Evaluate connection parameters.\n"
+	"<subcommand> is one of the following:\n"
+	"  <subcommand>:            Subcommand usage if options\n"
+	"  help:                    Show this message (no options)\n"
+	"  status:                  Show status of the current connection (no options)\n"
+	"  coneval:                 Evaluate connection parameters (no options)\n"
 	"  defcont:                 Set custom default PDP context config. Permanent between the sessions.\n"
 	"                           Effective when going to normal mode.\n"
 	"  defcontauth:             Set custom authentication parameters for the default PDP context.\n"
@@ -76,70 +77,90 @@ const char ltelc_usage_str[] =
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
-    "                           When set: permanent between the sessions. Effective when going to normal mode."
+    "                           When set: permanent between the sessions. Effective when going to normal mode.\n"
 	"  nmodeat:                 Set custom AT commmands that are run when going to normal mode\n"
 	"  edrx:                    Enable/disable eDRX with default or with custom parameters\n"
 	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
-	"Options for 'defcont' command:\n"
+	;
+
+const char ltelc_defcont_usage_str[] =
+	"Options for 'ltelc defcont' command:\n"
 	"  -r, --read,       [bool] Read and print current config\n"
 	"  -e, --enable,     [bool] Enable custom config for default PDP context\n"
 	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
 	"  -a, --apn,        [str]  Set default Access Point Name\n"
 	"  -f, --family,     [str]  Address family: 'ipv4v6' (default), 'ipv4', 'ipv6'\n"
-	"\n"
-	"Options for 'defcontauth' command:\n"
+	"\n";
+
+const char ltelc_defcontauth_usage_str[] =
+	"Options for 'ltelc defcontauth' command:\n"
 	"  -r, --read,       [bool] Read and print current config\n"
 	"  -e, --enable,     [bool] Enable custom config for default PDP context\n"
 	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
 	"  -U, --uname,      [str]  Username\n"
 	"  -P, --pword,      [str]  Password\n"
 	"  -A, --prot,       [int]  Authentication protocol (Default: 0 (None), 1 (PAP), 2 (CHAP)\n"
-	"\n"
-	"Options for 'connect' command:\n"
+	"\n";
+
+const char ltelc_connect_usage_str[] =
+	"Options for 'ltelc connect' command:\n"
 	"  -a, --apn,        [str]  Access Point Name\n"
 	"  -f, --family,     [str]  Address family: 'ipv4v6', 'ipv4', 'ipv6', 'packet'\n"
 	"\n"
-	"Options for 'disconnect' command:\n"
+	"Options for 'ltelc disconnect' command:\n"
 	"  -a, --apn,        [str]  Access Point Name\n"
 	"  -I, --cid,        [int]  Use this option to disconnect specific PDN CID\n"
-	"\n"
-	"Options for 'rsrp' command:\n"
-	"  -s, --subscribe,  [bool] Subscribe for RSRP info\n"
-	"  -u, --unsubscribe,[bool] Unsubscribe for RSRP info\n"
-	"\n"
-	"Options for 'funmode' command:\n"
-	"  -r, --read,       [bool] Read modem functional mode\n"
-	"  -0, --pwroff,     [bool] Set modem power off\n"
-	"  -1, --normal,     [bool] Set modem normal mode\n"
-	"  -4, --flightmode, [bool] Set modem offline\n"
-	"\n"
-	"Options for 'nmodeat' command:\n"
-	"  -r, --read,       [bool] Read all set custom normal mode at commands\n"
-	"      --mem[1-3],   [str]  Set at cmd to given memory slot, e.g. \"ltelc nmodeat --mem1 \"at%xbandlock=2,\\\"100\\\"\"\"\n"
-	"                           To clear the given memslot by given the empty string: \"ltelc nmodeat --mem2 \"\"\"\n"
-	"\n"
-	"Options for 'sysmode' command:\n"
+	"\n";
+
+const char ltelc_sysmode_usage_str[] =
+	"Options for 'ltelc sysmode' command:\n"
 	"  -r, --read,       [bool] Read modem functional mode\n"
 	"  -m, --ltem,       [bool] LTE-M (LTE Cat-M1) system mode\n"
 	"  -n, --nbiot,      [bool] NB-IoT (LTE Cat-NB1) system mode\n"
 	"  -g, --gps,        [bool] GPS system mode\n"
 	"  -M, --ltem_gps,   [bool] LTE-M + GPS system mode\n"
 	"  -N, --nbiot_gps,  [bool] NB-IoT + GPS system mode\n"
-	"\n"
-	"Options for 'edrx' command:\n"
+	"\n";
+
+const char ltelc_funmode_usage_str[] =
+	"Options for 'ltelc funmode' command:\n"
+	"  -r, --read,       [bool] Read modem functional mode\n"
+	"  -0, --pwroff,     [bool] Set modem power off\n"
+	"  -1, --normal,     [bool] Set modem normal mode\n"
+	"  -4, --flightmode, [bool] Set modem offline\n"
+	"\n";
+
+const char ltelc_normal_mode_at_usage_str[] =
+	"Options for 'ltelc nmodeat' command:\n"
+	"  -r, --read,       [bool] Read all set custom normal mode at commands\n"
+	"      --mem[1-3],   [str]  Set at cmd to given memory slot, e.g. \"ltelc nmodeat --mem1 \"at%xbandlock=2,\\\"100\\\"\"\"\n"
+	"                           To clear the given memslot by given the empty string: \"ltelc nmodeat --mem2 \"\"\"\n"
+	"\n";
+
+const char ltelc_edrx_usage_str[] =
+	"Options for 'ltelc edrx' command:\n"
 	"  -e, --enable,     [bool] Enable eDRX\n"
 	"  -d, --disable,    [bool] Disable eDRX\n"
 	"  -x, --edrx_value, [str]  Sets custom eDRX value to be requested when enabling eDRX with -e option.\n"
 	"  -w, --ptw,        [str]  Sets custom Paging Time Window value to be requested when enabling eDRX -e option.\n"
-	"\n"
-	"Options for 'psm' command:\n"
+	"\n";
+
+const char ltelc_psm_usage_str[] =
+	"Options for 'ltelc psm' command:\n"
 	"  -e, --enable,     [bool] Enable PSM\n"
 	"  -d, --disable,    [bool] Disable PSM\n"
 	"  -p, --rptau,      [str]  Sets custom requested periodic TAU value to be requested when enabling PSM -e option.\n"
 	"  -t, --rat,        [str]  Sets custom requested active time (RAT) value to be requested when enabling PSM -e option.\n"
-	"\n"
-	;
+	"\n";
+
+const char ltelc_rsrp_usage_str[] =
+	"Options for 'ltelc rsrp' command:\n"
+	"  -s, --subscribe,  [bool] Subscribe for RSRP info\n"
+	"  -u, --unsubscribe,[bool] Unsubscribe for RSRP info\n"
+	"\n";
+
+/******************************************************************************/
 
 /* Following are not having short options: */
 #define LTELC_SHELL_OPT_MEM_SLOT_1 1001
@@ -177,9 +198,44 @@ static struct option long_options[] = {
     {0,                         0,                 0,   0  }
 };
 
-static void ltelc_shell_print_usage(const struct shell *shell)
+/******************************************************************************/
+
+static void ltelc_shell_print_usage(const struct shell *shell, ltelc_shell_cmd_args_t *ltelc_cmd_args)
 {
-	shell_print(shell, "%s", ltelc_usage_str);
+		switch (ltelc_cmd_args->command) {
+		case LTELC_CMD_DEFCONT:
+			shell_print(shell, "%s", ltelc_defcont_usage_str);
+			break;
+		case LTELC_CMD_DEFCONTAUTH:
+			shell_print(shell, "%s", ltelc_defcontauth_usage_str);
+			break;
+		case LTELC_CMD_CONNECT:
+		case LTELC_CMD_DISCONNECT:
+			shell_print(shell, "%s", ltelc_connect_usage_str);
+			break;
+		case LTELC_CMD_SYSMODE:
+			shell_print(shell, "%s", ltelc_sysmode_usage_str);
+			break;
+		case LTELC_CMD_FUNMODE:
+			shell_print(shell, "%s", ltelc_funmode_usage_str);
+			break;
+		case LTELC_CMD_NORMAL_MODE_AT:
+			shell_print(shell, "%s", ltelc_normal_mode_at_usage_str);
+			break;
+		case LTELC_CMD_EDRX:
+			shell_print(shell, "%s", ltelc_edrx_usage_str);
+			break;
+		case LTELC_CMD_PSM:
+			shell_print(shell, "%s", ltelc_psm_usage_str);
+			break;
+		case LTELC_CMD_RSRP:
+			shell_print(shell, "%s", ltelc_rsrp_usage_str);
+			break;
+
+		default:
+			shell_print(shell, "%s", ltelc_usage_str);
+			break;
+		}
 }
 
 static void ltelc_shell_cmd_defaults_set(ltelc_shell_cmd_args_t *ltelc_cmd_args)
@@ -189,7 +245,8 @@ static void ltelc_shell_cmd_defaults_set(ltelc_shell_cmd_args_t *ltelc_cmd_args)
 	ltelc_cmd_args->sysmode_option = LTE_LC_SYSTEM_MODE_NONE;
 }
 
-/* *************************************************************************** */
+/******************************************************************************/
+
 struct mapping_tbl_item {
 	int key;
 	char *value_str;
@@ -230,6 +287,7 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
 {
 	struct mapping_tbl_item const mapping_table[] = {
+		{LTE_LC_SYSTEM_MODE_NONE,      "None"},
 		{LTE_LC_SYSTEM_MODE_LTEM,      "LTE-M"},
 		{LTE_LC_SYSTEM_MODE_NBIOT,     "NB-IoT"},
 		{LTE_LC_SYSTEM_MODE_GPS,       "GPS"},
@@ -241,7 +299,8 @@ static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff
 	return ltelc_shell_map_to_string(mapping_table, sysmode, out_str_buff);
 }
 
-//**************************************************************************
+/******************************************************************************/
+
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	ltelc_shell_cmd_args_t ltelc_cmd_args;
@@ -264,8 +323,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		goto show_usage;
 	}
 	
-	// command = argv[0] = "ltelc"
-	// sub-command = argv[1]
+	/* command = argv[0] = "ltelc" */
+	/* sub-command = argv[1]       */
 	if (strcmp(argv[1], "status") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_STATUS;
 	} else if (strcmp(argv[1], "coneval") == 0) {
@@ -326,7 +385,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	char *normal_mode_at_str = NULL;
 	uint8_t normal_mode_at_mem_slot = 0;
 
-	while ((opt = getopt_long(argc, argv, "a:I:f:x:w:p:t:A:P:U:su014rmngMNed", long_options, &long_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "a:I:f:x:w:p:t:A:P:U:su014rmngMNed", 
+		long_options, &long_index)) != -1) {
 		switch (opt) {
 		/* RSRP: */
 		case 's':
@@ -354,7 +414,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				edrx_value_set = true;
 			}
 			else {
-				shell_error(shell, "eDRX value string length must be %d.", LTELC_SHELL_EDRX_VALUE_STR_LENGTH);
+				shell_error(shell, "eDRX value string length must be %d.", 
+					LTELC_SHELL_EDRX_VALUE_STR_LENGTH);
 				return -EINVAL;
 			}
 			break;
@@ -364,7 +425,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				edrx_ptw_set = true;
 			}
 			else {
-				shell_error(shell, "PTW string length must be %d.", LTELC_SHELL_EDRX_PTW_STR_LENGTH);
+				shell_error(shell, "PTW string length must be %d.", 
+					LTELC_SHELL_EDRX_PTW_STR_LENGTH);
 				return -EINVAL;
 			}
 			break;
@@ -376,7 +438,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				psm_rptau_set = true;
 			}
 			else {
-				shell_error(shell, "RPTAU bit string length must be %d.", LTELC_SHELL_PSM_PARAM_STR_LENGTH);
+				shell_error(shell, "RPTAU bit string length must be %d.", 
+					LTELC_SHELL_PSM_PARAM_STR_LENGTH);
 				return -EINVAL;
 			}
 			break;
@@ -386,7 +449,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				psm_rat_set = true;
 			}
 			else {
-				shell_error(shell, "RAT bit string length must be %d.", LTELC_SHELL_PSM_PARAM_STR_LENGTH);
+				shell_error(shell, "RAT bit string length must be %d.", 
+					LTELC_SHELL_PSM_PARAM_STR_LENGTH);
 				return -EINVAL;
 			}
 			break;
@@ -418,7 +482,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'r':
 			ltelc_cmd_args.common_option = LTELC_COMMON_READ;
 			break;
-		case 'I': // PDN CID
+		case 'I': /* PDN CID */
 			pdn_cid = atoi(optarg);
 			if (pdn_cid == 0) {
 				shell_error(
@@ -429,26 +493,28 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				return -EINVAL;
 			}
 			break;
-		case 'a': // APN
+		case 'a': /* APN */
 			apn_len = strlen(optarg);
 			if (apn_len > LTELC_APN_STR_MAX_LENGTH) {
-				shell_error(shell, "APN string length %d exceeded. Maximum is %d.", apn_len, LTELC_APN_STR_MAX_LENGTH);
+				shell_error(shell, 
+					"APN string length %d exceeded. Maximum is %d.", 
+						apn_len, LTELC_APN_STR_MAX_LENGTH);
 				ret = -EINVAL;
 				goto show_usage;
 			}
 			apn = optarg;
 			break;
-		case 'f': // Address family
+		case 'f': /* Address family */
 			family = optarg;
 			break;
-		case 'A': // defcont auth protocol
+		case 'A': /* defcont auth protocol */
 			protocol = atoi(optarg);
 			protocol_given = true;
 			break;
-		case 'U': // defcont auth username
+		case 'U': /* defcont auth username */
 			username = optarg;
 			break;
-		case 'P': // defcont auth password
+		case 'P': /* defcont auth password */
 			password = optarg;
 			break;
 		
@@ -482,7 +548,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (require_apn_or_pdn_cid && apn == NULL && pdn_cid == 0) {
 		shell_error(shell, "Either -a or -I MUST be given. See usage:");
 		goto show_usage;
-	} else if (require_rsrp_subscribe && ltelc_cmd_args.rsrp_option == LTELC_RSRP_NONE) {
+	} else if (require_rsrp_subscribe && 
+		ltelc_cmd_args.rsrp_option == LTELC_RSRP_NONE) {
 		shell_error(shell, "Either -s or -u MUST be given. See usage:");
 		goto show_usage;
 	} else if (require_option && ltelc_cmd_args.funmode_option == LTELC_FUNMODE_NONE && 
@@ -502,57 +569,61 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ltelc_sett_defcont_conf_shell_print(shell);
 			}
-			else {
-				if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
-					ltelc_sett_save_defcont_enabled(true);
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+				ltelc_sett_save_defcont_enabled(true);
 				}
-				else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
-					static char cgdcont[] = "AT+CGDCONT=0";
-
-					if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
-						shell_warn(shell, "Disabling cannot be done.");
-						shell_warn(shell, "Please note that disabling can be only done in funmode flightmode.");
-					}
-					else {
-						ltelc_sett_save_defcont_enabled(false);
-						shell_print(shell, "Custom default context config disabled.");
-					}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+				static char cgdcont[] = "AT+CGDCONT=0";
+				if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
+					shell_warn(shell, "Disabling cannot be done.");
+					shell_warn(shell, 
+						"Please note that disabling can be only done in funmode flightmode.");
 				}
-				if (apn != NULL) {
-					(void)ltelc_sett_save_defcont_apn(apn);
+				else {
+					ltelc_sett_save_defcont_enabled(false);
+					shell_print(shell, "Custom default context config disabled.");
 				}
-				if (family != NULL) {
-					(void)ltelc_sett_save_defcont_ip_family(family);
-				}
+			}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_NONE && 
+			         apn == NULL && family == NULL) {
+				goto show_usage;
+			}
+			if (apn != NULL) {
+				(void)ltelc_sett_save_defcont_apn(apn);
+			}
+			if (family != NULL) {
+				(void)ltelc_sett_save_defcont_ip_family(family);
 			}
 			break;
 		case LTELC_CMD_DEFCONTAUTH:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ltelc_sett_defcontauth_conf_shell_print(shell);
 			} 
-			else {
-				if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
 					if (ltelc_sett_save_defcontauth_enabled(true) < 0) {
 						shell_warn(shell, "Cannot enable authentication.");
 					}
 				}
-				else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
-					static char cgauth[] = "AT+CGAUTH=0,0";
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+				static char cgauth[] = "AT+CGAUTH=0,0";
+				if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
+					shell_warn(shell, "Disabling of auth cannot be done to modem.");
+				}
+				ltelc_sett_save_defcontauth_enabled(false);
+			}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_NONE && 
+			         !protocol_given && username == NULL && password == NULL) {
+				goto show_usage;
+			}
 
-					if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
-						shell_warn(shell, "Disabling of auth cannot be done to modem.");
-					}
-					ltelc_sett_save_defcontauth_enabled(false);
-				}
-				if (protocol_given) {
-					(void)ltelc_sett_save_defcontauth_prot(protocol);
-				}
-				if (username != NULL) {
-					(void)ltelc_sett_save_defcontauth_username(username);
-				}
-				if (password != NULL) {
-					(void)ltelc_sett_save_defcontauth_password(password);
-				}
+			if (protocol_given) {
+				(void)ltelc_sett_save_defcontauth_prot(protocol);
+			}
+			if (username != NULL) {
+				(void)ltelc_sett_save_defcontauth_username(username);
+			}
+			if (password != NULL) {
+				(void)ltelc_sett_save_defcontauth_password(password);
 			}
 			break;
 
@@ -583,7 +654,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				} else {
 					shell_print(shell, "System mode read successfully from modem: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
 				}
-			} else {
+			} else if (ltelc_cmd_args.sysmode_option != LTE_LC_SYSTEM_MODE_NONE) {
 				ret = lte_lc_system_mode_set(ltelc_cmd_args.sysmode_option);
 				if (ret < 0) {
 					shell_error(shell, "Cannot set system mode: %d", ret);
@@ -598,6 +669,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					(void)ltelc_sett_sysmode_save(ltelc_cmd_args.sysmode_option);
 				}
 			}
+			else {
+				goto show_usage;
+			}
 			break;
 		case LTELC_CMD_FUNMODE:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
@@ -607,7 +681,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				} else {
 					shell_print(shell, "Functional mode read successfully: %s", ltelc_shell_funmode_to_string(ret, snum));
 				}
-			} else {
+			} else if (ltelc_cmd_args.funmode_option != LTELC_FUNMODE_NONE) {
 				ret = ltelc_func_mode_set(ltelc_cmd_args.funmode_option);
 				if (ret < 0) {
 					shell_error(shell, "Cannot set functional mode: %d", ret);
@@ -615,26 +689,29 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					shell_print(shell, "Functional mode set successfully: %s", ltelc_shell_funmode_to_string(ltelc_cmd_args.funmode_option, snum));
 				}
 			}
+			else {
+				goto show_usage;
+			}
 			break;
 		case LTELC_CMD_NORMAL_MODE_AT:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ltelc_sett_normal_mode_at_cmds_shell_print(shell);
 			}
-			else {
-				if (normal_mode_at_str != NULL) {
-					ret = ltelc_sett_save_normal_mode_at_cmd_str(normal_mode_at_str, normal_mode_at_mem_slot);
-					if (ret < 0) {
-						shell_error(shell, "Cannot set normal mode AT-command: \"%s\"", normal_mode_at_str);
-					} else {
-						shell_print(
-							shell, 
-							"Normal mode AT-command \"%s\" set successfully to memory slot %d.", 
-								((strlen(normal_mode_at_str)) ? normal_mode_at_str: "<empty>"), 
-							normal_mode_at_mem_slot);
-					}
+			else if (normal_mode_at_str != NULL) {
+				ret = ltelc_sett_save_normal_mode_at_cmd_str(normal_mode_at_str, normal_mode_at_mem_slot);
+				if (ret < 0) {
+					shell_error(shell, "Cannot set normal mode AT-command: \"%s\"", normal_mode_at_str);
+				} else {
+					shell_print(
+						shell, 
+						"Normal mode AT-command \"%s\" set successfully to memory slot %d.", 
+							((strlen(normal_mode_at_str)) ? normal_mode_at_str: "<empty>"), 
+						normal_mode_at_mem_slot);
 				}
 			}
-
+			else {
+				goto show_usage;
+			}
 			break;
 
 		case LTELC_CMD_EDRX:
@@ -748,6 +825,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	return ret;
 
 show_usage:
-	ltelc_shell_print_usage(shell);
+	ltelc_shell_print_usage(shell, &ltelc_cmd_args);
 	return ret;
 }
