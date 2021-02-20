@@ -88,6 +88,13 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
+#include <modem/at_cmd.h>
+#endif
+#endif
+
 #ifdef CURLDEBUG
 /* libcurl's debug builds provide an extra function */
 CURLcode curl_easy_perform_ev(CURL *easy);
@@ -1805,6 +1812,32 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         my_setopt_str(curl, CURLOPT_INTERFACE_CID, config->cid);
         if (config->upload_buffsize)
           my_setopt(curl, CURLOPT_UPLOAD_BUFFERSIZE, config->upload_buffsize);
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+        if (global->def_mdm_traces) {
+          static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+
+          if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
+            printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
+          }
+          else {
+            printk("note: default traces \"%s\" was set\n\n", default_mdm_trace);
+          }
+        }
+        else {
+          /* Let's set more lightweight traces for getting better perf: */
+          static const char lightweight_mdm_trace[] = "AT%XMODEMTRACE=1,5";
+              
+          if (at_cmd_write(lightweight_mdm_trace, NULL, 0, NULL) != 0) {
+            printk("error when setting lightweight modem traces\n");
+          }
+          else {
+            printk("note: custom traces \"%s\" was set for testing\n", 
+              lightweight_mdm_trace);
+            printk("note: use --def-mdm-traces hook for the defaults\n\n");
+          }
+
+        }
+#endif
 #endif
         my_setopt_str(curl, CURLOPT_KRBLEVEL, config->krblevel);
         progressbarinit(&per->progressbar, config);

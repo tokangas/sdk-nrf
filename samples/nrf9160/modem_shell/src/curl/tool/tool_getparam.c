@@ -114,7 +114,8 @@ static const struct LongShort aliases[]= {
   {"*r", "create-dirs",              ARG_BOOL},
   {"*s", "max-redirs",               ARG_STRING},
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
-  {"*S", "upload-buff-size",          ARG_STRING},  
+  {"*S", "upload-buff-size",         ARG_STRING},
+  {"*T", "def-mdm-traces",           ARG_BOOL},    
 #endif
   {"*t", "proxy-ntlm",               ARG_BOOL},
   {"*u", "crlf",                     ARG_BOOL},
@@ -801,6 +802,9 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
           return PARAM_BAD_NUMERIC;
         }
         break;
+      case 'T': /* --def-mdm-traces */
+        global->def_mdm_traces = toggle;
+      break;
 #endif
 
       case 't': /* --proxy-ntlm */

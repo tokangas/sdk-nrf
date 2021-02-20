@@ -32,6 +32,13 @@
 #include <plarenas.h>
 #endif
 
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
+#include <modem/at_cmd.h>
+#endif
+#endif
+
 #define ENABLE_CURLX_PRINTF
 /* use our own printf() functions */
 #include "curlx.h"
@@ -151,6 +158,7 @@ static CURLcode main_init(struct GlobalConfig *config)
   config->styled_output = TRUE;       /* enable detection */
   config->parallel_max = PARALLEL_DEFAULT;
 
+
   /* Allocate the initial operate config */
   config->first = config->last = malloc(sizeof(struct OperationConfig));
   if(config->first) {
@@ -204,6 +212,21 @@ static void free_globalconfig(struct GlobalConfig *config)
  */
 static void main_free(struct GlobalConfig *config)
 {
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+  if (!config->def_mdm_traces) {
+    static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+
+    if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
+      printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
+    }
+    else {
+      printk("note: default traces \"%s\" was set\n", default_mdm_trace);
+    }
+  }
+#endif
+#endif
+
   /* Cleanup the easy handle */
   /* Main cleanup */
   curl_global_cleanup();
