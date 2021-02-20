@@ -372,12 +372,12 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 	};
 
 	int ret = ltelc_api_coneval_read(&coneval_resp);
-
 	if (ret) {
 		shell_error(shell, "Cannot evaluate connection parameters, result: \"%s\", ret %d", 
 			((coneval_resp.result <= 6)?coneval_result_strs[coneval_resp.result]:"unknown"), ret);
 		return;
 	}
+	int cell_id = strtol(coneval_resp.cell_id_str, NULL, 16);
 
 	shell_print(shell, "Evaluated connection parameters:");
 	shell_print(shell, "  result:         \"%s\"", 
@@ -394,7 +394,7 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 	shell_print(shell, "  snr:            %d: %ddB",
 		coneval_resp.snr, (coneval_resp.snr - LTELC_API_SNR_OFFSET_VALUE));
 
-	shell_print(shell, "  cell_id:        \"%s\"", coneval_resp.cell_id_str);
+	shell_print(shell, "  cell_id:        \"%s\": %d", coneval_resp.cell_id_str, cell_id);
 	shell_print(shell, "  plmn:           \"%s\"", coneval_resp.plmn_str);
 	shell_print(shell, "  phy_cell_id:    %d", coneval_resp.phy_cell_id);
 	shell_print(shell, "  earfcn:         %d", coneval_resp.earfcn);
