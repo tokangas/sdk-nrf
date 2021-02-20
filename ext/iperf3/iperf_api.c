@@ -58,9 +58,19 @@
 #endif
 #include <netinet/tcp.h>
 #include <sys/time.h>
+
 #if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES) && defined (CONFIG_MODEM_INFO)
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
 #include <modem/modem_info.h>
 #endif
+
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+/* NRF_IPERF3_INTEGRATION_CHANGE: added */
+#include <modem/at_cmd.h>
+#endif
+#endif
+
 #include <sys/resource.h>
 /* #include <sys/mman.h> NRF_IPERF3_INTEGRATION_CHANGE: not available */
 #include <sys/stat.h>
@@ -1458,19 +1468,12 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->settings->connect_timeout = unit_atoi(optarg);
 			client_flag = 1;
 			break;
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 		case NRF_OPT_DEFAULT_MDM_TRACES:
-		{
-			static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
-
-			if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
-				printf("error when setting default modem traces\n");
-			}
-			else {
-				printf("note: modem traces set %s\n", default_mdm_trace);
-			}
+			test->def_mdm_traces = true;
 			break;
-		}
+#endif
 #endif
 		case 'm':
 			//usage_long(stdout);
@@ -1623,6 +1626,33 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	if (test->json_output && test->debug) {
 		warning("Debug output (-d) may interfere with JSON output (-J)");
 	}
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+    if (test->def_mdm_traces) {
+    	static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+
+		if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
+        	printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
+        }
+        else {
+        	printk("note: default traces \"%s\" was set\n\n", default_mdm_trace);
+        }
+    }
+    else {
+    	/* Let's set more lightweight traces for getting better perf: */
+        static const char lightweight_mdm_trace[] = "AT%XMODEMTRACE=1,5";
+              
+        if (at_cmd_write(lightweight_mdm_trace, NULL, 0, NULL) != 0) {
+        	printk("error when setting lightweight modem traces\n");
+        }
+        else {
+        	printk("note: custom traces \"%s\" was set for testing\n", 
+        		lightweight_mdm_trace);
+        	printk("note: use --def-mdm-traces hook for the defaults\n\n");
+        }
+    }
+#endif
+#endif	
 	return 0;
 }
 
@@ -3350,6 +3380,21 @@ void iperf_free_test(struct iperf_test *test)
 {
 	struct protocol *prot;
 	struct iperf_stream *sp;
+
+#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+  if (!test->def_mdm_traces) {
+    static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+
+    if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
+      printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
+    }
+    else {
+      printk("note: default traces \"%s\" was set\n", default_mdm_trace);
+    }
+  }
+#endif
+#endif
 
 	/* Free streams */
 	while (!SLIST_EMPTY(&test->streams)) {

@@ -310,6 +310,9 @@ struct iperf_test
     char     *timestamp_format;
 #if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
     char     *apn_str;				/* -I or --interface option */
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+    bool     def_mdm_traces;        /* --def-mdm-traces option */
+#endif
 #endif
     char     *json_output_string; /* rendered JSON output if json_output is set */
     /* Select related parameters */
