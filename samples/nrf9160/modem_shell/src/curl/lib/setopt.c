@@ -2105,14 +2105,14 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
     if(arg > UPLOADBUFFER_MAX) {
       arg = UPLOADBUFFER_MAX;
-      printf("CURLOPT_UPLOAD_BUFFERSIZE: maximum upload_buffer_size %d set", arg);
+      printf("CURLOPT_UPLOAD_BUFFERSIZE: maximum upload_buffer_size %d set\n", arg);
     }
     else if(arg < UPLOADBUFFER_MIN) {
       arg = UPLOADBUFFER_MIN;
-      printf("CURLOPT_UPLOAD_BUFFERSIZE: minimum upload_buffer_size %d set", arg);
+      printf("CURLOPT_UPLOAD_BUFFERSIZE: minimum upload_buffer_size %d set\n", arg);
     }
     else {
-      printf("CURLOPT_UPLOAD_BUFFERSIZE: set upload_buffer_size %d", arg);
+      printf("CURLOPT_UPLOAD_BUFFERSIZE: set upload_buffer_size %d\n", arg);
     }
 #else
     if(arg > UPLOADBUFFER_MAX)

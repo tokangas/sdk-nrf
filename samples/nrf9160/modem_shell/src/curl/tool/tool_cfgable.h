@@ -87,7 +87,6 @@ struct OperationConfig {
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
   char *cid;
   long upload_buffsize;
-  bool def_mdm_traces;
 #endif
   long localport;
   long localportrange;
@@ -319,7 +318,7 @@ struct GlobalConfig {
   bool parallel_connect;
   char *help_category;            /* The help category, if set */
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
-  bool def_mdm_traces;
+  bool curr_mdm_traces;
 #endif
   struct OperationConfig *first;
   struct OperationConfig *current;

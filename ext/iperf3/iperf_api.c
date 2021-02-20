@@ -1025,7 +1025,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		{ "manual", no_argument, NULL, 'm' },/* NRF_IPERF3_INTEGRATION_CHANGE: -m or --manual instead of help, because shell is stoling -h and --help */
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 		/* NRF_IPERF3_INTEGRATION_CHANGE: added */
-		{ "def-mdm-traces", no_argument, NULL, NRF_OPT_DEFAULT_MDM_TRACES },
+		{ "curr-mdm-traces", no_argument, NULL, NRF_OPT_CURRENT_MDM_TRACES },
 #endif		
 		{ NULL, 0, NULL, 0 }
 	};
@@ -1470,8 +1470,8 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			break;
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
-		case NRF_OPT_DEFAULT_MDM_TRACES:
-			test->def_mdm_traces = true;
+		case NRF_OPT_CURRENT_MDM_TRACES:
+			test->curr_mdm_traces = true;
 			break;
 #endif
 #endif
@@ -1628,17 +1628,8 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	}
 #if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
-    if (test->def_mdm_traces) {
-    	static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
+    if (!test->curr_mdm_traces) {
 
-		if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
-        	printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
-        }
-        else {
-        	printk("note: default traces \"%s\" was set\n\n", default_mdm_trace);
-        }
-    }
-    else {
     	/* Let's set more lightweight traces for getting better perf: */
         static const char lightweight_mdm_trace[] = "AT%XMODEMTRACE=1,5";
               
@@ -1648,7 +1639,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         else {
         	printk("note: custom traces \"%s\" was set for testing\n", 
         		lightweight_mdm_trace);
-        	printk("note: use --def-mdm-traces hook for the defaults\n\n");
+        	printk("note: use --curr-mdm-traces hook for the current ones\n\n");
         }
     }
 #endif
@@ -3383,9 +3374,10 @@ void iperf_free_test(struct iperf_test *test)
 
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
-  if (!test->def_mdm_traces) {
+  if (!test->curr_mdm_traces) {
     static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
 
+    /* We cannot know what was set before the tests, thus setting "default" back: */
     if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
       printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
     }

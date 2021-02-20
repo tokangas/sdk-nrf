@@ -115,7 +115,7 @@ static const struct LongShort aliases[]= {
   {"*s", "max-redirs",               ARG_STRING},
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
   {"*S", "upload-buff-size",         ARG_STRING},
-  {"*T", "def-mdm-traces",           ARG_BOOL},    
+  {"*T", "curr-mdm-traces",          ARG_BOOL},    
 #endif
   {"*t", "proxy-ntlm",               ARG_BOOL},
   {"*u", "crlf",                     ARG_BOOL},
@@ -802,11 +802,12 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
           return PARAM_BAD_NUMERIC;
         }
         break;
-      case 'T': /* --def-mdm-traces */
-        global->def_mdm_traces = toggle;
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+      case 'T': /* --curr-mdm-traces */
+        global->curr_mdm_traces = toggle;
       break;
 #endif
-
+#endif
       case 't': /* --proxy-ntlm */
         if(curlinfo->features & CURL_VERSION_NTLM)
           config->proxyntlm = toggle;

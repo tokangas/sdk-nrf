@@ -1810,20 +1810,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         my_setopt_str(curl, CURLOPT_INTERFACE, config->iface);
 #if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
         my_setopt_str(curl, CURLOPT_INTERFACE_CID, config->cid);
-        if (config->upload_buffsize)
+        if (config->upload_buffsize) {
           my_setopt(curl, CURLOPT_UPLOAD_BUFFERSIZE, config->upload_buffsize);
-#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
-        if (global->def_mdm_traces) {
-          static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
-
-          if (at_cmd_write(default_mdm_trace, NULL, 0, NULL) != 0) {
-            printk("error when setting default modem traces \"%s\"\n", default_mdm_trace);
-          }
-          else {
-            printk("note: default traces \"%s\" was set\n\n", default_mdm_trace);
-          }
         }
-        else {
+#if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
+        if (!global->curr_mdm_traces) {
           /* Let's set more lightweight traces for getting better perf: */
           static const char lightweight_mdm_trace[] = "AT%XMODEMTRACE=1,5";
               
@@ -1833,9 +1824,8 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           else {
             printk("note: custom traces \"%s\" was set for testing\n", 
               lightweight_mdm_trace);
-            printk("note: use --def-mdm-traces hook for the defaults\n\n");
+        	printk("note: use --curr-mdm-traces hook for the current ones\n\n");
           }
-
         }
 #endif
 #endif

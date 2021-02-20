@@ -115,9 +115,9 @@ const char nrf_iperf3_usage_support_str[] =
                            "\nClient specific:\n"
                            "  -c, --client    <host>    run in client mode, connecting to <host>\n"
                            "  -u, --udp                 use UDP rather than TCP\n"
-                           "  --connect-timeout #       timeout for control connection setup (ms)"
+                           "  --connect-timeout #       timeout for control connection setup (ms)\n"
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
-                           "  --def-mdm-traces          default modem traces used"
+                           "  --curr-mdm-traces         use currently configured modem traces\n"
 #endif
                            "  -b, --bitrate #[KMG][/#]  target bitrate in bits/sec (0 for unlimited)\n"
                            "                            (default %d Mbit/sec for UDP, unlimited for TCP)\n"
