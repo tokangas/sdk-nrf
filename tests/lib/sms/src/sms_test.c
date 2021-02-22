@@ -14,9 +14,18 @@
 
 static struct sms_data test_sms_data;
 static struct sms_deliver_header test_sms_header;
+static bool test_sms_header_exists = true;
 static int test_handle;
+static bool sms_callback_called_occurred = false;
+static bool sms_callback_called_expected = false;
 
-void helper_sms_data_clear()
+static void sms_callback(struct sms_data *const data, void *context);
+
+/* sms_at_handler() is implemented in the library and we'll call it directly
+   to fake received SMS message */
+extern void sms_at_handler(void *context, const char *at_notif);
+
+static void helper_sms_data_clear()
 {
 	memset(&test_sms_data, 0, sizeof(test_sms_data));
 
@@ -30,44 +39,23 @@ void helper_sms_data_clear()
 	memset(&test_sms_header, 0, sizeof(test_sms_header));
 	test_sms_header.ud = malloc(512);
 	memset(test_sms_header.ud, 0, 512);
+	test_sms_header_exists = true;
 }
 
 void setUp(void)
 {
 	helper_sms_data_clear();
 	test_handle = 0;
+	sms_callback_called_occurred = false;
+	sms_callback_called_expected = false;
 }
 
-static void sms_callback(struct sms_data *const data, void *context)
+void tearDown(void)
 {
-	TEST_ASSERT_EQUAL(test_sms_data.type, data->type);
-	TEST_ASSERT_EQUAL_STRING(test_sms_data.alpha, data->alpha);
-	TEST_ASSERT_EQUAL(test_sms_data.length, data->length);
-	TEST_ASSERT_EQUAL_STRING(test_sms_data.pdu, data->pdu);
-
-	struct sms_deliver_header *sms_header = data->header;
-
-	TEST_ASSERT_EQUAL(test_sms_header.time.year, sms_header->time.year);
-	TEST_ASSERT_EQUAL(test_sms_header.time.month, sms_header->time.month);
-	TEST_ASSERT_EQUAL(test_sms_header.time.day, sms_header->time.day);
-	TEST_ASSERT_EQUAL(test_sms_header.time.hour, sms_header->time.hour);
-	TEST_ASSERT_EQUAL(test_sms_header.time.minute, sms_header->time.minute);
-	TEST_ASSERT_EQUAL(test_sms_header.time.second, sms_header->time.second);
-
-	TEST_ASSERT_EQUAL_STRING(test_sms_header.ud, sms_header->ud);
-	TEST_ASSERT_EQUAL(test_sms_header.data_len, sms_header->data_len);
-
-	TEST_ASSERT_EQUAL(test_sms_header.app_port.present, sms_header->app_port.present);
-	TEST_ASSERT_EQUAL(test_sms_header.app_port.dest_port, sms_header->app_port.dest_port);
-	TEST_ASSERT_EQUAL(test_sms_header.app_port.src_port, sms_header->app_port.src_port);
-
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.present, sms_header->concatenated.present);
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.ref_number, sms_header->concatenated.ref_number);
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.seq_number, sms_header->concatenated.seq_number);
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.total_msgs, sms_header->concatenated.total_msgs);
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 }
 
-void sms_init_helper()
+static void sms_init_helper()
 {
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -82,7 +70,7 @@ void sms_init_helper()
 	TEST_ASSERT_EQUAL(0, test_handle);
 }
 
-void sms_uninit_helper()
+static void sms_uninit_helper()
 {
 	sms_unregister_listener(test_handle);
 	test_handle = 0;
@@ -95,7 +83,8 @@ void sms_uninit_helper()
 
 /********* SMS SEND TESTS ***********************/
 /* The following site used as a reference for generated messages:
-   http://smstools3.kekekasvi.com/topic.php?id=288 */
+   http://smstools3.kekekasvi.com/topic.php?id=288
+*/
 
 void test_sms_init_uninit(void)
 {
@@ -105,6 +94,8 @@ void test_sms_init_uninit(void)
 
 void test_send_len3_number10plus(void)
 {
+	sms_init_helper();
+
 	enum at_cmd_state state = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -113,6 +104,21 @@ void test_send_len3_number10plus(void)
 	int ret = sms_send("+1234567890", "Moi");
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+
+	/* Receive SMS-STATUS-REPORT */
+	test_sms_data.type = SMS_TYPE_SUBMIT_REPORT;
+	free(test_sms_data.alpha);
+	test_sms_data.alpha = NULL;
+
+	test_sms_data.length = 24;
+	strcpy(test_sms_data.pdu, "06550A912143658709122022118314801220221183148000");
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	test_sms_header_exists = false;
+	sms_at_handler(NULL, "+CDS: 24\r\n06550A912143658709122022118314801220221183148000\r\n");
+
+	sms_uninit_helper();
 }
 
 void test_send_len1_number20plus(void)
@@ -169,16 +175,16 @@ void test_send_len9_number5(void)
 void test_send_concat_220(void)
 {
 	enum at_cmd_state state1 = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061010C915348803061250000A005000301020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061010C912143658709210000A005000301020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
 	enum at_cmd_state state2 = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=78\r0061020C9153488030612500004A0500030102026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD703918\x1A", NULL, 0, &state2, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=78\r0061020C9121436587092100004A0500030102026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD703918\x1A", NULL, 0, &state2, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+358408031652", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+	int ret = sms_send("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
@@ -187,22 +193,135 @@ void test_send_concat_220(void)
 void test_send_concat_291(void)
 {
 	enum at_cmd_state state1 = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061030C915348803061250000A005000302020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061030C912143658709210000A005000302020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
 	enum at_cmd_state state2 = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=140\r0061040C915348803061250000910500030202026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\x1A", NULL, 0, &state2, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=140\r0061040C912143658709210000910500030202026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\x1A", NULL, 0, &state2, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+358408031652", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
+	int ret = sms_send("+123456789012", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
 }
 
-/********* SMS SEND TESTS ***********************/
+/********* SMS SEND FAIL TESTS ******************/
+
+/* Phone number is empty. */
+void test_send_fail_number_empty(void)
+{
+	enum at_cmd_state state = 0;
+	int ret = sms_send("", "123456789");
+	TEST_ASSERT_EQUAL(-EINVAL, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+}
+
+/* Phone number is NULL. */
+void test_send_fail_number_null(void)
+{
+	enum at_cmd_state state = 0;
+	int ret = sms_send(NULL, "123456789");
+	TEST_ASSERT_EQUAL(-EINVAL, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+}
+
+/* Text is empty. Message will be sent successfully. */
+void test_send_text_empty(void)
+{
+	enum at_cmd_state state = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=13\r003100099121436587F90000FF00\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	int ret = sms_send("123456789", "");
+	TEST_ASSERT_EQUAL(0, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+}
+
+/* Text is NULL. Message will be sent successfully. */
+void test_send_text_null(void)
+{
+	enum at_cmd_state state = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=13\r003100099121436587F90000FF00\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	int ret = sms_send("123456789", NULL);
+	TEST_ASSERT_EQUAL(0, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+}
+
+void test_send_fail_atcmd(void)
+{
+	enum at_cmd_state state = AT_CMD_ERROR_CMS;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 205);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	__wrap_at_cmd_write_IgnoreArg_state();
+
+	int ret = sms_send("+1234567890", "Moi");
+	TEST_ASSERT_EQUAL(205, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CMS, state);
+}
+
+void test_send_fail_atcmd_concat(void)
+{
+	enum at_cmd_state state1 = AT_CMD_ERROR_CME;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061050C912143658709210000A005000303020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 304);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	__wrap_at_cmd_write_IgnoreArg_state();
+
+	int ret = sms_send("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+	TEST_ASSERT_EQUAL(304, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CME, state1);
+}
+
+/********* SMS RECV TESTS ***********************/
+
+/* Callback that SMS library will call when a message is received */
+static void sms_callback(struct sms_data *const data, void *context)
+{
+	sms_callback_called_occurred = true;
+	TEST_ASSERT_EQUAL(test_sms_data.type, data->type);
+	if (test_sms_data.alpha != NULL) {
+		TEST_ASSERT_EQUAL_STRING(test_sms_data.alpha, data->alpha);
+	} else {
+		TEST_ASSERT_EQUAL(NULL, data->alpha);
+	}
+
+	TEST_ASSERT_EQUAL(test_sms_data.length, data->length);
+	TEST_ASSERT_EQUAL_STRING(test_sms_data.pdu, data->pdu);
+
+	struct sms_deliver_header *sms_header = data->header;
+
+	if (!test_sms_header_exists) {
+		TEST_ASSERT_EQUAL(NULL, sms_header);
+		return;
+	}
+
+	TEST_ASSERT_EQUAL(test_sms_header.time.year, sms_header->time.year);
+	TEST_ASSERT_EQUAL(test_sms_header.time.month, sms_header->time.month);
+	TEST_ASSERT_EQUAL(test_sms_header.time.day, sms_header->time.day);
+	TEST_ASSERT_EQUAL(test_sms_header.time.hour, sms_header->time.hour);
+	TEST_ASSERT_EQUAL(test_sms_header.time.minute, sms_header->time.minute);
+	TEST_ASSERT_EQUAL(test_sms_header.time.second, sms_header->time.second);
+
+	TEST_ASSERT_EQUAL_STRING(test_sms_header.ud, sms_header->ud);
+	TEST_ASSERT_EQUAL(test_sms_header.data_len, sms_header->data_len);
+
+	TEST_ASSERT_EQUAL(test_sms_header.app_port.present, sms_header->app_port.present);
+	TEST_ASSERT_EQUAL(test_sms_header.app_port.dest_port, sms_header->app_port.dest_port);
+	TEST_ASSERT_EQUAL(test_sms_header.app_port.src_port, sms_header->app_port.src_port);
+
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.present, sms_header->concatenated.present);
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.ref_number, sms_header->concatenated.ref_number);
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.seq_number, sms_header->concatenated.seq_number);
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.total_msgs, sms_header->concatenated.total_msgs);
+}
 
 void test_recv_len3_number10(void)
 {
@@ -221,12 +340,13 @@ void test_recv_len3_number10(void)
 	test_sms_header.time.second = 34;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0791534874894320040A91214365870900001220900285438003CD771A\r\n");
 
 	sms_uninit_helper();
 }
 
-void test_recv_concat(void)
+void test_recv_concat_len291_msgs2(void)
 {
 	sms_init_helper();
 
@@ -248,7 +368,10 @@ void test_recv_concat(void)
 	test_sms_header.concatenated.seq_number = 1;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_callback_called_occurred = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0791534874894310440A912143658709000012201232054480A00500037E020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	strcpy(test_sms_data.pdu, "0791534874894320440A912143658709000012201232054480910500037E02026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031");
 	test_sms_header.data_len = 138;
@@ -256,7 +379,87 @@ void test_recv_concat(void)
 	test_sms_header.concatenated.seq_number = 2;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_occurred = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0791534874894320440A912143658709000012201232054480910500037E02026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	sms_uninit_helper();
+}
+
+void test_recv_concat_len755_msgs5(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "1234567890");
+	test_sms_data.length = 159;
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 22;
+	test_sms_header.time.hour = 8;
+	test_sms_header.time.minute = 56;
+	test_sms_header.time.second = 5;
+
+	test_sms_header.concatenated.present = true;
+	test_sms_header.concatenated.total_msgs = 5;
+	test_sms_header.concatenated.ref_number = 128;
+
+	/* Part 1 */
+	strcpy(test_sms_data.pdu, "0791534874894310440A912143658709000012202280655080A0050003800501C2E231B96C3EA3D3EA35BBED7EC3E3F239BD6EBFE3F37A50583C2697CD67745ABD66B7DD6F785C3EA7D7ED777C5E0F0A8BC7E4B2F98C4EABD7ECB6FB0D8FCBE7F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5");
+	test_sms_header.data_len = 153;
+	strcpy(test_sms_header.ud, "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr");
+	test_sms_header.concatenated.seq_number = 1;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894310440A912143658709000012202280655080A0050003800501C2E231B96C3EA3D3EA35BBED7EC3E3F239BD6EBFE3F37A50583C2697CD67745ABD66B7DD6F785C3EA7D7ED777C5E0F0A8BC7E4B2F98C4EABD7ECB6FB0D8FCBE7F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	/* Part 4 */
+	test_sms_header.time.second = 6;
+	strcpy(test_sms_data.pdu, "0791534874894370440A912143658709000012202280656080A0050003800504C2E231B96C3EA3D3EA35BBED7EC3E3F239BD6EBFE3F37A50583C2697CD67745ABD66B7DD6F785C3EA7D7ED777C5E0F0A8BC7E4B2F98C4EABD7ECB6FB0D8FCBE7F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5");
+	test_sms_header.data_len = 153;
+	strcpy(test_sms_header.ud, "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr");
+	test_sms_header.concatenated.seq_number = 4;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A912143658709000012202280656080A0050003800504C2E231B96C3EA3D3EA35BBED7EC3E3F239BD6EBFE3F37A50583C2697CD67745ABD66B7DD6F785C3EA7D7ED777C5E0F0A8BC7E4B2F98C4EABD7ECB6FB0D8FCBE7F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	/* Part 2 */
+	strcpy(test_sms_data.pdu, "0791534874894370440A912143658709000012202280656080A0050003800502E6F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD783C2E231B96C3EA3D3");
+	test_sms_header.data_len = 153;
+	strcpy(test_sms_header.ud, "stuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghi");
+	test_sms_header.concatenated.seq_number = 2;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A912143658709000012202280656080A0050003800502E6F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD783C2E231B96C3EA3D3\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	/* Part 3 */
+	strcpy(test_sms_data.pdu, "0791534874894310440A912143658709000012202280656080A0050003800503D46B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD783C2E231B96C3EA3D3EA35BBED7EC3E3F239BD6EBFE3F37A50583C2697CD67745ABD66B7DD6F785C3EA7D7ED777C5E0F0A8BC7E4B2F98C4EABD7ECB6FB0D8FCBE7F4BAFD8ECFEB41");
+	test_sms_header.data_len = 153;
+	strcpy(test_sms_header.ud, "jklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz ");
+	test_sms_header.concatenated.seq_number = 3;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894310440A912143658709000012202280656080A0050003800503D46B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD783C2E231B96C3EA3D3EA35BBED7EC3E3F239BD6EBFE3F37A50583C2697CD67745ABD66B7DD6F785C3EA7D7ED777C5E0F0A8BC7E4B2F98C4EABD7ECB6FB0D8FCBE7F4BAFD8ECFEB41\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	/* Part 5 */
+	test_sms_data.length = 151;
+	strcpy(test_sms_data.pdu, "0791534874894310440A91214365870900001220228065608096050003800505E6F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD703");
+	test_sms_header.data_len = 143;
+	strcpy(test_sms_header.ud, "stuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz");
+	test_sms_header.concatenated.seq_number = 5;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\"151\r\n0791534874894310440A91214365870900001220228065608096050003800505E6F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD703\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	sms_uninit_helper();
 }
@@ -265,9 +468,9 @@ void test_recv_wap_push(void)
 {
 	sms_init_helper();
 
-	strcpy(test_sms_data.alpha, "69923221");
+	strcpy(test_sms_data.alpha, "12345678");
 	test_sms_data.length = 22;
-	strcpy(test_sms_data.pdu, "004408819629231200040230503231732b1c0b05040b84000000037c0101010603c4af9a40027d76b13101320138");
+	strcpy(test_sms_data.pdu, "004408812143658700040230503231732b1c0b05040b84000000037c0101010603c4af9a40027d76b13101320138");
 	test_sms_header.data_len = 16;
 	strcpy(test_sms_header.ud, "\x01\x06\x03\xC4\xAF\x9A\x40\x02\x7D\x76\xB1\x31\x01\x32\x01\x38");//"\x01\x06\x03\xC4\xAF\x9A@\x02}v\xB11\x012\x018");//00037C0101010603C4AF9A40027D76B13101320138");
 	test_sms_header.time.year = 20;
@@ -286,10 +489,13 @@ void test_recv_wap_push(void)
 	test_sms_header.concatenated.seq_number = 1;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
-	sms_at_handler(NULL, "+CMT: \"69923221\",22\r\n004408819629231200040230503231732b1c0b05040b84000000037c0101010603c4af9a40027d76b13101320138\r\n");
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700040230503231732b1c0b05040b84000000037c0101010603c4af9a40027d76b13101320138\r\n");
 
 	sms_uninit_helper();
 }
+
+/********* SMS RECV FAIL TESTS ******************/
 
 /* It is required to be added to each test. That is because unity is using
  * different main signature (returns int) and zephyr expects main which does
