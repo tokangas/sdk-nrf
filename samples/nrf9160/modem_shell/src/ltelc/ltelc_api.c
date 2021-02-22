@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <assert.h>
+
 #include <sys/types.h>
 #include <shell/shell.h>
 
@@ -200,6 +202,211 @@ clean_exit:
 
 	return ret;
 }
+
+/* ****************************************************************************/
+#define AT_CMD_CONEVAL "AT%CONEVAL"
+#define AT_CMD_CONEVAL_RESP_PARAM_COUNT        18 /* 1 + actual 17 */
+
+#define AT_CMD_CONEVAL_RESP_RESULT_INDEX        1
+#define AT_CMD_CONEVAL_RESP_RRC_STATE_INDEX     2
+#define AT_CMD_CONEVAL_RESP_QUALITY_INDEX       3
+#define AT_CMD_CONEVAL_RESP_RSRP_INDEX          4
+#define AT_CMD_CONEVAL_RESP_RSRQ_INDEX          5
+#define AT_CMD_CONEVAL_RESP_SNR_INDEX           6
+#define AT_CMD_CONEVAL_RESP_CELL_ID_STR_INDEX   7
+#define AT_CMD_CONEVAL_RESP_PLMN_STR_INDEX      8
+#define AT_CMD_CONEVAL_RESP_PHY_CELL_ID_INDEX   9
+#define AT_CMD_CONEVAL_RESP_EARFCN_INDEX       10
+#define AT_CMD_CONEVAL_RESP_BAND_INDEX         11
+#define AT_CMD_CONEVAL_RESP_TAU_TRIG_INDEX     12
+#define AT_CMD_CONEVAL_RESP_CE_LEVEL_INDEX     13
+#define AT_CMD_CONEVAL_RESP_TX_PWR_INDEX       14
+#define AT_CMD_CONEVAL_RESP_TX_REPET_INDEX     15
+#define AT_CMD_CONEVAL_RESP_RX_REPET_INDEX     16
+#define AT_CMD_CONEVAL_RESP_DL_PATHLOSS_INDEX  17
+
+static int ltelc_api_coneval_read(lte_coneval_resp_t *coneval)
+{
+	int ret = 0;
+	int i;
+	int value;
+	struct at_param_list param_list = { 0 };
+	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
+	char str_buf[AT_CMD_CONEVAL_RESP_MAX_STR_LEN + 1];
+	int len = sizeof(str_buf);
+
+
+	memset(coneval, 0, sizeof(lte_coneval_resp_t));
+	coneval->result = 7; /* unknown */
+
+	ret = at_cmd_write(AT_CMD_CONEVAL, at_response_str, sizeof(at_response_str), NULL);
+	if (ret) {
+		printk("at_cmd_write for \"%s\" returned err: %d\n", AT_CMD_CONEVAL, ret);
+		return ret;
+	}
+/*
+	else {
+		printk("%s", at_response_str);
+	}
+*/
+
+	ret = at_params_list_init(&param_list, AT_CMD_CONEVAL_RESP_PARAM_COUNT);
+	if (ret) {
+		printk("Could not init AT params list for \"%s\", error: %d\n", AT_CMD_CONEVAL, ret);
+		return ret;
+	}
+
+	ret = at_parser_params_from_str(at_response_str, NULL, &param_list);
+	if (ret) {
+		printk("Could not parse %s response, error: %d\n", AT_CMD_CONEVAL, ret);
+		return ret;
+	}
+
+	for (i = 1;i < AT_CMD_CONEVAL_RESP_PARAM_COUNT;i++) {
+		if (i == AT_CMD_CONEVAL_RESP_CELL_ID_STR_INDEX || i == AT_CMD_CONEVAL_RESP_PLMN_STR_INDEX) {
+			ret = at_params_string_get(&param_list, i, str_buf, &len);
+			if (ret) {
+				printk("ltelc_api_coneval_read: Invalid AT string resp parameter at index %d, err: %d\n", 
+					i, ret);
+				return ret;
+			}
+			assert(len <= AT_CMD_CONEVAL_RESP_MAX_STR_LEN);
+			str_buf[len] = '\0';
+			if (i == AT_CMD_CONEVAL_RESP_CELL_ID_STR_INDEX) {
+				strcpy(coneval->cell_id_str, str_buf);
+			}
+			else {
+				assert(i == AT_CMD_CONEVAL_RESP_PLMN_STR_INDEX);
+				strcpy(coneval->plmn_str, str_buf);
+			}
+		}
+		else {
+			ret = at_params_int_get(&param_list, i, &value);
+			if (ret) {
+				printk("ltelc_api_coneval_read: Invalid AT int resp parameter at index %d, err: %d\n", 
+					i, ret);
+				return ret;
+			}
+
+			switch (i) {
+				case AT_CMD_CONEVAL_RESP_RESULT_INDEX:
+					coneval->result = value;
+					if (value != 0) {
+						printk("ltelc_api_coneval_read: CONEVAL failed: %d\n", value);
+						return -1;
+					}
+					break;
+				case AT_CMD_CONEVAL_RESP_RRC_STATE_INDEX:
+					coneval->rrc_state = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_QUALITY_INDEX:
+					coneval->quality = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_RSRP_INDEX:
+					coneval->rsrp = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_RSRQ_INDEX:
+					coneval->rsrq = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_SNR_INDEX:
+					coneval->snr = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_PHY_CELL_ID_INDEX:
+					coneval->phy_cell_id = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_EARFCN_INDEX:
+					coneval->earfcn = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_BAND_INDEX:
+					coneval->band = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_TAU_TRIG_INDEX:
+					coneval->tau_triggered = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_CE_LEVEL_INDEX:
+					coneval->ce_level = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_TX_PWR_INDEX:
+					coneval->tx_power = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_TX_REPET_INDEX:
+					coneval->tx_repetitions = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_RX_REPET_INDEX:
+					coneval->rx_repetitions = value;
+					break;
+				case AT_CMD_CONEVAL_RESP_DL_PATHLOSS_INDEX:
+					coneval->dl_pathloss = value;
+					break;
+			}
+		}
+	}
+	return 0;
+}
+
+/** SNR offset value that is used when mapping to dBs  */
+#define LTELC_API_SNR_OFFSET_VALUE 25
+
+void ltelc_api_coneval_read_for_shell(const struct shell *shell)
+{
+	lte_coneval_resp_t coneval_resp;
+	static const char *coneval_result_strs[] = {
+		"0: Connection evaluation successful",
+		"1: Evaluation failed, no cell available",
+		"2: Evaluation failed, UICC not available",
+		"3: Evaluation failed, only barred cells available",
+        "4: Evaluation failed, busy (e.g. GNSS activity)",
+		"5: Evaluation failed, aborted because of higher priority operation",
+		"6: Evaluation failed, unspecified"
+	};
+	static const char *coneval_rrc_state_strs[] = {
+		"0: RRC connection in idle state during measurements",
+		"1: RRC connection in connected state during measurements"
+	};
+	static const char *coneval_quality_strs[] = {
+		"5: Radio link quality -2",
+		"6: Radio link quality -1",
+		"7: Radio link quality normal",
+		"8: Radio link quality +1",
+		"9: Radio link quality +2"
+	};
+
+	int ret = ltelc_api_coneval_read(&coneval_resp);
+
+	if (ret) {
+		shell_error(shell, "Cannot evaluate connection parameters, result: \"%s\", ret %d", 
+			((coneval_resp.result <= 6)?coneval_result_strs[coneval_resp.result]:"unknown"), ret);
+		return;
+	}
+
+	shell_print(shell, "Evaluated connection parameters:");
+	shell_print(shell, "  result:         \"%s\"", 
+		((coneval_resp.result <= 6) ? coneval_result_strs[coneval_resp.result] : "unknown"));
+	shell_print(shell, "  rrc_state:      %s", 
+		((coneval_resp.rrc_state == 0 || coneval_resp.rrc_state == 1) ? 
+			coneval_rrc_state_strs[coneval_resp.rrc_state] : "unknown"));
+	shell_print(shell, "  quality:        %s", 
+		((coneval_resp.quality >= 5 && coneval_resp.quality <= 9) ? 
+			coneval_quality_strs[coneval_resp.quality - 5] : "unknown"));
+	shell_print(shell, "  rsrp:           %d: %ddBm", 
+		coneval_resp.rsrp, (coneval_resp.rsrp - MODEM_INFO_RSRP_OFFSET_VAL));
+	shell_print(shell, "  rsrq:           %d", coneval_resp.rsrq);
+	shell_print(shell, "  snr:            %d: %ddB",
+		coneval_resp.snr, (coneval_resp.snr - LTELC_API_SNR_OFFSET_VALUE));
+
+	shell_print(shell, "  cell_id:        \"%s\"", coneval_resp.cell_id_str);
+	shell_print(shell, "  plmn:           \"%s\"", coneval_resp.plmn_str);
+	shell_print(shell, "  phy_cell_id:    %d", coneval_resp.phy_cell_id);
+	shell_print(shell, "  earfcn:         %d", coneval_resp.earfcn);
+	shell_print(shell, "  band:           %d", coneval_resp.band);
+	shell_print(shell, "  tau_triggered:  %d", coneval_resp.tau_triggered);
+	shell_print(shell, "  ce_level:       %d", coneval_resp.ce_level);
+	shell_print(shell, "  tx_power:       %d", coneval_resp.tx_power);
+	shell_print(shell, "  tx_repetitions: %d", coneval_resp.tx_repetitions);
+	shell_print(shell, "  rx_repetitions: %d", coneval_resp.rx_repetitions);
+	shell_print(shell, "  dl_pathloss:    %d", coneval_resp.dl_pathloss);
+}
+/* ****************************************************************************/
 
 int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 {
@@ -421,7 +628,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 			shell_print(shell, "Mobile network time and date: %s", info_str);
 		}
 
-	#if defined(CONFIG_AT_CMD)
+#if defined(CONFIG_AT_CMD)
 		ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
 		if (ret >= 0) {
 			char ipv4_addr[NET_IPV4_ADDR_LEN];

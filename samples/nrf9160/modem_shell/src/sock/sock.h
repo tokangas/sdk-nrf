@@ -18,7 +18,8 @@ enum sock_recv_print_format {
 };
 
 int sock_open_and_connect(int family, int type, char* address, int port,
-	int bind_port, int pdn_cid);
+	int bind_port, int pdn_cid, bool secure, int sec_tag, bool session_cache,
+	int peer_verify, char* peer_hostname);
 int sock_send_data(int socket_id, char* data, int data_length, int interval,
 	bool blocking, int buffer_size);
 int sock_recv(int socket_id, bool receive_start, bool blocking,

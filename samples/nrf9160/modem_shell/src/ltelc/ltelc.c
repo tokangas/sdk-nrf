@@ -17,6 +17,7 @@
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 
+#include <modem/at_cmd.h>
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
@@ -243,10 +244,44 @@ static int ltelc_default_pdp_context_auth_set()
 				ltelc_sett_defcontauth_username_get(),
 				ltelc_sett_defcontauth_password_get());
 		if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
-			printf("ltelc_default_pdp_context_auth_set: ERROR received for %s", cgauth);
+			shell_error(uart_shell, "ltelc_default_pdp_context_auth_set: ERROR received for %s", cgauth);
 			return -EIO;
 		}
 	}
+	return 0;
+}
+
+
+static int ltelc_normal_mode_at_cmds_run()
+{
+	char *normal_mode_at_cmd;
+	char response[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
+	int mem_slot_index = LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START;
+	int len;
+
+	for (;mem_slot_index <= LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_END; mem_slot_index++) {
+		normal_mode_at_cmd = ltelc_sett_normal_mode_at_cmd_str_get(mem_slot_index);
+		len = strlen(normal_mode_at_cmd);
+		if (len) {
+			if (at_cmd_write(
+				normal_mode_at_cmd, response, sizeof(response), NULL) != 0) {
+				shell_error(
+					uart_shell, 
+					"Normal mode AT-command from memory slot %d \"%s\" returned: ERROR",
+						mem_slot_index,
+						normal_mode_at_cmd);
+			} 
+			else {
+				shell_print(
+					uart_shell, 
+					"Normal mode AT-command from memory slot %d \"%s\" returned:\n\r %s OK",
+						mem_slot_index,
+						normal_mode_at_cmd,
+						response);
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -258,6 +293,9 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 			shell_print(uart_shell, "RSRP subscribed");
 			if (modem_rsrp != LTELC_RSRP_VALUE_NOT_KNOWN)
 				shell_print(uart_shell, "RSRP: %d", modem_rsrp);
+		}
+		else {
+			shell_print(uart_shell, "RSRP unsubscribed");
 		}
 	}
 }
@@ -276,10 +314,16 @@ int ltelc_func_mode_set(int fun)
 		break;
 	case LTELC_FUNMODE_NORMAL:
 	default:
+	    /* Run custom at cmds from settings (ltelc nmodeat -mosh command): */
+	    ltelc_normal_mode_at_cmds_run();
+
+	    /* Set default context from settings 
+		   (ltelc defcont/defcontauth -mosh commands): */
 		ltelc_default_pdp_context_set();
 		ltelc_default_pdp_context_auth_set();
 
-		/* Set saved system mode (if set) to modem: */
+		/* Set saved system mode (if set) to modem
+		   (ltelc sysmode -mosh command): */
 		sysmode = ltelc_sett_sysmode_get();
 		if (sysmode != LTE_LC_SYSTEM_MODE_NONE) {
 			(void)lte_lc_system_mode_set(sysmode);

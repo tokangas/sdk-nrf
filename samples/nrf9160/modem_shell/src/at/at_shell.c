@@ -69,11 +69,42 @@ static void at_print_usage()
 	shell_print(shell_global, "%s", at_usage_str);
 }
 
+static void at_print_error_info(enum at_cmd_state state, int error)
+{
+	switch (state)
+	{
+	case AT_CMD_ERROR:
+		shell_error(shell_global, "ERROR: %d", error);
+		break;
+	case AT_CMD_ERROR_CMS:
+		shell_error(shell_global, "CMS ERROR: %d", error);
+		break;
+	case AT_CMD_ERROR_CME:
+		shell_error(shell_global, "CME ERROR: %d", error);
+		break;
+	case AT_CMD_ERROR_QUEUE:
+		shell_error(shell_global, "QUEUE ERROR: %d", error);
+		break;
+	case AT_CMD_ERROR_WRITE:
+		shell_error(shell_global, "AT CMD SOCKET WRITE ERROR: %d", error);
+		break;
+	case AT_CMD_ERROR_READ:
+		shell_error(shell_global, "AT CMD SOCKET READ ERROR: %d", error);
+		break;
+	case AT_CMD_NOTIFICATION:
+		shell_error(shell_global, "AT CMD NOTIFICATION: %d", error);
+		break;
+	default:
+		break;
+	}
+}
+
 int at_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err;
 	char response[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
 	shell_global = shell;
+	enum at_cmd_state state = AT_CMD_OK;
 
 	if (argc < 2) {
 		at_print_usage();
@@ -85,11 +116,15 @@ int at_shell(const struct shell *shell, size_t argc, char **argv)
 	shell_global = shell;
 
 	if (!strcmp(command, "events_enable")) {
-		int err = at_notif_register_handler((void*)shell, at_cmd_handler);
+		int err = at_notif_register_handler(
+			(void*)shell, at_cmd_handler);
 		if (err == 0) {
 			shell_print(shell, "AT command event handler registered successfully");
 		} else {
-			shell_print(shell, "AT command event handler registeration failed, err=%d", err);
+			shell_print(
+				shell,
+				"AT command event handler registeration failed, err=%d",
+				err);
 		}
 	} else if (!strcmp(command, "events_disable")) {
 		at_notif_deregister_handler((void*)shell, at_cmd_handler);
@@ -97,9 +132,9 @@ int at_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (!strcmp(command, "help")) {
 		shell_print(shell, "%s", at_usage_str);
 	} else {
-		err = at_cmd_write(command, response, sizeof(response), NULL);
-		if (err) {
-			shell_error(shell, "ERROR");
+		err = at_cmd_write(command, response, sizeof(response), &state);
+		if (state != AT_CMD_OK) {
+			at_print_error_info(state, err);
 			return -EINVAL;
 		}
 

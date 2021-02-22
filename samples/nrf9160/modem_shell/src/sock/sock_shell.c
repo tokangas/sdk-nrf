@@ -65,6 +65,12 @@ const char sock_usage_str[] =
 	"  -b, --bind_port, [int]    Local port to bind the socket to\n"
 	"  -I, --cid, [int]          Use this option to bind socket to specific PDN CID.\n"
 	"                            See ltelc command for available interfaces.\n"
+	"  -S, --secure, [bool]      Enable secure connection (TLS 1.2/DTLS 1.2).\n"
+	"  -T, --sec_tag, [int]      Security tag for TLS certificate(s).\n"
+	"  -c, --cache, [bool]       Enable TLS session cache.\n"
+	"  -V, --peer_verify, [int]  TLS peer verification level. None (0), optional (1) or\n"
+	"                            required (2). Default value is 1.\n"
+	"  -H, --hostname, [str]     Hostname for TLS peer verification.\n"
 	"\n"
 	"Options for 'send' command:\n"
 	"  -d, --data [str]          Data to be sent. Cannot be used with -l option.\n"
@@ -135,6 +141,11 @@ static struct option long_options[] = {
     {"family",         required_argument, 0,  'f' },
     {"type",           required_argument, 0,  't' },
     {"bind_port",      required_argument, 0,  'b' },
+    {"secure",         no_argument,       0,  'S' },
+    {"sec_tag",        required_argument, 0,  'T' },
+    {"cache",          no_argument,       0,  'c' },
+    {"peer_verify",    required_argument, 0,  'V' },
+    {"hostname",       required_argument, 0,  'H' },
     {"data",           required_argument, 0,  'd' },
     {"length",         required_argument, 0,  'l' },
     {"period",         required_argument, 0,  'e' },
@@ -201,6 +212,11 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_port = 0;
 	int arg_bind_port = 0;
 	int arg_pdn_cid = 0;
+	bool arg_secure = false;
+	int arg_sec_tag = -1;
+	bool arg_session_cache = false;
+	int arg_peer_verify = 1;
+	char arg_peer_hostname[SOCK_MAX_ADDR_LEN+1];
 	char arg_send_data[SOCK_MAX_SEND_DATA_LEN+1];
 	int arg_data_length = 0;
 	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
@@ -213,13 +229,14 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
+	memset(arg_peer_hostname, 0, SOCK_MAX_ADDR_LEN+1);
 	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
 
 	/* Parse command line */
 	int flag = 0;
 	while ((flag = getopt_long(
 			argc, argv,
-			"i:I:a:p:f:t:b:d:l:e:s:rB:P:v",
+			"i:I:a:p:f:t:b:ST:cV:H:d:l:e:s:rB:P:v",
 			long_options, NULL)) != -1) {
 
 		int addr_len = 0;
@@ -301,6 +318,43 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				return -EINVAL;
 			}
 			break;
+		case 'S': /* Security */
+			arg_secure = true;
+			break;
+		case 'T': /* Security tag */
+			arg_sec_tag = atoi(optarg);
+			if (arg_sec_tag < 0) {
+				shell_error(
+					shell,
+					"Valid range for security tag (%d) is 0 ... 2147483647.",
+					arg_sec_tag);
+				return -EINVAL;			}
+			break;
+		case 'c': /* TLS session cache */
+			arg_session_cache = true;
+			break;
+		case 'V': /* TLS peer verify */
+			arg_peer_verify = atoi(optarg);
+			if (arg_peer_verify < 0 || arg_peer_verify > 2) {
+				shell_error(
+					shell,
+					"Valid values for peer verify (%d) are 0, 1 and 2.",
+					arg_peer_verify);
+				return -EINVAL;
+			}
+			break;
+		case 'H': /* TLS peer hostname */
+			addr_len = strlen(optarg);
+			if (addr_len > SOCK_MAX_ADDR_LEN) {
+				shell_error(
+					shell,
+					"Peer hostname length %d exceeded. Maximum is %d.",
+					addr_len,
+					SOCK_MAX_ADDR_LEN);
+				return -EINVAL;
+			}
+			strcpy(arg_peer_hostname, optarg);
+			break;
 		case 'd': /* Data to be sent is available in send buffer */
 			send_data_len = strlen(optarg);
 			if (send_data_len > SOCK_MAX_SEND_DATA_LEN) {
@@ -377,7 +431,12 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				arg_address,
 				arg_port,
 				arg_bind_port,
-				arg_pdn_cid);
+				arg_pdn_cid,
+				arg_secure,
+				arg_sec_tag,
+				arg_session_cache,
+				arg_peer_verify,
+				arg_peer_hostname);
 			break;
 		case SOCK_CMD_SEND:
 			err = sock_send_data(

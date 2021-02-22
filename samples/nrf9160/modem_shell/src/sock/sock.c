@@ -16,6 +16,7 @@
 #else
 #include <net/socket.h>
 #endif
+#include <net/tls_credentials.h>
 #include <fcntl.h>
 
 #include "sock.h"
@@ -69,11 +70,15 @@ typedef struct {
 	struct data_transfer_info send_info;
 } sock_info_t;
 
+K_MUTEX_DEFINE(sock_info_mutex);
+
 sock_info_t sockets[MAX_SOCKETS] = {0};
 extern const struct shell* shell_global;
 
 
 static void sock_info_clear(sock_info_t* socket_info) {
+	k_mutex_lock(&sock_info_mutex, K_FOREVER);
+
 	if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
 		k_timer_stop(&socket_info->send_info.timer);
 		shell_print(shell_global, "Socket data send periodic stop");
@@ -92,6 +97,8 @@ static void sock_info_clear(sock_info_t* socket_info) {
 	socket_info->fd = SOCK_FD_NONE;
 	socket_info->log_receive_data = true;
 	socket_info->recv_print_format = SOCK_RECV_PRINT_FORMAT_STR;
+
+	k_mutex_unlock(&sock_info_mutex);
 }
 
 static int get_socket_id_by_fd(int fd)
@@ -209,13 +216,23 @@ int sock_open_and_connect(
 	char* address,
 	int port,
 	int bind_port,
-	int pdn_cid)
+	int pdn_cid,
+	bool secure,
+	int sec_tag,
+	bool session_cache,
+	int peer_verify,
+	char* peer_hostname)
 {
 	int err = -EINVAL;
 
 	shell_print(shell_global,
 		"Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
 		family, type, port, bind_port, pdn_cid, address);
+	if (secure) {
+		shell_print(shell_global,
+		"                        secure=%d, sec_tag=%d, session_cache=%d, peer_verify=%d, peer_hostname=%s",
+		secure, sec_tag, session_cache, peer_verify, peer_hostname);
+	}
 
 	/* Reserve socket ID and structure for a new connection */
 	sock_info_t* socket_info = reserve_socket_id();
@@ -249,6 +266,23 @@ int sock_open_and_connect(
 	} else {
 		shell_error(shell_global, "Unsupported address type=%d", type);
 		goto connect_error;
+	}
+
+	if (secure) {
+		if (type == SOCK_STREAM) {
+			proto = IPPROTO_TLS_1_2;
+		} else if (type == SOCK_DGRAM) {
+			proto = IPPROTO_DTLS_1_2;
+		} else {
+			shell_error(shell_global, "Security not supported with address type=%d",
+				    type);
+		}
+
+		if (sec_tag < 0) {
+			shell_error(shell_global,
+				    "Security tag must be given when security is enabled");
+			goto connect_error;
+		}
 	}
 
 	/* Validate port */
@@ -406,6 +440,66 @@ int sock_open_and_connect(
 			shell_error(shell_global, "Unable to bind, errno %d", errno);
 			err = errno;
 			goto connect_error;
+		}
+	}
+
+	/* Set (D)TLS options */
+	if (secure) {
+		/* Security tag */
+		sec_tag_t sec_tag_list[] = { sec_tag };
+		err = setsockopt(fd, SOL_TLS, TLS_SEC_TAG_LIST, sec_tag_list,
+			         sizeof(sec_tag_t) * ARRAY_SIZE(sec_tag_list));
+		if (err) {
+			shell_error(shell_global, "Unable to set security tag, errno %d", errno);
+			err = errno;
+			goto connect_error;
+		}
+
+		/* Session cache */
+		uint8_t cache;
+		if (session_cache) {
+			cache = TLS_SESSION_CACHE_ENABLED;
+		} else {
+			cache = TLS_SESSION_CACHE_DISABLED;
+		}
+		err = setsockopt(fd, SOL_TLS, TLS_SESSION_CACHE, &cache, sizeof(cache));
+		if (err) {
+			shell_error(shell_global, "Unable to set session cache, errno %d", errno);
+			err = errno;
+			goto connect_error;
+		}
+
+		/* Peer verify */
+		uint32_t verify;
+		switch (peer_verify) {
+		case 0:
+			verify = TLS_PEER_VERIFY_NONE;
+			break;
+		case 2:
+			verify = TLS_PEER_VERIFY_REQUIRED;
+			break;
+		case 1:
+		default:
+			verify = TLS_PEER_VERIFY_OPTIONAL;
+			break;
+		}
+		err = setsockopt(fd, SOL_TLS, TLS_PEER_VERIFY, &verify, sizeof(verify));
+		if (err) {
+			shell_error(shell_global, "Unable to set peer verify, errno %d", errno);
+			err = errno;
+			goto connect_error;
+		}
+
+		/* Peer hostname */
+		if (strlen(peer_hostname) > 0) {
+			err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, &peer_hostname,
+				         strlen(peer_hostname));
+			if (err) {
+				shell_error(shell_global, "Unable to set peer hostname, errno %d",
+					    errno);
+				err = errno;
+				goto connect_error;
+			}
 		}
 	}
 

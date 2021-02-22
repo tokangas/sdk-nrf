@@ -48,6 +48,13 @@
 #define LTELC_SETT_SYSMODE_KEY		              "sysmode"
 
 /* ****************************************************************************/
+
+#define LTELC_SETT_NORMAL_MODE_AT_CMD_1_KEY       "funmmode_normal_at_cmd_1"
+#define LTELC_SETT_NORMAL_MODE_AT_CMD_2_KEY       "funmmode_normal_at_cmd_2"
+#define LTELC_SETT_NORMAL_MODE_AT_CMD_3_KEY       "funmmode_normal_at_cmd_3"
+
+/* ****************************************************************************/
+
 enum ltelc_sett_defcontauth_prot {
 	LTELC_SETT_DEFCONTAUTH_PROT_NONE = 0,
 	LTELC_SETT_DEFCONTAUTH_PROT_PAP  = 1,
@@ -68,6 +75,12 @@ struct ltelc_sett_t {
 	bool defcontauth_enabled;
 
 	enum lte_lc_system_mode sysmode;
+
+	/* note: if adding more memory slots, remember also update 
+	   LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START/END accordingly. */
+	char normal_mode_at_cmd_str_1[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_2[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_3[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
 };
 static struct ltelc_sett_t ltelc_settings;
 /* ****************************************************************************/
@@ -157,9 +170,40 @@ static int ltelc_sett_handler(const char *key, size_t len,
 		}
 		return 0;
 	}
+	else if (strcmp(key, LTELC_SETT_NORMAL_MODE_AT_CMD_1_KEY) == 0) {
+		err = read_cb(cb_arg, &ltelc_settings.normal_mode_at_cmd_str_1,
+			      sizeof(ltelc_settings.normal_mode_at_cmd_str_1));
+		if (err < 0) {
+			shell_error(uart_shell, "Failed to read normal mode at cmd 1, error: %d",
+				err);
+			return err;
+		}
+		return 0;
+	}
+	else if (strcmp(key, LTELC_SETT_NORMAL_MODE_AT_CMD_2_KEY) == 0) {
+		err = read_cb(cb_arg, &ltelc_settings.normal_mode_at_cmd_str_2,
+			      sizeof(ltelc_settings.normal_mode_at_cmd_str_2));
+		if (err < 0) {
+			shell_error(uart_shell, "Failed to read normal mode at cmd 2, error: %d",
+				err);
+			return err;
+		}
+		return 0;
+	}
+	else if (strcmp(key, LTELC_SETT_NORMAL_MODE_AT_CMD_3_KEY) == 0) {
+		err = read_cb(cb_arg, &ltelc_settings.normal_mode_at_cmd_str_3,
+			      sizeof(ltelc_settings.normal_mode_at_cmd_str_3));
+		if (err < 0) {
+			shell_error(uart_shell, "Failed to read normal mode at cmd 3, error: %d",
+				err);
+			return err;
+		}
+		return 0;
+	}
 
 	return 0;
 }
+/* ****************************************************************************/
 
 int ltelc_sett_save_defcont_enabled(bool enabled)
 {
@@ -306,12 +350,13 @@ int ltelc_sett_save_defcontauth_username(const char *username_str)
 		shell_error(uart_shell, "Saving of authentication username failed with err %d\n", err);
 		return err;
 	}
-	shell_print(uart_shell, "Key %s with value %s saved\n", key, username_str);
+	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved\n", key, username_str);
 
 	strcpy(ltelc_settings.defcontauth_uname_str, username_str);
 
 	return 0;
 }
+
 int ltelc_sett_save_defcontauth_password(const char *password_str)
 {
 	int err;
@@ -329,7 +374,7 @@ int ltelc_sett_save_defcontauth_password(const char *password_str)
 		shell_error(uart_shell, "Saving of authentication password failed with err %d\n", err);
 		return err;
 	}
-	shell_print(uart_shell, "Key %s with value %s saved\n", key, password_str);
+	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved\n", key, password_str);
 
 	strcpy(ltelc_settings.defcontauth_pword_str, password_str);
 
@@ -366,7 +411,7 @@ int ltelc_sett_save_defcontauth_prot(int auth_prot)
 	}
 	ltelc_settings.defcontauth_prot = prot;
 
-	shell_print(uart_shell, "Key %s with value %d saved\n", key, prot);
+	shell_print(uart_shell, "Key \"%s\" with value \"%d\" saved\n", key, prot);
 
 	return 0;
 }
@@ -415,6 +460,122 @@ int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode)
 int ltelc_sett_sysmode_get()
 {
 	return ltelc_settings.sysmode;
+}
+/* ****************************************************************************/
+
+char *ltelc_sett_normal_mode_at_cmd_str_get(uint8_t mem_slot)
+{
+	if (mem_slot == 1) {
+		return ltelc_settings.normal_mode_at_cmd_str_1;
+	}
+	else if (mem_slot == 2) {
+		return ltelc_settings.normal_mode_at_cmd_str_2;
+	}
+	else if (mem_slot == 3) {
+		return ltelc_settings.normal_mode_at_cmd_str_3;
+	}
+	else {
+		shell_error(uart_shell, 
+			"ltelc_sett_normal_mode_at_cmd_str_get:unsupported memory slot %d\n", mem_slot);
+		return NULL;
+	}
+}
+int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot)
+{
+	int err;
+	const char *key;
+	int len = strlen(at_str);
+	char *at_cmd_ram_storage_ptr;
+
+	if (len > CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN) {
+		shell_error(uart_shell, "ltelc_sett_save_normal_mode_at_cmd_str: at command string length (%d) over the limit %d",
+			len,
+			CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN);
+		return -EINVAL;
+	}
+
+	if (mem_slot == 1) {
+		at_cmd_ram_storage_ptr = ltelc_settings.normal_mode_at_cmd_str_1;
+		key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AT_CMD_1_KEY;
+	} 
+	else if (mem_slot == 2) {
+		at_cmd_ram_storage_ptr = ltelc_settings.normal_mode_at_cmd_str_2;
+		key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AT_CMD_2_KEY;
+	}
+	else if (mem_slot == 3) {
+		at_cmd_ram_storage_ptr = ltelc_settings.normal_mode_at_cmd_str_3;
+		key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AT_CMD_3_KEY;
+	}
+	else {
+		shell_error(uart_shell, 
+			"ltelc_sett_save_normal_mode_at_cmd_str: unsupported memory slot %d\n", mem_slot);
+		return -EINVAL;
+	}
+
+	err = settings_save_one(
+		key,
+		at_str, len + 1);
+	if (err) {
+		shell_error(
+			uart_shell, 
+			"Saving of normal mode at cmd %d to settings failed with err %d\n", 
+			mem_slot, 
+			err);
+		return err;
+	}
+
+	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved\n", key, at_str);
+
+	strcpy(at_cmd_ram_storage_ptr, at_str);
+	return 0;
+}
+
+int ltelc_sett_clear_normal_mode_at_cmd_str(uint8_t mem_slot)
+{
+	int err;
+	const char *key;
+	char *at_cmd_ram_storage_ptr;
+
+	if (mem_slot == 1) {
+		at_cmd_ram_storage_ptr = ltelc_settings.normal_mode_at_cmd_str_1;
+		key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AT_CMD_1_KEY;
+	} 
+	else if (mem_slot == 2) {
+		at_cmd_ram_storage_ptr = ltelc_settings.normal_mode_at_cmd_str_2;
+		key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AT_CMD_2_KEY;
+	}
+	else if (mem_slot == 3) {
+		at_cmd_ram_storage_ptr = ltelc_settings.normal_mode_at_cmd_str_3;
+		key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AT_CMD_3_KEY;
+	}
+	else {
+		shell_error(uart_shell, 
+			"ltelc_sett_delete_normal_mode_at_cmd_str: unsupported memory slot %d\n", mem_slot);
+		return -EINVAL;
+	}
+
+	err = settings_save_one(key, '\0', 1);
+	if (err) {
+		shell_error(
+			uart_shell, 
+			"Clearing of normal mode at cmd %d to settings failed with err %d\n", 
+			mem_slot, 
+			err);
+		return err;
+	}
+
+	shell_print(uart_shell, "Key \"%s\" cleared\n", key);
+
+	strcpy(at_cmd_ram_storage_ptr, '\0');
+
+	return 0;
+}
+void ltelc_sett_normal_mode_at_cmds_shell_print(const struct shell *shell)
+{
+	shell_print(shell, "ltelc normal mode at commands:");
+	shell_print(shell, "  Memory slot 1: \"%s\"", ltelc_settings.normal_mode_at_cmd_str_1);
+	shell_print(shell, "  Memory slot 2: \"%s\"", ltelc_settings.normal_mode_at_cmd_str_2);
+	shell_print(shell, "  Memory slot 3: \"%s\"", ltelc_settings.normal_mode_at_cmd_str_3);
 }
 /* ****************************************************************************/
 
