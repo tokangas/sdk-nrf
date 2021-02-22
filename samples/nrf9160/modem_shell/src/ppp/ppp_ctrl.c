@@ -110,7 +110,7 @@ int ppp_ctrl_start(const struct shell *shell) {
 	ppp_iface_global = iface;
 	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
 
-	/* Couldn't find the way to set these for PPP in another way: TODO api to PPP for raw mode?*/
+	/* Couldn't find the way to set these for PPP in another way: TODO api to PPP?*/
 	memcpy(&(ctx->ipcp.my_options.address), &(pdp_context_info->ip_addr4), sizeof(ctx->ipcp.my_options.address));
     memcpy(&ctx->ipcp.my_options.dns1_address, &pdp_context_info->dns_addr4_primary, sizeof(ctx->ipcp.my_options.dns1_address));
     memcpy(&ctx->ipcp.my_options.dns2_address, &pdp_context_info->dns_addr4_secondary, sizeof(ctx->ipcp.my_options.dns2_address));
@@ -126,6 +126,21 @@ int ppp_ctrl_start(const struct shell *shell) {
 		shell_info(shell, "modem data socket %d created for modem data", ppp_modem_data_raw_socket_fd);
 	}
 
+#ifdef SO_SNDTIMEO
+#ifdef SO_RCVTIMEO
+    struct timeval tv;
+
+    /* blocking socket and we do not want to block for long: 3 sec timeout for sending: */
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
+    if (setsockopt(ppp_modem_data_raw_socket_fd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
+		shell_error(shell, "Unable to set socket SO_SNDTIMEO");
+	}
+	else {
+		shell_info(shell, "SO_SNDTIMEO set OK");
+	}
+#endif
+#endif
 	net_if_up(iface);
 	return 0;
 
