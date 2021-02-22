@@ -188,7 +188,7 @@ int sms_submit_send(char* number, char* text)
 
 	/* Encode number into format required in SMS header */
 	uint8_t encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
-	uint8_t encoded_number_size = strlen(number);
+	uint8_t encoded_number_size = (number != NULL) ? strlen(number) : 0;
 	uint8_t encoded_number_size_octets = SMS_MAX_ADDRESS_LEN_CHARS + 1;
 	ret = sms_submit_encode_number(number, &encoded_number_size, encoded_number, &encoded_number_size_octets);
 	if (ret) {
@@ -197,7 +197,7 @@ int sms_submit_send(char* number, char* text)
 
 	/* Encode text into GSM 7bit encoding */
 	uint8_t size = 0;
-	uint16_t text_size = strlen(text);
+	uint16_t text_size = (text != NULL) ? strlen(text) : 0;
 	uint8_t encoded[SMS_MAX_DATA_LEN_CHARS];
 	uint8_t encoded_size = 0;
 	uint8_t encoded_data_size = 0;
@@ -209,8 +209,7 @@ int sms_submit_send(char* number, char* text)
 	/* Check if this should be sent as concatenated SMS */
 	if (size < text_size) {
 		LOG_DBG("Entire message doesn't fit into single SMS message. Using concatenated SMS.");
-		sms_submit_send_concat(text, encoded_number, encoded_number_size, encoded_number_size_octets);
-		return 0;
+		return sms_submit_send_concat(text, encoded_number, encoded_number_size, encoded_number_size_octets);
 	}
 
 	/* Create hexadecimal string representation of GSM 7bit encoded text */
