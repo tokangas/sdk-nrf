@@ -237,7 +237,13 @@ int gnss_set_single_fix_mode(uint16_t fix_retry)
 	return 0;
 }
 
-int gnss_set_periodic_fix_mode(uint16_t fix_interval, uint16_t fix_retry)
+int gnss_set_periodic_fix_mode(uint32_t fix_interval, uint16_t fix_retry)
+{
+	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	return -EOPNOTSUPP;
+}
+
+int gnss_set_periodic_fix_mode_gnss(uint16_t fix_interval, uint16_t fix_retry)
 {
 	if (fix_interval < 10 || fix_interval > 1800) {
 		return -EINVAL;

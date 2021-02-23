@@ -21,17 +21,19 @@
 #include "gnss_supl_support.h"
 #endif
 
-#define GNSS_THREAD_STACK_SIZE 768
-#define GNSS_THREAD_PRIORITY 5
+#define GNSS_SOCKET_THREAD_STACK_SIZE 768
+#define GNSS_SOCKET_THREAD_PRIORITY   5
+
+#define GNSS_WORKQ_THREAD_STACK_SIZE 2048
+#define GNSS_WORKQ_THREAD_PRIORITY   5
+
+K_THREAD_STACK_DEFINE(gnss_workq_stack_area, GNSS_WORKQ_THREAD_STACK_SIZE);
+
+static struct k_work_q gnss_work_q;
+static struct k_delayed_work gnss_start_work;
+static struct k_delayed_work gnss_timeout_work;
 
 #if defined (CONFIG_SUPL_CLIENT_LIB)
-/* AGPS work queue and work */
-#define GNSS_AGPS_THREAD_STACK_SIZE 2048
-#define GNSS_AGPS_THREAD_PRIORITY 5
-
-K_THREAD_STACK_DEFINE(agps_stack_area, GNSS_AGPS_THREAD_STACK_SIZE);
-
-static struct k_work_q agps_work_q;
 static struct k_work get_agps_data_work;
 
 static nrf_gnss_agps_data_frame_t agps_data;
@@ -40,17 +42,19 @@ static nrf_gnss_agps_data_frame_t agps_data;
 typedef enum {
 	GNSS_OP_MODE_CONTINUOUS,
 	GNSS_OP_MODE_SINGLE_FIX,
-	GNSS_OP_MODE_PERIODIC_FIX
+	GNSS_OP_MODE_PERIODIC_FIX,
+	GNSS_OP_MODE_PERIODIC_FIX_GNSS
 } gnss_operation_mode;
 
 extern const struct shell *gnss_shell_global;
 
 static int fd = -1;
+static bool gnss_running = false;
 
 /* GNSS configuration */
 static gnss_operation_mode operation_mode = GNSS_OP_MODE_CONTINUOUS;
-static uint16_t fix_interval;
-static uint16_t fix_retry;
+static uint32_t fix_interval;
+static uint32_t fix_retry;
 static gnss_data_delete data_delete = GNSS_DATA_DELETE_NONE;
 static int8_t elevation_threshold = -1;
 static bool low_accuracy = false;
@@ -80,6 +84,25 @@ static uint8_t event_output_level = 0;
 K_SEM_DEFINE(gnss_sem, 0, 1);
 
 static void gnss_init(void);
+static int stop_gnss(void);
+
+static void create_timestamp_string(char *timestamp_str)
+{
+	uint32_t timestamp;
+	uint32_t hours;
+	uint32_t mins;
+	uint32_t secs;
+
+	timestamp = k_uptime_get_32();
+	secs = timestamp / 1000;
+	mins = secs / 60;
+	hours = mins / 60;
+	secs = secs % 60;
+	mins = mins % 60;
+
+	sprintf(timestamp_str, "%02d:%02d:%02d.%03d",
+		hours, mins, secs, timestamp % 1000);
+}
 
 static void print_pvt_flags(nrf_gnss_pvt_data_frame_t *pvt)
 {
@@ -208,22 +231,39 @@ static void get_agps_data_flags_string(char *flags_string, uint32_t data_flags)
 
 static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 {
+	char timestamp[16];
+
 	switch (gnss_data->data_id) {
 	case NRF_GNSS_PVT_DATA_ID:
 		print_pvt(&gnss_data->pvt);
+		if (operation_mode == GNSS_OP_MODE_PERIODIC_FIX &&
+		    gnss_data->pvt.flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) {
+			k_delayed_work_cancel(&gnss_timeout_work);
+			stop_gnss();
+			if (event_output_level > 0) {
+				create_timestamp_string(timestamp);
+
+				shell_print(gnss_shell_global,
+					    "[%s] GNSS: Fix, going to sleep",
+					    timestamp);
+			}
+		}
 		break;
 	case NRF_GNSS_NMEA_DATA_ID:
 		print_nmea(&gnss_data->nmea);
 		break;
 	case NRF_GNSS_AGPS_DATA_ID:
                 if (event_output_level > 0) {
+			char timestamp[16];
 			char flags_string[48];
 
+			create_timestamp_string(timestamp);
 			get_agps_data_flags_string(flags_string, gnss_data->agps.data_flags);
 
 			shell_print(
 				gnss_shell_global,
-				"GNSS: AGPS data needed (ephe: 0x%08x, alm: 0x%08x, flags: %s)",
+				"[%s] GNSS: AGPS data needed (ephe: 0x%08x, alm: 0x%08x, flags: %s)",
+				timestamp,
 				gnss_data->agps.sv_mask_ephe,
 				gnss_data->agps.sv_mask_alm,
 				flags_string);
@@ -261,14 +301,14 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 				agps_data.data_flags |=
 					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
 			}
-			k_work_submit_to_queue(&agps_work_q, &get_agps_data_work);
+			k_work_submit_to_queue(&gnss_work_q, &get_agps_data_work);
                 }
 #endif
 		break;
 	}
 }
 
-static void gnss_thread(void)
+static void gnss_socket_thread_fn(void)
 {
 	int len;
 	nrf_gnss_data_frame_t *raw_gnss_data;
@@ -288,9 +328,9 @@ static void gnss_thread(void)
 	}
 }
 
-K_THREAD_DEFINE(gnss_socket_thread, GNSS_THREAD_STACK_SIZE,
-                gnss_thread, NULL, NULL, NULL,
-                K_PRIO_PREEMPT(GNSS_THREAD_PRIORITY), 0, 0);
+K_THREAD_DEFINE(gnss_socket_thread, GNSS_SOCKET_THREAD_STACK_SIZE,
+                gnss_socket_thread_fn, NULL, NULL, NULL,
+                K_PRIO_PREEMPT(GNSS_SOCKET_THREAD_PRIORITY), 0, 0);
 
 #if defined (CONFIG_SUPL_CLIENT_LIB)
 static void get_agps_data(struct k_work *item)
@@ -378,6 +418,66 @@ static int inject_agps_data(void *agps,
 }
 #endif
 
+void start_gnss(struct k_work *item)
+{
+	ARG_UNUSED(item);
+
+	int err;
+	nrf_gnss_delete_mask_t delete_mask = 0;
+	char timestamp[16];
+
+	if (!gnss_running) {
+		err = nrf_setsockopt(fd,
+				     NRF_SOL_GNSS,
+				     NRF_SO_GNSS_START,
+				     &delete_mask,
+				     sizeof(delete_mask));
+
+		if (err) {
+			shell_error(gnss_shell_global, "GNSS: Failed to start GNSS");
+		} else {
+			gnss_running = true;
+
+			if (event_output_level > 0) {
+				create_timestamp_string(timestamp);
+
+				shell_print(gnss_shell_global, "[%s] GNSS: Search started",
+					    timestamp);
+			}
+		} 
+	}
+
+	k_delayed_work_submit_to_queue(&gnss_work_q,
+				       &gnss_start_work,
+				       K_SECONDS(fix_interval));
+
+	if (fix_retry > 0 && fix_retry < fix_interval) {
+		k_delayed_work_submit_to_queue(&gnss_work_q,
+					       &gnss_timeout_work,
+					       K_SECONDS(fix_retry));
+	}
+}
+
+void handle_timeout(struct k_work *item)
+{
+	ARG_UNUSED(item);
+
+	int err;
+	char timestamp[16];
+
+	if (event_output_level > 0) {
+		create_timestamp_string(timestamp);
+
+		shell_print(gnss_shell_global, "[%s] GNSS: Search timeout",
+			    timestamp);
+	}
+
+	err = stop_gnss();
+	if (err) {
+		shell_error(gnss_shell_global, "GNSS: Failed to stop GNSS");
+	}
+}
+
 int gnss_start(void)
 {
 	int ret;
@@ -387,6 +487,7 @@ int gnss_start(void)
 	nrf_gnss_delete_mask_t delete_mask;
 	nrf_gnss_elevation_mask_t elevation_mask;
 	nrf_gnss_use_case_t use_case;
+	char timestamp[16];
 
 	gnss_init();
 
@@ -412,12 +513,22 @@ int gnss_start(void)
 		break;
 	case GNSS_OP_MODE_SINGLE_FIX:
 		interval = 0;
-		retry = fix_retry;
+		retry = (nrf_gnss_fix_retry_t)fix_retry;
 		ps_mode = NRF_GNSS_PSM_DISABLED;
 		break;
 	case GNSS_OP_MODE_PERIODIC_FIX:
-		interval = fix_interval;
-		retry = fix_retry;
+		/* Periodic fix mode controlled by the application, GNSS
+		 * is used in continuous tracking mode and it's started and
+		 * stopped as needed
+		 */
+		interval = 1;
+		retry = 0;
+		ps_mode = NRF_GNSS_PSM_DISABLED;
+		break;
+	case GNSS_OP_MODE_PERIODIC_FIX_GNSS:
+		/* Periodic fix mode controlled by the GNSS */
+		interval = (nrf_gnss_fix_interval_t)fix_interval;
+		retry = (nrf_gnss_fix_retry_t)fix_retry;
 		ps_mode = NRF_GNSS_PSM_DISABLED;
 		break;
 	default:
@@ -515,11 +626,27 @@ int gnss_start(void)
 			     &delete_mask,
 			     sizeof(delete_mask));
 	if (ret == 0) {
+		gnss_running = true;
+
                 if (event_output_level > 0) {
-                        shell_print(gnss_shell_global, "GNSS: Search started");
+			create_timestamp_string(timestamp);
+
+                        shell_print(gnss_shell_global, "[%s] GNSS: Search started",
+				    timestamp);
                 }
 	} else {
 		shell_error(gnss_shell_global, "GNSS: Failed to start GNSS");
+	}
+
+	if (operation_mode == GNSS_OP_MODE_PERIODIC_FIX) {
+		/* Start work is called on purpose although GNSS was already started,
+		 * the first start is done here to apply the delete mask, but
+		 * everything else is handled by the work.
+		 */
+		k_delayed_work_submit_to_queue(&gnss_work_q,
+					       &gnss_start_work,
+					       K_NO_WAIT);
+
 	}
 
 	k_sem_give(&gnss_sem);
@@ -527,22 +654,40 @@ int gnss_start(void)
 	return ret;
 }
 
+static int stop_gnss(void)
+{
+	nrf_gnss_delete_mask_t delete_mask = 0;
+
+	if (!gnss_running) {
+		return 0;
+	}
+
+	gnss_running = false;
+
+	return nrf_setsockopt(fd,
+			      NRF_SOL_GNSS,
+			      NRF_SO_GNSS_STOP,
+			      &delete_mask,
+			      sizeof(delete_mask));
+}
+
 int gnss_stop(void)
 {
 	int ret;
-	nrf_gnss_delete_mask_t delete_mask;
+	char timestamp[16];
+
+	k_delayed_work_cancel(&gnss_timeout_work);
+	k_delayed_work_cancel(&gnss_start_work);
 
 	gnss_init();
 
-	delete_mask = 0x0;
-	ret = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     NRF_SO_GNSS_STOP,
-			     &delete_mask,
-			     sizeof(delete_mask));
+	ret = stop_gnss();
 	if (ret == 0) {
                 if (event_output_level > 0) {
-                        shell_print(gnss_shell_global, "GNSS: Search stopped");
+			create_timestamp_string(timestamp);
+
+                        shell_print(gnss_shell_global, "[%s] GNSS: Search stopped",
+				    timestamp);
                 }
         } else {
 		shell_error(gnss_shell_global, "GNSS: Failed to stop GNSS");
@@ -566,13 +711,22 @@ int gnss_set_single_fix_mode(uint16_t retry)
 	return 0;
 }
 
-int gnss_set_periodic_fix_mode(uint16_t interval, uint16_t retry)
+int gnss_set_periodic_fix_mode(uint32_t interval, uint16_t retry)
+{
+	operation_mode = GNSS_OP_MODE_PERIODIC_FIX;
+	fix_interval = interval;
+	fix_retry = retry;
+
+	return 0;
+}
+
+int gnss_set_periodic_fix_mode_gnss(uint16_t interval, uint16_t retry)
 {
 	if (interval < 10 || interval > 1800) {
 		return -EINVAL;
 	}
 
-	operation_mode = GNSS_OP_MODE_PERIODIC_FIX;
+	operation_mode = GNSS_OP_MODE_PERIODIC_FIX_GNSS;
 	fix_interval = interval;
 	fix_retry = retry;
 
@@ -711,7 +865,7 @@ int gnss_inject_agps_data()
 		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
 	}
 
-	k_work_submit_to_queue(&agps_work_q, &get_agps_data_work);
+	k_work_submit_to_queue(&gnss_work_q, &get_agps_data_work);
 
 	return 0;
 #else
@@ -759,13 +913,16 @@ static void gnss_init(void)
 		return;
 	}
 
-#if defined (CONFIG_SUPL_CLIENT_LIB)
 	k_work_q_start(
-		&agps_work_q,
-		agps_stack_area,
-		K_THREAD_STACK_SIZEOF(agps_stack_area),
-		GNSS_AGPS_THREAD_PRIORITY);
+		&gnss_work_q,
+		gnss_workq_stack_area,
+		K_THREAD_STACK_SIZEOF(gnss_workq_stack_area),
+		GNSS_WORKQ_THREAD_PRIORITY);
 
+	k_delayed_work_init(&gnss_start_work, start_gnss);
+	k_delayed_work_init(&gnss_timeout_work, handle_timeout);
+
+#if defined (CONFIG_SUPL_CLIENT_LIB)
 	k_work_init(&get_agps_data_work, get_agps_data);
 
 	static struct supl_api supl_api = {

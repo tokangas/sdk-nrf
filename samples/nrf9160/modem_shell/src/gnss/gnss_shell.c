@@ -154,10 +154,10 @@ static int cmd_gnss_mode_periodic(const struct shell *shell, size_t argc, char *
     int timeout;
 
     interval = atoi(argv[1]);
-    if (interval < 10 || interval > 1800) {
+    if (interval <= 0) {
         shell_error(
             shell,
-            "periodic: invalid interval value %d, the value must be 10...1800",
+            "periodic: invalid interval value %d, the value must be greater than 0",
             interval);
         return -EINVAL;
     }
@@ -166,12 +166,44 @@ static int cmd_gnss_mode_periodic(const struct shell *shell, size_t argc, char *
     if (timeout < 0 || timeout > UINT16_MAX) {
         shell_error(
             shell,
-            "periodic: invalid timeout value %d",
+            "periodic: invalid timeout value %d, the value must be 0...65535",
             timeout);
         return -EINVAL;
     }
 
     err = gnss_set_periodic_fix_mode(interval, timeout);
+
+    return err;
+}
+
+static int cmd_gnss_mode_periodic_gnss(const struct shell *shell, size_t argc, char **argv)
+{
+    GNSS_SET_GLOBAL_SHELL();
+    GNSS_CMD_FAIL_IF_RUNNING();
+
+    int err;
+    int interval;
+    int timeout;
+
+    interval = atoi(argv[1]);
+    if (interval < 10 || interval > 1800) {
+        shell_error(
+            shell,
+            "periodic_gnss: invalid interval value %d, the value must be 10...1800",
+            interval);
+        return -EINVAL;
+    }
+
+    timeout = atoi(argv[2]);
+    if (timeout < 0 || timeout > UINT16_MAX) {
+        shell_error(
+            shell,
+            "periodic_gnss: invalid timeout value %d, the value must be 0...65535",
+            timeout);
+        return -EINVAL;
+    }
+
+    err = gnss_set_periodic_fix_mode_gnss(interval, timeout);
 
     return err;
 }
@@ -485,7 +517,8 @@ static int cmd_gnss_output(const struct shell *shell, size_t argc, char **argv)
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_mode,
     SHELL_CMD_ARG(cont, NULL, "Continuous tracking mode.", cmd_gnss_mode_cont, 1, 0),
     SHELL_CMD_ARG(single, NULL, "<timeout>\nSingle fix mode.", cmd_gnss_mode_single, 2, 0),
-    SHELL_CMD_ARG(periodic, NULL, "<interval> <timeout>\nPeriodic fix mode.", cmd_gnss_mode_periodic, 3, 0),
+    SHELL_CMD_ARG(periodic, NULL, "<interval> <timeout>\nPeriodic fix mode controlled by application.", cmd_gnss_mode_periodic, 3, 0),
+    SHELL_CMD_ARG(periodic_gnss, NULL, "<interval> <timeout>\nPeriodic fix mode controlled by GNSS.", cmd_gnss_mode_periodic_gnss, 3, 0),
     SHELL_SUBCMD_SET_END
 );
 

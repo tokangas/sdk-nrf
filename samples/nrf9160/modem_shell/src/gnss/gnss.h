@@ -66,7 +66,20 @@ int gnss_set_continuous_mode();
 int gnss_set_single_fix_mode(uint16_t fix_retry);
 
 /**
- * @brief Sets periodic fix mode.
+ * @brief Sets periodic fix mode controlled by application.
+ *
+ * @param fix_interval Delay between fixes (in seconds).
+ * @param fix_retry    Fix retry period (in seconds). Indicates how long
+ *                     GNSS tries to get a fix before giving up. Value 0
+ *                     denotes unlimited retry period.
+ *
+ * @retval 0 if the operation was successful.
+ *         Otherwise, a (negative) error code is returned.
+ */
+int gnss_set_periodic_fix_mode(uint32_t fix_interval, uint16_t fix_retry);
+
+/**
+ * @brief Sets periodic fix mode controlled by GNSS.
  *
  * @param fix_interval Delay between fixes (in seconds). Allowed values are
  *                     10...1800.
@@ -77,7 +90,7 @@ int gnss_set_single_fix_mode(uint16_t fix_retry);
  * @retval 0 if the operation was successful.
  *         Otherwise, a (negative) error code is returned.
  */
-int gnss_set_periodic_fix_mode(uint16_t fix_interval, uint16_t fix_retry);
+int gnss_set_periodic_fix_mode_gnss(uint16_t fix_interval, uint16_t fix_retry);
 
 /**
  * @brief Sets duty cycling policy for continuous tracking mode.
