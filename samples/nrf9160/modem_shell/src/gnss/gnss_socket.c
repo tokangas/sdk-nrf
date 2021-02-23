@@ -86,14 +86,12 @@ K_SEM_DEFINE(gnss_sem, 0, 1);
 static void gnss_init(void);
 static int stop_gnss(void);
 
-static void create_timestamp_string(char *timestamp_str)
+static void create_timestamp_string(uint32_t timestamp, char *timestamp_str)
 {
-	uint32_t timestamp;
 	uint32_t hours;
 	uint32_t mins;
 	uint32_t secs;
 
-	timestamp = k_uptime_get_32();
 	secs = timestamp / 1000;
 	mins = secs / 60;
 	hours = mins / 60;
@@ -231,22 +229,38 @@ static void get_agps_data_flags_string(char *flags_string, uint32_t data_flags)
 
 static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 {
-	char timestamp[16];
+	static uint32_t fix_timestamp = 0;
+	char timestamp_str[16];
 
 	switch (gnss_data->data_id) {
 	case NRF_GNSS_PVT_DATA_ID:
-		print_pvt(&gnss_data->pvt);
+		/* In periodic mode GNSS is stopped here if we had a fix on the previous
+		 * PVT notification. This is done to get the NMEAs before GNSS is stopped.
+		 */
 		if (operation_mode == GNSS_OP_MODE_PERIODIC_FIX &&
-		    gnss_data->pvt.flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) {
-			k_delayed_work_cancel(&gnss_timeout_work);
-			stop_gnss();
+		    fix_timestamp != 0) {
 			if (event_output_level > 0) {
-				create_timestamp_string(timestamp);
+				create_timestamp_string(fix_timestamp, timestamp_str);
 
 				shell_print(gnss_shell_global,
 					    "[%s] GNSS: Fix, going to sleep",
-					    timestamp);
+					    timestamp_str);
 			}
+			fix_timestamp = 0;
+			stop_gnss();
+			break;
+		}
+
+		print_pvt(&gnss_data->pvt);
+
+		/* In periodic fix mode if we have a fix, the fix timestamp is stored,
+		 * but GNSS is not stopped yet in order to also get the NMEAs. GNSS is
+		 * stopped on the next PVT notification.
+		 */
+		if (operation_mode == GNSS_OP_MODE_PERIODIC_FIX &&
+		    gnss_data->pvt.flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) {
+			fix_timestamp = k_uptime_get_32();
+			k_delayed_work_cancel(&gnss_timeout_work);
 		}
 		break;
 	case NRF_GNSS_NMEA_DATA_ID:
@@ -254,16 +268,15 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 		break;
 	case NRF_GNSS_AGPS_DATA_ID:
                 if (event_output_level > 0) {
-			char timestamp[16];
 			char flags_string[48];
 
-			create_timestamp_string(timestamp);
+			create_timestamp_string(k_uptime_get_32(), timestamp_str);
 			get_agps_data_flags_string(flags_string, gnss_data->agps.data_flags);
 
 			shell_print(
 				gnss_shell_global,
 				"[%s] GNSS: AGPS data needed (ephe: 0x%08x, alm: 0x%08x, flags: %s)",
-				timestamp,
+				timestamp_str,
 				gnss_data->agps.sv_mask_ephe,
 				gnss_data->agps.sv_mask_alm,
 				flags_string);
@@ -424,7 +437,7 @@ void start_gnss(struct k_work *item)
 
 	int err;
 	nrf_gnss_delete_mask_t delete_mask = 0;
-	char timestamp[16];
+	char timestamp_str[16];
 
 	if (!gnss_running) {
 		err = nrf_setsockopt(fd,
@@ -439,10 +452,10 @@ void start_gnss(struct k_work *item)
 			gnss_running = true;
 
 			if (event_output_level > 0) {
-				create_timestamp_string(timestamp);
+				create_timestamp_string(k_uptime_get_32(), timestamp_str);
 
 				shell_print(gnss_shell_global, "[%s] GNSS: Search started",
-					    timestamp);
+					    timestamp_str);
 			}
 		} 
 	}
@@ -463,13 +476,13 @@ void handle_timeout(struct k_work *item)
 	ARG_UNUSED(item);
 
 	int err;
-	char timestamp[16];
+	char timestamp_str[16];
 
 	if (event_output_level > 0) {
-		create_timestamp_string(timestamp);
+		create_timestamp_string(k_uptime_get_32(), timestamp_str);
 
 		shell_print(gnss_shell_global, "[%s] GNSS: Search timeout",
-			    timestamp);
+			    timestamp_str);
 	}
 
 	err = stop_gnss();
@@ -487,7 +500,7 @@ int gnss_start(void)
 	nrf_gnss_delete_mask_t delete_mask;
 	nrf_gnss_elevation_mask_t elevation_mask;
 	nrf_gnss_use_case_t use_case;
-	char timestamp[16];
+	char timestamp_str[16];
 
 	gnss_init();
 
@@ -629,10 +642,10 @@ int gnss_start(void)
 		gnss_running = true;
 
                 if (event_output_level > 0) {
-			create_timestamp_string(timestamp);
+			create_timestamp_string(k_uptime_get_32(), timestamp_str);
 
                         shell_print(gnss_shell_global, "[%s] GNSS: Search started",
-				    timestamp);
+				    timestamp_str);
                 }
 	} else {
 		shell_error(gnss_shell_global, "GNSS: Failed to start GNSS");
@@ -674,7 +687,7 @@ static int stop_gnss(void)
 int gnss_stop(void)
 {
 	int ret;
-	char timestamp[16];
+	char timestamp_str[16];
 
 	k_delayed_work_cancel(&gnss_timeout_work);
 	k_delayed_work_cancel(&gnss_start_work);
@@ -684,10 +697,10 @@ int gnss_stop(void)
 	ret = stop_gnss();
 	if (ret == 0) {
                 if (event_output_level > 0) {
-			create_timestamp_string(timestamp);
+			create_timestamp_string(k_uptime_get_32(), timestamp_str);
 
                         shell_print(gnss_shell_global, "[%s] GNSS: Search stopped",
-				    timestamp);
+				    timestamp_str);
                 }
         } else {
 		shell_error(gnss_shell_global, "GNSS: Failed to stop GNSS");
