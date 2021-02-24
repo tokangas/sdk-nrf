@@ -203,6 +203,33 @@ static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
 	return 1;
 }
 
+static void concatenated_udh_ie_validity_check(struct parser *parser)
+{
+	LOG_DBG("UDH concatenated, reference number: %d", DELIVER_DATA(parser)->field_udh_concatenated.ref_number);
+	LOG_DBG("UDH concatenated, total number of messages: %d", DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
+	LOG_DBG("UDH concatenated, sequence number: %d", DELIVER_DATA(parser)->field_udh_concatenated.seq_number);
+
+	if (DELIVER_DATA(parser)->field_udh_concatenated.total_msgs == 0) {
+		LOG_ERR("Total number of concatenated messages must be higher than 0, ignoring concatenated info");
+		DELIVER_DATA(parser)->field_udh_concatenated.present = false;
+		DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
+		DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
+		DELIVER_DATA(parser)->field_udh_concatenated.seq_number = 0;
+
+	} else if (DELIVER_DATA(parser)->field_udh_concatenated.seq_number == 0 ||
+			(DELIVER_DATA(parser)->field_udh_concatenated.seq_number >
+			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs)) {
+
+		LOG_ERR("Sequence number of current concatenated message (%d) must be higher than 0 and smaller or equal than total number of messages (%d), ignoring concatenated info",
+			DELIVER_DATA(parser)->field_udh_concatenated.seq_number,
+			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
+		DELIVER_DATA(parser)->field_udh_concatenated.present = false;
+		DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
+		DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
+		DELIVER_DATA(parser)->field_udh_concatenated.seq_number = 0;
+	}
+}
+
 static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 {	
 	/* Check if TP-User-Data-Header-Indicator is not set */
@@ -236,6 +263,26 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 
 		LOG_DBG("User Data Header id=0x%02X, length=%d", ie_id, ie_length);
 
+		if (ie_length > DELIVER_DATA(parser)->field_udhl - ofs) {
+			/* 3GPP TS 23.040 Section 9.2.3.24:
+			     If the length of the User Data Header is such that
+			     there are too few or too many octets in the final
+			     Information Element then the whole User Data Header shall be ignored.
+			*/
+			LOG_DBG("User Data Header Information Element too long (%d) for remaining length (%d)",
+				ie_length, DELIVER_DATA(parser)->field_udhl - ofs);
+
+			/* Clean UDH information */
+			DELIVER_DATA(parser)->field_udh_concatenated.present = false;
+			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
+			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
+			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = 0;
+			DELIVER_DATA(parser)->field_udh_app_port.present = false;
+			DELIVER_DATA(parser)->field_udh_app_port.dest_port = 0;
+			DELIVER_DATA(parser)->field_udh_app_port.src_port = 0;
+			break;
+		}
+
 		switch (ie_id) {
 		case 0x00: /* Concatenated short messages, 8-bit reference number */
 			if (ie_length != 3) {
@@ -243,20 +290,12 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = buf[ofs++];
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = buf[ofs++];
-			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = buf[ofs++];
-
+			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = buf[ofs];
+			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = buf[ofs+1];
+			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = buf[ofs+2];
 			DELIVER_DATA(parser)->field_udh_concatenated.present = true;
 
-			LOG_DBG("UDH concatenated, reference number: %d", DELIVER_DATA(parser)->field_udh_concatenated.ref_number);
-			LOG_DBG("UDH concatenated, total number of messages: %d", DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
-			LOG_DBG("UDH concatenated, sequence number: %d", DELIVER_DATA(parser)->field_udh_concatenated.seq_number);
-
-			if (DELIVER_DATA(parser)->field_udh_concatenated.total_msgs == 0) {
-				LOG_ERR("Total number of concatenated message 0, ignoring concatenated info");
-				DELIVER_DATA(parser)->field_udh_concatenated.present = false;
-			}
+			concatenated_udh_ie_validity_check(parser);
 			break;
 
 		case 0x04: /* Application port addressing scheme, 8 bit address */
@@ -265,9 +304,8 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port = buf[ofs++];
-			DELIVER_DATA(parser)->field_udh_app_port.src_port = buf[ofs++];
-
+			DELIVER_DATA(parser)->field_udh_app_port.dest_port = buf[ofs];
+			DELIVER_DATA(parser)->field_udh_app_port.src_port = buf[ofs+1];
 			DELIVER_DATA(parser)->field_udh_app_port.present = true;
 
 			LOG_DBG("UDH port scheme, destination port: %d", DELIVER_DATA(parser)->field_udh_app_port.dest_port);
@@ -280,12 +318,11 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port = buf[ofs++]<<8;
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port |= buf[ofs++];
+			DELIVER_DATA(parser)->field_udh_app_port.dest_port = buf[ofs]<<8;
+			DELIVER_DATA(parser)->field_udh_app_port.dest_port |= buf[ofs+1];
 
-			DELIVER_DATA(parser)->field_udh_app_port.src_port = buf[ofs++]<<8;
-			DELIVER_DATA(parser)->field_udh_app_port.src_port |= buf[ofs++];
-
+			DELIVER_DATA(parser)->field_udh_app_port.src_port = buf[ofs+2]<<8;
+			DELIVER_DATA(parser)->field_udh_app_port.src_port |= buf[ofs+3];
 			DELIVER_DATA(parser)->field_udh_app_port.present = true;
 
 			LOG_DBG("UDH port scheme, destination port: %d", DELIVER_DATA(parser)->field_udh_app_port.dest_port);
@@ -298,34 +335,28 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = buf[ofs++]<<8;
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number |= buf[ofs++];
-
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = buf[ofs++];
-			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = buf[ofs++];
-
+			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = buf[ofs]<<8;
+			DELIVER_DATA(parser)->field_udh_concatenated.ref_number |= buf[ofs+1];
+			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = buf[ofs+2];
+			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = buf[ofs+3];
 			DELIVER_DATA(parser)->field_udh_concatenated.present = true;
 
-			LOG_DBG("UDH concatenated, reference number: %d", DELIVER_DATA(parser)->field_udh_concatenated.ref_number);
-			LOG_DBG("UDH concatenated, total number of messages: %d", DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
-			LOG_DBG("UDH concatenated, sequence number: %d", DELIVER_DATA(parser)->field_udh_concatenated.seq_number);
-
-			if (DELIVER_DATA(parser)->field_udh_concatenated.total_msgs == 0) {
-				LOG_ERR("Total number of concatenated message 0, ignoring concatenated info");
-				DELIVER_DATA(parser)->field_udh_concatenated.present = false;
-			}
+			concatenated_udh_ie_validity_check(parser);
 			break;
 
 		default:
 			LOG_WRN("Ignoring not supported User Data Header information element id=0x%02X, length=%d", ie_id, ie_length);
 			break;
 		}
+		ofs += ie_length;
 	}
 
-	/* TODO: Returning zero so that the start of the payload won't move further as SMS 7bit encoding requires this.
-	   This breaks 8bit "decoding" though so need to find a way to handle this.
-	   Current implementation is NOT the way to go!!! */
-	if (DELIVER_DATA(parser)->field_udh_app_port.present) {
+	/* Returning zero for GSM 7bit encoding so that the start of the
+	   payload won't move further as SMS 7bit encoding is done for UDH
+	   also to get the fill bits correctly for the actual user data.
+	   For any other encoding, we'll return User Data Header Length.
+	*/
+	if (DELIVER_DATA(parser)->field_dcs.alphabet != 0) {
 		return DELIVER_DATA(parser)->field_udhl;
 	} else {
 		return 0;
@@ -370,69 +401,6 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	memcpy(parser->payload, temp_buf + skip_septets, length_udh_skipped);
 
 	return length_udh_skipped;
-
-#if 0
-	uint8_t mask           = 0x7f;
-	uint8_t shift;
-	uint8_t remainder_bits = 0;
-	uint16_t payload_ofs   = 0;
-	uint16_t length        = parser->data_length - parser->buf_pos;
-
-	LOG_DBG("Parser internals data_length=%d, buf_pos=%d, payload_buf_size=%d",
-		parser->data_length,
-		parser->buf_pos,
-		parser->payload_buf_size);
-
-	/* Skip septets of User Data Header */
-	uint8_t skip_bits = DELIVER_DATA(parser)->field_udhl * 8;
-	uint8_t skip_septets = skip_bits / 7;
-	if (skip_bits % 7 > 0) {
-		skip_septets++;
-	}
-
-	for(int i=0;i<length;i++) {
-		if(i%7) { // If this is the first byte of the seven byte sequence (divisible by seven)
-			mask >>= 1; // Shift mask to right by a bit
-		} else {
-			if (i>0) { // Done only if this is not the first byte we are handling
-				parser->payload[payload_ofs++] =
-					(uint8_t)(remainder_bits);
-
-				mask           = 0x7f;
-				remainder_bits = 0;
-			}
-		}
-
-		/* What's the byte number here divisible by 7 */
-		shift = i%7;
-		/* Set current value to be buf[i] shifted left based on which
-		   byte in the 7 byte sequence we are handling.
-		   And or the remaining bits from the previous number */
-		uint8_t data = (uint8_t)(((buf[i]&mask)<<(shift))|remainder_bits);
-		if (i >= skip_septets) {
-			parser->payload[payload_ofs++] = data;
-		} else {
-			LOG_DBG("Skipping user data header bytes in 7bit encoding septet=0x%02X", data);
-		}
-		/* Take the remaining bits of bit[i] that were not set
-		   into current value */
-		remainder_bits = (buf[i]&(~mask))>>(7-(shift));
-
-		if(payload_ofs>parser->payload_buf_size) {
-			LOG_WRN("Buffer for SMS data (%d) is too small",
-				parser->payload_buf_size);
-			break;
-		}
-	}
-
-	if(payload_ofs + skip_septets != DELIVER_DATA(parser)->field_udl) {
-		/* TODO: Check whether this if statement should just be removed */
-		//return -EMSGSIZE;
-		return payload_ofs;
-	} else {
-		return payload_ofs;
-	}
-#endif
 }
 
 static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
@@ -440,7 +408,7 @@ static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
 	uint32_t length = DELIVER_DATA(parser)->field_udl -
 			  DELIVER_DATA(parser)->field_udhl;
 
-	if(length>parser->payload_buf_size) {
+	if (length > parser->payload_buf_size) {
 		return -EMSGSIZE;
 	}
 
@@ -539,38 +507,36 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 
 	LOG_DBG("Address length octets: %d", length);
 
-	if (DELIVER_DATA(parser)->field_do.length > SMS_MAX_ADDRESS_LEN_CHARS) {
-		LOG_ERR("Maximum number length (%d) exceeded: %d", 
-			SMS_MAX_ADDRESS_LEN_CHARS,
-			DELIVER_DATA(parser)->field_do.length);
-	} else {
-		char encoded_number[SMS_MAX_ADDRESS_LEN_CHARS];
-		uint8_t hex_str_number = 0;
-		for (int i = 0; i < length; i++) {
-			uint8_t number = (DELIVER_DATA(parser)->field_do.adr[i] & 0xF0) >> 4;
+	/* TODO: Move number encoding to separate function */
+	/* This is already ensured in decode_pdu_do_field():
+	   assert(DELIVER_DATA(parser)->field_do.length >= SMS_MAX_ADDRESS_LEN_CHARS);
+	*/
+	char encoded_number[SMS_MAX_ADDRESS_LEN_CHARS];
+	uint8_t hex_str_index = 0;
+	for (int i = 0; i < length; i++) {
+		uint8_t number = (DELIVER_DATA(parser)->field_do.adr[i] & 0xF0) >> 4;
+		if (number >= 10) {
+			LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
+		}
+		sprintf(encoded_number + hex_str_index, "%d", number);
+
+		if (i < length - 1 || !fill_bits) {
+			uint8_t number = DELIVER_DATA(parser)->field_do.adr[i] & 0x0F;
 			if (number >= 10) {
 				LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
 			}
-			sprintf(encoded_number + hex_str_number, "%d", number);
-
-			if (i < length - 1 || !fill_bits) {
-				uint8_t number = DELIVER_DATA(parser)->field_do.adr[i] & 0x0F;
-				if (number >= 10) {
-					LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
-				}
-				sprintf(encoded_number + hex_str_number + 1,
-					"%d", number);
-			}
-			hex_str_number += 2;
+			sprintf(encoded_number + hex_str_index + 1,
+				"%d", number);
 		}
-
-		LOG_DBG("Address-Value: %s", log_strdup(encoded_number));
-
-		memset(sms_header->orginator_address.address_str, 0,
-			SMS_MAX_ADDRESS_LEN_CHARS + 1);
-		memcpy(sms_header->orginator_address.address_str, encoded_number,
-			DELIVER_DATA(parser)->field_do.length);
+		hex_str_index += 2;
 	}
+
+	LOG_DBG("Address-Value: %s", log_strdup(encoded_number));
+
+	memset(sms_header->orginator_address.address_str, 0,
+		SMS_MAX_ADDRESS_LEN_CHARS + 1);
+	memcpy(sms_header->orginator_address.address_str, encoded_number,
+		DELIVER_DATA(parser)->field_do.length);
 
 	sms_header->orginator_address.length =
 		DELIVER_DATA(parser)->field_do.length;

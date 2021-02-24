@@ -202,10 +202,9 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 
 	err = parser_process_str(&sms_deliver, pdu);
 
-	if(err) {
-		printk("Parsing return code: %d\n", err);
-		// TODO: Check this when SMS SUBMIT REPORT is handled properly
-		//return err;
+	if (err) {
+		LOG_ERR("Parsing error (%d) in decoding SMS-DELIVER message due to no memory", err);
+		return err;
 	}
 
 	parser_get_header(&sms_deliver, out);
