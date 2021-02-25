@@ -26,6 +26,7 @@
 #include "ltelc_settings.h"
 #include "ltelc_api.h"
 #include "ltelc.h"
+#include "sms.h"
 
 #if defined(CONFIG_MODEM_INFO)
 #include <modem/at_cmd.h>
@@ -307,6 +308,7 @@ int ltelc_func_mode_set(int fun)
 
 	switch (fun) {
 	case LTELC_FUNMODE_PWROFF:
+		sms_unregister();
 		return_value = lte_lc_power_off();
 		break;
 	case LTELC_FUNMODE_FLIGHTMODE:
