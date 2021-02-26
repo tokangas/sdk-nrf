@@ -425,6 +425,9 @@ void sms_uninit(void)
 			return;
 		}
 		LOG_INF("SMS client unregistered");
+
+		/* Unregister from AT commands notifications. */
+		(void)at_notif_deregister_handler(NULL, sms_at_handler);
 	}
 
 	/* Cleanup resources. */
@@ -439,9 +442,6 @@ void sms_uninit(void)
 		k_free(cmt_rsp.pdu);
 		cmt_rsp.pdu = NULL;
 	}
-
-	/* Unregister from AT commands notifications. */
-	(void)at_notif_deregister_handler(NULL, sms_at_handler);
 
 	sms_client_registered = false;
 }
