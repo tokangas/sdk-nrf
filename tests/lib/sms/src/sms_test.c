@@ -167,6 +167,9 @@ void test_sms_init_fail_cnmi_too_short(void)
    http://smstools3.kekekasvi.com/topic.php?id=288
 */
 
+/**
+ * Test sending using phone number with 10 characters and preceded by '+' sign.
+ */
 void test_send_len3_number10plus(void)
 {
 	sms_init_helper();
@@ -196,6 +199,9 @@ void test_send_len3_number10plus(void)
 	sms_uninit_helper();
 }
 
+/**
+ * Test sending using phone number with 20 characters and preceded by '+' sign.
+ */
 void test_send_len1_number20plus(void)
 {
 	enum at_cmd_state state = 0;
@@ -208,7 +214,10 @@ void test_send_len1_number20plus(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
-/* Test message length 7 to see that alignment with 7bit GSM encoding works properly. */
+/**
+ * Test message length 7 to see that alignment with 7bit GSM encoding works.
+ * Also, use phone number with 11 characters to have even count of characters.
+ */
 void test_send_len7_number11(void)
 {
 	enum at_cmd_state state = 0;
@@ -221,7 +230,11 @@ void test_send_len7_number11(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
-/* Test message length 8 to see that alignment with 7bit GSM encoding works properly. */
+/**
+ * Test message length 8 to see that alignment with 7bit GSM encoding works.
+ * Also, use phone number with 1 character to see that everything works with
+ * very short number.
+ */
 void test_send_len8_number1(void)
 {
 	enum at_cmd_state state = 0;
@@ -234,7 +247,10 @@ void test_send_len8_number1(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
-/* Test message length 9 to see that alignment with 7bit GSM encoding works properly. */
+/**
+ * Test message length 9 to see that alignment with 7bit GSM encoding works.
+ * Also, use phone number with 5 characters.
+ */
 void test_send_len9_number5(void)
 {
 	enum at_cmd_state state = 0;
@@ -247,6 +263,9 @@ void test_send_len9_number5(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
+/**
+ * Send concatenated SMS of length 220 characters.
+ */
 void test_send_concat_220(void)
 {
 	enum at_cmd_state state1 = 0;
@@ -265,6 +284,9 @@ void test_send_concat_220(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
 }
 
+/**
+ * Send concatenated SMS of length 291 characters.
+ */
 void test_send_concat_291(void)
 {
 	enum at_cmd_state state1 = 0;
@@ -278,6 +300,50 @@ void test_send_concat_291(void)
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
 	int ret = sms_send("+123456789012", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
+	TEST_ASSERT_EQUAL(0, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
+}
+
+/**
+ * Test sending of special characters.
+ */
+void test_send_special_characters(void)
+{
+	enum at_cmd_state state = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=50\r00310005912143F50000FF2C5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00DD005\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	int ret = sms_send("12345", "Special characters: ^ { } [ ] \\ ~ |.");
+	TEST_ASSERT_EQUAL(0, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+}
+
+/** 
+ * Test sending of special character so that escape char would go into
+ * first concatenated message and next byte to second message.
+ * Checks that implementation puts also escape code to second message.
+ * 
+ * Expected AT commands have been obtained by checking what the library
+ * returns and using them. Concatenation User Data Header makes it complex
+ * to generate it yourself manually and no web tools exist for encoding
+ * concatenated messages. Decoding of expected results have been done with
+ * web tools though.
+ */
+void test_send_concat_special_character(void)
+{
+	enum at_cmd_state state1 = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=150\r00610505912143F500009F05000303020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC900\x1A", NULL, 0, &state1, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	enum at_cmd_state state2 = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=27\r00610605912143F500001305000303020236E5986C46ABD96EB81C0C\x1A", NULL, 0, &state2, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	int ret = sms_send("12345", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012\xA4""1234567890");
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
@@ -345,7 +411,7 @@ void test_send_fail_atcmd(void)
 void test_send_fail_atcmd_concat(void)
 {
 	enum at_cmd_state state1 = AT_CMD_ERROR_CME;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061050C912143658709210000A005000303020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 304);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061070C912143658709210000A005000304020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 304);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 	__wrap_at_cmd_write_IgnoreArg_state();
@@ -585,6 +651,32 @@ void test_recv_concat_len755_msgs5(void)
 	sms_uninit_helper();
 }
 
+/** Test sending of special characters. */
+void test_recv_special_characters(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+123456789");
+	test_sms_data.length = 20;
+	strcpy(test_sms_data.pdu, "079153487489432004099121436587F90000122090028543802F5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00D10B429BB00");
+	test_sms_header.data_len = 38;
+	/* ISO-8859-15 indicates that euro sign is 0xA4 */
+	strcpy(test_sms_header.ud, "Special characters: ^ { } [ ] \\ ~ | \xA4.");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 9;
+	test_sms_header.time.hour = 20;
+	test_sms_header.time.minute = 58;
+	test_sms_header.time.second = 34;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+123456789\",20\r\n079153487489432004099121436587F90000122090028543802F5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00D10B429BB00\r\n");
+
+	sms_uninit_helper();
+}
+
+/** Test port addressing */
 void test_recv_port_addr(void)
 {
 	sms_init_helper();
