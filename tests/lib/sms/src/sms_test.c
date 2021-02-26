@@ -66,14 +66,14 @@ static void sms_init_helper()
 	int ret = sms_init();
 	TEST_ASSERT_EQUAL(0, ret);
 
-	int test_handle = sms_register_listener(sms_callback, NULL);
+	test_handle = sms_register_listener(sms_callback, NULL);
 	TEST_ASSERT_EQUAL(0, test_handle);
 }
 
 static void sms_uninit_helper()
 {
 	sms_unregister_listener(test_handle);
-	test_handle = 0;
+	test_handle = -1;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=0,0,0,0", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -81,16 +81,91 @@ static void sms_uninit_helper()
 	sms_uninit();
 }
 
-/********* SMS SEND TESTS ***********************/
-/* The following site used as a reference for generated messages:
-   http://smstools3.kekekasvi.com/topic.php?id=288
-*/
+/********* SMS INIT/UNINIT TESTS ***********************/
 
 void test_sms_init_uninit(void)
 {
 	sms_init_helper();
 	sms_uninit_helper();
 }
+
+void test_sms_init_fail_register_null(void)
+{
+	int handle = sms_register_listener(NULL, NULL);
+	TEST_ASSERT_EQUAL(-EINVAL, handle);
+}
+
+void test_sms_init_fail_register_too_many(void)
+{
+	/* Register listener with context pointer */
+	int value = 0;
+	int handle1 = sms_register_listener(sms_callback, &value);
+	TEST_ASSERT_EQUAL(0, handle1);
+	int handle2 = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(1, handle2);
+	int handle3 = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(-ENOMEM, handle3);
+}
+
+/**
+ * Test invalid SMS handles in unregistration.
+ * There is no error to the client in unregistration failures so essentially
+ * we just run through the code and we can see in coverage metrics whether
+ * particular branches are executed.
+ */
+void test_sms_init_fail_unregister_invalid_handle(void)
+{
+	sms_unregister_listener(0);
+	sms_unregister_listener(-1);
+
+	int handle = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(0, handle);
+	/* Unregister number higher than registered handle */
+	sms_unregister_listener(handle + 1);
+
+	/* Unregister above handle */
+	sms_unregister_listener(handle);
+}
+
+/* Test error return value for AT+CNMI? */
+void test_sms_init_fail_cnmi_ret_err(void)
+{
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, -EINVAL);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	int ret = sms_init();
+	TEST_ASSERT_EQUAL(-EINVAL, ret);
+}
+
+/* Test unexpected response for AT+CNMI? */
+void test_sms_init_fail_cnmi_unexpected_value(void)
+{
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	char resp[] = "+CNMI: 0,0,5,0,1\r\n";
+	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
+	int ret = sms_init();
+	TEST_ASSERT_EQUAL(-EBUSY, ret);
+}
+
+/* Test to short response for AT+CNMI? */
+void test_sms_init_fail_cnmi_too_short(void)
+{
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	/* Make at_parser_max_params_from_str() fail */
+	char resp[] = "+CNMI: 0,0,\"moi\",0,1,\r\n";
+	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
+	int ret = sms_init();
+	TEST_ASSERT_EQUAL(-E2BIG, ret);
+}
+
+/********* SMS SEND TESTS ***********************/
+/* The following site used as a reference for generated messages:
+   http://smstools3.kekekasvi.com/topic.php?id=288
+*/
 
 void test_send_len3_number10plus(void)
 {
