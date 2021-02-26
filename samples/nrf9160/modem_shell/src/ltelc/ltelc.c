@@ -160,6 +160,27 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		shell_print(uart_shell, "LTE cell changed: Cell ID: %d, Tracking area: %d",
 		       evt->cell.id, evt->cell.tac);
 		break;
+	case LTE_LC_EVT_RRC_UPDATE:
+		shell_print(uart_shell, "RRC mode: %s",
+			evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ?
+			"Connected" : "Idle");
+		break;
+	case LTE_LC_EVT_PSM_UPDATE:
+		shell_print(uart_shell, "PSM parameter update: TAU: %d, Active time: %d",
+			evt->psm_cfg.tau, evt->psm_cfg.active_time);
+		break;
+	case LTE_LC_EVT_EDRX_UPDATE: {
+		char log_buf[60];
+		ssize_t len;
+
+		len = snprintf(log_buf, sizeof(log_buf),
+			       "eDRX parameter update: eDRX: %f, PTW: %f",
+			       evt->edrx_cfg.edrx, evt->edrx_cfg.ptw);
+		if (len > 0) {
+			shell_print(uart_shell, "%s", log_buf);
+		}
+		break;
+	}			
 	default:
 		break;
 	}
