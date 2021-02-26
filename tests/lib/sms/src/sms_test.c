@@ -618,7 +618,32 @@ void test_recv_port_addr(void)
 
 /********* SMS RECV FAIL TESTS ******************/
 
-void test_recv_empty(void)
+/** Test AT command unknown for SMS library. */
+void test_recv_unknown(void)
+{
+	sms_init_helper();
+	sms_at_handler(NULL, "%CESQ: 54,2,16,2\r\n");
+	sms_uninit_helper();
+}
+
+/** Test empty AT command string. */
+void test_recv_empty_at_cmd(void)
+{
+	sms_init_helper();
+	sms_at_handler(NULL, "");
+	sms_uninit_helper();
+}
+
+/** Test NULL AT command string. */
+void test_recv_null_at_cmd(void)
+{
+	sms_init_helper();
+	sms_at_handler(NULL, NULL);
+	sms_uninit_helper();
+}
+
+/** Test SMS receive with empty text (zero length). */
+void test_recv_empty_sms_text(void)
 {
 	sms_init_helper();
 
