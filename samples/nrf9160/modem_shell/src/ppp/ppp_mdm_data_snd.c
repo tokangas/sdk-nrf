@@ -49,7 +49,6 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 {
 	int ret = 0;
 	int data_len = 0;
-	uint32_t offset = 0;
 
 	net_pkt_set_overwrite(pkt, true);
 	net_pkt_cursor_init(pkt);
@@ -60,22 +59,15 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 	if (ret < 0) {
 		printk("ppp_mdm_data_snd: cannot read packet: %d, from pkt %p\n", ret, pkt);
 	} else {	
-			//printk("ppp_mdm_data_snd: going to send() %d bytes ", data_len);
-			while (offset < data_len) {
-				ret = send(ppp_modem_data_raw_socket_fd, buf_tx + offset, data_len - offset, 0);
-				if (ret < 0) {
-					printk("ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", -errno, data_len);
-					break;
-				}
-				else {
-					//printk("ppp_mdm_data_snd: send %d bytes\n", data_len);
-					offset += ret;
-
-					/* is it worth of doing partial sends for raw data? maybe not */
-					if (ret != data_len) {
-						printk("ppp_mdm_data_snd: doing partial send, only %d of original %d was sent", ret, data_len);
-					}
-				}
+		//printk("ppp_mdm_data_snd: going to send() %d bytes ", data_len);
+		ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
+			
+		/* Note: no worth to handle partial sends for raw sockets */
+		if (ret < 0) {
+			printk("ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", -errno, data_len);
+		}
+		else if (ret != data_len) {
+			printk("ppp_mdm_data_snd: only partially sent, only %d of original %d was sent", ret, data_len);
 		}
 	}
 	net_pkt_unref(pkt);
