@@ -107,28 +107,8 @@ void test_sms_init_fail_register_too_many(void)
 	TEST_ASSERT_EQUAL(-ENOMEM, handle3);
 }
 
-/**
- * Test invalid SMS handles in unregistration.
- * There is no error to the client in unregistration failures so essentially
- * we just run through the code and we can see in coverage metrics whether
- * particular branches are executed.
- */
-void test_sms_init_fail_unregister_invalid_handle(void)
-{
-	sms_unregister_listener(0);
-	sms_unregister_listener(-1);
-
-	int handle = sms_register_listener(sms_callback, NULL);
-	TEST_ASSERT_EQUAL(0, handle);
-	/* Unregister number higher than registered handle */
-	sms_unregister_listener(handle + 1);
-
-	/* Unregister above handle */
-	sms_unregister_listener(handle);
-}
-
-/* Test error return value for AT+CNMI? */
-void test_sms_init_fail_cnmi_ret_err(void)
+/** Test error return value for AT+CNMI? */
+void test_sms_init_fail_cnmi_query_ret_err(void)
 {
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, -EINVAL);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -137,8 +117,8 @@ void test_sms_init_fail_cnmi_ret_err(void)
 	TEST_ASSERT_EQUAL(-EINVAL, ret);
 }
 
-/* Test unexpected response for AT+CNMI? */
-void test_sms_init_fail_cnmi_unexpected_value(void)
+/** Test unexpected response for AT+CNMI? */
+void test_sms_init_fail_cnmi_resp_unexpected_value(void)
 {
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -149,8 +129,8 @@ void test_sms_init_fail_cnmi_unexpected_value(void)
 	TEST_ASSERT_EQUAL(-EBUSY, ret);
 }
 
-/* Test to short response for AT+CNMI? */
-void test_sms_init_fail_cnmi_too_short(void)
+/** Test erroneous response for AT+CNMI? */
+void test_sms_init_fail_cnmi_resp_erroneous(void)
 {
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -160,6 +140,59 @@ void test_sms_init_fail_cnmi_too_short(void)
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
 	int ret = sms_init();
 	TEST_ASSERT_EQUAL(-E2BIG, ret);
+}
+
+/** Test erroneous response for AT+CNMI? */
+void test_sms_init_fail_cnmi_set_ret_err(void)
+{
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
+	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=3,2,0,1", NULL, 0, NULL, -EIO);
+	int ret = sms_init();
+	TEST_ASSERT_EQUAL(-EIO, ret);
+}
+
+/** Test uninitialization without calling sms_init() first. */
+void test_sms_uninit_without_init(void)
+{
+	sms_uninit();
+}
+
+/**
+ * Test invalid SMS handles in unregistration.
+ * There is no error to the client in unregistration failures so essentially
+ * we just run through the code and we can see in coverage metrics whether
+ * particular branches are executed.
+ */
+void test_sms_uninit_fail_unregister_invalid_handle(void)
+{
+	sms_unregister_listener(0);
+	sms_unregister_listener(-1);
+
+	int handle = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(0, handle);
+	/* Unregister number higher than registered handle */
+	sms_unregister_listener(CONFIG_SMS_MAX_SUBSCRIBERS_CNT + 1);
+
+	/* Unregister above handle */
+	sms_unregister_listener(handle);
+}
+
+/** Test error code for AT command AT+CNMI=0,0,0,0 */
+void test_sms_uninit_cnmi_ret_err(void)
+{
+	sms_init_helper();
+
+	sms_unregister_listener(test_handle);
+	test_handle = -1;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=0,0,0,0", NULL, 0, NULL, -ENOEXEC);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	sms_uninit();
 }
 
 /********* SMS SEND TESTS ***********************/
@@ -204,6 +237,8 @@ void test_send_len3_number10plus(void)
  */
 void test_send_len1_number20plus(void)
 {
+	sms_init_helper();
+
 	enum at_cmd_state state = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=19\r0031001491214365870921436587090000FF0131\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -212,6 +247,21 @@ void test_send_len1_number20plus(void)
 	int ret = sms_send("+12345678901234567890", "1");
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+
+	/* Receive SMS-STATUS-REPORT */
+	test_sms_data.type = SMS_TYPE_SUBMIT_REPORT;
+	free(test_sms_data.alpha);
+	test_sms_data.alpha = NULL;
+
+	test_sms_data.length = 24;
+	strcpy(test_sms_data.pdu, "06550A912143658709122022118314801220221183148000");
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	test_sms_header_exists = false;
+	sms_at_handler(NULL, "+CDS: 24\r\n06550A912143658709122022118314801220221183148000\r\n");
+
+	sms_uninit_helper();
 }
 
 /**
@@ -421,11 +471,37 @@ void test_send_fail_atcmd_concat(void)
 	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CME, state1);
 }
 
+/**
+ * Test receiving of erroneous CDS command with wrong number of arguments.
+ */
+void test_send_cds_erroneous(void)
+{
+	sms_init_helper();
+
+	enum at_cmd_state state = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	int ret = sms_send("+1234567890", "Moi");
+	TEST_ASSERT_EQUAL(0, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+
+	/* Fail to receive SMS-STATUS-REPORT */
+	sms_callback_called_expected = false;
+	/* Removed length (24) from CDS */
+	sms_at_handler(NULL, "+CDS: \r\n06550A912143658709122022118314801220221183148000\r\n");
+
+	sms_uninit_helper();
+}
+
 /********* SMS RECV TESTS ***********************/
 
 /* Callback that SMS library will call when a message is received */
 static void sms_callback(struct sms_data *const data, void *context)
 {
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, true);
+
 	sms_callback_called_occurred = true;
 	TEST_ASSERT_EQUAL(test_sms_data.type, data->type);
 	if (test_sms_data.alpha != NULL) {
@@ -764,6 +840,18 @@ void test_recv_fail_number21(void)
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+123456789012345678901\",32\r\n0004169121436587092143658709F10000122090028543800831D98C56B3DD70\r\n");
+
+	sms_uninit_helper();
+}
+
+/* Test erroneous CMT response which is missing some parameter. */
+void test_recv_cmt_erroneous(void)
+{
+	sms_init_helper();
+
+	sms_callback_called_expected = false;
+	/* Size missing (22\r\n) */
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",0791534874894320040A91214365870900001220900285438003CD771A\r\n");
 
 	sms_uninit_helper();
 }
