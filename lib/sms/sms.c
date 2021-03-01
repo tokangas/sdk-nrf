@@ -191,12 +191,10 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 	int     err=0;
 	int     payload_size = 0;
 
-	memset(out, 0, sizeof(struct sms_deliver_header));
+	__ASSERT(pdu != NULL, "Parameter 'pdu' cannot be NULL.");
+	__ASSERT(out != NULL, "Parameter 'out' cannot be NULL.");
 
-	if (pdu == NULL || out == NULL) {
-		printk("sms_callback with NULL data\n");
-		return -EINVAL;
-	}
+	memset(out, 0, sizeof(struct sms_deliver_header));
 
 	parser_create(&sms_deliver, sms_deliver_get_api());
 
@@ -286,6 +284,16 @@ void sms_at_handler(void *context, const char *at_notif)
 		LOG_DBG("SMS submit report received");
 		cmt_rsp.type = SMS_TYPE_SUBMIT_REPORT;
 
+		/* Parse SMS-DELIVER PDU */
+		if (cmt_rsp.header != NULL) {
+			if (cmt_rsp.header->ud != NULL) {
+				k_free(cmt_rsp.header->ud);
+				cmt_rsp.header->ud = NULL;
+			}
+			k_free(cmt_rsp.header);
+			cmt_rsp.header = NULL;
+		}
+
 		int valid_notif = sms_cds_at_parse(at_notif, &cmt_rsp);
 		if (valid_notif != 0) {
 			LOG_ERR("sms_cds_at_parse");
@@ -312,10 +320,9 @@ void sms_at_handler(void *context, const char *at_notif)
 
 int sms_init(void)
 {
-	int ret = at_params_list_init(&resp_list, AT_SMS_PARAMS_COUNT_MAX);
-
 	k_work_init(&sms_ack_work, &sms_ack);
 
+	int ret = at_params_list_init(&resp_list, AT_SMS_PARAMS_COUNT_MAX);
 	if (ret) {
 		LOG_ERR("AT params error, err: %d", ret);
 		return ret;
@@ -441,6 +448,15 @@ void sms_uninit(void)
 	if (cmt_rsp.pdu != NULL) {
 		k_free(cmt_rsp.pdu);
 		cmt_rsp.pdu = NULL;
+	}
+
+	if (cmt_rsp.header != NULL) {
+		if (cmt_rsp.header->ud != NULL) {
+			k_free(cmt_rsp.header->ud);
+			cmt_rsp.header->ud = NULL;
+		}
+		k_free(cmt_rsp.header);
+		cmt_rsp.header = NULL;
 	}
 
 	sms_client_registered = false;
