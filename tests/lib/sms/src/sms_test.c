@@ -1050,6 +1050,90 @@ void test_recv_invalid_udh_portaddr_ignored_concat_valid(void)
 	sms_uninit_helper();
 }
 
+/********* SMS MULTIPLE SEND & RECV TESTS ***********************/
+
+/**
+ * Helper function to provide basic SMS sending.
+ * Useful in tests where multiple send operations are done.
+ */
+void send_basic(void)
+{
+	helper_sms_data_clear();
+
+	enum at_cmd_state state = 0;
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_IgnoreArg_buf();
+	__wrap_at_cmd_write_IgnoreArg_buf_len();
+
+	int ret = sms_send("+1234567890", "Moi");
+	TEST_ASSERT_EQUAL(0, ret);
+	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
+
+	/* Receive SMS-STATUS-REPORT */
+	test_sms_data.type = SMS_TYPE_SUBMIT_REPORT;
+	free(test_sms_data.alpha);
+	test_sms_data.alpha = NULL;
+
+	test_sms_data.length = 24;
+	strcpy(test_sms_data.pdu, "06550A912143658709122022118314801220221183148000");
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	test_sms_header_exists = false;
+	sms_at_handler(NULL, "+CDS: 24\r\n06550A912143658709122022118314801220221183148000\r\n");
+
+	test_sms_data.alpha = malloc(SMS_MAX_ADDRESS_LEN_CHARS);
+	memset(test_sms_data.alpha, 0, SMS_MAX_ADDRESS_LEN_CHARS);
+}
+
+/**
+ * Helper function to provide basic SMS receiving.
+ * Useful in tests where multiple send operations are done.
+ */
+void recv_basic(void)
+{
+	helper_sms_data_clear();
+
+	test_sms_data.type = SMS_TYPE_DELIVER;
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "0791534874894320040A91214365870900001220900285438003CD771A");
+	test_sms_header.data_len = 3;
+	strcpy(test_sms_header.ud, "Moi");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 9;
+	test_sms_header.time.hour = 20;
+	test_sms_header.time.minute = 58;
+	test_sms_header.time.second = 34;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0791534874894320040A91214365870900001220900285438003CD771A\r\n");
+}
+
+/**
+ * Tests sending and receiving multiple times in mixed order.
+ */
+void test_send_recv_both(void)
+{
+	sms_init_helper();
+
+	send_basic();
+	recv_basic();
+
+	send_basic();
+	send_basic();
+	recv_basic();
+	recv_basic();
+	recv_basic();
+	recv_basic();
+	recv_basic();
+	send_basic();
+
+	sms_uninit_helper();
+}
+
 /* It is required to be added to each test. That is because unity is using
  * different main signature (returns int) and zephyr expects main which does
  * not return value.
