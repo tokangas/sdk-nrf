@@ -11,7 +11,7 @@ LOG_MODULE_REGISTER(zzhc, CONFIG_ZZHC_LOG_LEVEL);
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if defined(CONFIG_POSIX_API)
 #include <posix/unistd.h>
 #include <posix/netdb.h>
 #include <posix/sys/socket.h>

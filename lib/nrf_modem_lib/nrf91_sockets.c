@@ -22,8 +22,7 @@
 #include <sys/fdtable.h>
 #include <zephyr.h>
 
-//b_jh
-#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if defined(CONFIG_POSIX_API)
 #include <posix/poll.h>
 #include <posix/sys/time.h>
 #include <posix/sys/socket.h>
@@ -254,8 +253,6 @@ static int z_to_nrf_flags(int z_flags)
 		nrf_flags |= NRF_MSG_PEEK;
 	}
 
-//b_jh: MSG_TRUNC not in posix?
-#if (!defined (CONFIG_POSIX_API) && defined (CONFIG_NET_SOCKETS_POSIX_NAMES))
 	if (z_flags & MSG_TRUNC) {
 		nrf_flags |= NRF_MSG_TRUNC;
 	}
@@ -263,7 +260,6 @@ static int z_to_nrf_flags(int z_flags)
 	if (z_flags & MSG_WAITALL) {
 		nrf_flags |= NRF_MSG_WAITALL;
 	}
-#endif
 
 	/* TODO: Handle missing flags, missing from zephyr,
 	 * may also be missing from nrf_modem_lib.

@@ -7,7 +7,7 @@
 #include <logging/log.h>
 #include <zephyr.h>
 #include <stdio.h>
-#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if defined(CONFIG_POSIX_API)
 #include <posix/unistd.h>
 #include <posix/sys/socket.h>
 #else

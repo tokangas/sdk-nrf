@@ -7,10 +7,8 @@
 #include <zephyr.h>
 #include <stdio.h>
 #include <drivers/flash.h>
-#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if defined(CONFIG_POSIX_API)
 #include <posix/unistd.h>
-#include <posix/netdb.h>
-#include <posix/sys/time.h>
 #include <posix/sys/socket.h>
 #else
 #include <net/socket.h>

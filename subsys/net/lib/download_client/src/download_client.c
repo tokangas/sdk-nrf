@@ -9,7 +9,7 @@
 #include <zephyr.h>
 #include <zephyr/types.h>
 #include <toolchain/common.h>
-#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if defined(CONFIG_POSIX_API)
 #include <posix/unistd.h>
 #include <posix/netdb.h>
 #include <posix/sys/time.h>
@@ -17,7 +17,6 @@
 #else
 #include <net/socket.h>
 #endif
-#include <nrf_socket.h>
 #include <net/tls_credentials.h>
 #include <net/download_client.h>
 #include <logging/log.h>
@@ -73,7 +72,7 @@ static int socket_timeout_set(int fd, int type)
 		.tv_usec = (timeout_ms % 1000) * 1000,
 	};
 
-#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if defined(CONFIG_POSIX_API)
 	LOG_INF("Configuring socket timeout (%d s)", (int32_t)timeo.tv_sec);
 #else
 	LOG_INF("Configuring socket timeout (%ld s)", timeo.tv_sec);
