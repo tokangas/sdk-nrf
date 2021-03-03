@@ -243,19 +243,18 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 	LOG_DBG("User Data Header Length: %d", DELIVER_DATA(parser)->field_udhl);
 	DELIVER_DATA(parser)->field_udhl += 1;  /* +1 for length field itself */
 
-	/* Reduce User-Data-length based on UDH length */
-	/* TODO: Check what to do with this:
-	int field_udl_old = DELIVER_DATA(parser)->field_udl;
-	DELIVER_DATA(parser)->field_udl -= DELIVER_DATA(parser)->field_udhl;*/
 	if (DELIVER_DATA(parser)->field_udhl > DELIVER_DATA(parser)->field_udl) {
 		LOG_ERR("User Data Header Length %d is bigger than User-Data-Length %d",
 			DELIVER_DATA(parser)->field_udhl,
 			DELIVER_DATA(parser)->field_udl);
 		return -EMSGSIZE;
 	}
-	/*LOG_DBG("User-Data-Length reduced from %d to %d",
-		field_udl_old, DELIVER_DATA(parser)->field_udl);
-	*/
+	if (DELIVER_DATA(parser)->field_udhl > parser->data_length - parser->buf_pos) {
+		LOG_ERR("User Data Header Length %d is bigger than remaining input data length %d",
+			DELIVER_DATA(parser)->field_udhl,
+			parser->data_length - parser->buf_pos);
+		return -EMSGSIZE;
+	}
 
 	while (ofs < DELIVER_DATA(parser)->field_udhl) {
 		int ie_id     = buf[ofs++];
@@ -370,10 +369,21 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 		return -EMSGSIZE;
 	}
 
+	/* Data length to be used is the minimum from the
+	   remaining bytes in the input buffer and
+	   length indicated by User-Data-Length.
+	   User-Data-Header-Length is taken into account later
+	   because UDH is part of GSM 7bit encoding w.r.t.
+	   fill bits for the actual data. */
+	uint16_t actual_data_length =
+		(parser->data_length - parser->payload_pos) * 8 / 7;
+	actual_data_length = MIN(actual_data_length,
+				DELIVER_DATA(parser)->field_udl);
+
 	/* Convert GSM 7bit data to ASCII characters */
 	uint8_t temp_buf[160];
 	uint8_t length = string_conversion_gsm7bit_to_ascii(
-		buf, temp_buf, DELIVER_DATA(parser)->field_udl, true);
+		buf, temp_buf, actual_data_length, true);
 
 	/* Check whether User Data Header is present.
 	   If yes, we need to skip those septets in the temp_buf, which has
@@ -387,15 +397,12 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	}
 
 	/* Number of characters/bytes in the actual data which excludes
-	   User Data Header */
-	int length_udh_skipped = (int)(length - skip_septets);
+	   User Data Header but minimum is 0. In some corner cases this would
+	   result in negative value causing crashes. */
+	int length_udh_skipped = (length >= skip_septets) ? (int)(length - skip_septets) : 0;
 
 	/* Verify that payload buffer is not too short */
-	if (length_udh_skipped > parser->payload_buf_size) {
-		LOG_ERR("Buffer for SMS data is too small (%d) for decoded data length %d. Discarding additional data.",
-			parser->payload_buf_size, length_udh_skipped);
-		length_udh_skipped = parser->payload_buf_size;
-	}
+	__ASSERT(length_udh_skipped <= parser->payload_buf_size, "GSM 7bit User-Data-Length shorter than output buffer");
 
 	/* Copy decoded data/text into the output buffer */
 	memcpy(parser->payload, temp_buf + skip_septets, length_udh_skipped);
@@ -405,16 +412,22 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 
 static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
 {
-	uint32_t length = DELIVER_DATA(parser)->field_udl -
-			  DELIVER_DATA(parser)->field_udhl;
+	/* Data length to be used is the minimum from the
+	   remaining bytes in the input buffer and
+	   length indicated by User-Data-Length taking into account
+	   User-Data-Header-Length. */
+	uint32_t actual_data_length =
+		MIN(parser->data_length - parser->payload_pos,
+		    DELIVER_DATA(parser)->field_udl - DELIVER_DATA(parser)->field_udhl);
 
-	if (length > parser->payload_buf_size) {
-		return -EMSGSIZE;
-	}
+	__ASSERT(parser->data_length >= parser->payload_pos,
+		"Data length smaller than data iterator");
+	__ASSERT(actual_data_length <= parser->payload_buf_size,
+		"8bit User-Data-Length shorter than output buffer");
 
-	memcpy(parser->payload, buf, length);
+	memcpy(parser->payload, buf, actual_data_length);
 
-	return length;
+	return actual_data_length;
 }
 
 static int decode_pdu_deliver_message(struct parser *parser, uint8_t *buf)

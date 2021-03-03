@@ -381,7 +381,7 @@ void test_send_special_characters(void)
  * concatenated messages. Decoding of expected results have been done with
  * web tools though.
  */
-void test_send_concat_special_character(void)
+void test_send_concat_special_character_split(void)
 {
 	enum at_cmd_state state1 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=150\r00610505912143F500009F05000303020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC900\x1A", NULL, 0, &state1, 0);
@@ -752,6 +752,59 @@ void test_recv_special_characters(void)
 	sms_uninit_helper();
 }
 
+/** 
+ * Test receiving of special character so that escape char is the last
+ * character of the first concatenated message. This is an erroneous message
+ * but let's prepare for network issues.
+ */
+void test_recv_concat_escape_character_last(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "1234567890");
+	test_sms_data.length = 159;
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 22;
+	test_sms_header.time.hour = 8;
+	test_sms_header.time.minute = 56;
+	test_sms_header.time.second = 5;
+
+	test_sms_header.concatenated.present = true;
+	test_sms_header.concatenated.total_msgs = 2;
+	test_sms_header.concatenated.ref_number = 81;
+
+	/* Part 1 */
+	strcpy(test_sms_data.pdu, "0791534874894370440A912143658709000012202280655080A005000351020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC936");
+	test_sms_header.data_len = 152;
+	strcpy(test_sms_header.ud, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
+	test_sms_header.concatenated.seq_number = 1;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A912143658709000012202280655080A005000351020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC936\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	/* Part 2 */
+	strcpy(test_sms_data.pdu, "0791534874894370440A9121436587090000122022806550801305000351020236E5986C46ABD96EB81C0C");
+	test_sms_header.data_len = 11;
+	strcpy(test_sms_header.ud, "\xA4""1234567890");
+	test_sms_header.concatenated.seq_number = 2;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_occurred = false;
+	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A9121436587090000122022806550801305000351020236E5986C46ABD96EB81C0C\r\n");
+	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+/*
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=150\r00610505912143F500009F05000303020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC900\x1A", NULL, 0, &state1, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=27\r00610605912143F500001305000303020236E5986C46ABD96EB81C0C\x1A", NULL, 0, &state2, 0);
+	int ret = sms_send("12345", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012\xA4""1234567890");
+*/
+	sms_uninit_helper();
+}
+
 /** Test port addressing */
 void test_recv_port_addr(void)
 {
@@ -759,8 +812,8 @@ void test_recv_port_addr(void)
 
 	strcpy(test_sms_data.alpha, "12345678");
 	test_sms_data.length = 22;
-	strcpy(test_sms_data.pdu, "004408812143658700041210032143652b1c0b05040b84000000037c01010102030405060708090A0B0C0D0E0F");
-	test_sms_header.data_len = 16;
+	strcpy(test_sms_data.pdu, "004408812143658700041210032143652b1b0b05040b84000000037c01010102030405060708090A0B0C0D0E0F");
+	test_sms_header.data_len = 15;
 	strcpy(test_sms_header.ud, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
@@ -779,7 +832,7 @@ void test_recv_port_addr(void)
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
-	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700041210032143652b1c0b05040b84000000037c01010102030405060708090A0B0C0D0E0F\r\n");
+	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700041210032143652b1b0b05040b84000000037c01010102030405060708090A0B0C0D0E0F\r\n");
 
 	sms_uninit_helper();
 }
@@ -834,6 +887,32 @@ void test_recv_empty_sms_text(void)
 	sms_uninit_helper();
 }
 
+/** Test SMS receiving for PDU with non-hexadecimal digits. */
+void test_recv_invalid_hex_characters(void)
+{
+	sms_init_helper();
+
+	sms_callback_called_expected = false;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",18\r\n00040A91214365870900001220A00285438009123456KLAB\r\n");
+
+	sms_uninit_helper();
+}
+
+/**
+ * Test SMS receiving for PDU which is one character or
+ * one semi-octet too short.
+ */
+void test_recv_invalid_header_too_short(void)
+{
+	sms_init_helper();
+
+	sms_callback_called_expected = false;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",18\r\n00040A91214365870900001220A0028543800\r\n");
+
+	sms_uninit_helper();
+}
+
+/** Tests too long number as maximum allowed by 3GPP TS 23.040 is 20. */
 void test_recv_fail_number21(void)
 {
 	sms_init_helper();
@@ -844,7 +923,7 @@ void test_recv_fail_number21(void)
 	sms_uninit_helper();
 }
 
-/* Test erroneous CMT response which is missing some parameter. */
+/** Test erroneous CMT response which is missing some parameter. */
 void test_recv_cmt_erroneous(void)
 {
 	sms_init_helper();
@@ -856,7 +935,7 @@ void test_recv_cmt_erroneous(void)
 	sms_uninit_helper();
 }
 
-/* DCS not supported (UCS2): 0x08 */
+/** DCS not supported (UCS2): 0x08 */
 void test_recv_fail_invalid_dcs_ucs2(void)
 {
 	sms_init_helper();
@@ -867,6 +946,7 @@ void test_recv_fail_invalid_dcs_ucs2(void)
 	sms_uninit_helper();
 }
 
+/** Receive too long message with 161 bytes in actual text. */
 void test_recv_fail_len161(void)
 {
 	sms_init_helper();
@@ -877,16 +957,31 @@ void test_recv_fail_len161(void)
 	sms_uninit_helper();
 }
 
-void test_recv_invalid_udl_longer_than_ud_7bit(void)
+/**
+ * Test large enough data not to fit into the internal input buffer.
+ * Message size is still said to be maximum of 160 GSM 7bit decoded octets.
+ * But the actual SMS-DELIVER message is 181 bytes, or 362 characters.
+ */
+void test_recv_fail_internal_buffer_too_short(void)
+{
+	sms_init_helper();
+
+	sms_callback_called_expected = false;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0B912143658709214365870904149121436587092143658709000012201232054480A031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560313233343536\r\n");
+
+	sms_uninit_helper();
+}
+
+/** Test User-Data-Length shorter than the actual data that is given */
+void test_recv_invalid_udl_shorter_than_ud_7bit(void)
 {
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
 	test_sms_data.length = 22;
-	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802931D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560");
-	printf("TODO: data_len should be 40 instead of 41\n");
-	test_sms_header.data_len = 41;
-	strcpy(test_sms_header.ud, "1234567890123456789012345678901234567890@");
+	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031");
+	test_sms_header.data_len = 32;
+	strcpy(test_sms_header.ud, "12345678901234567890123456789012");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -896,11 +991,68 @@ void test_recv_invalid_udl_longer_than_ud_7bit(void)
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
-	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802931D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560\r\n");
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
 
 	sms_uninit_helper();
 }
 
+/**
+ * Test User-Data-Length longer than the actual data that is given.
+ * Length here is NOT divisible by 7/8 resulting in float and not integer.
+ * Using length 41 which results into 41*7/8=35.875.
+ */
+void test_recv_invalid_udl_longer_than_ud_7bit_len41(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031");
+	test_sms_header.data_len = 41;
+	strcpy(test_sms_header.ud, "12345678901234567890123456789012345678901");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 21;
+	test_sms_header.time.hour = 23;
+	test_sms_header.time.minute = 50;
+	test_sms_header.time.second = 44;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
+
+	sms_uninit_helper();
+}
+
+/**
+ * Test User-Data-Length longer than the actual data that is given.
+ * Length here is divisible by 7/8 resulting in integer and not float.
+ * Using length 40 which results into 40*7/8=35.
+ */
+void test_recv_invalid_udl_longer_than_ud_7bit_len40(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560");
+	test_sms_header.data_len = 40;
+	strcpy(test_sms_header.ud, "1234567890123456789012345678901234567890");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 21;
+	test_sms_header.time.hour = 23;
+	test_sms_header.time.minute = 50;
+	test_sms_header.time.second = 44;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560\r\n");
+
+	sms_uninit_helper();
+}
+
+/** Test User-Data-Length longer than the actual data that is given */
 void test_recv_invalid_udl_longer_than_ud_8bit(void)
 {
 	sms_init_helper();
@@ -908,8 +1060,7 @@ void test_recv_invalid_udl_longer_than_ud_8bit(void)
 	strcpy(test_sms_data.alpha, "+1234567890");
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00040A9121436587090004122012320544800A010203040506070809");
-	printf("TODO: data_len should be 9 instead of 10\n");
-	test_sms_header.data_len = 10;
+	test_sms_header.data_len = 9;
 	strcpy(test_sms_header.ud, "\x01\x02\x03\x04\x05\x06\x07\x08\x09");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
@@ -925,17 +1076,140 @@ void test_recv_invalid_udl_longer_than_ud_8bit(void)
 	sms_uninit_helper();
 }
 
+/** Test User-Data-Length shorter than the actual data that is given */
+void test_recv_invalid_udl_shorter_than_ud_8bit(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "00040A9121436587090004122012320544800A0102030405060708090A0B0C0D0E0F");
+	test_sms_header.data_len = 10;
+	strcpy(test_sms_header.ud, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 21;
+	test_sms_header.time.hour = 23;
+	test_sms_header.time.minute = 50;
+	test_sms_header.time.second = 44;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090004122012320544800A0102030405060708090A0B0C0D0E0F\r\n");
+
+	sms_uninit_helper();
+}
+
 void test_recv_fail_udhl_longer_than_udh(void)
 {
 	sms_init_helper();
 
 	sms_callback_called_expected = false;
-	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A912143658709000012201232054480040500037E0201AAAA\r\n");
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A912143658709000012201232054480050500037E0201AAAA\r\n");
 
 	sms_uninit_helper();
 }
 
-/* TODO: 7bit UDH longer than septets */
+/** Tests User-Data-Header Length that is longer than the actual user data. */
+void test_recv_fail_udhl_longer_than_ud(void)
+{
+	sms_init_helper();
+
+	sms_callback_called_expected = false;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448004030201\r\n");
+
+	sms_uninit_helper();
+}
+
+/** Tests User-Data-Header with actual data of length 0. */
+void test_recv_udh_with_datalen0(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "00440A91214365870900001220123205448006050003AB0101");
+	test_sms_header.data_len = 0;
+	strcpy(test_sms_header.ud, "");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 21;
+	test_sms_header.time.hour = 23;
+	test_sms_header.time.minute = 50;
+	test_sms_header.time.second = 44;
+
+	test_sms_header.concatenated.present = true;
+	test_sms_header.concatenated.total_msgs = 1;
+	test_sms_header.concatenated.ref_number = 171;
+	test_sms_header.concatenated.seq_number = 1;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448006050003AB0101\r\n");
+
+	sms_uninit_helper();
+}
+
+/**
+ * Tests User-Data-Header with actual data of length 0
+ * and extra byte for fill bits.
+ */
+void test_recv_udh_with_datalen0_fill_byte(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "00440A91214365870900001220123205448007050003AB010100");
+	test_sms_header.data_len = 0;
+	strcpy(test_sms_header.ud, "");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 21;
+	test_sms_header.time.hour = 23;
+	test_sms_header.time.minute = 50;
+	test_sms_header.time.second = 44;
+
+	test_sms_header.concatenated.present = true;
+	test_sms_header.concatenated.total_msgs = 1;
+	test_sms_header.concatenated.ref_number = 171;
+	test_sms_header.concatenated.seq_number = 1;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448007050003AB010100\r\n");
+
+	sms_uninit_helper();
+}
+
+/** Tests User-Data-Header with actual data of length 1. */
+void test_recv_udh_with_datalen1(void)
+{
+	sms_init_helper();
+
+	strcpy(test_sms_data.alpha, "+1234567890");
+	test_sms_data.length = 22;
+	strcpy(test_sms_data.pdu, "00440A91214365870900001220123205448008050003AB010162");
+	test_sms_header.data_len = 1;
+	strcpy(test_sms_header.ud, "1");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 21;
+	test_sms_header.time.hour = 23;
+	test_sms_header.time.minute = 50;
+	test_sms_header.time.second = 44;
+
+	test_sms_header.concatenated.present = true;
+	test_sms_header.concatenated.total_msgs = 1;
+	test_sms_header.concatenated.ref_number = 171;
+	test_sms_header.concatenated.seq_number = 1;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448008050003AB010162\r\n");
+
+	sms_uninit_helper();
+}
 
 /** UDH IE is too long to fit to UDH based on UDH length:
  *   1B 0A 05040B841111 00037C01
@@ -949,7 +1223,7 @@ void test_recv_invalid_udh_too_long_ie(void)
 	strcpy(test_sms_data.alpha, "12345678");
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652B1B0A05040B84111100037C010102030405060708090A0B0C0D0E0F");
-	test_sms_header.data_len = 16;
+	test_sms_header.data_len = 15;
 	strcpy(test_sms_header.ud, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
@@ -988,7 +1262,7 @@ void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
 	strcpy(test_sms_data.alpha, "12345678");
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652B2F1E00022A0100032A000200032A020000032A020304021100080511112222220102030405060708090A0B0C0D0E0F");
-	test_sms_header.data_len = 16;
+	test_sms_header.data_len = 15;
 	strcpy(test_sms_header.ud, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
@@ -1027,7 +1301,7 @@ void test_recv_invalid_udh_portaddr_ignored_concat_valid(void)
 	strcpy(test_sms_data.alpha, "12345678");
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652B2C1B01000804111101010400050712345678901234A1061234567890120102030405060708090A0B0C0D0E0F");
-	test_sms_header.data_len = 16;
+	test_sms_header.data_len = 15;
 	strcpy(test_sms_header.ud, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;

@@ -10,7 +10,18 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
 
-#define BUF_SIZE     180 /* TODO: CONFIG_MESSAGE_PARSER_BUF_SIZE */
+/*
+ * Maximum length of a valid SMS message is 175 bytes so we'll reserve buffer
+ * of 180 bytes to be safe and we are able to handle properly few extra bytes.
+ * 175 is result of the following calculation of maximum field lengths:
+ *   12: SMSC address
+ *    4: Misc bytes in SMS-DELIVER msg:
+ *       First byte with several bit fields, TP-PID, TP-DCS, TP-UDL.
+ *   12: Originating address (phone number)
+ *    7: Timestamp
+ *  140: User data
+ */
+#define PARSER_BUF_SIZE 180
 
 /* Forward declaration of the parser struct */
 struct parser;
@@ -27,7 +38,7 @@ struct parser_api {
 
 struct parser {
 	uint8_t             buf_pos;
-	uint8_t             buf[BUF_SIZE];
+	uint8_t             buf[PARSER_BUF_SIZE];
 
 	uint8_t             *payload;
 	uint8_t             payload_buf_size;

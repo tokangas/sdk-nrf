@@ -133,7 +133,7 @@ static int sms_cds_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 	int err = at_parser_max_params_from_str(buf, NULL, &resp_list,
 						AT_CDS_PARAMS_COUNT);
 	if (err != 0) {
-		LOG_ERR("Unable to parse CMT notification, err=%d", err);
+		LOG_ERR("Unable to parse CDS notification, err=%d", err);
 		return err;
 	}
 
@@ -150,12 +150,12 @@ static int sms_cds_at_parse(const char *const buf, struct sms_data *cmt_rsp)
 	/* Length field saved as number. */
 	(void)at_params_short_get(&resp_list, 1, &cmt_rsp->length);
 
-	/* Save PDU as a null-terminated String. */
+	/* Save PDU as a null-terminated string. */
 	size_t pdu_len;
 	(void)at_params_size_get(&resp_list, 2, &pdu_len);
 	cmt_rsp->pdu = k_malloc(pdu_len + 1);
 	if (cmt_rsp->pdu == NULL) {
-		LOG_ERR("Unable to parse CMT notification due to no memory");
+		LOG_ERR("Unable to parse CDS notification due to no memory");
 		return -ENOMEM;
 	}
 
@@ -189,7 +189,6 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 {
 	struct  parser sms_deliver;
 	int     err=0;
-	int     payload_size = 0;
 
 	__ASSERT(pdu != NULL, "Parameter 'pdu' cannot be NULL.");
 	__ASSERT(out != NULL, "Parameter 'out' cannot be NULL.");
@@ -213,15 +212,14 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 		return -ENOMEM;
 	}
 
-	payload_size = parser_get_payload(&sms_deliver,
+	out->data_len = parser_get_payload(&sms_deliver,
 					  out->ud,
 					  out->ud_len);
-	out->data_len = payload_size;
 
-	if (payload_size < 0) {
+	if (out->data_len < 0) {
 		LOG_ERR("Getting sms deliver payload failed: %d\n",
-			payload_size);
-		return payload_size;
+			out->data_len);
+		return out->data_len;
 	}
 
 	LOG_DBG("Time:   %02x-%02x-%02x %02x:%02x:%02x",

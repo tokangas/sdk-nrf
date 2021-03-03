@@ -9,9 +9,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <logging/log.h>
 
 #include "parser.h"
 #include "sms_deliver.h"
+
+LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 static inline uint8_t char2int(char input)
 {
@@ -29,9 +32,7 @@ static int convert_to_bytes(char *str, uint32_t str_length,
 			    uint8_t* buf, uint16_t buf_length)
 {
 	for(int i=0;i<str_length;++i) {
-		if((i>>1) > buf_length) {
-			return -EMSGSIZE;
-		}
+		__ASSERT((i>>1) <= buf_length, "Too small internal buffer");
 
 		if(!(i%2)) {
 			buf[i>>1] = 0;
@@ -77,20 +78,20 @@ static int parser_process(struct parser *parser, uint8_t *data)
 		}
 
 		parser->buf_pos += ofs_inc;
+
+		/* If we have gone beyond the length of the given data,
+		   we need to return a failure. We don't have issues in
+		   accessing memory beyond parser->data_length bytes of
+		   parser->buf as the buffer is overly long.
+		   */
+		if (parser->buf_pos > parser->data_length) {
+			return -EMSGSIZE;
+		}
 	}
 
 	parser->payload_pos = parser->buf_pos;
 
 	return 0;
-}
-
-int parser_process_raw(struct parser *parser, uint8_t *data, uint8_t length)
-{
-	parser->data_length = length;
-
-	memcpy(parser->buf, data, length);
-
-	return parser_process(parser, data);
 }
 
 int parser_process_str(struct parser *parser, char *data)
@@ -99,7 +100,14 @@ int parser_process_str(struct parser *parser, char *data)
 
 	parser->data_length = length / 2;
 
-	convert_to_bytes(data, length, parser->buf, BUF_SIZE);
+	if (parser->data_length > PARSER_BUF_SIZE) {
+		LOG_ERR("Data length (%d) is bigger than the internal buffer size (%d)",
+			parser->data_length,
+			PARSER_BUF_SIZE);
+		return -EMSGSIZE;
+	}
+
+	convert_to_bytes(data, length, parser->buf, PARSER_BUF_SIZE);
 
 	return parser_process(parser, data);
 }
