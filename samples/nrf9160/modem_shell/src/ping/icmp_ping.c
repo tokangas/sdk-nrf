@@ -133,6 +133,11 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 
         buf = calloc(1, alloc_size);
 
+		if (buf == NULL) {
+			shell_error(shell, "No RAM memory available for sending ping.");
+			return -1;
+		}
+
         buf[0] = (4 << 4) + (header_len / 4);   // Version & header length
         //buf[1] = 0;                           // Type of service
         buf[2] = total_length >> 8;             // Total length
@@ -180,6 +185,11 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 
         total_length = payload_length + header_len;
         buf = calloc(1, alloc_size);
+		
+		if (buf == NULL) {
+			shell_error(shell, "No RAM memory available for sending ping.");
+			return -1;
+		}
 
         buf[0] = (6 << 4);                      // Version & traffic class 4 bits
         //buf[1..3] = 0;                        // Traffic class 4 bits & flow label
