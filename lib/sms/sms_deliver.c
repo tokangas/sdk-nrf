@@ -67,6 +67,7 @@ struct pdu_deliver_data {
 	struct sms_deliver_time     timestamp; /** TP-Service-Centre-Time-Stamp */
 	uint8_t                     field_udl; /** TP-User-Data-Length */
 	uint8_t                     field_udhl; /** User Data Header Length */
+	uint8_t                     field_udh[140]; /** User Data Header */
 	struct sms_udh_app_port     field_udh_app_port;
 	struct sms_udh_concatenated field_udh_concatenated;
 	uint8_t                     field_ud[140]; /** TP-User-Data */ 
@@ -231,7 +232,7 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
 }
 
 static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
-{	
+{
 	/* Check if TP-User-Data-Header-Indicator is not set */
 	if (!DELIVER_DATA(parser)->field_header.udhi) {
 		return 0;
@@ -239,9 +240,9 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 
 	uint8_t ofs=0;
 
-	DELIVER_DATA(parser)->field_udhl = buf[ofs++];
-	LOG_DBG("User Data Header Length: %d", DELIVER_DATA(parser)->field_udhl);
-	DELIVER_DATA(parser)->field_udhl += 1;  /* +1 for length field itself */
+	uint8_t udhl = buf[ofs++];
+	LOG_DBG("User Data Header Length: %d", udhl);
+	DELIVER_DATA(parser)->field_udhl = udhl + 1;  /* +1 for length field itself */
 
 	if (DELIVER_DATA(parser)->field_udhl > DELIVER_DATA(parser)->field_udl) {
 		LOG_ERR("User Data Header Length %d is bigger than User-Data-Length %d",
@@ -255,6 +256,9 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 			parser->data_length - parser->buf_pos);
 		return -EMSGSIZE;
 	}
+
+	/* Copy User-Data-Header. +1 to skip the length field. */
+	memcpy(DELIVER_DATA(parser)->field_udh, buf+1, udhl);
 
 	while (ofs < DELIVER_DATA(parser)->field_udhl) {
 		int ie_id     = buf[ofs++];
@@ -562,6 +566,15 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 
 	sms_header->ud_len = DELIVER_DATA(parser)->field_udl -
 			     DELIVER_DATA(parser)->field_udhl;
+
+	if (DELIVER_DATA(parser)->field_udhl > 0) {
+		sms_header->udh_len = DELIVER_DATA(parser)->field_udhl - 1;
+		sms_header->udh = k_malloc(DELIVER_DATA(parser)->field_udhl);
+		memcpy(sms_header->udh, DELIVER_DATA(parser)->field_udh, DELIVER_DATA(parser)->field_udhl);
+	} else {
+		sms_header->udh_len = 0;
+		sms_header->udh = NULL;
+	}
 
 	sms_header->app_port = DELIVER_DATA(parser)->field_udh_app_port;
 	sms_header->concatenated = DELIVER_DATA(parser)->field_udh_concatenated;
