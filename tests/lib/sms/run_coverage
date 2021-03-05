@@ -4,6 +4,7 @@
 #     sudo apt-get install gcov lcov
 
 west build -b native_posix -d build_coverage -t run -- -DCONFIG_COVERAGE=y -DCONFIG_ASSERT=n
+mkdir -p build_coverage/lcov
 lcov --capture --directory ./ --output-file build_coverage/lcov/lcov.info -q --rc lcov_branch_coverage=1
 genhtml build_coverage/lcov/lcov.info --output-directory build_coverage/lcov/lcov_html -q --ignore-errors source --branch-coverage --highlight --legend
 firefox build_coverage/lcov/lcov_html/home/tor1/work/ncs/nrf/lib/sms/index.html
