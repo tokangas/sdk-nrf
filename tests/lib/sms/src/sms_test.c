@@ -107,14 +107,22 @@ void test_sms_init_fail_register_null(void)
 
 void test_sms_init_fail_register_too_many(void)
 {
+	sms_init_helper();
+	sms_uninit(); /* Nothing happens */
+
 	/* Register listener with context pointer */
-	int value = 0;
-	int handle1 = sms_register_listener(sms_callback, &value);
-	TEST_ASSERT_EQUAL(0, handle1);
-	int handle2 = sms_register_listener(sms_callback, NULL);
+	int value2 = 2;
+	int handle2 = sms_register_listener(sms_callback, &value2);
 	TEST_ASSERT_EQUAL(1, handle2);
+	sms_uninit(); /* Nothing happens */
+
 	int handle3 = sms_register_listener(sms_callback, NULL);
 	TEST_ASSERT_EQUAL(-ENOMEM, handle3);
+
+	sms_unregister_listener(handle2);
+	sms_uninit(); /* Nothing happens */
+
+	sms_uninit_helper();
 }
 
 /** Test error return value for AT+CNMI? */

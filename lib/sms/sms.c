@@ -386,6 +386,18 @@ int sms_init(void)
 	return 0;
 }
 
+static int sms_subscriber_count()
+{
+	int count = 0;
+	for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
+		if (subscribers[i].ctx != NULL ||
+		    subscribers[i].listener != NULL) {
+			count++;
+		}
+	}
+	return count;
+}
+
 int sms_register_listener(sms_callback_t listener, void *context)
 {
 	if (listener == NULL) {
@@ -420,7 +432,14 @@ void sms_unregister_listener(int handle)
 
 void sms_uninit(void)
 {
-	/* Unregister the SMS client if this module was registered as client. */
+	/* Don't do anything if there are subscribers */
+	int subscribers = sms_subscriber_count();
+	if (subscribers > 0) {
+		LOG_WRN("Unregistering skipped as there are %d subscriber(s)",
+			subscribers);
+		return;
+	}
+
 	if (sms_client_registered) {
 		int ret = at_cmd_write(AT_SMS_SUBSCRIBER_UNREGISTER, resp,
 				       sizeof(resp), NULL);
