@@ -92,9 +92,8 @@ int sms_register()
 
 int sms_unregister()
 {
-	sms_handle = SMS_HANDLE_NONE;
-
 	sms_unregister_listener(sms_handle);
+	sms_handle = SMS_HANDLE_NONE;
 	sms_uninit();
 
 	return 0;
