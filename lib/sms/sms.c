@@ -68,7 +68,7 @@ struct sms_subscriber {
 };
 
 /** @brief List of subscribers. */
-static struct sms_subscriber subscribers[CONFIG_SMS_MAX_SUBSCRIBERS_CNT];
+static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 
 /** @brief Save the SMS notification parameters. */
 static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp)

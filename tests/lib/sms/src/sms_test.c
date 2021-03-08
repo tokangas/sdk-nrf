@@ -193,7 +193,7 @@ void test_sms_uninit_fail_unregister_invalid_handle(void)
 	int handle = sms_register_listener(sms_callback, NULL);
 	TEST_ASSERT_EQUAL(0, handle);
 	/* Unregister number higher than registered handle */
-	sms_unregister_listener(CONFIG_SMS_MAX_SUBSCRIBERS_CNT + 1);
+	sms_unregister_listener(CONFIG_SMS_SUBSCRIBERS_MAX_CNT + 1);
 
 	/* Unregister above handle */
 	sms_unregister_listener(handle);

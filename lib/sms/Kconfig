@@ -14,9 +14,12 @@ menuconfig SMS
 
 if SMS
 
-config SMS_MAX_SUBSCRIBERS_CNT
+config SMS_SUBSCRIBERS_MAX_CNT
 	int "Maximum number of subscribers"
 	default 2
+	help
+	  Maximum number of subscribers that can register to SMS library.
+
 
 module=SMS
 module-dep=LOG
