@@ -11,6 +11,7 @@
 
 #include <modem/modem_info.h>
 
+#include <fcntl.h>
 #include <posix/unistd.h>
 #include <posix/netdb.h>
 
@@ -260,51 +261,101 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 		}			
 	}
 
+#ifdef SO_RCVTIMEO
+#ifdef SO_SNDTIMEO
+    /* We have a blocking socket and we do not want to block for 
+	   a long for sending. THus, let's set the timeout: */
+
+	struct timeval tv = {
+		.tv_sec = (ping_argv.timeout / 1000),
+		.tv_usec = (ping_argv.timeout % 1000) * 1000,
+	};
+    
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
+		shell_error(shell, "Unable to set socket SO_SNDTIMEO, continue");
+	}
+
+    /* Just for sure, let's put the timeout for rcv as well 
+	   (should not be needed for non-blocking socket): */
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
+		shell_error(shell, "Unable to set socket SO_RCVTIMEO, continue");
+	}
+#endif
+#endif
+
+	/* Include also a sending time to measured RTT: */
+	start_t = k_uptime_get();
+	timeout = ping_argv.timeout;
+
 	ret = send(fd, buf, total_length, 0);
 	if (ret <= 0) {
 		shell_error(shell, "send() failed: (%d)", -errno);
 		goto close_end;
 	}
 
-	start_t = k_uptime_get();
-	timeout = ping_argv.timeout;
+	/* Set a socket as non-blocking for receiving the response so that we 
+	   can control a pinging timeout for receive better: */
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | (int) O_NONBLOCK);
+
+	/* Now after send(), calculate how much there's still time left */
+	delta_t = k_uptime_delta(&start_t);
+	timeout = ping_argv.timeout - (int32_t)delta_t;
 
 wait_for_data:
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
-	ret = poll(fds, 1, timeout);
-	if (ret == 0) {
-		shell_print(shell, "Pinging %s results: request timed out",
-			    ping_argv.target_name);
-		goto close_end;
-	} else if (ret < 0) {
-		shell_error(shell, "poll() failed: (%d) (%d)", -errno, ret);
-		goto close_end;
-	}
 
-
-	/* receive response */
-	do {
-		len = recv(fd, buf, alloc_size, 0);
-		if (len <= 0) {
-			shell_error(shell, "recv() failed: (%d) (%d)", -errno, len);
+    do {
+		if (timeout <= 0) {
+			shell_print(shell, 
+				"Pinging %s results: no ping response in given timeout %d msec",
+					ping_argv.target_name,
+					ping_argv.timeout);
 			goto close_end;
+		}
+
+		ret = poll(fds, 1, timeout);
+		if (ret == 0) {
+			shell_print(shell, 
+				"Pinging %s results: no response in given timeout %d msec",
+					ping_argv.target_name,
+					ping_argv.timeout);
+			goto close_end;
+		} else if (ret < 0) {
+			shell_error(shell, "poll() failed: (%d) (%d)", -errno, ret);
+			goto close_end;
+		}
+
+		len = recv(fd, buf, alloc_size, 0);
+		
+		/* Calculate again, how much there's still time left */
+		delta_t = k_uptime_delta(&start_t);
+		timeout = ping_argv.timeout - (int32_t)delta_t;
+
+		if (len <= 0) {
+			if (errno != EAGAIN && errno != EWOULDBLOCK) {
+				shell_error(
+					shell, 
+					"recv() failed with errno (%d) and return value (%d)",
+						-errno, len);
+				goto close_end;
+			}			
 		}
 		if (len < header_len) {
 			/* Data length error, ignore "silently" */
 			shell_error(shell, "recv() wrong data (%d)", len);
-			continue;
 		}
-		if ((rep == ICMP_ECHO_REP && buf[IP_PROTOCOL_POS] != ICMP) || 
-		    (rep == ICMP6_ECHO_REP && buf[IP_NEXT_HEADER_POS] != ICMPV6)) {
-			/* Not ipv4/ipv6 echo reply, ignore silently */
-			continue;
+
+		if ((rep == ICMP_ECHO_REP && buf[IP_PROTOCOL_POS] == ICMP) || 
+		    (rep == ICMP6_ECHO_REP && buf[IP_NEXT_HEADER_POS] == ICMPV6)) {
+			/* if not ipv4/ipv6 echo reply, ignore silently, 
+			   otherwise break the loop and go to parse the response */
+			break;
 		}
-		break;
-	} while (1);
 
-	delta_t = k_uptime_get() - start_t;
-
+	} while (true);
+    
 	if (rep == ICMP_ECHO_REP) {
 		/* Check ICMP HCS */
 		int hcs = check_ics(data, len - header_len);
@@ -315,26 +366,27 @@ wait_for_data:
 		}
 		pllen = (buf[2] << 8) + buf[3]; // Raw socket payload length
 	} else {
-	        // Check ICMP6 CRC
-	        uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header source + dest
-	        hcs += check_ics(buf + 4, 2);           // Pseudo header packet length
-	        uint8_t tbuf[2];
-	        tbuf[0] = 0; tbuf[1] = buf[6];
-	        hcs += check_ics(tbuf, 2);              // Pseudo header Next header
-	        hcs += check_ics(data, 2);              // Type & Code
-	        hcs += check_ics(data + 4, len - header_len - 4);   // Header data + Data
+	    // Check ICMP6 CRC
+	    uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header source + dest
+	    hcs += check_ics(buf + 4, 2);           // Pseudo header packet length
+	    uint8_t tbuf[2];
+	    tbuf[0] = 0; tbuf[1] = buf[6];
+	    hcs += check_ics(tbuf, 2);              // Pseudo header Next header
+	    hcs += check_ics(data, 2);              // Type & Code
+	    hcs += check_ics(data + 4, len - header_len - 4);   // Header data + Data
 
-	        while(hcs > 0xFFFF)
-	            hcs = (hcs & 0xFFFF) + (hcs >> 16);
+	    while(hcs > 0xFFFF)
+	        hcs = (hcs & 0xFFFF) + (hcs >> 16);
 
-	        int plhcs = data[2] + (data[3] << 8);
+	    int plhcs = data[2] + (data[3] << 8);
+
 		if (plhcs != hcs) {
 			shell_error(shell, "IPv6 HCS error: 0x%x 0x%x\r\n", plhcs, hcs);
 			delta_t = 0;
 			goto close_end;
 		}
 		/* Raw socket payload length */
-	        pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr
+	    pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr
 	}
 	
 	/* Data payload length: */
@@ -345,10 +397,7 @@ wait_for_data:
 	if (plseqnr != seqnr) {
 		/* This is not the reply you are looking for */
 
-		/* Calculate how much there's still time left */
-		timeout = ping_argv.timeout - (int32_t)delta_t;
-		delta_t = 0;
-		/* Wait for next response if there' still time */
+		/* Wait for the next response if there' still time */
 		if (timeout > 0) {
 			goto wait_for_data;
 		} else {
@@ -363,9 +412,10 @@ wait_for_data:
 	}
 
 	/* Result */
-	shell_print(shell, "Pinging %s results: time=%d.%03dsecs, payload sent: %d, payload received %d",
-		ping_argv.target_name, (uint32_t)(delta_t) / 1000,
-		(uint32_t)(delta_t) % 1000, ping_argv.len, dpllen);
+	shell_print(shell, 
+		"Pinging %s results: time=%d.%03dsecs, payload sent: %d, payload received %d",
+			ping_argv.target_name, (uint32_t)(delta_t) / 1000,
+			(uint32_t)(delta_t) % 1000, ping_argv.len, dpllen);
 
 close_end:
 	(void)close(fd);
