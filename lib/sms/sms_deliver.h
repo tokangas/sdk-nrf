@@ -7,7 +7,10 @@
 #ifndef _SMS_DELIVER_INCLUDE_H_
 #define _SMS_DELIVER_INCLUDE_H_
 
-void *sms_deliver_get_api(void);
+/* Forward declaration */
+struct sms_deliver_header;
+
+int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out);
 
 #endif
 

@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-/* Header guard */
-#ifndef STRING_CONVERSION_H_
-#define STRING_CONVERSION_H_
+#ifndef _STRING_CONVERSION_H_
+#define _STRING_CONVERSION_H_
 
 #include <stdint.h>
 #include <stdbool.h>
