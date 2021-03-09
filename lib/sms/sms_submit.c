@@ -6,6 +6,7 @@
 
 #include <logging/log.h>
 #include <stdio.h>
+#include <zephyr.h>
 #include <errno.h>
 #include <modem/at_cmd.h>
 #include <modem/sms.h>
@@ -88,8 +89,6 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 	int ret;
 	static uint8_t concat_msg_id = 1;
 	static uint8_t message_ref = 1;
-	char send_data[500];
-	memset(send_data, 0, 500);
 
 	uint8_t size = 0;
 	uint16_t text_size = strlen(text);
@@ -103,13 +102,35 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 	memcpy(ud, udh, sizeof(udh));
 
 	uint16_t text_encoded_size = 0;
-	uint8_t concat_seq_number = 1;
+	uint8_t concat_seq_number = 0;
 	char *text_index = text;
+	char *send_bufs[CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT] = {0};
+	uint16_t send_bufs_udh_pos[CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT] = {0};
+
 	while (text_encoded_size < text_size) {
+		if (concat_seq_number >= CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT) {
+			LOG_WRN("Sent data cannot fit into maximum number of concatenated messages (%d)",
+				CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT);
+			for (int i = 0; i < concat_seq_number; i++) {
+				k_free(send_bufs[i]);
+			}
+			return -E2BIG;
+		}
+
 		uint16_t text_part_size = strlen(text_index);
 		if (text_part_size > 153) {
 			text_part_size = 153;
 		}
+		send_bufs[concat_seq_number] = k_malloc(500);
+		if (send_bufs[concat_seq_number] == NULL) {
+			LOG_ERR("Unable to send concatenated message due to no memory");
+			/* Free memory reserved earlier */
+			for (int i = 0; i < concat_seq_number; i++) {
+				k_free(send_bufs[i]);
+			}
+			return -ENOMEM;
+		}
+
 		memcpy(ud + SMS_UDH_CONCAT_SIZE_SEPTETS, text_index, text_part_size);
 		
 		size = string_conversion_ascii_to_gsm7bit(
@@ -126,26 +147,27 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 			sprintf(encoded_data_hex_str + (2 * (i - SMS_UDH_CONCAT_SIZE_OCTETS)), "%02X", encoded[i]);
 		}
 
-		char udh_str[13];
-		/* TODO: We can only have concatenated message in two parts.
-		         Need to run a loop to count how many messages are
-			 needed first. */
-		uint8_t concat_number_of_parts = 2;
-		sprintf(udh_str, "050003%02X%02X%02X",
-			concat_msg_id, concat_number_of_parts, concat_seq_number);
 		int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
 		/* TODO: For non-concatenated SMS, we have TP-Validity-Period
-		   set to 0xFF. Hsving this byte in the concatenated SMS causes
+		   set to 0xFF. Having this byte in the concatenated SMS causes
 		   failure in sending CMGS AT command:
 		       CMS ERROR: 304	Invalid PDU mode parameter
 		   This is how it is in non-concatenated SMS:
 		       "AT+CMGS=%d\r0061%02X%02X91%s0000FF%02X%s%s\x1a",
 		   */
-		sprintf(send_data, "AT+CMGS=%d\r0061%02X%02X91%s0000%02X%s%s\x1a",
-			msg_size, message_ref++, encoded_number_size, encoded_number,
-			encoded_data_size, udh_str, encoded_data_hex_str);
+		
+		/* First, compose SMS header so that we get an index for
+		   User-Data-Header to add that when number of messages is known */
+		sprintf(send_bufs[concat_seq_number], "AT+CMGS=%d\r0061%02X%02X91%s0000%02X",
+			msg_size, message_ref, encoded_number_size, encoded_number, encoded_data_size);
+		send_bufs_udh_pos[concat_seq_number] = strlen(send_bufs[concat_seq_number]);
+
+		/* Then, add empty User-Data-Header to be filled later,
+		   and the actual user data */
+		sprintf(send_bufs[concat_seq_number] + send_bufs_udh_pos[concat_seq_number], "000000000000%s\x1a",
+			encoded_data_hex_str);
 		LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
-		LOG_DBG("%s", log_strdup(send_data));
+		LOG_DBG("%s", log_strdup(send_bufs[concat_seq_number]));
 		LOG_DBG("SMS data encoded: %s", log_strdup(encoded_data_hex_str));
 		LOG_DBG("encoded_number_size_octets=%d, encoded_number_size=%d, "
 			"size=%d, encoded_size=%d, encoded_data_size=%d, text_encoded_size=%d, text_size=%d, msg_size=%d",
@@ -158,10 +180,19 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 			text_size,
 			msg_size);
 
+		message_ref++;
 		concat_seq_number++;
+	}
+
+	for (int i = 0; i < concat_seq_number; i++) {
+		char udh_str[13] = {};
+		sprintf(udh_str, "050003%02X%02X%02X",
+			concat_msg_id, concat_seq_number, i + 1);
+
+		memcpy(send_bufs[i] + send_bufs_udh_pos[i], udh_str, strlen(udh_str));
 
 		enum at_cmd_state state = 0;
-		ret = at_cmd_write(send_data, at_response_str,
+		ret = at_cmd_write(send_bufs[i], at_response_str,
 			sizeof(at_response_str), &state);
 		if (ret) {
 			LOG_ERR("at_cmd_write returned state=%d, err=%d", state, ret);
@@ -169,6 +200,7 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 		}
 		LOG_DBG("AT Response:%s", log_strdup(at_response_str));
 
+		k_free(send_bufs[i]);
 		/* TODO: Just looping without threading may not work out and
 		        we need to wait for CDS response, which would mean
 			we need to send 2nd message from work queue and store
