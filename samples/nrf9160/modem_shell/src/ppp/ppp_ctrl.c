@@ -127,7 +127,6 @@ int ppp_ctrl_start(const struct shell *shell) {
 	}
 
 #ifdef SO_SNDTIMEO
-#ifdef SO_RCVTIMEO
     struct timeval tv;
 
     /* blocking socket and we do not want to block for long: 3 sec timeout for sending: */
@@ -136,11 +135,8 @@ int ppp_ctrl_start(const struct shell *shell) {
     if (setsockopt(ppp_modem_data_raw_socket_fd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
 		shell_error(shell, "Unable to set socket SO_SNDTIMEO");
 	}
-	else {
-		shell_info(shell, "SO_SNDTIMEO set OK");
-	}
 #endif
-#endif
+
 	net_if_up(iface);
 	return 0;
 
