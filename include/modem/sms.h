@@ -37,10 +37,28 @@ struct sms_deliver_header;
 
 /** @brief SMS PDU data. */
 struct sms_data {
+	/**
+	 * Phone number of the incoming SMS message.
+	 * his is alpha parameter from CMT AT command.
+	 * See 3GPP TS 27.005 for more information.
+	 */
 	char *alpha;
+	/**
+	 * Length of the SMS pdu as decoded from CMT AT command.
+	 * See 3GPP TS 27.005 for more information.
+	 */
 	uint16_t length;
+	/** SMS pdu. */
 	char *pdu;
+	/** Received message type. */
 	enum sms_type type;
+	/**
+	 * SMS header.
+	 * This is for incoming message and more specifically SMS-DELIVER
+	 * message specified in 3GPP TS 23.040.
+	 * 
+	 * TODO: Right now this has also user data so the naming is confusing.
+	 */
 	struct sms_deliver_header *header;
 };
 
@@ -94,7 +112,7 @@ struct sms_deliver_header {
 	bool                        presence_of_class;
 	enum sms_deliver_class      class;
 	struct sms_deliver_address  service_center_address;
-	struct sms_deliver_address  orginator_address;
+	struct sms_deliver_address  originating_address;
 	uint8_t                     ud_len;
 	uint8_t                     udh_len;
 	uint8_t                     *udh;

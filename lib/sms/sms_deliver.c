@@ -59,18 +59,17 @@ struct pdu_dcs_field {
 };
 
 struct pdu_deliver_data {
-	struct pdu_deliver_header   field_header;
-	struct pdu_do_field         field_do;  /** TP-Originating-Address */
-/* TODO: Seems dcs and pid are in wrong order in the code compared to 3GPP TS 23.040 chapter 9.2.2.1 */
-	struct pdu_dcs_field        field_dcs; /** TP-Data-Coding-Scheme */
+	struct pdu_deliver_header   field_header; /** First byte of header */
+	struct pdu_do_field         field_oa;  /** TP-Originating-Address */
 	uint8_t                     field_pid; /** TP-Protocol-Identifier */
+	struct pdu_dcs_field        field_dcs; /** TP-Data-Coding-Scheme */
 	struct sms_deliver_time     timestamp; /** TP-Service-Centre-Time-Stamp */
 	uint8_t                     field_udl; /** TP-User-Data-Length */
 	uint8_t                     field_udhl; /** User Data Header Length */
 	uint8_t                     field_udh[140]; /** User Data Header */
-	struct sms_udh_app_port     field_udh_app_port;
-	struct sms_udh_concatenated field_udh_concatenated;
-	uint8_t                     field_ud[140]; /** TP-User-Data */ 
+	struct sms_udh_app_port     field_udh_app_port; /** Port addressing */
+	struct sms_udh_concatenated field_udh_concatenated; /** Concatenation */
+	uint8_t                     field_ud[140]; /** TP-User-Data */
 };
 
 static uint8_t swap_nibbles(uint8_t value)
@@ -124,32 +123,32 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 static int decode_pdu_do_field(struct parser *parser, uint8_t *buf)
 {
 
-	DELIVER_DATA(parser)->field_do.length   = (uint8_t)*buf++;
-	DELIVER_DATA(parser)->field_do.adr_type = (uint8_t)*buf++;
+	DELIVER_DATA(parser)->field_oa.length   = (uint8_t)*buf++;
+	DELIVER_DATA(parser)->field_oa.adr_type = (uint8_t)*buf++;
 
-	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_do.length);
-	LOG_DBG("Type-of-Address: %02X", DELIVER_DATA(parser)->field_do.adr_type);
+	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_oa.length);
+	LOG_DBG("Type-of-Address: %02X", DELIVER_DATA(parser)->field_oa.adr_type);
 
-	if (DELIVER_DATA(parser)->field_do.length > SMS_MAX_ADDRESS_LEN_CHARS) {
+	if (DELIVER_DATA(parser)->field_oa.length > SMS_MAX_ADDRESS_LEN_CHARS) {
 		LOG_ERR("Maximum address length (%d) exceeded %d. Aborting decoding.",
 			SMS_MAX_ADDRESS_LEN_OCTETS,
-			DELIVER_DATA(parser)->field_do.length);
+			DELIVER_DATA(parser)->field_oa.length);
 		return -EINVAL;
 	}
 
-	uint8_t length = DELIVER_DATA(parser)->field_do.length / 2;
-	if (DELIVER_DATA(parser)->field_do.length % 2 == 1) {
+	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
+	if (DELIVER_DATA(parser)->field_oa.length % 2 == 1) {
 		/* There is an extra number in semi-octet and fill bits*/
 		length++;
 	}
 
-	memcpy(DELIVER_DATA(parser)->field_do.adr,
+	memcpy(DELIVER_DATA(parser)->field_oa.adr,
 	       buf, 
 	       length);
 
 	for(int i = 0; i < length; i++) {
-		DELIVER_DATA(parser)->field_do.adr[i] = 
-			swap_nibbles(DELIVER_DATA(parser)->field_do.adr[i]);
+		DELIVER_DATA(parser)->field_oa.adr[i] = 
+			swap_nibbles(DELIVER_DATA(parser)->field_oa.adr[i]);
 	}
 
 	return 2 + length;
@@ -514,9 +513,9 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	       parser->buf[0]);
 
 	/* Copy and log address string */
-	uint8_t length = DELIVER_DATA(parser)->field_do.length / 2;
+	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
 	bool fill_bits = false;
-	if (DELIVER_DATA(parser)->field_do.length % 2 == 1) {
+	if (DELIVER_DATA(parser)->field_oa.length % 2 == 1) {
 		/* There is an extra number in semi-octet and fill bits*/
 		length++;
 		fill_bits = true;
@@ -526,19 +525,19 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 
 	/* TODO: Move number encoding to separate function */
 	/* This is already ensured in decode_pdu_do_field():
-	   assert(DELIVER_DATA(parser)->field_do.length >= SMS_MAX_ADDRESS_LEN_CHARS);
+	   assert(DELIVER_DATA(parser)->field_oa.length >= SMS_MAX_ADDRESS_LEN_CHARS);
 	*/
-	char encoded_number[SMS_MAX_ADDRESS_LEN_CHARS];
+	char encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	uint8_t hex_str_index = 0;
 	for (int i = 0; i < length; i++) {
-		uint8_t number = (DELIVER_DATA(parser)->field_do.adr[i] & 0xF0) >> 4;
+		uint8_t number = (DELIVER_DATA(parser)->field_oa.adr[i] & 0xF0) >> 4;
 		if (number >= 10) {
 			LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
 		}
 		sprintf(encoded_number + hex_str_index, "%d", number);
 
 		if (i < length - 1 || !fill_bits) {
-			uint8_t number = DELIVER_DATA(parser)->field_do.adr[i] & 0x0F;
+			uint8_t number = DELIVER_DATA(parser)->field_oa.adr[i] & 0x0F;
 			if (number >= 10) {
 				LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet", i, number);
 			}
@@ -547,22 +546,23 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 		}
 		hex_str_index += 2;
 	}
+	encoded_number[hex_str_index] = '\0';
 
 	LOG_DBG("Address-Value: %s", log_strdup(encoded_number));
 
-	memset(sms_header->orginator_address.address_str, 0,
+	memset(sms_header->originating_address.address_str, 0,
 		SMS_MAX_ADDRESS_LEN_CHARS + 1);
-	memcpy(sms_header->orginator_address.address_str, encoded_number,
-		DELIVER_DATA(parser)->field_do.length);
+	memcpy(sms_header->originating_address.address_str, encoded_number,
+		SMS_MAX_ADDRESS_LEN_CHARS + 1);
 
-	sms_header->orginator_address.length =
-		DELIVER_DATA(parser)->field_do.length;
-	sms_header->orginator_address.type   =
-		DELIVER_DATA(parser)->field_do.adr_type;
+	sms_header->originating_address.length =
+		DELIVER_DATA(parser)->field_oa.length;
+	sms_header->originating_address.type   =
+		DELIVER_DATA(parser)->field_oa.adr_type;
 
-	memcpy(sms_header->orginator_address.address,
-	       DELIVER_DATA(parser)->field_do.adr,
-	       DELIVER_DATA(parser)->field_do.length);
+	memcpy(sms_header->originating_address.address,
+	       DELIVER_DATA(parser)->field_oa.adr,
+	       SMS_MAX_ADDRESS_LEN_OCTETS);
 
 	sms_header->ud_len = DELIVER_DATA(parser)->field_udl -
 			     DELIVER_DATA(parser)->field_udhl;

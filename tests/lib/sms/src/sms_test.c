@@ -607,6 +607,11 @@ static void sms_callback(struct sms_data *const data, void *context)
 		return;
 	}
 
+	TEST_ASSERT_EQUAL_STRING(test_sms_header.originating_address.address_str, sms_header->originating_address.address_str);
+	TEST_ASSERT_EQUAL(test_sms_header.originating_address.length, sms_header->originating_address.length);
+	TEST_ASSERT_EQUAL(test_sms_header.originating_address.type, sms_header->originating_address.type);
+	/* Not checking sms_header->originating_address.address as that's semi-octet representation */
+
 	TEST_ASSERT_EQUAL(test_sms_header.time.year, sms_header->time.year);
 	TEST_ASSERT_EQUAL(test_sms_header.time.month, sms_header->time.month);
 	TEST_ASSERT_EQUAL(test_sms_header.time.day, sms_header->time.day);
@@ -634,13 +639,21 @@ static void sms_callback(struct sms_data *const data, void *context)
 	}
 }
 
-void test_recv_len3_number10(void)
+/**
+ * Tests:
+ * - 3 bytes long user data
+ * - 13 characters long number
+ */
+void test_recv_len3_number13(void)
 {
 	sms_init_helper();
 
-	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_data.alpha, "+1234567890123");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890123");
+	test_sms_header.originating_address.length = 13;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
-	strcpy(test_sms_data.pdu, "0791534874894320040A91214365870900001220900285438003CD771A");
+	strcpy(test_sms_data.pdu, "0791534874894320040D91214365870921F300001220900285438003CD771A");
 	test_sms_header.data_len = 3;
 	strcpy(test_sms_header.ud, "Moi");
 	test_sms_header.time.year = 21;
@@ -652,16 +665,26 @@ void test_recv_len3_number10(void)
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
-	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0791534874894320040A91214365870900001220900285438003CD771A\r\n");
+	sms_at_handler(NULL, "+CMT: \"+1234567890123\",22\r\n0791534874894320040D91214365870921F300001220900285438003CD771A\r\n");
 
 	sms_uninit_helper();
 }
 
+/**
+ * Tests:
+ * - 1 byte long user data
+ * - 9 characters long number
+ * - different number in AT command alpha parameter and SMS-DELIVER message
+ *   TP-OA field.
+ */
 void test_recv_len1_number9(void)
 {
 	sms_init_helper();
 
-	strcpy(test_sms_data.alpha, "+123456789");
+	strcpy(test_sms_data.alpha, "+123456789012");
+	strcpy(test_sms_header.originating_address.address_str, "123456789");
+	test_sms_header.originating_address.length = 9;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 20;
 	strcpy(test_sms_data.pdu, "079153487489432004099121436587F90000122090028543800131");
 	test_sms_header.data_len = 1;
@@ -675,7 +698,7 @@ void test_recv_len1_number9(void)
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
-	sms_at_handler(NULL, "+CMT: \"+123456789\",20\r\n079153487489432004099121436587F90000122090028543800131\r\n");
+	sms_at_handler(NULL, "+CMT: \"+123456789012\",20\r\n079153487489432004099121436587F90000122090028543800131\r\n");
 
 	sms_uninit_helper();
 }
@@ -685,6 +708,9 @@ void test_recv_len8_number20(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+12345678901234567890");
+	strcpy(test_sms_header.originating_address.address_str, "12345678901234567890");
+	test_sms_header.originating_address.length = 20;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 30;
 	strcpy(test_sms_data.pdu, "0791534874894320041491214365870921436587090000122090028543800831D98C56B3DD70");
 	test_sms_header.data_len = 8;
@@ -708,6 +734,9 @@ void test_recv_concat_len291_msgs2(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
@@ -756,6 +785,9 @@ void test_recv_concat_len755_msgs5(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 159;
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
@@ -846,6 +878,9 @@ void test_recv_special_characters(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+123456789");
+	strcpy(test_sms_header.originating_address.address_str, "123456789");
+	test_sms_header.originating_address.length = 9;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 20;
 	strcpy(test_sms_data.pdu, "079153487489432004099121436587F90000122090028543802F5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00D10B429BB00");
 	test_sms_header.data_len = 38;
@@ -875,6 +910,9 @@ void test_recv_concat_escape_character_last(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 159;
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
@@ -915,11 +953,6 @@ void test_recv_concat_escape_character_last(void)
 	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A9121436587090000122022806550801305000351020236E5986C46ABD96EB81C0C\r\n");
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
-/*
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=150\r00610505912143F500009F05000303020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC900\x1A", NULL, 0, &state1, 0);
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=27\r00610605912143F500001305000303020236E5986C46ABD96EB81C0C\x1A", NULL, 0, &state2, 0);
-	int ret = sms_send("12345", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012\xA4""1234567890");
-*/
 	sms_uninit_helper();
 }
 
@@ -929,6 +962,9 @@ void test_recv_port_addr(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "12345678");
+	strcpy(test_sms_header.originating_address.address_str, "12345678");
+	test_sms_header.originating_address.length = 8;
+	test_sms_header.originating_address.type = 0x81;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652b1b0b05040b84000000037c01010102030405060708090A0B0C0D0E0F");
 	test_sms_header.data_len = 15;
@@ -990,6 +1026,9 @@ void test_recv_empty_sms_text(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 18;
 	strcpy(test_sms_data.pdu, "00040A91214365870900001220900285438000");
 	test_sms_header.data_len = 0;
@@ -1099,6 +1138,9 @@ void test_recv_invalid_udl_shorter_than_ud_7bit(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031");
 	test_sms_header.data_len = 32;
@@ -1127,6 +1169,9 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len41(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031");
 	test_sms_header.data_len = 41;
@@ -1155,6 +1200,9 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len40(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560");
 	test_sms_header.data_len = 40;
@@ -1179,6 +1227,9 @@ void test_recv_invalid_udl_longer_than_ud_8bit(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00040A9121436587090004122012320544800A010203040506070809");
 	test_sms_header.data_len = 9;
@@ -1203,6 +1254,9 @@ void test_recv_invalid_udl_shorter_than_ud_8bit(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00040A9121436587090004122012320544800A0102030405060708090A0B0C0D0E0F");
 	test_sms_header.data_len = 10;
@@ -1248,6 +1302,9 @@ void test_recv_udh_with_datalen0(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00440A91214365870900001220123205448006050003AB0101");
 	test_sms_header.data_len = 0;
@@ -1283,6 +1340,9 @@ void test_recv_udh_with_datalen0_fill_byte(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00440A91214365870900001220123205448007050003AB010100");
 	test_sms_header.data_len = 0;
@@ -1315,6 +1375,9 @@ void test_recv_udh_with_datalen1(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "00440A91214365870900001220123205448008050003AB010162");
 	test_sms_header.data_len = 1;
@@ -1351,6 +1414,9 @@ void test_recv_invalid_udh_too_long_ie(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "12345678");
+	strcpy(test_sms_header.originating_address.address_str, "12345678");
+	test_sms_header.originating_address.length = 8;
+	test_sms_header.originating_address.type = 0x81;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652B1B0A05040B84111100037C010102030405060708090A0B0C0D0E0F");
 	test_sms_header.data_len = 15;
@@ -1394,6 +1460,9 @@ void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "12345678");
+	strcpy(test_sms_header.originating_address.address_str, "12345678");
+	test_sms_header.originating_address.length = 8;
+	test_sms_header.originating_address.type = 0x81;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652B2F1E00022A0100032A000200032A020000032A020304021100080511112222220102030405060708090A0B0C0D0E0F");
 	test_sms_header.data_len = 15;
@@ -1440,6 +1509,9 @@ void test_recv_invalid_udh_portaddr_ignored_concat_valid(void)
 	sms_init_helper();
 
 	strcpy(test_sms_data.alpha, "12345678");
+	strcpy(test_sms_header.originating_address.address_str, "12345678");
+	test_sms_header.originating_address.length = 8;
+	test_sms_header.originating_address.type = 0x81;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "004408812143658700041210032143652B2C1B01000804111101010400050712345678901234A1061234567890120102030405060708090A0B0C0D0E0F");
 	test_sms_header.data_len = 15;
@@ -1519,6 +1591,9 @@ void recv_basic(void)
 
 	test_sms_data.type = SMS_TYPE_DELIVER;
 	strcpy(test_sms_data.alpha, "+1234567890");
+	strcpy(test_sms_header.originating_address.address_str, "1234567890");
+	test_sms_header.originating_address.length = 10;
+	test_sms_header.originating_address.type = 0x91;
 	test_sms_data.length = 22;
 	strcpy(test_sms_data.pdu, "0791534874894320040A91214365870900001220900285438003CD771A");
 	test_sms_header.data_len = 3;
