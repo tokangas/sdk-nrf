@@ -20,10 +20,9 @@
 
 LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 
-#define AT_SMS_PARAMS_COUNT_MAX 6
-#define AT_SMS_RESPONSE_MAX_LEN 256
-
 #define AT_CNMI_PARAMS_COUNT 6
+#define AT_SMS_PARAMS_COUNT_MAX AT_CNMI_PARAMS_COUNT
+#define SMS_AT_RESPONSE_MAX_LEN 256
 
 /** @brief AT command to check if a client already exist. */
 #define AT_SMS_SUBSCRIBER_READ "AT+CNMI?"
@@ -39,7 +38,6 @@ LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 
 static struct k_work sms_ack_work;
 static struct at_param_list resp_list;
-static char resp[AT_SMS_RESPONSE_MAX_LEN];
 
 /**
  * @brief Indicates that the module has been successfully initialized
@@ -59,6 +57,32 @@ struct sms_subscriber {
 
 /** @brief List of subscribers. */
 static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
+
+static void sms_data_clear(struct sms_data *cmt_rsp)
+{
+	if (cmt_rsp->alpha != NULL) {
+		k_free(cmt_rsp->alpha);
+		cmt_rsp->alpha = NULL;
+	}
+
+	if (cmt_rsp->pdu != NULL) {
+		k_free(cmt_rsp->pdu);
+		cmt_rsp->pdu = NULL;
+	}
+
+	if (cmt_rsp->header != NULL) {
+		if (cmt_rsp->header->ud != NULL) {
+			k_free(cmt_rsp->header->ud);
+			cmt_rsp->header->ud = NULL;
+		}
+		if (cmt_rsp->header->udh != NULL) {
+			k_free(cmt_rsp->header->udh);
+			cmt_rsp->header->udh = NULL;
+		}
+		k_free(cmt_rsp->header);
+		cmt_rsp->header = NULL;
+	}
+}
 
 static void sms_ack(struct k_work *work)
 {
@@ -91,7 +115,8 @@ void sms_at_handler(void *context, const char *at_notif)
 		}
 	}
 
-	/* TODO: Free cmp_rsp memory including header, ud, udh*/
+	/* Clear dynamic memory reserved for SMS data */
+	sms_data_clear(&cmt_rsp);
 
 	/* Use system work queue to ACK SMS PDU because we cannot
 	 * call at_cmd_write from a notification callback.
@@ -101,6 +126,8 @@ void sms_at_handler(void *context, const char *at_notif)
 
 int sms_init(void)
 {
+	char resp[SMS_AT_RESPONSE_MAX_LEN];
+
 	k_work_init(&sms_ack_work, &sms_ack);
 
 	int ret = at_params_list_init(&resp_list, AT_SMS_PARAMS_COUNT_MAX);
@@ -215,6 +242,8 @@ void sms_unregister_listener(int handle)
 
 void sms_uninit(void)
 {
+	char resp[SMS_AT_RESPONSE_MAX_LEN];
+
 	/* Don't do anything if there are subscribers */
 	int subscribers = sms_subscriber_count();
 	if (subscribers > 0) {
@@ -240,24 +269,7 @@ void sms_uninit(void)
 	/* Cleanup resources. */
 	at_params_list_free(&resp_list);
 
-	if (cmt_rsp.alpha != NULL) {
-		k_free(cmt_rsp.alpha);
-		cmt_rsp.alpha = NULL;
-	}
-
-	if (cmt_rsp.pdu != NULL) {
-		k_free(cmt_rsp.pdu);
-		cmt_rsp.pdu = NULL;
-	}
-
-	if (cmt_rsp.header != NULL) {
-		if (cmt_rsp.header->ud != NULL) {
-			k_free(cmt_rsp.header->ud);
-			cmt_rsp.header->ud = NULL;
-		}
-		k_free(cmt_rsp.header);
-		cmt_rsp.header = NULL;
-	}
+	sms_data_clear(&cmt_rsp);
 
 	sms_client_registered = false;
 }

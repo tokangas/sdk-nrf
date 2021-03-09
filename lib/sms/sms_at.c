@@ -42,16 +42,6 @@ static int sms_cmt_at_parse(const char *const buf, struct sms_data *cmt_rsp, str
 		return err;
 	}
 
-	if (cmt_rsp->alpha != NULL) {
-		k_free(cmt_rsp->alpha);
-		cmt_rsp->alpha = NULL;
-	}
-
-	if (cmt_rsp->pdu != NULL) {
-		k_free(cmt_rsp->pdu);
-		cmt_rsp->pdu = NULL;
-	}
-
 	/* Save alpha as a null-terminated String. */
 	size_t alpha_len;
 	(void)at_params_size_get(resp_list, 1, &alpha_len);
@@ -99,16 +89,6 @@ static int sms_cds_at_parse(const char *const buf, struct sms_data *cmt_rsp, str
 		return err;
 	}
 
-	if (cmt_rsp->alpha != NULL) {
-		k_free(cmt_rsp->alpha);
-		cmt_rsp->alpha = NULL;
-	}
-
-	if (cmt_rsp->pdu != NULL) {
-		k_free(cmt_rsp->pdu);
-		cmt_rsp->pdu = NULL;
-	}
-
 	/* Length field saved as number. */
 	(void)at_params_short_get(resp_list, 1, &cmt_rsp->length);
 
@@ -132,9 +112,12 @@ int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp, struct at_param
 {
 	int err;
 
-	__ASSERT(at_notif != NULL, "at_notif NULL");
-	__ASSERT(cmt_rsp != NULL, "cmt_rsp NULL");
-	__ASSERT(resp_list != NULL, "resp_list NULL");
+	__ASSERT(at_notif != NULL, "at_notif is NULL");
+	__ASSERT(cmt_rsp != NULL, "cmt_rsp is NULL");
+	__ASSERT(cmt_rsp->alpha == NULL, "cmt_rsp->alpha is not NULL");
+	__ASSERT(cmt_rsp->pdu == NULL, "cmt_rsp->pdu is not NULL");
+	__ASSERT(cmt_rsp->header == NULL, "cmt_rsp->header is not NULL");
+	__ASSERT(resp_list != NULL, "resp_list is NULL");
 
 	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
 		AT_SMS_NOTIFICATION_LEN) == 0) {
@@ -147,15 +130,6 @@ int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp, struct at_param
 			return err;
 		}
 
-		/* Parse SMS-DELIVER PDU */
-		if (cmt_rsp->header != NULL) {
-			if (cmt_rsp->header->ud != NULL) {
-				k_free(cmt_rsp->header->ud);
-				cmt_rsp->header->ud = NULL;
-			}
-			k_free(cmt_rsp->header);
-			cmt_rsp->header = NULL;
-		}
 		cmt_rsp->header = k_malloc(sizeof(struct sms_deliver_header));
 		if (cmt_rsp->header == NULL) {
 			LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
@@ -171,16 +145,6 @@ int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp, struct at_param
 
 		LOG_DBG("SMS submit report received");
 		cmt_rsp->type = SMS_TYPE_SUBMIT_REPORT;
-
-		/* Parse SMS-DELIVER PDU */
-		if (cmt_rsp->header != NULL) {
-			if (cmt_rsp->header->ud != NULL) {
-				k_free(cmt_rsp->header->ud);
-				cmt_rsp->header->ud = NULL;
-			}
-			k_free(cmt_rsp->header);
-			cmt_rsp->header = NULL;
-		}
 
 		err = sms_cds_at_parse(at_notif, cmt_rsp, resp_list);
 		if (err != 0) {

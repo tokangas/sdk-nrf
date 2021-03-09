@@ -570,6 +570,10 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	if (DELIVER_DATA(parser)->field_udhl > 0) {
 		sms_header->udh_len = DELIVER_DATA(parser)->field_udhl - 1;
 		sms_header->udh = k_malloc(DELIVER_DATA(parser)->field_udhl);
+		if (sms_header->udh == NULL) {
+			LOG_ERR("Parsing failed due to no memory");
+			return -ENOMEM;
+		}
 		memcpy(sms_header->udh, DELIVER_DATA(parser)->field_udh, DELIVER_DATA(parser)->field_udhl);
 	} else {
 		sms_header->udh_len = 0;

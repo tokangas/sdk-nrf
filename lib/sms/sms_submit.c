@@ -20,6 +20,7 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define SMS_UDH_CONCAT_SIZE_OCTETS 6
 #define SMS_UDH_CONCAT_SIZE_SEPTETS 7
 
+#define SMS_AT_RESPONSE_MAX_LEN 256
 
 /**
  * @brief Encode phone number into format specified within SMS header.
@@ -85,7 +86,7 @@ static int sms_submit_encode_number(
 
 static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t encoded_number_size, uint8_t encoded_number_size_octets)
 {
-	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
+	char at_response_str[SMS_AT_RESPONSE_MAX_LEN];
 	int ret;
 	static uint8_t concat_msg_id = 1;
 	static uint8_t message_ref = 1;
@@ -212,7 +213,7 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 
 int sms_submit_send(char* number, char* text)
 {
-	char at_response_str[CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1];
+	char at_response_str[SMS_AT_RESPONSE_MAX_LEN];
 	int ret;
 
 	LOG_DBG("Sending SMS to number=%s, text='%s'",
