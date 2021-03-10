@@ -38,10 +38,10 @@ extern const struct shell* ppp_shell_global;
 extern int ppp_modem_data_raw_socket_fd;
 
 /* forward declarations: */
-typedef enum net_verdict (*net_core_callback_t)(struct net_if *iface,
-					      struct net_pkt *pkt);
+typedef enum net_verdict (*net_core_offloaded_rcv_cb_t)(struct net_pkt *pkt);
 
-void net_core_register_pkt_cb(net_core_callback_t cb); /* found in net_core.c */
+/* found in zephyr net_core.c */
+void net_core_register_offloaded_pkt_rcv_cb(net_core_offloaded_rcv_cb_t cb);
 
 static uint8_t buf_tx[CONFIG_NET_PPP_MTU_MRU];
 
@@ -57,17 +57,25 @@ static void ppp_mdm_data_snd(struct net_pkt *pkt)
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
 	if (ret < 0) {
-		printk("ppp_mdm_data_snd: cannot read packet: %d, from pkt %p\n", ret, pkt);
+		shell_error(
+			ppp_shell_global,
+			"ppp_mdm_data_snd: cannot read packet: %d, from pkt %p", 
+				ret, pkt);
 	} else {	
-		//printk("ppp_mdm_data_snd: going to send() %d bytes ", data_len);
 		ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
 			
 		/* Note: no worth to handle partial sends for raw sockets */
 		if (ret < 0) {
-			printk("ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", -errno, data_len);
+		shell_error(
+			ppp_shell_global,
+			"ppp_mdm_data_snd: send() failed: (%d), data len: %d\n", 
+				-errno, data_len);
 		}
 		else if (ret != data_len) {
-			printk("ppp_mdm_data_snd: only partially sent, only %d of original %d was sent", ret, data_len);
+		shell_error(
+			ppp_shell_global,
+			"ppp_mdm_data_snd: only partially sent, only %d of original %d was sent",
+				ret, data_len);
 		}
 	}
 	net_pkt_unref(pkt);
@@ -91,33 +99,43 @@ static void ppp_ctrl_process_ppp_rx_packet(struct k_work *item)
 }
 #endif
 
-enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct net_pkt *pkt)
+enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_pkt *pkt)
 {
-	//TODO?
-	//iface not needed as parameter? set in pkt and can be get:	iface = net_pkt_iface(pkt);
+	struct net_if *iface = net_pkt_iface(pkt);
+
 	if (!pkt->buffer) {
-		printk("MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: No data to recv!");
+		shell_error(
+			ppp_shell_global,
+			"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: No data to recv!");
 		goto drop;
 	}
-	if (iface && iface != ppp_iface_global) {//&NET_L2_GET_NAME(PPP)
-		printk("MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not for ppp iface\n");
+	if (iface && iface != ppp_iface_global) {
+		shell_error(
+			ppp_shell_global,
+			"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not for ppp iface\n");
 		return NET_CONTINUE;
 	}
 	if (ppp_modem_data_raw_socket_fd == PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
-		printk("MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: no socket to modem\n");
+		shell_error(
+			ppp_shell_global,
+			"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: no socket to modem\n");
 		return NET_CONTINUE;
 	}
 
 	char type = (NET_IPV6_HDR(pkt)->vtc & 0xf0);
 	if (type != 0x40) {
-		printk("MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not IPv4 data\n");
+		shell_error(
+			ppp_shell_global,
+			"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: not IPv4 data\n");
 		goto drop;
 	}
 #if defined(PPP_CTRL_UPLINK_WORKER)
 	struct net_pkt *raw_pkt;
 	raw_pkt = net_pkt_clone(pkt, UPLINK_DATA_CLONE_TIMEOUT);
 	if (!raw_pkt) {
-		printk("MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: pkt not cloned, dropping\n");
+		shell_error(
+			ppp_shell_global,
+			"MoSH: ppp_mdm_data_snd_data_rcv_from_ppp: pkt not cloned, dropping\n");
 		goto drop;
 	}
 
@@ -135,14 +153,20 @@ enum net_verdict ppp_mdm_data_snd_data_rcv_from_ppp(struct net_if *iface, struct
 
 	ret = net_pkt_read(pkt, buf_tx, data_len);
 	if (ret < 0) {
-		printk("ppp_mdm_data_snd_data_rcv_from_ppp: cannot read packet: %d, from pkt %p", ret, pkt);
+		shell_error(
+			ppp_shell_global,
+			"ppp_mdm_data_snd_data_rcv_from_ppp: cannot read packet: %d, from pkt %p", 
+				ret, pkt);
 		goto drop;
 	}
 	ret = send(ppp_modem_data_raw_socket_fd, buf_tx, data_len, 0);
 
 	/* Note: partial sends not handled */
 	if (ret <= 0) {
-		printk("ppp_mdm_data_snd_data_rcv_from_ppp: send() failed: (%d), data len: %d\n", ret, data_len);
+		shell_error(
+			ppp_shell_global,
+			"ppp_mdm_data_snd_data_rcv_from_ppp: send() failed: (%d), data len: %d\n", 
+				ret, data_len);
 		goto drop;
 	}
 	net_pkt_unref(pkt);
@@ -161,6 +185,6 @@ void ppp_mdm_data_snd_init()
 		       UPLINK_WORKQUEUE_PRIORITY);
 	k_thread_name_set(&uplink_work_q.thread, "ppp_modem_ul_data_thread");
 #endif
-	net_core_register_pkt_cb(ppp_mdm_data_snd_data_rcv_from_ppp);
+	net_core_register_offloaded_pkt_rcv_cb(ppp_mdm_data_snd_data_rcv_from_ppp);
 }
 #endif /* CONFIG_FTA_PPP */
