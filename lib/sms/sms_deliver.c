@@ -230,34 +230,10 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
 	}
 }
 
-static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
+static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 {
-	/* Check if TP-User-Data-Header-Indicator is not set */
-	if (!DELIVER_DATA(parser)->field_header.udhi) {
-		return 0;
-	}
-
-	uint8_t ofs=0;
-
-	uint8_t udhl = buf[ofs++];
-	LOG_DBG("User Data Header Length: %d", udhl);
-	DELIVER_DATA(parser)->field_udhl = udhl + 1;  /* +1 for length field itself */
-
-	if (DELIVER_DATA(parser)->field_udhl > DELIVER_DATA(parser)->field_udl) {
-		LOG_ERR("User Data Header Length %d is bigger than User-Data-Length %d",
-			DELIVER_DATA(parser)->field_udhl,
-			DELIVER_DATA(parser)->field_udl);
-		return -EMSGSIZE;
-	}
-	if (DELIVER_DATA(parser)->field_udhl > parser->data_length - parser->buf_pos) {
-		LOG_ERR("User Data Header Length %d is bigger than remaining input data length %d",
-			DELIVER_DATA(parser)->field_udhl,
-			parser->data_length - parser->buf_pos);
-		return -EMSGSIZE;
-	}
-
-	/* Copy User-Data-Header. +1 to skip the length field. */
-	memcpy(DELIVER_DATA(parser)->field_udh, buf+1, udhl);
+	/* Start from 1 as 0 index has UDHL */
+	uint8_t ofs = 1;
 
 	while (ofs < DELIVER_DATA(parser)->field_udhl) {
 		int ie_id     = buf[ofs++];
@@ -352,6 +328,37 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 		}
 		ofs += ie_length;
 	}
+}
+
+static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
+{
+	/* Check if TP-User-Data-Header-Indicator is not set */
+	if (!DELIVER_DATA(parser)->field_header.udhi) {
+		return 0;
+	}
+
+	uint8_t udhl = buf[0];
+
+	LOG_DBG("User Data Header Length: %d", udhl);
+	DELIVER_DATA(parser)->field_udhl = udhl + 1;  /* +1 for length field itself */
+
+	if (DELIVER_DATA(parser)->field_udhl > DELIVER_DATA(parser)->field_udl) {
+		LOG_ERR("User Data Header Length %d is bigger than User-Data-Length %d",
+			DELIVER_DATA(parser)->field_udhl,
+			DELIVER_DATA(parser)->field_udl);
+		return -EMSGSIZE;
+	}
+	if (DELIVER_DATA(parser)->field_udhl > parser->data_length - parser->buf_pos) {
+		LOG_ERR("User Data Header Length %d is bigger than remaining input data length %d",
+			DELIVER_DATA(parser)->field_udhl,
+			parser->data_length - parser->buf_pos);
+		return -EMSGSIZE;
+	}
+
+	/* Copy User-Data-Header. +1 to skip the length field. */
+	memcpy(DELIVER_DATA(parser)->field_udh, buf + 1, udhl);
+
+	decode_pdu_udh_ie(parser, buf);
 
 	/* Returning zero for GSM 7bit encoding so that the start of the
 	   payload won't move further as SMS 7bit encoding is done for UDH
@@ -402,7 +409,8 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	/* Number of characters/bytes in the actual data which excludes
 	   User Data Header but minimum is 0. In some corner cases this would
 	   result in negative value causing crashes. */
-	int length_udh_skipped = (length >= skip_septets) ? (int)(length - skip_septets) : 0;
+	int length_udh_skipped = (length >= skip_septets) ?
+		(int)(length - skip_septets) : 0;
 
 	/* Verify that payload buffer is not too short */
 	__ASSERT(length_udh_skipped <= parser->payload_buf_size, "GSM 7bit User-Data-Length shorter than output buffer");
