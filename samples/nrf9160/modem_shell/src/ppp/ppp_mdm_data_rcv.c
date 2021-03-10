@@ -23,9 +23,7 @@
 #if defined (CONFIG_FTA_PPP)
 
 /* ppp globals: */
-extern const struct shell* ppp_shell_global;
 extern int ppp_modem_data_raw_socket_fd;
-extern struct net_if *ppp_iface_global;
 
 #define PPP_MODEM_DATA_RCV_THREAD_STACK_SIZE        1024
 #define PPP_MODEM_DATA_RCV_THREAD_PRIORITY          K_PRIO_COOP(10) /* -6 */
@@ -33,7 +31,7 @@ extern struct net_if *ppp_iface_global;
 #define PPP_MODEM_DATA_RCV_BUFFER_SIZE              CONFIG_NET_PPP_MTU_MRU
 #define PPP_MODEM_DATA_RCV_PKT_BUF_ALLOC_TIMEOUT	K_MSEC(500)
 
-static char receive_buffer[PPP_MODEM_DATA_RCV_BUFFER_SIZE]; //TODO: from heap?
+static char receive_buffer[PPP_MODEM_DATA_RCV_BUFFER_SIZE];
 
 static void ppp_modem_dl_data_thread_handler()
 {
@@ -62,18 +60,16 @@ static void ppp_modem_dl_data_thread_handler()
 			if (ret > 0) {// && (fds[0].revents & POLLIN)
 				recv_data_len = recv(ppp_modem_data_raw_socket_fd, receive_buffer, PPP_MODEM_DATA_RCV_BUFFER_SIZE, 0);
 				if (recv_data_len > 0) {
-					//shell_info(ppp_shell_global, "ppp_modem_dl_data_thread_handler: data received from modem, len %d", recv_data_len);
-
 					pkt = net_pkt_alloc_with_buffer(iface, recv_data_len, AF_UNSPEC, 0, PPP_MODEM_DATA_RCV_PKT_BUF_ALLOC_TIMEOUT);
 					if (!pkt) {
-						printk("ppp_modem_dl_data_thread_handler: no buf available - dropped packet from modem of len %d\n", recv_data_len);
-						//net_stats_update_processing_error(iface);
-						//TODO: update iface stats for dropping
+						printk(
+							"ppp_modem_dl_data_thread_handler: no buf available - dropped packet from modem of len %d\n", 
+								recv_data_len);
 					} else {
-						//memcpy(pkt->buffer->data, receive_buffer, recv_data_len);
-						//net_buf_add(pkt->buffer, recv_data_len);
 						if (net_pkt_write(pkt, (uint8_t *)receive_buffer, recv_data_len)) {
-							printk("ppp_modem_dl_data_thread_handler: cannot write pkt %p - dropped packet\n", pkt);
+							printk(
+								"ppp_modem_dl_data_thread_handler: cannot write pkt %p - dropped packet\n", 
+									pkt);
 							net_pkt_unref(pkt);
 						} else {
 							char type = (NET_IPV6_HDR(pkt)->vtc & 0xf0);
@@ -88,14 +84,18 @@ static void ppp_modem_dl_data_thread_handler()
 							}
 
 							if (net_send_data(pkt) < 0) {
-								printk("ppp_modem_dl_data_thread_handler: cannot send data pkt %p - dropped packet\n", pkt);
+								printk(
+									"ppp_modem_dl_data_thread_handler: cannot send data pkt %p - dropped packet\n",
+										pkt);
 								net_pkt_unref(pkt);
 							}						
 						}
 					}
 				} else
 				{
-					printk("ppp_modem_dl_data_thread_handler: recv() failed %d\n", recv_data_len);
+					printk(
+						"ppp_modem_dl_data_thread_handler: recv() failed %d\n",
+							recv_data_len);
 				}
 			} else if (ret < 0) {
 				printk("ppp_modem_dl_data_thread_handler: poll() failed %d\n", ret);

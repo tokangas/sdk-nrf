@@ -35,7 +35,6 @@ struct net_if *ppp_iface_global;
 const struct shell* ppp_shell_global;
 int ppp_modem_data_raw_socket_fd;
 
-/* forward declarations: */
 
 /* ********************************************************************/
 
@@ -72,23 +71,18 @@ static void ppp_ctrl_net_mgmt_events_subscribe()
 void ppp_ctrl_init()
 {
 	ppp_modem_data_raw_socket_fd = PPP_MODEM_DATA_RAW_SCKT_FD_NONE;
-	//init iface
-	//net_if_flag_set(ictx.iface, NET_IF_NO_AUTO_START);
 	ppp_mdm_data_snd_init();
 	ppp_ctrl_net_mgmt_events_subscribe();
 }
+
 /* ********************************************************************/
 
 int ppp_ctrl_start(const struct shell *shell) {
 	struct ppp_context *ctx;
 	struct net_if *iface;
-	#if defined(CONFIG_NET_IPV4)
-	struct net_if_addr *ifaddr;
-	struct net_if_ipv4 *ipv4;
-#endif
-	int idx = 0; //TODO: find PPP if according to name?
 	pdp_context_info_t* pdp_context_info;
 	ppp_shell_global = shell;
+	int idx = 0; /* Note: PPP iface index assumed to be 0 */
 
 	if (ppp_modem_data_raw_socket_fd != PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
 		shell_warn(shell, "PPP already up.\n");
@@ -100,7 +94,9 @@ int ppp_ctrl_start(const struct shell *shell) {
 		shell_error(shell, "PPP context not found.\n");
 		goto return_error;
 	}
-	pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(0);//TODO: multi context support
+	
+	/* Note: no multicontext support, only at default PDN context */
+	pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(0);
 	if (pdp_context_info == NULL) {
 		shell_error(shell, "PPP context not found.\n");
 		goto return_error;
@@ -108,6 +104,7 @@ int ppp_ctrl_start(const struct shell *shell) {
 
 	iface = ctx->iface;
 	ppp_iface_global = iface;
+
 	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
 
 	/* Couldn't find the way to set these for PPP in another way: TODO api to PPP?*/
@@ -132,7 +129,12 @@ int ppp_ctrl_start(const struct shell *shell) {
     /* blocking socket and we do not want to block for long: 3 sec timeout for sending: */
     tv.tv_sec = 3;
     tv.tv_usec = 0;
-    if (setsockopt(ppp_modem_data_raw_socket_fd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
+    if (setsockopt(
+			ppp_modem_data_raw_socket_fd, 
+			SOL_SOCKET, 
+			SO_SNDTIMEO, 
+			(struct timeval *)&tv, 
+			sizeof(struct timeval)) < 0) {
 		shell_error(shell, "Unable to set socket SO_SNDTIMEO");
 	}
 #endif
@@ -149,7 +151,7 @@ return_error:
 void ppp_ctrl_stop()
 {
 	struct ppp_context *ctx;
-	int idx = 0; //TODO: find PPP ifaccording to name?
+	int idx = 0; /* Note: PPP iface index assumed to be 0 */
 
 	if (ppp_modem_data_raw_socket_fd != PPP_MODEM_DATA_RAW_SCKT_FD_NONE) {
 		(void)close(ppp_modem_data_raw_socket_fd);
