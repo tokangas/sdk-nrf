@@ -242,7 +242,7 @@ void test_send_len3_number10plus(void)
 	sms_init_helper();
 
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -274,7 +274,7 @@ void test_send_len1_number20plus(void)
 	sms_init_helper();
 
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=19\r0031001491214365870921436587090000FF0131\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=18\r00210014912143658709214365870900000131\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -305,7 +305,7 @@ void test_send_len1_number20plus(void)
 void test_send_len7_number11(void)
 {
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=21\r0031000B912143658709F10000FF0731D98C56B3DD00\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=20\r0021000B912143658709F100000731D98C56B3DD00\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -322,7 +322,7 @@ void test_send_len7_number11(void)
 void test_send_len8_number1(void)
 {
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000191F10000FF0831D98C56B3DD70\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000191F100000831D98C56B3DD70\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -338,7 +338,7 @@ void test_send_len8_number1(void)
 void test_send_len9_number5(void)
 {
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=19\r00310005912143F50000FF0931D98C56B3DD7039\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=18\r00210005912143F500000931D98C56B3DD7039\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -437,7 +437,7 @@ void test_send_concat_700chars_5msgs(void)
 void test_send_special_characters(void)
 {
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=50\r00310005912143F50000FF2C5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00DD005\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=49\r00210005912143F500002C5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00DD005\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -479,7 +479,7 @@ void test_send_concat_special_character_split(void)
 void test_send_text_empty(void)
 {
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=13\r003100099121436587F90000FF00\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=12\r002100099121436587F9000000\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -492,7 +492,7 @@ void test_send_text_empty(void)
 void test_send_text_null(void)
 {
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=13\r003100099121436587F90000FF00\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=12\r002100099121436587F9000000\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -524,7 +524,7 @@ void test_send_fail_number_null(void)
 void test_send_fail_atcmd(void)
 {
 	enum at_cmd_state state = AT_CMD_ERROR_CMS;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 205);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 205);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 	__wrap_at_cmd_write_IgnoreArg_state();
@@ -555,7 +555,7 @@ void test_send_cds_erroneous(void)
 	sms_init_helper();
 
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
@@ -1555,7 +1555,7 @@ void send_basic(void)
 	helper_sms_data_clear();
 
 	enum at_cmd_state state = 0;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=16\r0031000A9121436587090000FF03CD771A\x1A", NULL, 0, &state, 0);
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 

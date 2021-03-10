@@ -149,14 +149,6 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 		}
 
 		int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
-		/* TODO: For non-concatenated SMS, we have TP-Validity-Period
-		   set to 0xFF. Having this byte in the concatenated SMS causes
-		   failure in sending CMGS AT command:
-		       CMS ERROR: 304	Invalid PDU mode parameter
-		   This is how it is in non-concatenated SMS:
-		       "AT+CMGS=%d\r0061%02X%02X91%s0000FF%02X%s%s\x1a",
-		   */
-		
 		/* First, compose SMS header so that we get an index for
 		   User-Data-Header to add that when number of messages is known */
 		sprintf(send_bufs[concat_seq_number], "AT+CMGS=%d\r0061%02X%02X91%s0000%02X",
@@ -256,8 +248,8 @@ int sms_submit_send(char* number, char* text)
 	char send_data[500];
 	memset(send_data, 0, 500);
 
-	int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 3 + 1 + encoded_size;
-	sprintf(send_data, "AT+CMGS=%d\r003100%02X91%s0000FF%02X%s\x1a",
+	int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
+	sprintf(send_data, "AT+CMGS=%d\r002100%02X91%s0000%02X%s\x1a",
 		msg_size, encoded_number_size, encoded_number,
 		encoded_data_size, encoded_data_hex_str);
 	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
