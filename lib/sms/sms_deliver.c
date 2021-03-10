@@ -22,16 +22,15 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 /**
  * @brief SMS-DELIVER type of PDU in 3GPP TS 23.040 chapter 9.2.2.1.
- * TODO: Seems sri and udhi are in wrong order in the code compared to
- *       3GPP TS 23.040 chapter 9.2.2.1. Also, tp is not the last bit.
  */
 struct pdu_deliver_header {
 	uint8_t mti:2;  /** TP-Message-Type-Indicator */
 	uint8_t mms:1;  /** TP-More-Messages-to-Send */
-	uint8_t :2;     /** TP-Loop-Prevention, TP-Reply-Path */
+	uint8_t lp:1;   /** TP-Loop-Prevention */
+	uint8_t :1;     /** Empty bit */
 	uint8_t sri:1;  /** TP-Status-Report-Indication */
 	uint8_t udhi:1; /** TP-User-Data-Header-Indicator */
-	uint8_t rp:1;   /** TODO: Is this supposed to be TP-Reply-Path which is not in here in the spec? */
+	uint8_t rp:1;   /** TP-Reply-Path */
 };
 
 /**
