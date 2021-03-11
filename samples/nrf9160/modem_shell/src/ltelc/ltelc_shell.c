@@ -90,7 +90,7 @@ const char ltelc_defcont_usage_str[] =
 	"  -e, --enable,     [bool] Enable custom config for default PDP context\n"
 	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
 	"  -a, --apn,        [str]  Set default Access Point Name\n"
-	"  -f, --family,     [str]  Address family: 'ipv4v6' (default), 'ipv4', 'ipv6'\n"
+	"  -f, --family,     [str]  Address family: 'ipv4v6' (default), 'ipv4', 'ipv6', 'packet'\n"
 	"\n";
 
 const char ltelc_defcontauth_usage_str[] =

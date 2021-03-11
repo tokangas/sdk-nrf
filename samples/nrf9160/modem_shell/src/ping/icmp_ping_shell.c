@@ -147,7 +147,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
         int ret = 0;
   	    pdp_context_info_array_t pdp_context_info_tbl;
 
-        ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+        ret = ltelc_api_pdp_contexts_read(&pdp_context_info_tbl);
         if (ret) {
             shell_error(shell, "cannot read current connection info: %d", ret);
             return -1;

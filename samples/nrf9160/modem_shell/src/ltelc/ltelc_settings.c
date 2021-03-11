@@ -250,6 +250,9 @@ int ltelc_sett_save_defcont_ip_family(const char *ip_family_str)
 		else if (strcasecmp(ip_family_str, "ipv6") == 0) {
 			strcpy(tmp_family_str, "IPV6");
 		}
+		else if (strcasecmp(ip_family_str, "packet") == 0) {
+			strcpy(tmp_family_str, "Non-IP");
+		}
 		else {
 			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: could not decode PDN address family (%s)\n", 
 				ip_family_str);			

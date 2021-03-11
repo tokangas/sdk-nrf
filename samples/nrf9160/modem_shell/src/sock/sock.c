@@ -372,7 +372,7 @@ int sock_open_and_connect(
 		memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
 		pdp_context_info_array_t pdp_context_info_tbl;
 
-		err = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+		err = ltelc_api_pdp_contexts_read(&pdp_context_info_tbl);
 		if (err) {
 			shell_error(shell_global, "cannot read current connection info: %d", err);
 			goto connect_error;

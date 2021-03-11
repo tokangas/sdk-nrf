@@ -29,12 +29,12 @@
 #include <modem/at_params.h>
 
 #define AT_CMD_BUFFER_LEN (CONFIG_AT_CMD_RESPONSE_MAX_LEN + 1)
-#define AT_CMD_PDP_CONTEXT_READ "AT+CGDCONT?"
-#define AT_CMD_PDP_CONTEXT_READ_PARAM_COUNT 12
-#define AT_CMD_PDP_CONTEXT_READ_CID_INDEX 1
-#define AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_INDEX 2
-#define AT_CMD_PDP_CONTEXT_READ_APN_INDEX 3
-#define AT_CMD_PDP_CONTEXT_READ_PDP_ADDR_INDEX 4
+#define AT_CMD_PDP_CONTEXTS_READ "AT+CGDCONT?"
+#define AT_CMD_PDP_CONTEXTS_READ_PARAM_COUNT 12
+#define AT_CMD_PDP_CONTEXTS_READ_CID_INDEX 1
+#define AT_CMD_PDP_CONTEXTS_READ_PDP_TYPE_INDEX 2
+#define AT_CMD_PDP_CONTEXTS_READ_APN_INDEX 3
+#define AT_CMD_PDP_CONTEXTS_READ_PDP_ADDR_INDEX 4
 
 #define AT_CMD_PDP_CONTEXT_READ_INFO "AT+CGCONTRDP=%d" // Use sprintf to add CID into command
 #define AT_CMD_PDP_CONTEXT_READ_INFO_PARAM_COUNT 20
@@ -50,7 +50,7 @@ pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 	pdp_context_info_array_t pdp_context_info_tbl;
 	pdp_context_info_t* pdp_context_info = NULL;
 
-	ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+	ret = ltelc_api_pdp_contexts_read(&pdp_context_info_tbl);
 	if (ret) {
 		printf("cannot read current connection info: %d", ret);
 		return NULL;
@@ -71,7 +71,7 @@ pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 	return pdp_context_info;
 }
 
-int ltelc_api_default_pdp_context_read_info(pdp_context_info_t *populated_info)
+int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 {
 	int ret = 0;
 	struct at_param_list param_list = { 0 };
@@ -85,7 +85,6 @@ int ltelc_api_default_pdp_context_read_info(pdp_context_info_t *populated_info)
 	int lines = 0;
 	int iterator = 0;
 
-	// TODO: This is only for context #0 ("AT+CGCONTRDP=0")
 	char at_cmd_pdp_context_read_info_cmd_str[15];
 	sprintf(at_cmd_pdp_context_read_info_cmd_str, AT_CMD_PDP_CONTEXT_READ_INFO, populated_info->cid);
 	ret = at_cmd_write(at_cmd_pdp_context_read_info_cmd_str, at_response_str,
@@ -131,7 +130,7 @@ int ltelc_api_default_pdp_context_read_info(pdp_context_info_t *populated_info)
 
 		uint32_t cid;
 		ret = at_params_int_get(&param_list,
-					AT_CMD_PDP_CONTEXT_READ_CID_INDEX,
+					AT_CMD_PDP_CONTEXT_READ_INFO_CID_INDEX,
 					&cid);
 		if (ret) {
 			printf("Could not parse CID, err: %d\n", ret);
@@ -408,7 +407,7 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 }
 /* ****************************************************************************/
 
-int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
+int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 {
 	int ret = 0;
 	struct at_param_list param_list = { 0 };
@@ -425,7 +424,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 
 	memset(pdp_info, 0, sizeof(pdp_context_info_array_t));
 
-	ret = at_cmd_write(AT_CMD_PDP_CONTEXT_READ, at_response_str,
+	ret = at_cmd_write(AT_CMD_PDP_CONTEXTS_READ, at_response_str,
 			   sizeof(at_response_str), NULL);
 	if (ret) {
 		printf("at_cmd_write returned err: %d", ret);
@@ -440,7 +439,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		++pdp_cnt;
 	}
 	
-	//printf("Device contains %d IP addresses\n", pdp_cnt);
+	//printf("Device contains %d contexts\n", pdp_cnt);
 
 	/* Allocate array of PDP info accordingly: */
 	pdp_info->array = calloc(pdp_cnt, sizeof(pdp_context_info_t));
@@ -449,7 +448,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 	/* Parse the response: */ 
 	{
 		ret = at_params_list_init(&param_list,
-					  AT_CMD_PDP_CONTEXT_READ_PARAM_COUNT);
+					  AT_CMD_PDP_CONTEXTS_READ_PARAM_COUNT);
 		if (ret) {
 			printf("Could not init AT params list, error: %d\n", ret);
 			return ret;
@@ -460,7 +459,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		resp_continues = false;
 		ret = at_parser_max_params_from_str(
 			at_ptr, &next_param_str, &param_list,
-			AT_CMD_PDP_CONTEXT_READ_PARAM_COUNT);
+			AT_CMD_PDP_CONTEXTS_READ_PARAM_COUNT);
 		if (ret == -EAGAIN) {
 			resp_continues = true;
 		} else if (ret != 0 && ret != -EAGAIN) {
@@ -469,7 +468,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		}
 
 		ret = at_params_int_get(&param_list,
-					AT_CMD_PDP_CONTEXT_READ_CID_INDEX,
+					AT_CMD_PDP_CONTEXTS_READ_CID_INDEX,
 					&populated_info[iterator].cid);
 		if (ret) {
 			printf("Could not parse CID, err: %d\n", ret);
@@ -479,7 +478,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 		//TODO: read len 1st and malloc??
 		param_str_len = sizeof(populated_info[iterator].pdp_type_str);
 		ret = at_params_string_get(
-			&param_list, AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_INDEX,
+			&param_list, AT_CMD_PDP_CONTEXTS_READ_PDP_TYPE_INDEX,
 			populated_info[iterator].pdp_type_str, &param_str_len);
 		if (ret) {
 			printf("Could not parse pdp type, err: %d\n", ret);
@@ -501,13 +500,18 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 					  "IP") == 0) {
 				populated_info[iterator].pdp_type =
 					PDP_TYPE_IPV4;
+			} else if (strcmp(populated_info[iterator].pdp_type_str,
+					  "Non-IP") == 0) {
+				populated_info[iterator].pdp_type =
+					PDP_TYPE_NONIP;
 			}
+
 			//printf("pdp type: %c", populated_info[iterator].pdp_type);
 		}
 
 		param_str_len = sizeof(populated_info[iterator].apn_str);
 		ret = at_params_string_get(&param_list,
-					   AT_CMD_PDP_CONTEXT_READ_APN_INDEX,
+					   AT_CMD_PDP_CONTEXTS_READ_APN_INDEX,
 					   populated_info[iterator].apn_str,
 					   &param_str_len);
 		if (ret) {
@@ -520,7 +524,7 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 
 		param_str_len = sizeof(ip_addr_str);
 		ret = at_params_string_get(
-			&param_list, AT_CMD_PDP_CONTEXT_READ_PDP_ADDR_INDEX,
+			&param_list, AT_CMD_PDP_CONTEXTS_READ_PDP_ADDR_INDEX,
 			ip_addr_str, &param_str_len);
 		if (ret) {
 			printf("Could not parse apn str, err: %d\n", ret);
@@ -572,8 +576,10 @@ int ltelc_api_default_pdp_context_read(pdp_context_info_array_t *pdp_info)
 				}
 			}
 		}
-		// TODO: This may not work always if resp_continues is needed in different places of the at command response line
-		ret = ltelc_api_default_pdp_context_read_info(&(populated_info[iterator]));
+		/* Get DNS addresses as well for IP contexts: */
+		if (populated_info[iterator].pdp_type != PDP_TYPE_NONIP)
+			(void)ltelc_api_pdp_context_dns_info_get(&(populated_info[iterator]));
+
 		if (resp_continues) {
 			at_ptr = next_param_str;
 			iterator++;
@@ -629,7 +635,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 		}
 
 #if defined(CONFIG_AT_CMD)
-		ret = ltelc_api_default_pdp_context_read(&pdp_context_info_tbl);
+		ret = ltelc_api_pdp_contexts_read(&pdp_context_info_tbl);
 		if (ret >= 0) {
 			char ipv4_addr[NET_IPV4_ADDR_LEN];
 			char ipv6_addr[NET_IPV6_ADDR_LEN];
