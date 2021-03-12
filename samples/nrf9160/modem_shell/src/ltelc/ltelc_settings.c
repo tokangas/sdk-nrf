@@ -55,6 +55,10 @@
 
 /* ****************************************************************************/
 
+#define LTELC_SETT_NORMAL_MODE_AUTOCONN_ENABLED	  "normal_mode_autoconn_enabled"
+
+/* ****************************************************************************/
+
 enum ltelc_sett_defcontauth_prot {
 	LTELC_SETT_DEFCONTAUTH_PROT_NONE = 0,
 	LTELC_SETT_DEFCONTAUTH_PROT_PAP  = 1,
@@ -81,6 +85,8 @@ struct ltelc_sett_t {
 	char normal_mode_at_cmd_str_1[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
 	char normal_mode_at_cmd_str_2[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
 	char normal_mode_at_cmd_str_3[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+
+	bool normal_mode_autoconn_enabled;
 };
 static struct ltelc_sett_t ltelc_settings;
 /* ****************************************************************************/
@@ -195,6 +201,16 @@ static int ltelc_sett_handler(const char *key, size_t len,
 			      sizeof(ltelc_settings.normal_mode_at_cmd_str_3));
 		if (err < 0) {
 			shell_error(uart_shell, "Failed to read normal mode at cmd 3, error: %d",
+				err);
+			return err;
+		}
+		return 0;
+	}
+	else if (strcmp(key, LTELC_SETT_NORMAL_MODE_AUTOCONN_ENABLED) == 0) {
+		err = read_cb(cb_arg, &ltelc_settings.normal_mode_autoconn_enabled,
+			      sizeof(ltelc_settings.normal_mode_autoconn_enabled));
+		if (err < 0) {
+			shell_error(uart_shell, "Failed to read normal mode autoconnect, error: %d",
 				err);
 			return err;
 		}
@@ -582,6 +598,42 @@ void ltelc_sett_normal_mode_at_cmds_shell_print(const struct shell *shell)
 }
 /* ****************************************************************************/
 
+int ltelc_sett_save_normal_mode_autoconn_enabled(bool enabled)
+{
+	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_NORMAL_MODE_AUTOCONN_ENABLED;
+	int err;
+	
+	ltelc_settings.normal_mode_autoconn_enabled = enabled;
+	shell_print(uart_shell, "ltelc nmodeauto %s", ((enabled == true)? "enabled": "disabled"));
+
+	err = settings_save_one(
+		key, 
+		&ltelc_settings.normal_mode_autoconn_enabled, 
+		sizeof(ltelc_settings.normal_mode_autoconn_enabled));
+	
+	if (err) {
+		shell_error(uart_shell, "ltelc_sett_save_defcont_enabled: err %d from settings_save_one()\n", err);
+		return err;
+	}
+	return 0;
+}
+
+bool ltelc_sett_is_normal_mode_autoconn_enabled()
+{
+	return ltelc_settings.normal_mode_autoconn_enabled;
+}
+
+void ltelc_sett_normal_mode_autoconn_shell_print(const struct shell *shell)
+{
+	shell_print(shell, "ltelc nmodeauto settings:");
+	shell_print(
+		shell, 
+		"  Autoconnect enabled: %s", 
+			ltelc_settings.normal_mode_autoconn_enabled ? "true" : "false" );
+}
+
+/* ****************************************************************************/
+
 int ltelc_sett_init(const struct shell *shell) 
 {
 	int err;
@@ -592,7 +644,10 @@ int ltelc_sett_init(const struct shell *shell)
 	
 	uart_shell = shell;
 
+	/* Set the defaults: */
 	memset(&ltelc_settings, 0 , sizeof(ltelc_settings));
+	
+	ltelc_settings.normal_mode_autoconn_enabled = true;
 	strcpy(ltelc_settings.defcont_apn_str, LTELC_SETT_DEFCONT_DEFAULT_APN);
 	strcpy(ltelc_settings.defcont_ip_family_str, LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY);
 	strcpy(ltelc_settings.defcontauth_uname_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME);

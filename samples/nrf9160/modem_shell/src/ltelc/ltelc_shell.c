@@ -33,6 +33,7 @@ typedef enum {
 	LTELC_CMD_FUNMODE,
 	LTELC_CMD_SYSMODE,
 	LTELC_CMD_NORMAL_MODE_AT,
+	LTELC_CMD_NORMAL_MODE_AUTO,
 	LTELC_CMD_EDRX,
 	LTELC_CMD_PSM,
 	LTELC_CMD_HELP
@@ -68,17 +69,19 @@ const char ltelc_usage_str[] =
 	"  help:                    Show this message (no options)\n"
 	"  status:                  Show status of the current connection (no options)\n"
 	"  coneval:                 Evaluate connection parameters (no options)\n"
-	"  defcont:                 Set custom default PDP context config. Permanent between the sessions.\n"
+	"  defcont:                 Set custom default PDP context config. Persistent between the sessions.\n"
 	"                           Effective when going to normal mode.\n"
 	"  defcontauth:             Set custom authentication parameters for the default PDP context.\n"
-	"                           Permanent between the sessions. Effective when going to normal mode.\n"
+	"                           Persistent between the sessions. Effective when going to normal mode.\n"
 	"  connect:                 Connect to given apn\n"
 	"  disconnect:              Disconnect from given apn\n"
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
-    "                           When set: permanent between the sessions. Effective when going to normal mode.\n"
+    "                           When set: persistent between the sessions. Effective when going to normal mode.\n"
 	"  nmodeat:                 Set custom AT commmands that are run when going to normal mode\n"
+	"  nmodeauto:               Enabling/disabling of automatic connecting and going to normal mode after the bootup,\n"
+	"                           Persistent between the sessions. Has impact after the bootup\n"
 	"  edrx:                    Enable/disable eDRX with default or with custom parameters\n"
 	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
@@ -136,6 +139,13 @@ const char ltelc_normal_mode_at_usage_str[] =
 	"  -r, --read,       [bool] Read all set custom normal mode at commands\n"
 	"      --mem[1-3],   [str]  Set at cmd to given memory slot, e.g. \"ltelc nmodeat --mem1 \"at%xbandlock=2,\\\"100\\\"\"\"\n"
 	"                           To clear the given memslot by given the empty string: \"ltelc nmodeat --mem2 \"\"\"\n"
+	"\n";
+
+const char ltelc_normal_mode_auto_usage_str[] =
+	"Options for 'ltelc nmodeauto' command:\n"
+	"  -r, --read,       [bool] Read and print current setting\n"
+	"  -e, --enable,     [bool] Enable autoconnect (default)\n"
+	"  -d, --disable,    [bool] Disable autoconnect\n"
 	"\n";
 
 const char ltelc_edrx_usage_str[] =
@@ -221,6 +231,9 @@ static void ltelc_shell_print_usage(const struct shell *shell, ltelc_shell_cmd_a
 			break;
 		case LTELC_CMD_NORMAL_MODE_AT:
 			shell_print(shell, "%s", ltelc_normal_mode_at_usage_str);
+			break;
+		case LTELC_CMD_NORMAL_MODE_AUTO:
+			shell_print(shell, "%s", ltelc_normal_mode_auto_usage_str);
 			break;
 		case LTELC_CMD_EDRX:
 			shell_print(shell, "%s", ltelc_edrx_usage_str);
@@ -350,6 +363,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		ltelc_cmd_args.command = LTELC_CMD_SYSMODE;
 	} else if (strcmp(argv[1], "nmodeat") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_NORMAL_MODE_AT;
+	} else if (strcmp(argv[1], "nmodeauto") == 0) {
+		ltelc_cmd_args.command = LTELC_CMD_NORMAL_MODE_AUTO;
 	} else if (strcmp(argv[1], "edrx") == 0) {
 		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_EDRX;
@@ -708,6 +723,20 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 							((strlen(normal_mode_at_str)) ? normal_mode_at_str: "<empty>"), 
 						normal_mode_at_mem_slot);
 				}
+			}
+			else {
+				goto show_usage;
+			}
+			break;
+		case LTELC_CMD_NORMAL_MODE_AUTO:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				ltelc_sett_normal_mode_autoconn_shell_print(shell);
+			}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
+				ltelc_sett_save_normal_mode_autoconn_enabled(true);
+				}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
+				ltelc_sett_save_normal_mode_autoconn_enabled(false);
 			}
 			else {
 				goto show_usage;

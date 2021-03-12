@@ -112,8 +112,15 @@ void ltelc_init(void)
 
 	uart_shell = shell_backend_uart_get_ptr();
 	ltelc_sett_init(uart_shell);
-}
 
+/* With CONFIG_LWM2M_CARRIER, MoSH auto connect must be disabled 
+   because LwM2M carrier lib handles that. */
+#if !defined(CONFIG_LWM2M_CARRIER)
+	if (ltelc_sett_is_normal_mode_autoconn_enabled() == true) {
+		ltelc_func_mode_set(LTELC_FUNMODE_NORMAL);
+	}
+#endif
+}
 
 void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 {

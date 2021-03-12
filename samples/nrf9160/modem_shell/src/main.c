@@ -163,9 +163,6 @@ void main(void)
 
 #if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
 	ltelc_init();
-#if defined(CONFIG_FTA_LTELC_AUTO_CONNECT)
-	ltelc_func_mode_set(LTELC_FUNMODE_NORMAL);
-#endif
 #endif
 
 #if defined(CONFIG_MODEM_INFO)

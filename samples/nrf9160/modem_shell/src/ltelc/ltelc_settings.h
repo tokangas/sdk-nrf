@@ -39,4 +39,8 @@ int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot)
 int ltelc_sett_clear_normal_mode_at_cmd_str(uint8_t mem_slot);
 void ltelc_sett_normal_mode_at_cmds_shell_print(const struct shell *shell);
 
+int ltelc_sett_save_normal_mode_autoconn_enabled(bool enabled);
+bool ltelc_sett_is_normal_mode_autoconn_enabled();
+void ltelc_sett_normal_mode_autoconn_shell_print(const struct shell *shell);
+
 #endif /* LTELC_SETTINGS_H */
