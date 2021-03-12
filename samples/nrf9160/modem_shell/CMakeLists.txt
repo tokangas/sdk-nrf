@@ -29,9 +29,8 @@ target_include_directories(app PRIVATE
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/at/at_shell.c)
-target_sources(app PRIVATE src/utils/fta_net_utils.c)
-target_sources(app PRIVATE src/utils/fta_time_utils.c)
 
+add_subdirectory(src/utils)
 add_subdirectory_ifdef(CONFIG_FTA_SOCK src/sock)
 add_subdirectory_ifdef(CONFIG_FTA_LTELC src/ltelc)
 add_subdirectory_ifdef(CONFIG_FTA_PING src/ping)

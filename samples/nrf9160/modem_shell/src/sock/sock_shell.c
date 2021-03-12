@@ -26,8 +26,6 @@
 
 /* Maximum length of the address */
 #define SOCK_MAX_ADDR_LEN 100
-/* Maximum length of the data that can be specified with -d option */
-#define SOCK_MAX_SEND_DATA_LEN 200
 
 typedef enum {
 	SOCK_CMD_CONNECT = 0,
@@ -81,6 +79,15 @@ const char sock_usage_str[] =
 	"                            This is only valid when -l is given. Default value is 1.\n"
 	"  -s, --buffer_size, [int]  Send buffer size. This is only valid when -l is given.\n"
 	"                            Default value for 'stream' socket is 3540 and for 'dgram' socket 1200.\n"
+	"  -x, --hex, [bool]         Indicates that given data (-d) is in hexadecimal format.\n"
+	"                            By default, the format is string.\n"
+	"                            When this flag is set, given data (-d) is a string of\n"
+	"                            hexadecimal characters and each pair of two characters\n"
+	"                            form a single byte. Any spaces will be removed before processing.\n"
+	"                            Examples of hexadecimal data strings: \n"
+	"                                010203040506070809101112\n"
+	"                                01 02 03 04 05 06 07 08 09 10 11 12\n"
+	"                                01020304 05060708 09101112\n"
 	"\n"
 	"Options for 'recv' command:\n"
 	"  -r, --start, [bool]       Initialize variables for receive throughput calculation\n"
@@ -107,7 +114,7 @@ const char sock_usage_example_str[] =
 	"Open IPv6 UDP socket:\n"
 	"  sock connect -a 1a2b:1a2b:1a2b:1a2b::1 -p 20000 -f inet6 -t dgram\n"
 	"\n"
-	"Open IPv6 raw socket:\n"
+	"Open raw socket:\n"
 	"  sock connect -f packet -t raw\n"
 	"\n"
 	"Send string through socket:\n"
@@ -150,6 +157,7 @@ static struct option long_options[] = {
     {"length",         required_argument, 0,  'l' },
     {"period",         required_argument, 0,  'e' },
     {"buffer_size",    required_argument, 0,  's' },
+    {"hex",            no_argument,       0,  'x' },
     {"start",          no_argument,       0,  'r' },
     {"blocking",       required_argument, 0,  'B' },
     {"print_format",   required_argument, 0,  'P' },
@@ -221,6 +229,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_data_length = 0;
 	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
 	int arg_buffer_size = SOCK_BUFFER_SIZE_NONE;
+	bool arg_data_format_hex = false;
 	bool arg_receive_start = false;
 	bool arg_blocking_send = true;
 	bool arg_blocking_recv = false;
@@ -236,7 +245,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int flag = 0;
 	while ((flag = getopt_long(
 			argc, argv,
-			"i:I:a:p:f:t:b:ST:cV:H:d:l:e:s:rB:P:v",
+			"i:I:a:p:f:t:b:ST:cV:H:d:l:e:s:xrB:P:v",
 			long_options, NULL)) != -1) {
 
 		int addr_len = 0;
@@ -368,6 +377,9 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			strcpy(arg_send_data, optarg);
 			break;
+		case 'x': /* Send data string is defined in hex format */
+			arg_data_format_hex = true;
+			break;
 		case 'l': /* Length of undefined data to be sent */
 			arg_data_length = atoi(optarg);
 			break;
@@ -445,7 +457,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				arg_data_length,
 				arg_data_interval,
 				arg_blocking_send,
-				arg_buffer_size);
+				arg_buffer_size,
+				arg_data_format_hex);
 			break;
 		case SOCK_CMD_RECV:
 			err = sock_recv(

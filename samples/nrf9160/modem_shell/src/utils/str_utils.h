@@ -1,0 +1,13 @@
+/*
+ * Copyright (c) 2021 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ */
+
+#ifndef _STR_UTILS_H_
+#define _STR_UTILS_H_
+
+int str_hex_to_bytes(char *str, uint32_t str_length,
+	uint8_t* buf, uint16_t *buf_length);
+
+#endif

@@ -22,7 +22,8 @@
 #include "sock.h"
 #include "fta_defines.h"
 #include "ltelc_api.h"
-#include "utils/fta_net_utils.h"
+#include "fta_net_utils.h"
+#include "str_utils.h"
 
 /* Maximum number of sockets takes into account AT command socket */
 #define MAX_SOCKETS (CONFIG_POSIX_MAX_FDS-1)
@@ -42,7 +43,8 @@
 struct data_transfer_info {
 	struct k_work work;
 	struct k_timer timer;
-	void* parent; /* type is sock_info_t */
+	void* parent; /* Type is sock_info_t */
+	bool data_format_hex; /* Print data in hex format vs. normal string */
 };
 
 typedef struct {
@@ -564,12 +566,35 @@ static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 	shell_print(shell_global, "%s", output_buffer);
 }
 
-static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
+static void sock_print_data_hex(uint8_t *buffer, uint32_t buffer_size)
+{
+	/* Print received data in hexadecimal format having 8 bytes per line.
+		This is not made with single shell_print because we would need to
+		reserve a lot bigger buffer fro converting all data into hexadecimal string. */
+	char hex_data[81];
+	int data_printed = 0;
+	while (data_printed < buffer_size) {
+		int data_left = buffer_size - data_printed;
+		int print_chars = data_left <= 8 ? data_left : 8;
+		for (int i = 0; i < print_chars; i++) {
+			sprintf(hex_data + i * 5, "0x%02X ", buffer[data_printed + i]);
+		}
+		shell_print(shell_global, "\t%s", hex_data);
+		data_printed += print_chars;
+	}
+}
+
+static int sock_send(sock_info_t *socket_info, char* data, int length, bool log_data, bool data_hex_format)
 {
 	int bytes;
 
 	if (log_data) {
-		shell_print(shell_global, "Socket data send:\n\t%s", data);
+		if (data_hex_format) {
+			shell_print(shell_global, "Socket data send:");
+			sock_print_data_hex(data, length);
+		} else {
+			shell_print(shell_global, "Socket data send:\n\t%s", data);
+		}
 	}
 
 	if (socket_info->type == SOCK_DGRAM) {
@@ -580,11 +605,11 @@ static int sock_send(sock_info_t *socket_info, char* data, bool log_data)
 		} else if (socket_info->family == AF_INET6) {
 			dest_addr_len = sizeof(struct sockaddr_in6);
 		}
-		bytes = sendto(socket_info->fd, data, strlen(data), 0,
+		bytes = sendto(socket_info->fd, data, length, 0,
 			socket_info->addrinfo->ai_addr, dest_addr_len);
 	} else {
 		/* TCP and raw socket */
-		bytes = send(socket_info->fd, data, strlen(data), 0);
+		bytes = send(socket_info->fd, data, length, 0);
 	}
 	if (bytes < 0) {
 		/* Ideally we'd like to log the failure here but non-blocking
@@ -618,7 +643,12 @@ static void data_send_work_handler(struct k_work *item)
 		return;
 	}
 
-	sock_send(socket_info, socket_info->send_buffer, true);
+	sock_send(
+		socket_info,
+		socket_info->send_buffer,
+		socket_info->send_buffer_size,
+		true,
+		data_send_info_ptr->data_format_hex);
 }
 
 static void data_send_timer_handler(struct k_timer *dummy)
@@ -630,13 +660,13 @@ static void data_send_timer_handler(struct k_timer *dummy)
 	k_work_submit(&socket_info->send_info.work);
 }
 
-static void sock_send_data_length(sock_info_t* socket_info) {
+static void sock_send_random_data_length(sock_info_t* socket_info) {
 	while (socket_info->send_bytes_left > 0) {
 		if (socket_info->send_bytes_left < socket_info->send_buffer_size) {
 			memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
 			memset(socket_info->send_buffer, 'l', socket_info->send_bytes_left);
 		}
-		int bytes = sock_send(socket_info, socket_info->send_buffer, false);
+		int bytes = sock_send(socket_info, socket_info->send_buffer, strlen(socket_info->send_buffer), false, false);
 		if (bytes < 0) {
 			/* Wait for socket to allow sending again */
 			socket_info->send_poll = true;
@@ -674,10 +704,11 @@ static void sock_send_data_length(sock_info_t* socket_info) {
 int sock_send_data(
 	int socket_id,
 	char* data,
-	int data_length,
+	int random_data_length,
 	int interval,
 	bool blocking,
-	int buffer_size)
+	int buffer_size,
+	bool data_format_hex)
 {
 	sock_all_set_nonblocking();
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
@@ -685,10 +716,23 @@ int sock_send_data(
 		return -EINVAL;
 	}
 
+	/* Process data to be sent based on input parameters */
+	int data_out_length = strlen(data);
+	uint8_t *data_out = data;
+	uint8_t data_out_hex[SOCK_MAX_SEND_DATA_LEN / 2 + 1] = {0};
+
+	/* Process data to be sent if it's in hex format */
+	if (data_format_hex) {
+		uint16_t data_out_hex_length = SOCK_MAX_SEND_DATA_LEN / 2;
+		str_hex_to_bytes(data, data_out_length, data_out_hex, &data_out_hex_length);
+		data_out = data_out_hex;
+		data_out_length = data_out_hex_length;
+	}
+
 	/* Enable receive data logging as previous commands might
 	   have left it disabled */
 	socket_info->log_receive_data = true;
-	if (data_length > 0) {
+	if (random_data_length > 0) {
 		/* Send given amount of data */
 
 		/* Interval is not supported with data length */
@@ -712,7 +756,7 @@ int sock_send_data(
 		shell_print(
 			shell_global,
 			"Sending %d bytes of data with buffer_size=%d, blocking=%d",
-			data_length,
+			random_data_length,
 			send_buffer_size,
 			blocking);
 		
@@ -725,11 +769,11 @@ int sock_send_data(
 			shell_warn(
 				shell_global,
 				"Sending %d bytes of data with buffer_size=%d, blocking=%d",
-				data_length, send_buffer_size, blocking);
+				random_data_length, send_buffer_size, blocking);
 		}
 
 		socket_info->send_bytes_sent = 0;
-		socket_info->send_bytes_left = data_length;
+		socket_info->send_bytes_left = random_data_length;
 		socket_info->log_receive_data = false;
 		socket_info->send_print_interval = 10;
 		/* Set requested blocking mode for duration of data sending */
@@ -739,7 +783,7 @@ int sock_send_data(
 
 		socket_info->start_time_ms = k_uptime_get();
 
-		sock_send_data_length(socket_info);
+		sock_send_random_data_length(socket_info);
 
 		/* Keep default mode of the socket in non-blocking mode */
 		set_sock_blocking_mode(socket_info->fd, false);
@@ -761,16 +805,18 @@ int sock_send_data(
 			/* Send data with given interval */
 
 			/* Data to be sent must also be specified */
-			if (strlen(data) < 1) {
+			if (data_out_length < 1) {
 				shell_error(shell_global, "Data sending interval is specified without data to be send");
 				return -EINVAL;
 			}
 
-			if (!sock_send_buffer_calloc(socket_info, strlen(data))) {
+			if (!sock_send_buffer_calloc(socket_info, data_out_length)) {
 				return -ENOMEM;
 			}
-			memcpy(socket_info->send_buffer, data, strlen(data));
+			memcpy(socket_info->send_buffer, data_out, data_out_length);
+			socket_info->send_buffer_size = data_out_length;
 
+			socket_info->send_info.data_format_hex = data_format_hex;
 			shell_print(
 				shell_global,
 				"Socket data send periodic with interval=%d",
@@ -788,9 +834,9 @@ int sock_send_data(
 				K_SECONDS(interval));
 		}
 
-	} else if (data != NULL && strlen(data) > 0) {
+	} else if (data_out != NULL && data_out_length > 0) {
 		/* Send data if it's given and is not zero length */
-		sock_send(socket_info, data, true);
+		sock_send(socket_info, data_out, data_out_length, true, data_format_hex);
 	} else {
 		shell_print(shell_global, "No send parameters given");
 		return -EINVAL;
@@ -872,20 +918,7 @@ static void sock_receive_handler()
 								socket_id,
 								buffer_size);
 							if (socket_info->recv_print_format == SOCK_RECV_PRINT_FORMAT_HEX) {
-								/* Print received data in hexadecimal format having 8 bytes per line.
-								   This is not made with single shell_print because we would need to
-								   reserve a lot bigger buffer fro converting all data into hexadecimal string. */
-								char hex_data[81];
-								int data_printed = 0;
-								while (data_printed < buffer_size) {
-									int data_left = buffer_size - data_printed;
-									int print_chars = data_left <= 8 ? data_left : 8;
-									for (int i = 0; i < print_chars; i++) {
-										sprintf(hex_data + i * 5, "0x%02X ", receive_buffer[data_printed + i]);
-									}
-									shell_print(shell_global, "\t%s", hex_data);
-									data_printed += print_chars;
-								}
+								sock_print_data_hex(receive_buffer, buffer_size);
 							} else { /* SOCK_RECV_PRINT_FORMAT_STR */
 								shell_print(shell_global, "\t%s", receive_buffer);
 							}
@@ -894,7 +927,7 @@ static void sock_receive_handler()
 					}
 				}
 				if (fds[i].revents & POLLOUT) {
-					sock_send_data_length(socket_info);
+					sock_send_random_data_length(socket_info);
 				}
 				if (fds[i].revents & POLLERR) {
 					shell_print(shell_global, "Error from socket id=%d (fd=%d), closing", socket_id, fds[i].fd);
