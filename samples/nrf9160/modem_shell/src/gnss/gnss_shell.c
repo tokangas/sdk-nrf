@@ -257,7 +257,7 @@ static int cmd_gnss_config_elevation(const struct shell *shell, size_t argc, cha
     if (argc != 2) {
         shell_error(shell, "elevation: wrong parameter count");
         shell_print(shell, "elevation: <angle>");
-        shell_print(shell, "angle:\tElevation threshold angle (in degrees). Satellites with elevation angle less than the threshold are excluded.");
+        shell_print(shell, "angle:\tElevation threshold angle (in degrees, default 5). Satellites with elevation angle less than the threshold are excluded.");
         return -EINVAL;
     }
 
@@ -488,9 +488,9 @@ static int cmd_gnss_output(const struct shell *shell, size_t argc, char **argv)
     if (argc != 4) {
         shell_error(shell, "output: wrong parameter count");
         shell_print(shell, "output: <pvt level> <nmea level> <event level>");
-        shell_print(shell, "pvt level:\n  0 = no PVT output\n  1 = PVT output\n  2 = PVT output with SV information");
-        shell_print(shell, "nmea level:\n  0 = no NMEA output\n  1 = NMEA output");
-        shell_print(shell, "event level:\n  0 = no event output\n  1 = event output");
+        shell_print(shell, "pvt level:\n  0 = no PVT output\n  1 = PVT output\n  2 = PVT output with SV information (default)");
+        shell_print(shell, "nmea level:\n  0 = no NMEA output (default)\n  1 = NMEA output");
+        shell_print(shell, "event level:\n  0 = no event output (default)\n  1 = event output");
         return -EINVAL;
     }
 
@@ -515,7 +515,7 @@ static int cmd_gnss_output(const struct shell *shell, size_t argc, char **argv)
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_mode,
-    SHELL_CMD_ARG(cont, NULL, "Continuous tracking mode.", cmd_gnss_mode_cont, 1, 0),
+    SHELL_CMD_ARG(cont, NULL, "Continuous tracking mode (default).", cmd_gnss_mode_cont, 1, 0),
     SHELL_CMD_ARG(single, NULL, "<timeout>\nSingle fix mode.", cmd_gnss_mode_single, 2, 0),
     SHELL_CMD_ARG(periodic, NULL, "<interval> <timeout>\nPeriodic fix mode controlled by application.", cmd_gnss_mode_periodic, 3, 0),
     SHELL_CMD_ARG(periodic_gnss, NULL, "<interval> <timeout>\nPeriodic fix mode controlled by GNSS.", cmd_gnss_mode_periodic_gnss, 3, 0),
@@ -523,20 +523,20 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_mode,
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config_startmode,
-    SHELL_CMD_ARG(normal, NULL, "Normal start.", cmd_gnss_config_startmode_normal, 1, 0),
+    SHELL_CMD_ARG(normal, NULL, "Normal start (default).", cmd_gnss_config_startmode_normal, 1, 0),
     SHELL_CMD_ARG(warm, NULL, "Warm start (stored ephemerides data deleted on each start command).", cmd_gnss_config_startmode_warm, 1, 0),
     SHELL_CMD_ARG(cold, NULL, "Cold start (all stored GNSS data deleted on each start command).", cmd_gnss_config_startmode_cold, 1, 0),
     SHELL_SUBCMD_SET_END
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config_accuracy,
-    SHELL_CMD_ARG(normal, NULL, "Normal accuracy fixes.", cmd_gnss_config_accuracy_normal, 1, 0),
+    SHELL_CMD_ARG(normal, NULL, "Normal accuracy fixes (default).", cmd_gnss_config_accuracy_normal, 1, 0),
     SHELL_CMD_ARG(low, NULL, "Low accuracy fixes allowed.", cmd_gnss_config_accuracy_low, 1, 0),
     SHELL_SUBCMD_SET_END
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config_powersave,
-    SHELL_CMD_ARG(off, NULL, "Power saving off.", cmd_gnss_config_powersave_off, 1, 0),
+    SHELL_CMD_ARG(off, NULL, "Power saving off (default).", cmd_gnss_config_powersave_off, 1, 0),
     SHELL_CMD_ARG(perf, NULL, "Power saving without significant performance degradation.", cmd_gnss_config_powersave_perf, 1, 0),
     SHELL_CMD_ARG(power, NULL, "Power saving with acceptable performance degradation.", cmd_gnss_config_powersave_power, 1, 0),
     SHELL_SUBCMD_SET_END
@@ -546,7 +546,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_config,
     SHELL_CMD(startmode, &sub_gnss_config_startmode, "Start mode.", cmd_gnss_config_startmode),
     SHELL_CMD(elevation, NULL, "<angle>\nElevation threshold angle.", cmd_gnss_config_elevation),
     SHELL_CMD(accuracy, &sub_gnss_config_accuracy, "Fix accuracy.", cmd_gnss_config_accuracy),
-    SHELL_CMD_ARG(nmea, NULL, "<GGA enabled> <GLL enabled> <GSA enabled> <GSV enabled> <RMC enabled>\nNMEA mask. 0 = disabled, 1 = enabled.", cmd_gnss_config_nmea, 6, 0),
+    SHELL_CMD_ARG(nmea, NULL, "<GGA enabled> <GLL enabled> <GSA enabled> <GSV enabled> <RMC enabled>\nNMEA mask. 0 = disabled, 1 = enabled (default all enabled).", cmd_gnss_config_nmea, 6, 0),
     SHELL_CMD(powersave, &sub_gnss_config_powersave, "Continuous tracking power saving mode.", cmd_gnss_config_powersave),
     SHELL_SUBCMD_SET_END
 );
@@ -559,14 +559,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_priority,
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_agps_automatic,
     SHELL_CMD_ARG(enable, NULL, "Enable automatic fetching of AGPS data.", cmd_gnss_agps_automatic_enable, 1, 0),
-    SHELL_CMD_ARG(disable, NULL, "Disable automatic fetching of AGPS data.", cmd_gnss_agps_automatic_disable, 1, 0),
+    SHELL_CMD_ARG(disable, NULL, "Disable automatic fetching of AGPS data (default).", cmd_gnss_agps_automatic_disable, 1, 0),
     SHELL_SUBCMD_SET_END
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_gnss_agps,
     SHELL_CMD(automatic, &sub_gnss_agps_automatic, "Enable/disable automatic fetching of AGPS data.", cmd_gnss_agps_automatic),
     SHELL_CMD_ARG(inject, NULL, "Fetch and inject AGPS data to GNSS.", cmd_gnss_agps_inject, 1, 0),
-    SHELL_CMD(filter, NULL, "<ephe> <alm> <utc> <klob> <neq> <time> <pos> <integrity>\nSet filter for allowed AGPS data. 0 = disabled, 1 = enabled.", cmd_gnss_agps_filter),
+    SHELL_CMD(filter, NULL, "<ephe> <alm> <utc> <klob> <neq> <time> <pos> <integrity>\nSet filter for allowed AGPS data. 0 = disabled, 1 = enabled (default all enabled).", cmd_gnss_agps_filter),
     SHELL_SUBCMD_SET_END
 );
 
