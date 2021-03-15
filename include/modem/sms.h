@@ -37,19 +37,6 @@ struct sms_deliver_header;
 
 /** @brief SMS PDU data. */
 struct sms_data {
-	/**
-	 * Phone number of the incoming SMS message.
-	 * his is alpha parameter from CMT AT command.
-	 * See 3GPP TS 27.005 for more information.
-	 */
-	char *alpha;
-	/**
-	 * Length of the SMS pdu as decoded from CMT AT command.
-	 * See 3GPP TS 27.005 for more information.
-	 */
-	uint16_t length;
-	/** SMS pdu. */
-	char *pdu;
 	/** Received message type. */
 	enum sms_type type;
 	/**

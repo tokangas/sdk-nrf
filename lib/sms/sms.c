@@ -60,16 +60,6 @@ static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 
 static void sms_data_clear(struct sms_data *cmt_rsp)
 {
-	if (cmt_rsp->alpha != NULL) {
-		k_free(cmt_rsp->alpha);
-		cmt_rsp->alpha = NULL;
-	}
-
-	if (cmt_rsp->pdu != NULL) {
-		k_free(cmt_rsp->pdu);
-		cmt_rsp->pdu = NULL;
-	}
-
 	if (cmt_rsp->header != NULL) {
 		if (cmt_rsp->header->ud != NULL) {
 			k_free(cmt_rsp->header->ud);
