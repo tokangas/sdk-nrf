@@ -35,34 +35,38 @@ static void sms_callback(struct sms_data *const data, void *context)
 		/* TODO: Check whether we should parse SMS-SUBMIT-REPORT more carefully */
 		shell_print(shell_global, "SMS submit report received");
 		return;
+	} else if (data->type == SMS_TYPE_DELIVER) {
+		struct sms_deliver_header *header = &data->header.deliver;
+		shell_print(shell_global, "Time:   %02d-%02d-%02d %02d:%02d:%02d",
+			header->time.year,
+			header->time.month,
+			header->time.day,
+			header->time.hour,
+			header->time.minute,
+			header->time.second);
+
+		shell_print(shell_global, "Text:   '%s'", data->data);
+		shell_print(shell_global, "Length: %d", data->data_len);
+
+		if (header->app_port.present) {
+			shell_print(shell_global,
+				"Application port addressing scheme: dest_port=%d, src_port=%d",
+				header->app_port.dest_port,
+				header->app_port.src_port);
+		}
+		if (header->concatenated.present) {
+			shell_print(shell_global,
+				"Concatenated short messages: ref_number=%d, msg %d/%d",
+				header->concatenated.ref_number,
+				header->concatenated.seq_number,
+				header->concatenated.total_msgs);
+		}
+
+		sms_recv_counter++;
+	} else {
+		shell_print(shell_global, "SMS protocol message with unknown type received");
 	}
 
-	shell_print(shell_global, "Time:   %02d-%02d-%02d %02d:%02d:%02d",
-		data->header->time.year,
-		data->header->time.month,
-		data->header->time.day,
-		data->header->time.hour,
-		data->header->time.minute,
-		data->header->time.second);
-
-	shell_print(shell_global, "Text:   '%s'", data->data);
-	shell_print(shell_global, "Length: %d", data->data_len);
-
-	if (data->header->app_port.present) {
-		shell_print(shell_global,
-			"Application port addressing scheme: dest_port=%d, src_port=%d",
-			data->header->app_port.dest_port,
-			data->header->app_port.src_port);
-	}
-	if (data->header->concatenated.present) {
-		shell_print(shell_global,
-			"Concatenated short messages: ref_number=%d, msg %d/%d",
-			data->header->concatenated.ref_number,
-			data->header->concatenated.seq_number,
-			data->header->concatenated.total_msgs);
-	}
-
-	sms_recv_counter++;
 }
 
 int sms_register()
