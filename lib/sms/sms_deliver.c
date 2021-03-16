@@ -607,7 +607,7 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 	__ASSERT(pdu != NULL, "Parameter 'pdu' cannot be NULL.");
 	__ASSERT(data != NULL, "Parameter 'data' cannot be NULL.");
 
-	struct sms_deliver_header *header = data->header;
+	struct sms_deliver_header *header = &data->header.deliver;
 	__ASSERT(header != NULL, "Parameter 'header' cannot be NULL.");
 	memset(header, 0, sizeof(struct sms_deliver_header));
 

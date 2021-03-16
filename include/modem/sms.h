@@ -33,26 +33,6 @@ enum sms_type {
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
-/* Forward declaration */
-struct sms_deliver_header;
-
-/** @brief SMS PDU data. */
-struct sms_data {
-	/** Received message type. */
-	enum sms_type type;
-	/**
-	 * SMS header.
-	 * This is for incoming message and more specifically SMS-DELIVER
-	 * message specified in 3GPP TS 23.040.
-	 * 
-	 * TODO: Right now this has also user data so the naming is confusing.
-	 */
-	struct sms_deliver_header *header;
-
-	int data_len;
-	char data[SMS_MAX_DATA_LEN_CHARS + 1];
-};
-
 enum sms_deliver_alphabet {
 	GSM_ENCODING_8BIT,
 	GSM_ENCODING_UCS2,
@@ -95,6 +75,11 @@ struct sms_udh_app_port {
 	uint16_t src_port;
 };
 
+/**
+ * SMS-DELIVER message header.
+ * This is for incoming SMS message and more specifically SMS-DELIVER
+ * message specified in 3GPP TS 23.040.
+ */
 struct sms_deliver_header {
 	struct sms_deliver_time     time;
 	uint8_t                     protocol_id;
@@ -108,6 +93,23 @@ struct sms_deliver_header {
 	struct sms_udh_app_port     app_port;
 	struct sms_udh_concatenated concatenated;
 	int			    data_len;
+};
+
+union sms_header {
+	struct sms_deliver_header deliver;
+};
+
+/** @brief SMS PDU data. */
+struct sms_data {
+	/** Received message type. */
+	enum sms_type type;
+	/** SMS header. */
+	union sms_header header;
+
+	/** Length of the data in data buffer. */
+	int data_len;
+	/** SMS message data. */
+	char data[SMS_MAX_DATA_LEN_CHARS + 1];
 };
 
 /** @brief SMS listener callback function. */

@@ -77,7 +77,6 @@ int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp, struct at_param
 
 	__ASSERT(at_notif != NULL, "at_notif is NULL");
 	__ASSERT(cmt_rsp != NULL, "cmt_rsp is NULL");
-	__ASSERT(cmt_rsp->header == NULL, "cmt_rsp->header is not NULL");
 	__ASSERT(resp_list != NULL, "resp_list is NULL");
 
 	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
@@ -91,11 +90,6 @@ int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp, struct at_param
 			return err;
 		}
 
-		cmt_rsp->header = k_malloc(sizeof(struct sms_deliver_header));
-		if (cmt_rsp->header == NULL) {
-			LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
-			return -ENOMEM;
-		}
 		err = sms_deliver_pdu_parse(pdu, cmt_rsp);
 		if (err) {
 			LOG_ERR("sms_deliver_pdu_parse error: %d\n", err);
