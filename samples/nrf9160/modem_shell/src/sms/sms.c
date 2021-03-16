@@ -71,17 +71,10 @@ static void sms_callback(struct sms_data *const data, void *context)
 
 int sms_register()
 {
-	int ret;
-
 	if (sms_handle != SMS_HANDLE_NONE) {
 		return 0;
 	}
 
-	ret = sms_init();
-	if (ret) {
-		printf("sms_init returned err: %d\n", ret);
-		return ret;
-	}
 	int handle = sms_register_listener(sms_callback, NULL);
 	if (handle) {
 		printf("sms_register_listener returned err: %d\n", handle);
@@ -96,7 +89,6 @@ int sms_unregister()
 {
 	sms_unregister_listener(sms_handle);
 	sms_handle = SMS_HANDLE_NONE;
-	sms_uninit();
 
 	return 0;
 }
