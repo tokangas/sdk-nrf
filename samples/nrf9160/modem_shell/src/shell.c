@@ -49,13 +49,13 @@
 
 const struct shell* shell_global;
 
-extern struct k_sem bsdlib_initialized;
+extern struct k_sem nrf_modem_lib_initialized;
 
-void bsd_recoverable_error_handler(uint32_t err)
+void nrf_modem_recoverable_error_handler(uint32_t error)
 {
 	shell_global = shell_backend_uart_get_ptr();
 
-	shell_error(shell_global, "bsdlib recoverable error: %u\n", err);
+	shell_error(shell_global, "modem lib recoverable error: %u\n", error);
 }
 
 #if defined (CONFIG_LWM2M_CARRIER)
@@ -122,11 +122,11 @@ int lwm2m_carrier_event_handler(const lwm2m_carrier_event_t *event)
 
 	switch (event->type) {
 	case LWM2M_CARRIER_EVENT_BSDLIB_INIT:
-		shell_print(shell_global, "LwM2M carrier event: bsdlib initialized");
+		shell_print(shell_global, "LwM2M carrier event: modem lib initialized");
 		break;
 	case LWM2M_CARRIER_EVENT_CONNECTING:
 		shell_print(shell_global, "LwM2M carrier event: connecting");
-		k_sem_give(&bsdlib_initialized);
+		k_sem_give(&nrf_modem_lib_initialized);
 		break;
 	case LWM2M_CARRIER_EVENT_CONNECTED:
 		shell_print(shell_global, "LwM2M carrier event: connected");
