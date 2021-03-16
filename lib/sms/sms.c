@@ -103,7 +103,7 @@ void sms_at_handler(void *context, const char *at_notif)
 	k_work_submit(&sms_ack_work);
 }
 
-int sms_init(void)
+static int sms_init(void)
 {
 	char resp[SMS_AT_RESPONSE_MAX_LEN];
 
@@ -164,12 +164,6 @@ int sms_init(void)
 		return ret;
 	}
 
-	/* Clear all observers. */
-	for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
-		subscribers[i].ctx = NULL;
-		subscribers[i].listener = NULL;
-	}
-
 	sms_client_registered = true;
 	LOG_INF("SMS client successfully registered");
 	return 0;
@@ -193,6 +187,13 @@ int sms_register_listener(sms_callback_t listener, void *context)
 		return -EINVAL; /* Invalid parameter. */
 	}
 
+	if (!sms_client_registered) {
+		int err = sms_init();
+		if (err != 0) {
+			return err;
+		}
+	}
+
 	/* Search for a free slot to register a new listener. */
 	for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
 		if (subscribers[i].ctx == NULL &&
@@ -204,30 +205,18 @@ int sms_register_listener(sms_callback_t listener, void *context)
 	}
 
 	/* Too many subscribers. */
-	return -ENOMEM;
+	return -ENOSPC;
 }
 
-void sms_unregister_listener(int handle)
-{
-	/* Unregister the listener. */
-	if (handle < 0 || handle >= ARRAY_SIZE(subscribers)) {
-		/* Invalid handle. Unknown listener. */
-		return;
-	}
-
-	subscribers[handle].ctx = NULL;
-	subscribers[handle].listener = NULL;
-}
-
-void sms_uninit(void)
+static void sms_uninit()
 {
 	char resp[SMS_AT_RESPONSE_MAX_LEN];
 
 	/* Don't do anything if there are subscribers */
-	int subscribers = sms_subscriber_count();
-	if (subscribers > 0) {
-		LOG_WRN("Unregistering skipped as there are %d subscriber(s)",
-			subscribers);
+	int count = sms_subscriber_count();
+	if (count > 0) {
+		LOG_DBG("Unregistering skipped as there are %d subscriber(s)",
+			count);
 		return;
 	}
 
@@ -243,6 +232,12 @@ void sms_uninit(void)
 
 		/* Unregister from AT commands notifications. */
 		(void)at_notif_deregister_handler(NULL, sms_at_handler);
+
+		/* Clear all observers. */
+		for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
+			subscribers[i].ctx = NULL;
+			subscribers[i].listener = NULL;
+		}
 	}
 
 	/* Cleanup resources. */
@@ -251,6 +246,20 @@ void sms_uninit(void)
 	sms_data_clear(&cmt_rsp);
 
 	sms_client_registered = false;
+}
+
+void sms_unregister_listener(int handle)
+{
+	/* Unregister the listener. */
+	if (handle < 0 || handle >= ARRAY_SIZE(subscribers)) {
+		/* Invalid handle. Unknown listener. */
+		return;
+	}
+
+	subscribers[handle].ctx = NULL;
+	subscribers[handle].listener = NULL;
+
+	sms_uninit();
 }
 
 int sms_send(char* number, char* text)

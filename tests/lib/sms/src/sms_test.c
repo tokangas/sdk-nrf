@@ -50,7 +50,7 @@ void tearDown(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 }
 
-static void sms_init_helper()
+static void sms_reg_helper()
 {
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -58,30 +58,27 @@ static void sms_init_helper()
 	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=3,2,0,1", NULL, 0, NULL, 0);
-	int ret = sms_init();
-	TEST_ASSERT_EQUAL(0, ret);
 
 	test_handle = sms_register_listener(sms_callback, NULL);
 	TEST_ASSERT_EQUAL(0, test_handle);
 }
 
-static void sms_uninit_helper()
+static void sms_unreg_helper()
 {
-	sms_unregister_listener(test_handle);
-	test_handle = -1;
-
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=0,0,0,0", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	sms_uninit();
+
+	sms_unregister_listener(test_handle);
+	test_handle = -1;
 }
 
 /********* SMS INIT/UNINIT TESTS ***********************/
 
 void test_sms_init_uninit(void)
 {
-	sms_init_helper();
-	sms_uninit_helper();
+	sms_reg_helper();
+	sms_unreg_helper();
 }
 
 void test_sms_init_fail_register_null(void)
@@ -92,22 +89,19 @@ void test_sms_init_fail_register_null(void)
 
 void test_sms_init_fail_register_too_many(void)
 {
-	sms_init_helper();
-	sms_uninit(); /* Nothing happens */
+	sms_reg_helper();
 
 	/* Register listener with context pointer */
 	int value2 = 2;
 	int handle2 = sms_register_listener(sms_callback, &value2);
 	TEST_ASSERT_EQUAL(1, handle2);
-	sms_uninit(); /* Nothing happens */
 
 	int handle3 = sms_register_listener(sms_callback, NULL);
-	TEST_ASSERT_EQUAL(-ENOMEM, handle3);
+	TEST_ASSERT_EQUAL(-ENOSPC, handle3);
 
 	sms_unregister_listener(handle2);
-	sms_uninit(); /* Nothing happens */
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test error return value for AT+CNMI? */
@@ -116,8 +110,8 @@ void test_sms_init_fail_cnmi_query_ret_err(void)
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, -EINVAL);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	int ret = sms_init();
-	TEST_ASSERT_EQUAL(-EINVAL, ret);
+	int handle = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(-EINVAL, handle);
 }
 
 /** Test unexpected response for AT+CNMI? */
@@ -128,8 +122,8 @@ void test_sms_init_fail_cnmi_resp_unexpected_value(void)
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 	char resp[] = "+CNMI: 0,0,5,0,1\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
-	int ret = sms_init();
-	TEST_ASSERT_EQUAL(-EBUSY, ret);
+	int handle = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(-EBUSY, handle);
 }
 
 /** Test erroneous response for AT+CNMI? */
@@ -141,8 +135,8 @@ void test_sms_init_fail_cnmi_resp_erroneous(void)
 	/* Make at_parser_max_params_from_str() fail */
 	char resp[] = "+CNMI: 0,0,\"moi\",0,1,\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
-	int ret = sms_init();
-	TEST_ASSERT_EQUAL(-E2BIG, ret);
+	int handle = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(-E2BIG, handle);
 }
 
 /** Test erroneous response for AT+CNMI? */
@@ -154,14 +148,8 @@ void test_sms_init_fail_cnmi_set_ret_err(void)
 	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=3,2,0,1", NULL, 0, NULL, -EIO);
-	int ret = sms_init();
-	TEST_ASSERT_EQUAL(-EIO, ret);
-}
-
-/** Test uninitialization without calling sms_init() first. */
-void test_sms_uninit_without_init(void)
-{
-	sms_uninit();
+	int handle = sms_register_listener(sms_callback, NULL);
+	TEST_ASSERT_EQUAL(-EIO, handle);
 }
 
 /**
@@ -175,27 +163,28 @@ void test_sms_uninit_fail_unregister_invalid_handle(void)
 	sms_unregister_listener(0);
 	sms_unregister_listener(-1);
 
-	int handle = sms_register_listener(sms_callback, NULL);
-	TEST_ASSERT_EQUAL(0, handle);
+	sms_reg_helper();
 	/* Unregister number higher than registered handle */
 	sms_unregister_listener(CONFIG_SMS_SUBSCRIBERS_MAX_CNT + 1);
 
 	/* Unregister above handle */
-	sms_unregister_listener(handle);
+	sms_unreg_helper();
 }
 
 /** Test error code for AT command AT+CNMI=0,0,0,0 */
 void test_sms_uninit_cnmi_ret_err(void)
 {
-	sms_init_helper();
-
-	sms_unregister_listener(test_handle);
-	test_handle = -1;
+	sms_reg_helper();
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=0,0,0,0", NULL, 0, NULL, -ENOEXEC);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	sms_uninit();
+
+	sms_unregister_listener(test_handle);
+
+	/* Unregister to avoid leaving an open registration */
+	sms_unreg_helper();
+	test_handle = -1;
 }
 
 /********* SMS SEND TESTS ***********************/
@@ -208,7 +197,7 @@ void test_sms_uninit_cnmi_ret_err(void)
  */
 void test_send_len3_number10plus(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	enum at_cmd_state state = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
@@ -227,7 +216,7 @@ void test_send_len3_number10plus(void)
 	test_sms_header_exists = false;
 	sms_at_handler(NULL, "+CDS: 24\r\n06550A912143658709122022118314801220221183148000\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -235,7 +224,7 @@ void test_send_len3_number10plus(void)
  */
 void test_send_len1_number20plus(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	enum at_cmd_state state = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=18\r00210014912143658709214365870900000131\x1A", NULL, 0, &state, 0);
@@ -254,7 +243,7 @@ void test_send_len1_number20plus(void)
 	test_sms_header_exists = false;
 	sms_at_handler(NULL, "+CDS: 24\r\n06550A912143658709122022118314801220221183148000\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -511,7 +500,7 @@ void test_send_fail_atcmd_concat(void)
  */
 void test_send_cds_erroneous(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	enum at_cmd_state state = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
@@ -527,7 +516,7 @@ void test_send_cds_erroneous(void)
 	/* Removed length (24) from CDS */
 	sms_at_handler(NULL, "+CDS: \r\n06550A912143658709122022118314801220221183148000\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -592,7 +581,7 @@ static void sms_callback(struct sms_data *const data, void *context)
  */
 void test_recv_len3_number13(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890123");
 	test_sms_header.originating_address.length = 13;
@@ -610,7 +599,7 @@ void test_recv_len3_number13(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890123\",22\r\n0791534874894320040D91214365870921F300001220900285438003CD771A\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -622,7 +611,7 @@ void test_recv_len3_number13(void)
  */
 void test_recv_len1_number9(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "123456789");
 	test_sms_header.originating_address.length = 9;
@@ -640,12 +629,12 @@ void test_recv_len1_number9(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+123456789012\",20\r\n079153487489432004099121436587F90000122090028543800131\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 void test_recv_len8_number20(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "12345678901234567890");
 	test_sms_header.originating_address.length = 20;
@@ -663,12 +652,12 @@ void test_recv_len8_number20(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+12345678901234567890\",30\r\n0791534874894320041491214365870921436587090000122090028543800831D98C56B3DD70\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 void test_recv_concat_len291_msgs2(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -705,12 +694,12 @@ void test_recv_concat_len291_msgs2(void)
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0791534874894320440A912143658709000012201232054480910500037E02026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 void test_recv_concat_len755_msgs5(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -778,13 +767,13 @@ void test_recv_concat_len755_msgs5(void)
 	sms_at_handler(NULL, "+CMT: \"1234567890\"151\r\n0791534874894310440A91214365870900001220228065608096050003800505E6F4BAFD8ECFEB4161F1985C369FD169F59ADD76BFE171F99C5EB7DFF1793D282C1E93CBE6333AAD5EB3DBEE373C2E9FD3EBF63B3EAF0785C56372D97C46A7D56B76DBFD86C7E5737ADD7EC7E7F5A0B0784C2E9BCFE8B47ACD6EBBDFF0B87C4EAFDBEFF8BC1E14168FC965F3199D56AFD96DF71B1E97CFE975FB1D9FD703\r\n");
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test sending of special characters. */
 void test_recv_special_characters(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "123456789");
 	test_sms_header.originating_address.length = 9;
@@ -803,7 +792,7 @@ void test_recv_special_characters(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+123456789\",20\r\n079153487489432004099121436587F90000122090028543802F5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00D10B429BB00\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** 
@@ -813,7 +802,7 @@ void test_recv_special_characters(void)
  */
 void test_recv_concat_escape_character_last(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -850,13 +839,13 @@ void test_recv_concat_escape_character_last(void)
 	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A9121436587090000122022806550801305000351020236E5986C46ABD96EB81C0C\r\n");
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test port addressing */
 void test_recv_port_addr(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
@@ -882,7 +871,7 @@ void test_recv_port_addr(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700041210032143652b1b0b05040b84000000037c01010102030405060708090A0B0C0D0E0F\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /********* SMS RECV FAIL TESTS ******************/
@@ -890,31 +879,31 @@ void test_recv_port_addr(void)
 /** Test AT command unknown for SMS library. */
 void test_recv_unknown(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 	sms_at_handler(NULL, "%CESQ: 54,2,16,2\r\n");
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test empty AT command string. */
 void test_recv_empty_at_cmd(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 	sms_at_handler(NULL, "");
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test NULL AT command string. */
 void test_recv_null_at_cmd(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 	sms_at_handler(NULL, NULL);
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test SMS receive with empty text (zero length). */
 void test_recv_empty_sms_text(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -932,18 +921,18 @@ void test_recv_empty_sms_text(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",18\r\n00040A91214365870900001220900285438000\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test SMS receiving for PDU with non-hexadecimal digits. */
 void test_recv_invalid_hex_characters(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",18\r\n00040A91214365870900001220A00285438009123456KLAB\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -952,57 +941,57 @@ void test_recv_invalid_hex_characters(void)
  */
 void test_recv_invalid_header_too_short(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",18\r\n00040A91214365870900001220A0028543800\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Tests too long number as maximum allowed by 3GPP TS 23.040 is 20. */
 void test_recv_fail_number21(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+123456789012345678901\",32\r\n0004169121436587092143658709F10000122090028543800831D98C56B3DD70\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test erroneous CMT response which is missing some parameter. */
 void test_recv_cmt_erroneous(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	/* Size missing (22\r\n) */
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",0791534874894320040A91214365870900001220900285438003CD771A\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** DCS not supported (UCS2): 0x08 */
 void test_recv_fail_invalid_dcs_ucs2(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n004408812143658700081210032143652b1c0b05040b84000000037c0101010203040506070809\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Receive too long message with 161 bytes in actual text. */
 void test_recv_fail_len161(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A912143658709000012201232054480A131D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -1012,18 +1001,18 @@ void test_recv_fail_len161(void)
  */
 void test_recv_fail_internal_buffer_too_short(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n0B912143658709214365870904149121436587092143658709000012201232054480A031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560313233343536\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test User-Data-Length shorter than the actual data that is given */
 void test_recv_invalid_udl_shorter_than_ud_7bit(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1041,7 +1030,7 @@ void test_recv_invalid_udl_shorter_than_ud_7bit(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -1051,7 +1040,7 @@ void test_recv_invalid_udl_shorter_than_ud_7bit(void)
  */
 void test_recv_invalid_udl_longer_than_ud_7bit_len41(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1069,7 +1058,7 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len41(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -1079,7 +1068,7 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len41(void)
  */
 void test_recv_invalid_udl_longer_than_ud_7bit_len40(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1097,13 +1086,13 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len40(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090000122012320544802A31D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test User-Data-Length longer than the actual data that is given */
 void test_recv_invalid_udl_longer_than_ud_8bit(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1121,13 +1110,13 @@ void test_recv_invalid_udl_longer_than_ud_8bit(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090004122012320544800A010203040506070809\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Test User-Data-Length shorter than the actual data that is given */
 void test_recv_invalid_udl_shorter_than_ud_8bit(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1145,34 +1134,34 @@ void test_recv_invalid_udl_shorter_than_ud_8bit(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00040A9121436587090004122012320544800A0102030405060708090A0B0C0D0E0F\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 void test_recv_fail_udhl_longer_than_udh(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A912143658709000012201232054480050500037E0201AAAA\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Tests User-Data-Header Length that is longer than the actual user data. */
 void test_recv_fail_udhl_longer_than_ud(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	sms_callback_called_expected = false;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448004030201\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Tests User-Data-Header with actual data of length 0. */
 void test_recv_udh_with_datalen0(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1195,7 +1184,7 @@ void test_recv_udh_with_datalen0(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448006050003AB0101\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -1204,7 +1193,7 @@ void test_recv_udh_with_datalen0(void)
  */
 void test_recv_udh_with_datalen0_fill_byte(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1227,13 +1216,13 @@ void test_recv_udh_with_datalen0_fill_byte(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448007050003AB010100\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** Tests User-Data-Header with actual data of length 1. */
 void test_recv_udh_with_datalen1(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
@@ -1256,7 +1245,7 @@ void test_recv_udh_with_datalen1(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n00440A91214365870900001220123205448008050003AB010162\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** UDH IE is too long to fit to UDH based on UDH length:
@@ -1266,7 +1255,7 @@ void test_recv_udh_with_datalen1(void)
  */
 void test_recv_invalid_udh_too_long_ie(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
@@ -1287,7 +1276,7 @@ void test_recv_invalid_udh_too_long_ie(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700041210032143652B1B0A05040B84111100037C010102030405060708090A0B0C0D0E0F\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /**
@@ -1305,7 +1294,7 @@ void test_recv_invalid_udh_too_long_ie(void)
  */
 void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
@@ -1328,7 +1317,7 @@ void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700041210032143652B2F1E00022A0100032A000200032A020000032A020304021100080511112222220102030405060708090A0B0C0D0E0F\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /** 
@@ -1344,7 +1333,7 @@ void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
  */
 void test_recv_invalid_udh_portaddr_ignored_concat_valid(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
@@ -1369,7 +1358,7 @@ void test_recv_invalid_udh_portaddr_ignored_concat_valid(void)
 	sms_callback_called_expected = true;
 	sms_at_handler(NULL, "+CMT: \"12345678\",22\r\n004408812143658700041210032143652B2C1B01000804111101010400050712345678901234A1061234567890120102030405060708090A0B0C0D0E0F\r\n");
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /********* SMS MULTIPLE SEND & RECV TESTS ***********************/
@@ -1431,7 +1420,7 @@ void recv_basic(void)
  */
 void test_send_recv_both(void)
 {
-	sms_init_helper();
+	sms_reg_helper();
 
 	send_basic();
 	recv_basic();
@@ -1445,7 +1434,7 @@ void test_send_recv_both(void)
 	recv_basic();
 	send_basic();
 
-	sms_uninit_helper();
+	sms_unreg_helper();
 }
 
 /* It is required to be added to each test. That is because unity is using

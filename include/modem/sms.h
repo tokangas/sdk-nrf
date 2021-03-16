@@ -116,15 +116,9 @@ struct sms_data {
 typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
 
 /**
- * @brief Initialize the SMS subscriber module.
+ * @brief Register a new listener to SMS library.
  *
- * @return Zero on success, or a negative error code. The EBUSY error
- *         indicates that one SMS client has already been registered.
- */
-int sms_init(void);
-
-/**
- * @brief Register a new listener.
+ * Also registers to modem's SMS service if it's not already subscribed.
  *
  * A listener is identified by a unique handle value. This handle should be used
  * to unregister the listener. A listener can be registered multiple times with
@@ -134,23 +128,24 @@ int sms_init(void);
  * @param context User context. Can be null if not used.
  *
  * @retval -EINVAL Invalid parameter.
- * @retval -ENOMEM No memory to register new observers.
+ * @retval -ENOSPC List of observers is full.
+ * @retval -EBUSY Indicates that one SMS client has already been registered.
+ * @retval -ENOMEM Out of memory.
  * @return Handle identifying the listener,
  *         or a negative value if an error occurred.
+ * TODO: List of error codes is not complete.
  */
 int sms_register_listener(sms_callback_t listener, void *context);
 
 /**
  * @brief Unregister a listener.
  *
+ * Also unregisters from modem's SMS service if there are
+ * no listeners registered.
+ *
  * @param handle Handle identifying the listener to unregister.
  */
 void sms_unregister_listener(int handle);
-
-/**
- * @brief Uninitialize the SMS subscriber module.
- */
-void sms_uninit(void);
 
 /**
  * @brief Send SMS message.
