@@ -96,7 +96,7 @@ int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp, struct at_param
 			LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
 			return -ENOMEM;
 		}
-		err = sms_deliver_pdu_parse(pdu, cmt_rsp->header);
+		err = sms_deliver_pdu_parse(pdu, cmt_rsp);
 		if (err) {
 			LOG_ERR("sms_deliver_pdu_parse error: %d\n", err);
 			return err;

@@ -61,10 +61,6 @@ static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 static void sms_data_clear(struct sms_data *cmt_rsp)
 {
 	if (cmt_rsp->header != NULL) {
-		if (cmt_rsp->header->ud != NULL) {
-			k_free(cmt_rsp->header->ud);
-			cmt_rsp->header->ud = NULL;
-		}
 		if (cmt_rsp->header->udh != NULL) {
 			k_free(cmt_rsp->header->udh);
 			cmt_rsp->header->udh = NULL;
@@ -72,6 +68,7 @@ static void sms_data_clear(struct sms_data *cmt_rsp)
 		k_free(cmt_rsp->header);
 		cmt_rsp->header = NULL;
 	}
+	memset(cmt_rsp->data, 0, SMS_MAX_DATA_LEN_CHARS);
 }
 
 static void sms_ack(struct k_work *work)

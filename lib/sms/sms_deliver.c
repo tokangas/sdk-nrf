@@ -611,21 +611,23 @@ void *sms_deliver_get_api(void)
  * in 3GPP TS 23.040 Section 9.2.2.1.
  * 
  * @param pdu SMS-DELIVER PDU.
- * @param out SMS message decoded into a structure.
+ * @param header SMS message decoded into a structure.
  * 
  * @retval -EINVAL Invalid parameter.
  * @retval -ENOMEM No memory to register new observers.
  * @return Zero on success, otherwise error code.
  */
-int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
+int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 {
-	struct  parser sms_deliver;
-	int     err=0;
+	struct parser sms_deliver;
+	int err = 0;
 
 	__ASSERT(pdu != NULL, "Parameter 'pdu' cannot be NULL.");
-	__ASSERT(out != NULL, "Parameter 'out' cannot be NULL.");
+	__ASSERT(data != NULL, "Parameter 'data' cannot be NULL.");
 
-	memset(out, 0, sizeof(struct sms_deliver_header));
+	struct sms_deliver_header *header = data->header;
+	__ASSERT(header != NULL, "Parameter 'header' cannot be NULL.");
+	memset(header, 0, sizeof(struct sms_deliver_header));
 
 	parser_create(&sms_deliver, sms_deliver_get_api());
 
@@ -636,34 +638,28 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out)
 		return err;
 	}
 
-	parser_get_header(&sms_deliver, out);
+	parser_get_header(&sms_deliver, header);
 
-	out->ud = k_calloc(1, out->ud_len + 1);
-	if (out->ud == NULL) {
-		LOG_ERR("Unable to parse SMS-DELIVER message due to no memory");
-		return -ENOMEM;
-	}
+	data->data_len = parser_get_payload(&sms_deliver,
+					  data->data,
+					  SMS_MAX_DATA_LEN_CHARS);
 
-	out->data_len = parser_get_payload(&sms_deliver,
-					  out->ud,
-					  out->ud_len);
-
-	if (out->data_len < 0) {
+	if (data->data_len < 0) {
 		LOG_ERR("Getting sms deliver payload failed: %d\n",
-			out->data_len);
-		return out->data_len;
+			data->data_len);
+		return data->data_len;
 	}
 
 	LOG_DBG("Time:   %02x-%02x-%02x %02x:%02x:%02x",
-		out->time.year,
-		out->time.month,
-		out->time.day,
-		out->time.hour,
-		out->time.minute,
-		out->time.second);
-	LOG_DBG("Text:   '%s'", log_strdup(out->ud));
+		header->time.year,
+		header->time.month,
+		header->time.day,
+		header->time.hour,
+		header->time.minute,
+		header->time.second);
+	LOG_DBG("Text:   '%s'", log_strdup(data->data));
 
-	LOG_DBG("Length: %d", out->data_len);
+	LOG_DBG("Length: %d", data->data_len);
 
 	parser_delete(&sms_deliver);
 	return 0;

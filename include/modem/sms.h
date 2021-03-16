@@ -29,6 +29,7 @@ enum sms_type {
 	SMS_TYPE_SUBMIT_REPORT
 };
 
+#define SMS_MAX_DATA_LEN_CHARS 160
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
@@ -47,6 +48,9 @@ struct sms_data {
 	 * TODO: Right now this has also user data so the naming is confusing.
 	 */
 	struct sms_deliver_header *header;
+
+	int data_len;
+	char data[SMS_MAX_DATA_LEN_CHARS + 1];
 };
 
 enum sms_deliver_alphabet {
@@ -106,7 +110,6 @@ struct sms_deliver_header {
 	struct sms_udh_app_port     app_port;
 	struct sms_udh_concatenated concatenated;
 	int			    data_len;
-	char 			    *ud;
 };
 
 /** @brief SMS listener callback function. */

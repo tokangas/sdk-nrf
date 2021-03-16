@@ -8,9 +8,9 @@
 #define _SMS_DELIVER_INCLUDE_H_
 
 /* Forward declaration */
-struct sms_deliver_header;
+struct sms_data;
 
-int sms_deliver_pdu_parse(char *pdu, struct sms_deliver_header *out);
+int sms_deliver_pdu_parse(char *pdu, struct sms_data *out);
 
 #endif
 
