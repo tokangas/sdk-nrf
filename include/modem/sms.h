@@ -105,8 +105,6 @@ struct sms_deliver_header {
 	struct sms_deliver_address  service_center_address;
 	struct sms_deliver_address  originating_address;
 	uint8_t                     ud_len;
-	uint8_t                     udh_len;
-	uint8_t                     *udh;
 	struct sms_udh_app_port     app_port;
 	struct sms_udh_concatenated concatenated;
 	int			    data_len;
