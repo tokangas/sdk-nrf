@@ -520,6 +520,41 @@ static int parse_psm_cfg(struct at_param_list *at_params,
 	return 0;
 }
 
+static int enable_notifications(void)
+{
+	int err;
+
+	/* +CEREG notifications, level 5 */
+	err = at_cmd_write(cereg_5_subscribe, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to subscribe to CEREG notifications");
+		return err;
+	}
+
+	/* +CSCON notifications */
+	err = at_cmd_write(cscon, NULL, 0, NULL);
+	if (err) {
+		char buf[50];
+
+		/* AT+CSCON is supported from modem firmware v1.1.0, and will
+		 * not work for older versions. If the command fails, RRC
+		 * mode change notifications will not be received. This is not
+		 * considered a critical error, and the error code is therefore
+		 * not returned, while informative log messageas are printed.
+		 */
+		LOG_WRN("%s failed (%d), RRC notifications are not enabled",
+			cscon, err);
+		LOG_WRN("%s is supported in nRF9160 modem >= v1.1.0", cscon);
+
+		err = at_cmd_write("AT+CGMR", buf, sizeof(buf), NULL);
+		if (err == 0) {
+			LOG_WRN("Current modem firmware version: %s",
+				log_strdup(buf));
+		}
+	}
+
+	return 0;
+}
 static int w_lte_lc_init(void)
 {
 	int err;
@@ -574,9 +609,6 @@ static int w_lte_lc_init(void)
 		return -EIO;
 	}
 #endif
-	if (at_cmd_write(cereg_5_subscribe, NULL, 0, NULL) != 0) {
-		return -EIO;
-	}
 
 #if defined(CONFIG_LTE_LOCK_BANDS)
 	/* Set LTE band lock (volatile setting).
@@ -620,25 +652,10 @@ static int w_lte_lc_init(void)
 #endif
 
 	/* Listen for RRC connection mode notifications */
-	err = at_cmd_write(cscon, NULL, 0, NULL);
+	err = enable_notifications();
 	if (err) {
-		char buf[50];
-
-		/* AT+CSCON is supported from modem firmware v1.1.0, and will
-		 * not work for older versions. If the command fails, RRC
-		 * mode change notifications will not be received. This is not
-		 * considered a critical error, and the error code is therefore
-		 * not returned, while informative log messageas are printed.
-		 */
-		LOG_WRN("%s failed (%d), RRC notifications are not enabled",
-			cscon, err);
-		LOG_WRN("%s is supported in nRF9160 modem >= v1.1.0", cscon);
-
-		err = at_cmd_write("AT+CGMR", buf, sizeof(buf), NULL);
-		if (err == 0) {
-			LOG_WRN("Current modem firmware version: %s",
-				log_strdup(buf));
-		}
+		LOG_ERR("Failed to enable notifications");
+		return err;
 	}
 
 	is_initialized = true;
@@ -805,8 +822,18 @@ int lte_lc_deinit(void)
 
 int lte_lc_normal(void)
 {
-	if (at_cmd_write(normal, NULL, 0, NULL) != 0) {
-		return -EIO;
+	int err;
+
+	err = enable_notifications();
+	if (err) {
+		LOG_ERR("Failed to enabled notifications, error: %d", err);
+		return err;
+	}
+
+	err = at_cmd_write(normal, NULL, 0, NULL);
+	if (err) {
+		LOG_ERR("Failed to set normal mode, error: %d", err);
+		return err;
 	}
 
 	return 0;
