@@ -20,6 +20,7 @@
 
 #include "utils/fta_net_utils.h"
 
+#include "ltelc_shell.h"
 #include "ltelc_api.h"
 
 #if defined(CONFIG_AT_CMD)
@@ -607,6 +608,8 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 	pdp_context_info_array_t pdp_context_info_tbl;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE + 1];
 	int ret;
+
+	ltelc_shell_print_current_system_modes(shell);
 
 	ret = modem_info_string_get(MODEM_INFO_FW_VERSION, info_str,
 				    sizeof(info_str));

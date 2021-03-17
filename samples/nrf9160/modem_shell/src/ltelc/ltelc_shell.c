@@ -314,6 +314,21 @@ static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff
 
 /******************************************************************************/
 
+void ltelc_shell_print_current_system_modes(const struct shell *shell)
+{
+	int ret;
+	enum lte_lc_system_mode sys_mode_current;
+	char snum[64];
+
+	ret = lte_lc_system_mode_get(&sys_mode_current);
+	if (ret >= 0) {
+		shell_print(shell, "Modem system mode: %s", 
+			ltelc_shell_sysmode_to_string(sys_mode_current, snum));
+	}
+}
+
+/******************************************************************************/
+
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	ltelc_shell_cmd_args_t ltelc_cmd_args;
@@ -643,10 +658,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 
 		case LTELC_CMD_STATUS:
-			ret = lte_lc_system_mode_get(&sys_mode_current);
-			if (ret >= 0)
-				shell_print(shell, "Modem system mode: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
-
 			ret = ltelc_func_mode_get();
 			if (ret >= 0)
 				shell_print(shell, "Modem functional mode: %s", ltelc_shell_funmode_to_string(ret, snum));

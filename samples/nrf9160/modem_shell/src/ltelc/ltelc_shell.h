@@ -9,5 +9,6 @@
 #include <shell/shell.h>
 
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv);
+void ltelc_shell_print_current_system_modes(const struct shell *shell);
 
 #endif /* LTELC_SHELL_H */
