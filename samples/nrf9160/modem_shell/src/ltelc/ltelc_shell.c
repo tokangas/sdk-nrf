@@ -24,6 +24,7 @@
 
 typedef enum {
 	LTELC_CMD_STATUS = 0,
+	LTELC_CMD_SETTINGS,
 	LTELC_CMD_CONEVAL,
 	LTELC_CMD_DEFCONT,
 	LTELC_CMD_DEFCONTAUTH,
@@ -68,6 +69,7 @@ const char ltelc_usage_str[] =
 	"  <subcommand>:            Subcommand usage if options\n"
 	"  help:                    Show this message (no options)\n"
 	"  status:                  Show status of the current connection (no options)\n"
+	"  settings:                Option to print or reset all persistent ltelc subcmd settings.\n"
 	"  coneval:                 Evaluate connection parameters (no options)\n"
 	"  defcont:                 Set custom default PDP context config. Persistent between the sessions.\n"
 	"                           Effective when going to normal mode.\n"
@@ -86,6 +88,11 @@ const char ltelc_usage_str[] =
 	"  psm:                     Enable/disable Power Saving Mode (PSM) with default or with custom parameters\n"
 	"\n"
 	;
+const char ltelc_settings_usage_str[] =
+	"Options for 'ltelc settings' command:\n"
+	"  -r, --read,       [bool] Read and print current persistent settings\n"
+	"      --reset,      [bool] Reset all persistent settings as their defaults\n"
+	"\n";
 
 const char ltelc_defcont_usage_str[] =
 	"Options for 'ltelc defcont' command:\n"
@@ -118,7 +125,7 @@ const char ltelc_connect_usage_str[] =
 
 const char ltelc_sysmode_usage_str[] =
 	"Options for 'ltelc sysmode' command:\n"
-	"  -r, --read,       [bool] Read modem functional mode\n"
+	"  -r, --read,       [bool] Read modem system mode\n"
 	"  -m, --ltem,       [bool] LTE-M (LTE Cat-M1) system mode\n"
 	"  -n, --nbiot,      [bool] NB-IoT (LTE Cat-NB1) system mode\n"
 	"  -g, --gps,        [bool] GPS system mode\n"
@@ -176,6 +183,7 @@ const char ltelc_rsrp_usage_str[] =
 #define LTELC_SHELL_OPT_MEM_SLOT_1 1001
 #define LTELC_SHELL_OPT_MEM_SLOT_2 1002
 #define LTELC_SHELL_OPT_MEM_SLOT_3 1003
+#define LTELC_SHELL_OPT_RESET      1004
 
  /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
@@ -205,6 +213,7 @@ static struct option long_options[] = {
     {"mem1",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_1 },
     {"mem2",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_2 },
     {"mem3",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_3 },
+    {"reset",                   no_argument,       0,   LTELC_SHELL_OPT_RESET },
     {0,                         0,                 0,   0  }
 };
 
@@ -213,6 +222,9 @@ static struct option long_options[] = {
 static void ltelc_shell_print_usage(const struct shell *shell, ltelc_shell_cmd_args_t *ltelc_cmd_args)
 {
 		switch (ltelc_cmd_args->command) {
+		case LTELC_CMD_SETTINGS:
+			shell_print(shell, "%s", ltelc_settings_usage_str);
+			break;
 		case LTELC_CMD_DEFCONT:
 			shell_print(shell, "%s", ltelc_defcont_usage_str);
 			break;
@@ -297,7 +309,9 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 	return ltelc_shell_map_to_string(mapping_table, funmode, out_str_buff);
 }
 
-static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
+/******************************************************************************/
+
+const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
 {
 	struct mapping_tbl_item const mapping_table[] = {
 		{LTE_LC_SYSTEM_MODE_NONE,      "None"},
@@ -311,8 +325,6 @@ static const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff
 	
 	return ltelc_shell_map_to_string(mapping_table, sysmode, out_str_buff);
 }
-
-/******************************************************************************/
 
 void ltelc_shell_print_current_system_modes(const struct shell *shell)
 {
@@ -355,6 +367,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	/* sub-command = argv[1]       */
 	if (strcmp(argv[1], "status") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_STATUS;
+	} else if (strcmp(argv[1], "settings") == 0) {
+		ltelc_cmd_args.command = LTELC_CMD_SETTINGS;
 	} else if (strcmp(argv[1], "coneval") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_CONEVAL;
 	} else if (strcmp(argv[1], "rsrp") == 0) {
@@ -411,6 +425,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	bool psm_rptau_set = false;
 	char psm_rat_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
 	bool psm_rat_set = false;
+
+	bool reset_option = false;
 
 	char *normal_mode_at_str = NULL;
 	uint8_t normal_mode_at_mem_slot = 0;
@@ -561,6 +577,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			normal_mode_at_str = optarg;
 			normal_mode_at_mem_slot = 3;
 			break;
+		case LTELC_SHELL_OPT_RESET:
+			reset_option = true;
+			break;
+
 		case '?':
 			goto show_usage;
 			break;
@@ -666,6 +686,15 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				online = true;
 
 			ltelc_api_modem_info_get_for_shell(shell, online);
+			break;
+		case LTELC_CMD_SETTINGS:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				ltelc_sett_all_print(shell);
+			} else if (reset_option == true) {
+				ltelc_sett_defaults_set(shell);
+			} else {
+				goto show_usage;
+			}
 			break;
 		case LTELC_CMD_CONEVAL:
 			ltelc_api_coneval_read_for_shell(shell);

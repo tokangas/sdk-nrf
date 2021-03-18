@@ -9,6 +9,9 @@
 
 int ltelc_sett_init(const struct shell *shell);
 
+void ltelc_sett_defaults_set(const struct shell *shell);
+void ltelc_sett_all_print(const struct shell *shell);
+
 int ltelc_sett_save_defcont_enabled(bool enabled);
 bool ltelc_sett_is_defcont_enabled();
 void ltelc_sett_defcont_conf_shell_print(const struct shell *shell);

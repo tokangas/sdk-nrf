@@ -16,6 +16,8 @@
 #include <modem/lte_lc.h>
 
 #include "fta_defines.h"
+
+#include "ltelc_shell.h"
 #include "ltelc_settings.h"
 
 #define LTELC_SETT_KEY			                  "mosh_ltelc_settings"
@@ -231,7 +233,7 @@ int ltelc_sett_save_defcont_enabled(bool enabled)
 
 	err = settings_save_one(key, &ltelc_settings.defcont_enabled, sizeof(ltelc_settings.defcont_enabled));
 	if (err) {
-		shell_error(uart_shell, "ltelc_sett_save_defcont_enabled: err %d from settings_save_one()\n", err);
+		shell_error(uart_shell, "ltelc_sett_save_defcont_enabled: err %d from settings_save_one()", err);
 		return err;
 	}
 	return 0;
@@ -270,7 +272,7 @@ int ltelc_sett_save_defcont_ip_family(const char *ip_family_str)
 			strcpy(tmp_family_str, "Non-IP");
 		}
 		else {
-			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: could not decode PDN address family (%s)\n", 
+			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: could not decode PDN address family (%s)", 
 				ip_family_str);			
 			return -EINVAL;			
 		}
@@ -278,13 +280,13 @@ int ltelc_sett_save_defcont_ip_family(const char *ip_family_str)
 			key,
 			tmp_family_str, len + 1);
 		if (err) {
-			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: err %d from settings_save_one()\n", err);
+			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: err %d from settings_save_one()", err);
 			return err;
 		}
 		strcpy(ltelc_settings.defcont_ip_family_str, tmp_family_str);
 	}
 	else {
-		shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: family len exceed the max (%d)\n", 
+		shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: family len exceed the max (%d)", 
 			LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN);
 		return -EINVAL;
 	}
@@ -309,10 +311,10 @@ int ltelc_sett_save_defcont_apn(const char *defcont_apn_str)
 		key,
 		defcont_apn_str, len + 1);
 	if (err) {
-		shell_error(uart_shell, "ltelc_sett_save_defcont_apn: err %d from settings_save_one()\n", err);
+		shell_error(uart_shell, "ltelc_sett_save_defcont_apn: err %d from settings_save_one()", err);
 		return err;
 	}
-	shell_print(uart_shell, "ltelc_settings: key %s with value %s saved\n", key, defcont_apn_str);
+	shell_print(uart_shell, "ltelc_settings: key %s with value %s saved", key, defcont_apn_str);
 
 	strcpy(ltelc_settings.defcont_apn_str, defcont_apn_str);
 
@@ -338,7 +340,7 @@ int ltelc_sett_save_defcontauth_enabled(bool enabled)
 	
 	err = settings_save_one(key, &ltelc_settings.defcontauth_enabled, sizeof(ltelc_settings.defcontauth_enabled));
 	if (err) {
-		shell_error(uart_shell, "ltelc_sett_save_defcontauth_enabled: erro %d from settings_save_one()\n", err);
+		shell_error(uart_shell, "ltelc_sett_save_defcontauth_enabled: erro %d from settings_save_one()", err);
 		return err;
 	}
 	
@@ -366,10 +368,10 @@ int ltelc_sett_save_defcontauth_username(const char *username_str)
 		key,
 		username_str, len + 1);
 	if (err) {
-		shell_error(uart_shell, "Saving of authentication username failed with err %d\n", err);
+		shell_error(uart_shell, "Saving of authentication username failed with err %d", err);
 		return err;
 	}
-	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved\n", key, username_str);
+	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved", key, username_str);
 
 	strcpy(ltelc_settings.defcontauth_uname_str, username_str);
 
@@ -390,10 +392,10 @@ int ltelc_sett_save_defcontauth_password(const char *password_str)
 
 	err = settings_save_one(key, password_str, len + 1);
 	if (err) {
-		shell_error(uart_shell, "Saving of authentication password failed with err %d\n", err);
+		shell_error(uart_shell, "Saving of authentication password failed with err %d", err);
 		return err;
 	}
-	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved\n", key, password_str);
+	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved", key, password_str);
 
 	strcpy(ltelc_settings.defcontauth_pword_str, password_str);
 
@@ -416,7 +418,7 @@ int ltelc_sett_save_defcontauth_prot(int auth_prot)
 		prot = LTELC_SETT_DEFCONTAUTH_PROT_CHAP;
 	}
 	else {
-		shell_error(uart_shell, "Uknown auth protocol %d\n", auth_prot);
+		shell_error(uart_shell, "Uknown auth protocol %d", auth_prot);
 		return -EINVAL;
 	}
 
@@ -425,12 +427,12 @@ int ltelc_sett_save_defcontauth_prot(int auth_prot)
 		&prot, 
 		sizeof(enum ltelc_sett_defcontauth_prot));
 	if (err) {
-		shell_error(uart_shell, "Saving of authentication protocol failed with err %d\n", err);
+		shell_error(uart_shell, "Saving of authentication protocol failed with err %d", err);
 		return err;
 	}
 	ltelc_settings.defcontauth_prot = prot;
 
-	shell_print(uart_shell, "Key \"%s\" with value \"%d\" saved\n", key, prot);
+	shell_print(uart_shell, "Key \"%s\" with value \"%d\" saved", key, prot);
 
 	return 0;
 }
@@ -459,6 +461,7 @@ void ltelc_sett_defcontauth_conf_shell_print(const struct shell *shell)
 	shell_print(shell, "  Password: %s", ltelc_settings.defcontauth_pword_str);
 	shell_print(shell, "  Authentication protocol: %s", prot_type_str[ltelc_settings.defcontauth_prot]);
 }
+
 /* ****************************************************************************/
 int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode)
 {
@@ -467,13 +470,21 @@ int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode)
 
 	err = settings_save_one(key, &mode, sizeof(mode));
 	if (err) {
-		shell_error(uart_shell, "ltelc_sett_save_sysmode: erro %d from settings_save_one()\n", err);
+		shell_error(uart_shell, "ltelc_sett_save_sysmode: erro %d from settings_save_one()", err);
 		return err;
 	}
 	ltelc_settings.sysmode = mode;
-	shell_info(uart_shell, "sysmode %d saved succesfully to settings", mode);
+	shell_print(uart_shell, "sysmode %d saved succesfully to settings", mode);
 
 	return 0;
+}
+void ltelc_sett_sysmode_print(const struct shell *shell)
+{
+	char snum[64];
+
+	shell_print(shell, "ltelc sysmode config:");
+		shell_print(shell, "  mode: %s", 
+			ltelc_shell_sysmode_to_string(ltelc_sett_sysmode_get(), snum));
 }
 
 int ltelc_sett_sysmode_get()
@@ -495,7 +506,7 @@ char *ltelc_sett_normal_mode_at_cmd_str_get(uint8_t mem_slot)
 	}
 	else {
 		shell_error(uart_shell, 
-			"ltelc_sett_normal_mode_at_cmd_str_get:unsupported memory slot %d\n", mem_slot);
+			"ltelc_sett_normal_mode_at_cmd_str_get:unsupported memory slot %d", mem_slot);
 		return NULL;
 	}
 }
@@ -527,7 +538,7 @@ int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot)
 	}
 	else {
 		shell_error(uart_shell, 
-			"ltelc_sett_save_normal_mode_at_cmd_str: unsupported memory slot %d\n", mem_slot);
+			"ltelc_sett_save_normal_mode_at_cmd_str: unsupported memory slot %d", mem_slot);
 		return -EINVAL;
 	}
 
@@ -537,13 +548,13 @@ int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot)
 	if (err) {
 		shell_error(
 			uart_shell, 
-			"Saving of normal mode at cmd %d to settings failed with err %d\n", 
+			"Saving of normal mode at cmd %d to settings failed with err %d", 
 			mem_slot, 
 			err);
 		return err;
 	}
 
-	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved\n", key, at_str);
+	shell_print(uart_shell, "Key \"%s\" with value \"%s\" saved", key, at_str);
 
 	strcpy(at_cmd_ram_storage_ptr, at_str);
 	return 0;
@@ -569,7 +580,7 @@ int ltelc_sett_clear_normal_mode_at_cmd_str(uint8_t mem_slot)
 	}
 	else {
 		shell_error(uart_shell, 
-			"ltelc_sett_delete_normal_mode_at_cmd_str: unsupported memory slot %d\n", mem_slot);
+			"ltelc_sett_delete_normal_mode_at_cmd_str: unsupported memory slot %d", mem_slot);
 		return -EINVAL;
 	}
 
@@ -577,15 +588,15 @@ int ltelc_sett_clear_normal_mode_at_cmd_str(uint8_t mem_slot)
 	if (err) {
 		shell_error(
 			uart_shell, 
-			"Clearing of normal mode at cmd %d to settings failed with err %d\n", 
+			"Clearing of normal mode at cmd %d to settings failed with err %d", 
 			mem_slot, 
 			err);
 		return err;
 	}
 
-	shell_print(uart_shell, "Key \"%s\" cleared\n", key);
+	shell_print(uart_shell, "Key \"%s\" cleared", key);
 
-	strcpy(at_cmd_ram_storage_ptr, '\0');
+	at_cmd_ram_storage_ptr[0] = '\0';
 
 	return 0;
 }
@@ -612,7 +623,7 @@ int ltelc_sett_save_normal_mode_autoconn_enabled(bool enabled)
 		sizeof(ltelc_settings.normal_mode_autoconn_enabled));
 	
 	if (err) {
-		shell_error(uart_shell, "ltelc_sett_save_defcont_enabled: err %d from settings_save_one()\n", err);
+		shell_error(uart_shell, "ltelc_sett_save_defcont_enabled: err %d from settings_save_one()", err);
 		return err;
 	}
 	return 0;
@@ -631,8 +642,57 @@ void ltelc_sett_normal_mode_autoconn_shell_print(const struct shell *shell)
 		"  Autoconnect enabled: %s", 
 			ltelc_settings.normal_mode_autoconn_enabled ? "true" : "false" );
 }
+/* ****************************************************************************/
+
+static void ltelc_sett_ram_data_init()
+{
+	memset(&ltelc_settings, 0 , sizeof(ltelc_settings));
+	
+	ltelc_settings.normal_mode_autoconn_enabled = true;
+	ltelc_settings.sysmode = LTE_LC_SYSTEM_MODE_NONE;
+
+	strcpy(ltelc_settings.defcont_apn_str, LTELC_SETT_DEFCONT_DEFAULT_APN);
+	strcpy(ltelc_settings.defcont_ip_family_str, LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY);
+	strcpy(ltelc_settings.defcontauth_uname_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME);
+	strcpy(ltelc_settings.defcontauth_pword_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD);
+}
 
 /* ****************************************************************************/
+void ltelc_sett_all_print(const struct shell *shell)
+{
+	ltelc_sett_sysmode_print(shell);
+	ltelc_sett_defcont_conf_shell_print(shell);
+	ltelc_sett_defcontauth_conf_shell_print(shell);
+	ltelc_sett_normal_mode_at_cmds_shell_print(shell);
+	ltelc_sett_normal_mode_autoconn_shell_print(shell);
+}
+
+void ltelc_sett_defaults_set(const struct shell *shell)
+{
+	ltelc_sett_ram_data_init();
+
+	ltelc_sett_save_defcont_enabled(false);
+	ltelc_sett_save_defcont_ip_family(LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY);
+	ltelc_sett_save_defcont_apn(LTELC_SETT_DEFCONT_DEFAULT_APN);
+	
+	ltelc_sett_save_defcontauth_enabled(false);
+	ltelc_sett_save_defcontauth_username(
+		LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME);
+	ltelc_sett_save_defcontauth_password(
+		LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD);
+	ltelc_sett_save_defcontauth_prot(LTELC_SETT_DEFCONTAUTH_PROT_NONE);
+
+	ltelc_sett_sysmode_save(LTE_LC_SYSTEM_MODE_NONE);
+
+	ltelc_sett_clear_normal_mode_at_cmd_str(1);
+	ltelc_sett_clear_normal_mode_at_cmd_str(2);
+	ltelc_sett_clear_normal_mode_at_cmd_str(3);
+
+
+	ltelc_sett_save_normal_mode_autoconn_enabled(true);
+
+	shell_print(shell, "ltelc settings reseted");
+}
 
 int ltelc_sett_init(const struct shell *shell) 
 {
@@ -645,13 +705,7 @@ int ltelc_sett_init(const struct shell *shell)
 	uart_shell = shell;
 
 	/* Set the defaults: */
-	memset(&ltelc_settings, 0 , sizeof(ltelc_settings));
-	
-	ltelc_settings.normal_mode_autoconn_enabled = true;
-	strcpy(ltelc_settings.defcont_apn_str, LTELC_SETT_DEFCONT_DEFAULT_APN);
-	strcpy(ltelc_settings.defcont_ip_family_str, LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY);
-	strcpy(ltelc_settings.defcontauth_uname_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME);
-	strcpy(ltelc_settings.defcontauth_pword_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD);
+	ltelc_sett_ram_data_init();
 
 	err = settings_subsys_init();
 	if (err) {
