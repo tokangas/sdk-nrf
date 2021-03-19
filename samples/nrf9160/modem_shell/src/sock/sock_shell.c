@@ -96,28 +96,29 @@ const char sock_usage_str[] =
 	"Options for 'rai' command:\n"
 	"      --rai_enable, [int]   Enable (1) / disable (0) RAI. This shall be used\n"
 	"                            without other parameters and it applies to all\n"
-	"                            sockets.\n"
-	"      --rai_last, [int]     Enable (1) / disable (0) NRF_SO_RAI_LAST option.\n"
+	"                            sockets. This has to be issued in offline or\n"
+	"                            flightmode in order to take effect.\n"
+	"      --rai_last, [bool]    Sets NRF_SO_RAI_LAST option.\n"
 	"                            Indicates that the next call to send/sendto will be\n"
 	"                            the last one for some time, which means that the\n"
 	"                            modem can get out of connected mode quicker when\n"
 	"                            this data is sent.\n"
-	"      --rai_no_data, [int]  Enable (1) / disable (0) NRF_SO_RAI_NO_DATA option.\n"
+	"      --rai_no_data, [bool] Sets NRF_SO_RAI_NO_DATA option.\n"
 	"                            Indicates that the application will not send any\n"
 	"                            more data. This socket option will apply\n"
 	"                            immediately, and does not require a call to send\n"
  	"                            afterwards.\n"
-	"      --rai_one_resp, [int] Enable (1) / disable (0) NRF_SO_RAI_ONE_RESP option.\n"
+	"      --rai_one_resp, [bool] Sets NRF_SO_RAI_ONE_RESP option.\n"
 	"                            Indicates that after the next call to send/sendto,\n"
 	"                            the application is expecting to receive one more\n"
 	"                            data packet before this socket will not be used\n"
 	"                            again for some time.\n"
-	"      --rai_ongoing, [int]  Enable (1) / disable (0) NRF_SO_RAI_ONGOING option.\n"
+	"      --rai_ongoing, [bool] Sets NRF_SO_RAI_ONGOING option.\n"
 	"                            If a client application expects to use the socket\n"
 	"                            more it can indicate that by setting this socket\n"
 	"                            option before the next send call which will keep\n"
 	"                            the modem in connected mode longer.\n"
-	"      --rai_wait_more, [int] Enable (1) / disable (0) NRF_SO_RAI_WAIT_MORE option.\n"
+	"      --rai_wait_more, [bool] Sets NRF_SO_RAI_WAIT_MORE option.\n"
 	"                            If a server application expects to use the socket\n"
 	"                            more it can indicate that by setting this socket\n"
 	"                            option before the next send call.\n"
@@ -169,7 +170,10 @@ const char sock_usage_example_str[] =
 	"  sock close -i 0\n"
 	"\n"
 	"Use RAI settings:\n"
+	"  ltelc funmode -4\n"
 	"  sock rai --rai_enable 1\n"
+	"  ltelc funmode -1\n"
+	"  sock connect -a 111.222.111.222 -p 20000\n"
 	"  sock rai -i 0 --rai_no_more 0 --rai_last 1 --rai_ongoing 1\n"
 	"  sock send -i 0 -d testing\n"
 	"\n"
@@ -209,11 +213,11 @@ static struct option long_options[] = {
     {"print_format",   required_argument, 0,  'P' },
     {"verbose",        no_argument,       0,  'v' },
     {"rai_enable",     required_argument, 0,   SOCK_SHELL_OPT_RAI_ENABLE },
-    {"rai_last",       required_argument, 0,   SOCK_SHELL_OPT_RAI_LAST },
-    {"rai_no_data",    required_argument, 0,   SOCK_SHELL_OPT_RAI_NO_DATA },
-    {"rai_one_resp",   required_argument, 0,   SOCK_SHELL_OPT_RAI_ONE_RESP },
-    {"rai_ongoing",    required_argument, 0,   SOCK_SHELL_OPT_RAI_ONGOING },
-    {"rai_wait_more",  required_argument, 0,   SOCK_SHELL_OPT_RAI_WAIT_MORE },
+    {"rai_last",       no_argument,       0,   SOCK_SHELL_OPT_RAI_LAST },
+    {"rai_no_data",    no_argument,       0,   SOCK_SHELL_OPT_RAI_NO_DATA },
+    {"rai_one_resp",   no_argument,       0,   SOCK_SHELL_OPT_RAI_ONE_RESP },
+    {"rai_ongoing",    no_argument,       0,   SOCK_SHELL_OPT_RAI_ONGOING },
+    {"rai_wait_more",  no_argument,       0,   SOCK_SHELL_OPT_RAI_WAIT_MORE },
     {0,                0,                 0,   0  }
 };
 
@@ -290,11 +294,11 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	enum sock_recv_print_format arg_recv_print_format =
 		SOCK_RECV_PRINT_FORMAT_NONE;
 	int arg_rai_enable = SOCK_RAI_NONE;
-	int arg_rai_last = SOCK_RAI_NONE;
-	int arg_rai_no_data = SOCK_RAI_NONE;
-	int arg_rai_one_resp = SOCK_RAI_NONE;
-	int arg_rai_ongoing = SOCK_RAI_NONE;
-	int arg_rai_wait_more = SOCK_RAI_NONE;
+	bool arg_rai_last = false;
+	bool arg_rai_no_data = false;
+	bool arg_rai_one_resp = false;
+	bool arg_rai_ongoing = false;
+	bool arg_rai_wait_more = false;
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
@@ -505,67 +509,27 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		}
 		case SOCK_SHELL_OPT_RAI_LAST:
 		{
-			int value = atoi(optarg);
-			if (value != 0 && value != 1) {
-				shell_error(
-					shell,
-					"rai_last (%d) must be either '0' (false) or '1' (true)",
-					optarg);
-				return -EINVAL;
-			}
-			arg_rai_last = value;
+			arg_rai_last = true;
 			break;
 		}
 		case SOCK_SHELL_OPT_RAI_NO_DATA:
 		{
-			int value = atoi(optarg);
-			if (value != 0 && value != 1) {
-				shell_error(
-					shell,
-					"rai_no_data (%d) must be either '0' (false) or '1' (true)",
-					optarg);
-				return -EINVAL;
-			}
-			arg_rai_no_data = value;
+			arg_rai_no_data = true;
 			break;
 		}
 		case SOCK_SHELL_OPT_RAI_ONE_RESP:
 		{
-			int value = atoi(optarg);
-			if (value != 0 && value != 1) {
-				shell_error(
-					shell,
-					"rai_one_resp (%d) must be either '0' (false) or '1' (true)",
-					optarg);
-				return -EINVAL;
-			}
-			arg_rai_one_resp = value;
+			arg_rai_one_resp = true;
 			break;
 		}
 		case SOCK_SHELL_OPT_RAI_ONGOING:
 		{
-			int value = atoi(optarg);
-			if (value != 0 && value != 1) {
-				shell_error(
-					shell,
-					"rai_ongoing (%d) must be either '0' (false) or '1' (true)",
-					optarg);
-				return -EINVAL;
-			}
-			arg_rai_ongoing = value;
+			arg_rai_ongoing = true;
 			break;
 		}
 		case SOCK_SHELL_OPT_RAI_WAIT_MORE:
 		{
-			int value = atoi(optarg);
-			if (value != 0 && value != 1) {
-				shell_error(
-					shell,
-					"rai_wait_more (%d) must be either '0' (false) or '1' (true)",
-					optarg);
-				return -EINVAL;
-			}
-			arg_rai_wait_more = value;
+			arg_rai_wait_more = true;
 			break;
 		}
 		case 'v': /* Longer help text with examples */
