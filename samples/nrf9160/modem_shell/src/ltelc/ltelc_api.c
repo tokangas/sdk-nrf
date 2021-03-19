@@ -42,6 +42,7 @@
 #define AT_CMD_PDP_CONTEXT_READ_INFO_CID_INDEX 1
 #define AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_PRIMARY_INDEX 6
 #define AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_SECONDARY_INDEX 7
+#define AT_CMD_PDP_CONTEXT_READ_INFO_MTU_INDEX                12
 
 #define AT_CMD_PDP_CONTEXT_READ_RSP_DELIM "\r\n"
 
@@ -72,7 +73,7 @@ pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 	return pdp_context_info;
 }
 
-int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
+int ltelc_api_pdp_context_dynamic_params_get(pdp_context_info_t *populated_info)
 {
 	int ret = 0;
 	struct at_param_list param_list = { 0 };
@@ -91,7 +92,7 @@ int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 	ret = at_cmd_write(at_cmd_pdp_context_read_info_cmd_str, at_response_str,
 			   sizeof(at_response_str), NULL);
 	if (ret) {
-		printf("at_cmd_write returned err: %d\n", ret);
+		printk("at_cmd_write returned err: %d for %s\n", ret, at_cmd_pdp_context_read_info_cmd_str);
 		return ret;
 	}
 	//printf("\n%s\n", at_response_str);
@@ -109,7 +110,7 @@ int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 		ret = at_params_list_init(&param_list,
 					  AT_CMD_PDP_CONTEXT_READ_INFO_PARAM_COUNT);
 		if (ret) {
-			printf("Could not init AT params list, error: %d\n", ret);
+			printk("Could not init AT params list, error: %d\n", ret);
 			return ret;
 		}
 
@@ -123,18 +124,11 @@ int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 			//printf("EAGAIN, error: %d\n", ret);
 			resp_continues = true;
 		} else if (ret == -E2BIG) {
-			printf("E2BIG, error: %d\n", ret);
+			printk("E2BIG, error: %d\n", ret);
 		} else if (ret != 0) {
-			printf("Could not parse AT response, error: %d\n", ret);
-			goto clean_exit;
-		}
-
-		uint32_t cid;
-		ret = at_params_int_get(&param_list,
-					AT_CMD_PDP_CONTEXT_READ_INFO_CID_INDEX,
-					&cid);
-		if (ret) {
-			printf("Could not parse CID, err: %d\n", ret);
+			printk("Could not parse AT response for %s, error: %d\n",
+				at_cmd_pdp_context_read_info_cmd_str,
+				ret);
 			goto clean_exit;
 		}
 
@@ -143,9 +137,13 @@ int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 		param_str_len = sizeof(dns_addr_str);
 
 		ret = at_params_string_get(
-			&param_list, AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_PRIMARY_INDEX, dns_addr_str, &param_str_len);
+			&param_list,
+			AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_PRIMARY_INDEX,
+			dns_addr_str,
+			&param_str_len);
 		if (ret) {
-			printf("Could not parse dns str, err: %d", ret);
+			printk("Could not parse dns str for cid %d, err: %d", 
+				populated_info->cid, ret);
 			goto clean_exit;
 		}
 		dns_addr_str[param_str_len] = '\0';
@@ -166,9 +164,12 @@ int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 		param_str_len = sizeof(dns_addr_str);
 
 		ret = at_params_string_get(
-			&param_list, AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_SECONDARY_INDEX, dns_addr_str, &param_str_len);
+			&param_list, 
+			AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_SECONDARY_INDEX,
+			dns_addr_str,
+			&param_str_len);
 		if (ret) {
-			printf("Could not parse dns str, err: %d", ret);
+			printk("Could not parse dns str, err: %d", ret);
 			goto clean_exit;
 		}
 		dns_addr_str[param_str_len] = '\0';
@@ -183,6 +184,16 @@ int ltelc_api_pdp_context_dns_info_get(pdp_context_info_t *populated_info)
 				struct in6_addr *addr6 = &(populated_info->dns_addr6_secondary);
 				(void)inet_pton(AF_INET6, dns_addr_str, addr6);
 			}
+		}
+
+		/* Read link MTU if exists: */
+		ret = at_params_int_get(&param_list,
+					AT_CMD_PDP_CONTEXT_READ_INFO_MTU_INDEX,
+					&(populated_info->mtu));
+		if (ret) {
+			/* Don't care if it fails: */
+			ret = 0;
+			populated_info->mtu = 0;
 		}
 
 		if (resp_continues) {
@@ -577,9 +588,9 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 				}
 			}
 		}
-		/* Get DNS addresses as well for IP contexts: */
+		/* Get DNS addresses etc.  for this IP context: */
 		if (populated_info[iterator].pdp_type != PDP_TYPE_NONIP)
-			(void)ltelc_api_pdp_context_dns_info_get(&(populated_info[iterator]));
+			(void)ltelc_api_pdp_context_dynamic_params_get(&(populated_info[iterator]));
 
 		if (resp_continues) {
 			at_ptr = next_param_str;
@@ -672,6 +683,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 					"  CID:                    %d\n"
 					"  PDP type:               %s\n"
 					"  APN:                    %s\n"
+					"  IPv4 MTU:               %d\n"
 					"  IPv4 address:           %s\n"
 					"  IPv6 address:           %s\n"
 					"  IPv4 DNS address:       %s, %s\n"
@@ -679,6 +691,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 					(i + 1),
 					info_tbl[i].cid, info_tbl[i].pdp_type_str,
 					info_tbl[i].apn_str,
+					info_tbl[i].mtu,
 					ipv4_addr, ipv6_addr, ipv4_dns_addr_primary, ipv4_dns_addr_secondary, ipv6_dns_addr_primary, ipv6_dns_addr_secondary);
 			}
 		} else {
