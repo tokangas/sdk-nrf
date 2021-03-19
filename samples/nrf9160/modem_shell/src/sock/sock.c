@@ -1075,6 +1075,10 @@ int sock_rai(int socket_id, bool rai_last, bool rai_no_data,
 		return -EINVAL;
 	}
 
+	if (!rai_last && !rai_no_data && !rai_one_resp && !rai_ongoing && !rai_wait_more) {
+		shell_error(shell_global, "No socket specific RAI options given with -i");
+	}
+
 	/* NRF_SO_RAI_LAST */
 	if (rai_last) {
 		err = sock_rai_option_set(nrf_fd, NRF_SO_RAI_LAST, "NRF_SO_RAI_LAST");
