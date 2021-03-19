@@ -8,6 +8,7 @@
 #define SOCK_H
 
 #define SOCK_ID_NONE -1
+#define SOCK_RAI_NONE -1
 #define SOCK_BUFFER_SIZE_NONE -1
 #define SOCK_SEND_DATA_INTERVAL_NONE -1
 /* Maximum length of the data that can be specified with -d option */
@@ -27,6 +28,9 @@ int sock_send_data(int socket_id, char* data, int data_length, int interval,
 int sock_recv(int socket_id, bool receive_start, bool blocking,
 	enum sock_recv_print_format print_format);
 int sock_close(int socket_id);
+int sock_rai_enable(int arg_rai_enable);
+int sock_rai(int socket_id, int arg_rai_last, int arg_rai_no_data,
+	int arg_rai_one_resp, int arg_rai_ongoing, int arg_rai_wait_more);
 int sock_list();
 
 #endif

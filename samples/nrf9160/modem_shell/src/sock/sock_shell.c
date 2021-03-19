@@ -32,6 +32,7 @@ typedef enum {
 	SOCK_CMD_SEND,
 	SOCK_CMD_RECV,
 	SOCK_CMD_CLOSE,
+	SOCK_CMD_RAI,
 	SOCK_CMD_LIST,
 	SOCK_CMD_HELP
 } sock_command;
@@ -49,6 +50,10 @@ const char sock_usage_str[] =
 	"           returns current metrics so that can be used both as status request\n"
 	"           and final summary for receiving.\n"
 	"           Mandatory options: -i\n"
+	"  rai:     Set Release Assistance Indication (RAI) parameters.\n"
+	"           --rai_enable or -i option shall be used.\n"
+	"           -i option should be used together with other rai options\n"
+	"           excluding --rai_enable that should be used without otherparameters.\n"
 	"  list:    List open sockets. No options available.\n"
 	"  help:    Show this usage. No mandatory options.\n"
 	"\n"
@@ -88,6 +93,34 @@ const char sock_usage_str[] =
 	"                                010203040506070809101112\n"
 	"                                01 02 03 04 05 06 07 08 09 10 11 12\n"
 	"                                01020304 05060708 09101112\n"
+	"Options for 'rai' command:\n"
+	"      --rai_enable, [int]   Enable (1) / disable (0) RAI. This shall be used\n"
+	"                            without other parameters and it applies to all\n"
+	"                            sockets.\n"
+	"      --rai_last, [int]     Enable (1) / disable (0) NRF_SO_RAI_LAST option.\n"
+	"                            Indicates that the next call to send/sendto will be\n"
+	"                            the last one for some time, which means that the\n"
+	"                            modem can get out of connected mode quicker when\n"
+	"                            this data is sent.\n"
+	"      --rai_no_data, [int]  Enable (1) / disable (0) NRF_SO_RAI_NO_DATA option.\n"
+	"                            Indicates that the application will not send any\n"
+	"                            more data. This socket option will apply\n"
+	"                            immediately, and does not require a call to send\n"
+ 	"                            afterwards.\n"
+	"      --rai_one_resp, [int] Enable (1) / disable (0) NRF_SO_RAI_ONE_RESP option.\n"
+	"                            Indicates that after the next call to send/sendto,\n"
+	"                            the application is expecting to receive one more\n"
+	"                            data packet before this socket will not be used\n"
+	"                            again for some time.\n"
+	"      --rai_ongoing, [int]  Enable (1) / disable (0) NRF_SO_RAI_ONGOING option.\n"
+	"                            If a client application expects to use the socket\n"
+	"                            more it can indicate that by setting this socket\n"
+	"                            option before the next send call which will keep\n"
+	"                            the modem in connected mode longer.\n"
+	"      --rai_wait_more, [int] Enable (1) / disable (0) NRF_SO_RAI_WAIT_MORE option.\n"
+	"                            If a server application expects to use the socket\n"
+	"                            more it can indicate that by setting this socket\n"
+	"                            option before the next send call.\n"
 	"\n"
 	"Options for 'recv' command:\n"
 	"  -r, --start, [bool]       Initialize variables for receive throughput calculation\n"
@@ -135,9 +168,22 @@ const char sock_usage_example_str[] =
 	"Close socket:\n"
 	"  sock close -i 0\n"
 	"\n"
+	"Use RAI settings:\n"
+	"  sock rai --rai_enable 1\n"
+	"  sock rai -i 0 --rai_no_more 0 --rai_last 1 --rai_ongoing 1\n"
+	"  sock send -i 0 -d testing\n"
+	"\n"
 	"List open sockets:\n"
 	"  sock list\n"
 	;
+
+/* The following do not have short options: */
+#define SOCK_SHELL_OPT_RAI_ENABLE 200
+#define SOCK_SHELL_OPT_RAI_LAST 201
+#define SOCK_SHELL_OPT_RAI_NO_DATA 202
+#define SOCK_SHELL_OPT_RAI_ONE_RESP 203
+#define SOCK_SHELL_OPT_RAI_ONGOING 204
+#define SOCK_SHELL_OPT_RAI_WAIT_MORE 205
 
 /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
@@ -162,6 +208,12 @@ static struct option long_options[] = {
     {"blocking",       required_argument, 0,  'B' },
     {"print_format",   required_argument, 0,  'P' },
     {"verbose",        no_argument,       0,  'v' },
+    {"rai_enable",     required_argument, 0,   SOCK_SHELL_OPT_RAI_ENABLE },
+    {"rai_last",       required_argument, 0,   SOCK_SHELL_OPT_RAI_LAST },
+    {"rai_no_data",    required_argument, 0,   SOCK_SHELL_OPT_RAI_NO_DATA },
+    {"rai_one_resp",   required_argument, 0,   SOCK_SHELL_OPT_RAI_ONE_RESP },
+    {"rai_ongoing",    required_argument, 0,   SOCK_SHELL_OPT_RAI_ONGOING },
+    {"rai_wait_more",  required_argument, 0,   SOCK_SHELL_OPT_RAI_WAIT_MORE },
     {0,                0,                 0,   0  }
 };
 
@@ -200,6 +252,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		command = SOCK_CMD_RECV;
 	} else if (!strcmp(command_str, "close")) {
 		command = SOCK_CMD_CLOSE;
+	} else if (!strcmp(command_str, "rai")) {
+		command = SOCK_CMD_RAI;
 	} else if (!strcmp(command_str, "list")) {
 		command = SOCK_CMD_LIST;
 	} else if (!strcmp(command_str, "help")) {
@@ -235,6 +289,12 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_blocking_recv = false;
 	enum sock_recv_print_format arg_recv_print_format =
 		SOCK_RECV_PRINT_FORMAT_NONE;
+	int arg_rai_enable = SOCK_RAI_NONE;
+	int arg_rai_last = SOCK_RAI_NONE;
+	int arg_rai_no_data = SOCK_RAI_NONE;
+	int arg_rai_one_resp = SOCK_RAI_NONE;
+	int arg_rai_ongoing = SOCK_RAI_NONE;
+	int arg_rai_wait_more = SOCK_RAI_NONE;
 	bool arg_verbose = false;
 
 	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
@@ -428,6 +488,86 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				return -EINVAL;
 			}
 			break;
+
+		/* Options without short option: */
+		case SOCK_SHELL_OPT_RAI_ENABLE:
+		{
+			int value = atoi(optarg);
+			if (value != 0 && value != 1) {
+				shell_error(
+					shell,
+					"rai_enable (%d) must be either '0' (false) or '1' (true)",
+					optarg);
+				return -EINVAL;
+			}
+			arg_rai_enable = value;
+			break;
+		}
+		case SOCK_SHELL_OPT_RAI_LAST:
+		{
+			int value = atoi(optarg);
+			if (value != 0 && value != 1) {
+				shell_error(
+					shell,
+					"rai_last (%d) must be either '0' (false) or '1' (true)",
+					optarg);
+				return -EINVAL;
+			}
+			arg_rai_last = value;
+			break;
+		}
+		case SOCK_SHELL_OPT_RAI_NO_DATA:
+		{
+			int value = atoi(optarg);
+			if (value != 0 && value != 1) {
+				shell_error(
+					shell,
+					"rai_no_data (%d) must be either '0' (false) or '1' (true)",
+					optarg);
+				return -EINVAL;
+			}
+			arg_rai_no_data = value;
+			break;
+		}
+		case SOCK_SHELL_OPT_RAI_ONE_RESP:
+		{
+			int value = atoi(optarg);
+			if (value != 0 && value != 1) {
+				shell_error(
+					shell,
+					"rai_one_resp (%d) must be either '0' (false) or '1' (true)",
+					optarg);
+				return -EINVAL;
+			}
+			arg_rai_one_resp = value;
+			break;
+		}
+		case SOCK_SHELL_OPT_RAI_ONGOING:
+		{
+			int value = atoi(optarg);
+			if (value != 0 && value != 1) {
+				shell_error(
+					shell,
+					"rai_ongoing (%d) must be either '0' (false) or '1' (true)",
+					optarg);
+				return -EINVAL;
+			}
+			arg_rai_ongoing = value;
+			break;
+		}
+		case SOCK_SHELL_OPT_RAI_WAIT_MORE:
+		{
+			int value = atoi(optarg);
+			if (value != 0 && value != 1) {
+				shell_error(
+					shell,
+					"rai_wait_more (%d) must be either '0' (false) or '1' (true)",
+					optarg);
+				return -EINVAL;
+			}
+			arg_rai_wait_more = value;
+			break;
+		}
 		case 'v': /* Longer help text with examples */
 			arg_verbose = true;
 			break;
@@ -469,6 +609,19 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case SOCK_CMD_CLOSE:
 			err = sock_close(arg_socket_id);
+			break;
+		case SOCK_CMD_RAI:
+			if (arg_socket_id == SOCK_ID_NONE) {
+				err = sock_rai_enable(arg_rai_enable);
+			} else {
+				err = sock_rai(
+					arg_socket_id,
+					arg_rai_last,
+					arg_rai_no_data,
+					arg_rai_one_resp,
+					arg_rai_ongoing,
+					arg_rai_wait_more);
+			}
 			break;
 		case SOCK_CMD_LIST:
 			err = sock_list();

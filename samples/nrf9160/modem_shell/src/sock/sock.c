@@ -13,11 +13,14 @@
 #include <netdb.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/fdtable.h>
 #else
 #include <net/socket.h>
 #endif
 #include <net/tls_credentials.h>
 #include <fcntl.h>
+#include <modem/at_cmd.h>
+#include <nrf_socket.h>
 
 #include "sock.h"
 #include "fta_defines.h"
@@ -1003,6 +1006,115 @@ int sock_close(int socket_id)
 	}
 	shell_print(shell_global, "Close socket id=%d, fd=%d", socket_info->id, socket_info->fd);
 	sock_info_clear(socket_info);
+	return 0;
+}
+
+int sock_rai_enable(int arg_rai_enable)
+{
+	if (arg_rai_enable == SOCK_RAI_NONE) {
+		shell_error(shell_global, "No valid RAI options given");
+		return -EINVAL;
+	}
+	enum at_cmd_state state = AT_CMD_OK;
+	char command[] = "AT%%RAI=0";
+	sprintf(command, "AT%%RAI=%d", arg_rai_enable);
+	int err = at_cmd_write(command, NULL, 0, &state);
+	if (state == AT_CMD_OK) {
+		shell_print(
+			shell_global,
+			"Release Assistance Indication functionality set to enabled=%d",
+			arg_rai_enable);
+	} else {
+		shell_error(shell_global, "Error state=%d, error=%d",
+			state, err);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int sock_get_nrf_fd_by_zephyr_fd(int zephyr_fd)
+{
+	/* Returned pointer is fd used in NRF side */
+	int nrf_fd = (int)z_get_fd_obj(zephyr_fd, NULL, 1);
+	if (nrf_fd == 0) {
+		shell_error(shell_global, "Fatal error, couldn't map Zephyr fd to nrf fd");
+		return 0;
+	}
+	/* This should be decremented by 1 as it's incremented by 1 in modem lib */
+	nrf_fd--;
+	return nrf_fd;
+}
+
+static int sock_rai_option_set(int nrf_fd, int option, int value, char* option_string)
+{
+	int err = nrf_setsockopt(nrf_fd, NRF_SOL_SOCKET, option,
+		&value, sizeof(value));
+	if (err) {
+		shell_error(shell_global,
+			"nrf_setsockopt() for %s failed with error %d",
+			option_string, err, errno);
+		return err;
+	} else {
+		shell_print(shell_global,
+			"Socket option %s set to %d", option_string, value);
+	}
+	return 0;
+}
+
+int sock_rai(int socket_id, int arg_rai_last, int arg_rai_no_data,
+	int arg_rai_one_resp, int arg_rai_ongoing, int arg_rai_wait_more)
+{
+	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
+	if (socket_info == NULL) {
+		return -EINVAL;
+	}
+
+	int err;
+	int nrf_fd = sock_get_nrf_fd_by_zephyr_fd(socket_info->fd);
+	if (nrf_fd == 0) {
+		return -EINVAL;
+	}
+
+	/* NRF_SO_RAI_LAST */
+	if (arg_rai_last != SOCK_RAI_NONE) {
+		err = sock_rai_option_set(nrf_fd, NRF_SO_RAI_LAST, arg_rai_last, "NRF_SO_RAI_LAST");
+		if (err) {
+			return err;
+		}
+	}
+
+	/* NRF_SO_RAI_NO_DATA */
+	if (arg_rai_no_data != SOCK_RAI_NONE) {
+		err = sock_rai_option_set(nrf_fd, NRF_SO_RAI_NO_DATA, arg_rai_no_data, "NRF_SO_RAI_NO_DATA");
+		if (err) {
+			return err;
+		}
+	}
+
+	/* NRF_SO_RAI_ONE_RESP */
+	if (arg_rai_one_resp != SOCK_RAI_NONE) {
+		err = sock_rai_option_set(nrf_fd, NRF_SO_RAI_ONE_RESP, arg_rai_one_resp, "NRF_SO_RAI_ONE_RESP");
+		if (err) {
+			return err;
+		}
+	}
+
+	/* NRF_SO_RAI_ONGOING */
+	if (arg_rai_ongoing != SOCK_RAI_NONE) {
+		err = sock_rai_option_set(nrf_fd, NRF_SO_RAI_ONGOING, arg_rai_ongoing, "NRF_SO_RAI_ONGOING");
+		if (err) {
+			return err;
+		}
+	}
+
+	/* NRF_SO_RAI_WAIT_MORE */
+	if (arg_rai_wait_more != SOCK_RAI_NONE) {
+		err = sock_rai_option_set(nrf_fd, NRF_SO_RAI_WAIT_MORE, arg_rai_wait_more, "NRF_SO_RAI_WAIT_MORE");
+		if (err) {
+			return err;
+		}
+	}
+
 	return 0;
 }
 
