@@ -320,10 +320,12 @@ static CURLcode pre_transfer(struct GlobalConfig *global,
 #endif
     {
       helpf(global->errors, "Can't open '%s'!\n", per->uploadfile);
+#ifdef NOT_IN_FTA_CURL_INTEGRATION
       if(per->infd != -1) {
         close(per->infd);
         per->infd = STDIN_FILENO;
       }
+#endif
       return CURLE_READ_ERROR;
     }
     per->infdopen = TRUE;
