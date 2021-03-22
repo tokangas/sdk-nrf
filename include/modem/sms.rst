@@ -29,8 +29,9 @@ Configuration
 
 Configure the following parameters when using this library:
 
-* :option:`CONFIG_SMS_MAX_SUBSCRIBERS_CNT` - The maximum number of SMS subscribers.
-* :option:`CONFIG_AT_CMD_RESPONSE_MAX_LEN` - The maximum size of the SMS message.
+* :option:`CONFIG_SMS_SUBSCRIBERS_MAX_CNT` - The maximum number of SMS subscribers.
+* :option:`CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT` - Maximum number of concatenated messages support when sending SMS.
+* :option:`CONFIG_AT_CMD_RESPONSE_MAX_LEN` - The maximum size of the AT command response which may limit receiving of SMS messages. Values over 512 bytes won't restrict the size of the received message as maximum data length of the SMS is 140 bytes.
   This parameter is defined in the :ref:`at_cmd_readme` module.
 
 Limitations
