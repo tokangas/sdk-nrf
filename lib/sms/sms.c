@@ -45,9 +45,6 @@ static struct at_param_list resp_list;
  */
 static bool sms_client_registered;
 
-/** @brief SMS event. */
-static struct sms_data cmt_rsp = {0};
-
 struct sms_subscriber {
 	/* Listener user context. */
 	void *ctx;
@@ -58,10 +55,6 @@ struct sms_subscriber {
 /** @brief List of subscribers. */
 static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 
-static void sms_data_clear(struct sms_data *cmt_rsp)
-{
-	memset(cmt_rsp, 0, sizeof(struct sms_data));
-}
 
 static void sms_ack(struct k_work *work)
 {
@@ -81,7 +74,9 @@ void sms_at_handler(void *context, const char *at_notif)
 		return;
 	}
 
-	int err = sms_at_parse(at_notif, &cmt_rsp, &resp_list);
+	/* Parse AT command and SMS PDU */
+	struct sms_data sms_data_info = {0};
+	int err = sms_at_parse(at_notif, &sms_data_info, &resp_list);
 	if (err) {
 		return;
 	}
@@ -90,12 +85,9 @@ void sms_at_handler(void *context, const char *at_notif)
 	LOG_DBG("Valid SMS notification decoded");
 	for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
 		if (subscribers[i].listener != NULL) {
-			subscribers[i].listener(&cmt_rsp, subscribers[i].ctx);
+			subscribers[i].listener(&sms_data_info, subscribers[i].ctx);
 		}
 	}
-
-	/* Clear dynamic memory reserved for SMS data */
-	sms_data_clear(&cmt_rsp);
 
 	/* Use system work queue to ACK SMS PDU because we cannot
 	 * call at_cmd_write from a notification callback.
@@ -242,8 +234,6 @@ static void sms_uninit()
 
 	/* Cleanup resources. */
 	at_params_list_free(&resp_list);
-
-	sms_data_clear(&cmt_rsp);
 
 	sms_client_registered = false;
 }

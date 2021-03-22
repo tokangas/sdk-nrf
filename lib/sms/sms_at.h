@@ -7,8 +7,8 @@
 #ifndef _SMS_AT_INCLUDE_H_
 #define _SMS_AT_INCLUDE_H_
 
-int sms_at_parse(const char *at_notif, struct sms_data *cmt_rsp,
-        struct at_param_list *resp_list);
+int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
+        struct at_param_list *temp_resp_list);
 
 #endif
 
