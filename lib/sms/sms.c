@@ -55,7 +55,10 @@ struct sms_subscriber {
 /** @brief List of subscribers. */
 static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 
-
+/** @brief Acknowledge SMS messages towards network.
+ * 
+ * @param work Unused k_work instance.
+ */
 static void sms_ack(struct k_work *work)
 {
 	int ret = at_cmd_write(AT_SMS_PDU_ACK, NULL, 0, NULL);
@@ -65,7 +68,11 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
-/** @brief Handler for AT responses and unsolicited events. */
+/** @brief Callback handler for AT notification library callback.
+ * 
+ * @param[in] context Callback context info that is not used.
+ * @param[in] at_notif AT notification string.
+ */
 void sms_at_handler(void *context, const char *at_notif)
 {
 	ARG_UNUSED(context);
@@ -85,7 +92,8 @@ void sms_at_handler(void *context, const char *at_notif)
 	LOG_DBG("Valid SMS notification decoded");
 	for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
 		if (subscribers[i].listener != NULL) {
-			subscribers[i].listener(&sms_data_info, subscribers[i].ctx);
+			subscribers[i].listener(
+				&sms_data_info, subscribers[i].ctx);
 		}
 	}
 
@@ -95,6 +103,12 @@ void sms_at_handler(void *context, const char *at_notif)
 	k_work_submit(&sms_ack_work);
 }
 
+/**
+ * @brief Initialize the SMS subscriber module.
+ *
+ * @return Zero on success, or a negative error code. The EBUSY error
+ *         indicates that one SMS client has already been registered.
+ */
 static int sms_init(void)
 {
 	char resp[SMS_AT_RESPONSE_MAX_LEN];
@@ -161,6 +175,11 @@ static int sms_init(void)
 	return 0;
 }
 
+/**
+ * @brief Return number of subscribers.
+ *
+ * @return Number of registered subscribers to this module.
+ */
 static int sms_subscriber_count()
 {
 	int count = 0;
@@ -200,6 +219,9 @@ int sms_register_listener(sms_callback_t listener, void *context)
 	return -ENOSPC;
 }
 
+/**
+ * @brief Uninitialize the SMS subscriber module.
+ */
 static void sms_uninit()
 {
 	char resp[SMS_AT_RESPONSE_MAX_LEN];
