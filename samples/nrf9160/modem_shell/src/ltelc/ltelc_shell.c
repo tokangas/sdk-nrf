@@ -625,14 +625,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
 				static char cgdcont[] = "AT+CGDCONT=0";
 				if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
-					shell_warn(shell, "Disabling cannot be done.");
+					shell_warn(shell, "ERROR from modem. Getting the initial PDP context back wasn't succesful.");
 					shell_warn(shell, 
-						"Please note that disabling can be only done in funmode flightmode.");
+						"Please note: you might need to visit the pwroff state to make an impact to modem.");
 				}
-				else {
-					ltelc_sett_save_defcont_enabled(false);
-					shell_print(shell, "Custom default context config disabled.");
-				}
+				ltelc_sett_save_defcont_enabled(false);
+				shell_print(shell, "Custom default context config disabled.");
 			}
 			else if (ltelc_cmd_args.common_option == LTELC_COMMON_NONE && 
 			         apn == NULL && family == NULL) {
