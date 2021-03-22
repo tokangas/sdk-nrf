@@ -124,7 +124,10 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'l': //payload length
 			ping_args.len = atoi(optarg);
             if (ping_args.len > ICMP_IPV4_MAX_LEN) {
-                shell_error(shell, "Payload size exceeds the limit %d", ICMP_IPV4_MAX_LEN);
+                shell_error(
+                    shell,
+                    "Payload size exceeds the ultimate max limit %d",
+                    ICMP_IPV4_MAX_LEN);
                 goto show_usage;
             }
             break;
@@ -160,6 +163,11 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
                     ping_args.current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
                     ping_args.current_addr4 = pdp_context_info_tbl.array[0].ip_addr4;
                     ping_args.current_addr6 = pdp_context_info_tbl.array[0].ip_addr6;
+                    if (pdp_context_info_tbl.array[0].mtu != 0) {
+                        ping_args.mtu = pdp_context_info_tbl.array[0].mtu;
+                    } else {
+                        ping_args.mtu = ICMP_DEFAULT_LINK_MTU;
+                    }
                 }
                 else {
                     /* Find PDP context info for requested CID: */
@@ -172,6 +180,13 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
                             ping_args.current_addr4 = pdp_context_info_tbl.array[i].ip_addr4;
                             ping_args.current_addr6 = pdp_context_info_tbl.array[i].ip_addr6;
                             strcpy(ping_args.current_apn_str, pdp_context_info_tbl.array[i].apn_str);
+                            
+                            if (pdp_context_info_tbl.array[0].mtu != 0) {
+                                ping_args.mtu = pdp_context_info_tbl.array[0].mtu;
+                            } else {
+                                ping_args.mtu = ICMP_DEFAULT_LINK_MTU;
+                            }
+                            
                             found = true;
                         }
                     }
@@ -189,6 +204,18 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             if (pdp_context_info_tbl.array != NULL)
                 free(pdp_context_info_tbl.array);
         }
+        /* Now we can check the max payload len vs link MTU (IPv6 check later): */
+        uint32_t ipv4_max_payload_len = ping_args.mtu - ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN;
+        if (!ping_args.force_ipv6 &&ping_args.len > ipv4_max_payload_len) {
+            shell_warn(
+                shell,
+                "Payload size exceeds the link limits: MTU %d - headers %d = %d ",
+                    ping_args.mtu,
+                    (ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN),
+                    ipv4_max_payload_len);
+            /* Continue still: */
+        }
+
 		return icmp_ping_start(shell, &ping_args);
     }
 

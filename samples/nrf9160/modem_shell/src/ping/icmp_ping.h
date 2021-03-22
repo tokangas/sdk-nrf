@@ -20,12 +20,12 @@
 #define ICMP_IPV6_HDR_LEN        40
 
 #define ICMP_MAX_URL	128
-#define ICMP_LINK_MTU	1500
+#define ICMP_DEFAULT_LINK_MTU	1500
 #define ICMP_HDR_LEN    8
 
 /* Max payload lengths: */
-#define ICMP_IPV4_MAX_LEN	(ICMP_LINK_MTU - ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN)
-#define ICMP_IPV6_MAX_LEN	(ICMP_LINK_MTU - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN)
+#define ICMP_IPV4_MAX_LEN	(ICMP_DEFAULT_LINK_MTU - ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN)
+#define ICMP_IPV6_MAX_LEN	(ICMP_DEFAULT_LINK_MTU - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN)
 
 #define ICMP_PARAM_LENGTH_DEFAULT   0
 #define ICMP_PARAM_COUNT_DEFAULT    4
@@ -41,11 +41,12 @@ typedef struct {
 	struct in6_addr current_addr6;
     char current_apn_str[FTA_APN_STR_MAX_LEN];
     char current_pdp_type;
-	int len;
-	int timeout;
-	int cid;
-	int count;
-	int interval;
+	uint32_t mtu;
+	uint32_t len;
+	uint32_t timeout;
+	uint32_t cid;
+	uint32_t count;
+	uint32_t interval;
     bool force_ipv6;
 } icmp_ping_shell_cmd_argv_t;
 

@@ -115,7 +115,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	uint8_t rep = 0;
 	uint8_t header_len = 0;
 	struct addrinfo *si = ping_argv.src;
-	const int alloc_size = ICMP_LINK_MTU;
+	const int alloc_size = ICMP_DEFAULT_LINK_MTU;
   	struct pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
@@ -264,7 +264,7 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 #ifdef SO_RCVTIMEO
 #ifdef SO_SNDTIMEO
     /* We have a blocking socket and we do not want to block for 
-	   a long for sending. THus, let's set the timeout: */
+	   a long for sending. Thus, let's set the timeout: */
 
 	struct timeval tv = {
 		.tv_sec = (ping_argv.timeout / 1000),
@@ -353,7 +353,6 @@ wait_for_data:
 			   otherwise break the loop and go to parse the response */
 			break;
 		}
-
 	} while (true);
     
 	if (rep == ICMP_ECHO_REP) {
@@ -515,10 +514,16 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 		shell_print(shell, "Destination IP addr: %s",
 			    fta_net_utils_sckt_addr_ntop(sa));
 	}
-	/* Now we can check the max paload len for IPv6: */
-	if (ping_argv.src->ai_family == AF_INET6 && ping_argv.len > ICMP_IPV6_MAX_LEN) {
-		shell_error(shell, "Payload size for ipv6 exceeds the limit %d %d ", ICMP_IPV6_MAX_LEN);
-		return -1;
+	/* Now we can check the max payload len for IPv6: */
+	uint32_t ipv6_max_payload_len = ping_argv.mtu - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN;
+	if (ping_argv.src->ai_family == AF_INET6 && ping_argv.len > ipv6_max_payload_len) {
+        shell_warn(
+            shell,
+            "Payload size exceeds the link limits: MTU %d - headers %d = %d ",
+                ping_argv.mtu,
+                (ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN),
+                ipv6_max_payload_len);
+        /* Continue still: */		
 	}
  
 	icmp_ping_tasks_execute(shell);
