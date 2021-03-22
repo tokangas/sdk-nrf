@@ -694,13 +694,14 @@ void ltelc_sett_defaults_set(const struct shell *shell)
 	shell_print(shell, "ltelc settings reseted");
 }
 
+static struct settings_handler cfg = {
+	.name = LTELC_SETT_KEY,
+	.h_set = ltelc_sett_handler
+};
+
 int ltelc_sett_init(const struct shell *shell) 
 {
 	int err;
-	struct settings_handler cfg = {
-		.name = LTELC_SETT_KEY,
-		.h_set = ltelc_sett_handler
-	};
 	
 	uart_shell = shell;
 
