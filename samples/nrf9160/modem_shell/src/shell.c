@@ -215,3 +215,64 @@ SHELL_CMD_REGISTER(ppp, NULL,
 	"Commands for controlling FTA PPP.",
 	ppp_shell_cmd);
 #endif
+
+static void disable_uarts()
+{
+    NRF_UARTE0_NS->TASKS_STOPRX  = 1;
+    NRF_UARTE0_NS->TASKS_STOPTX = 1;
+    while(NRF_UARTE0_NS->EVENTS_RXTO==0);
+    NRF_UARTE0_NS->ENABLE = 0;
+
+    NRF_UARTE1_NS->TASKS_STOPRX  = 1;
+    NRF_UARTE1_NS->TASKS_STOPTX = 1;
+    while(NRF_UARTE1_NS->EVENTS_RXTO==0);
+    NRF_UARTE1_NS->ENABLE = 0;
+}
+
+static void enable_uarts()
+{
+    NRF_UARTE0_NS->ENABLE = 8;
+    NRF_UARTE0_NS->TASKS_STARTRX = 1;
+    NRF_UARTE0_NS->TASKS_STARTTX = 1;
+
+    NRF_UARTE1_NS->ENABLE = 8;
+    NRF_UARTE1_NS->TASKS_STARTRX = 1;
+    NRF_UARTE1_NS->TASKS_STARTTX = 1;
+}
+
+static int cmd_uart_disable(const struct shell *shell, size_t argc, char **argv)
+{
+	int sleep_time;
+
+	sleep_time = atoi(argv[1]);
+	if (sleep_time < 0) {
+		shell_error(shell, "disable: invalid sleep time");
+		return -EINVAL;
+	}
+
+	if (sleep_time > 0) {
+		shell_print(shell, "disable: disabling UARTs for %d seconds", sleep_time);
+	} else {
+		shell_print(shell, "disable: disabling UARTs indefinitely");
+	}
+
+	k_sleep(K_MSEC(500));
+	disable_uarts();
+
+	if (sleep_time > 0) {
+		k_sleep(K_SECONDS(sleep_time));
+
+		enable_uarts();
+
+		shell_print(shell, "disable: UARTs enabled");
+	}
+
+	return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_uart,
+    SHELL_CMD_ARG(disable, NULL, "<time in seconds>\nDisable UARTs for a given number of seconds. 0 means that UARTs remain disabled indefinitely.", cmd_uart_disable, 2, 0),
+    SHELL_SUBCMD_SET_END
+);
+
+SHELL_CMD_REGISTER(uart, &sub_uart, "Commands for disabling UARTs for power measurement.", NULL);
