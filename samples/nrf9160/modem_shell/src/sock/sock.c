@@ -77,6 +77,8 @@ typedef struct {
 
 K_MUTEX_DEFINE(sock_info_mutex);
 
+K_SEM_DEFINE(sock_sem, 0, 1);
+
 sock_info_t sockets[MAX_SOCKETS] = {0};
 extern const struct shell* shell_global;
 
@@ -528,6 +530,9 @@ int sock_open_and_connect(
 	   is not blocking polling of all sockets */
 	set_sock_blocking_mode(socket_info->fd, false);
 
+	/* Trigger socket receive handler if it's waiting for socket creation */
+	k_sem_give(&sock_sem);
+
 	shell_print(
 		shell_global,
 		"Socket created socket_id=%d, fd=%d",
@@ -868,12 +873,16 @@ static void sock_receive_handler()
 		}
 
 		if (count == 0) {
-			/* No sockets in use, so no use calling poll() */
-			k_sleep(K_MSEC(SOCK_POLL_TIMEOUT_MS));
+			k_sem_reset(&sock_sem);
+
+			/* No sockets, release the receive buffer */
 			if (receive_buffer != NULL) {
 				k_free(receive_buffer);
 				receive_buffer = NULL;
 			}
+
+			/* Wait for a socket to be created */
+			k_sem_take(&sock_sem, K_FOREVER);
 			continue;
 		}
 
