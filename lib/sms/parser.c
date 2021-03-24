@@ -18,27 +18,30 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 static inline uint8_t char2int(char input)
 {
-  if(input >= '0' && input <= '9')
-    return input - '0';
-  if(input >= 'A' && input <= 'F')
-    return input - 'A' + 10;
-  if(input >= 'a' && input <= 'f')
-    return input - 'a' + 10;
+	if (input >= '0' && input <= '9') {
+		return input - '0';
+	}
+	if (input >= 'A' && input <= 'F') {
+		return input - 'A' + 10;
+	}
+	if (input >= 'a' && input <= 'f') {
+		return input - 'a' + 10;
+	}
 
-  return 0;
+	return 0;
 }
 
 static int convert_to_bytes(char *str, uint32_t str_length,
 			    uint8_t* buf, uint16_t buf_length)
 {
-	for(int i=0;i<str_length;++i) {
-		__ASSERT((i>>1) <= buf_length, "Too small internal buffer");
+	for (int i = 0; i < str_length; i++) {
+		__ASSERT((i >> 1) <= buf_length, "Too small internal buffer");
 
-		if(!(i%2)) {
-			buf[i>>1] = 0;
+		if (!(i % 2)) {
+			buf[i >> 1] = 0;
 		}
 
-		buf[i>>1] |= (char2int(str[i]) << (4*!(i%2)));
+		buf[i >> 1] |= (char2int(str[i]) << (4 * !(i % 2)));
 	}
 
 	return 0;
@@ -48,9 +51,13 @@ int parser_create(struct parser *parser, struct parser_api *api)
 {
 	memset(parser, 0, sizeof(struct parser));
 
-	parser->api              = api;
+	parser->api = api;
 
-	parser->data             = k_calloc(1, api->data_size());
+	parser->data = k_calloc(1, api->data_size());
+	if (parser->data == NULL) {
+		LOG_ERR("Out of memory when creating parser");
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -58,6 +65,7 @@ int parser_create(struct parser *parser, struct parser_api *api)
 int parser_delete(struct parser *parser)
 {
 	k_free(parser->data);
+	parser->data = NULL;
 
 	return 0;
 }

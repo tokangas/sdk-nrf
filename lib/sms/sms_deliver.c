@@ -585,10 +585,12 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 	__ASSERT(header != NULL, "Parameter 'header' cannot be NULL.");
 	memset(header, 0, sizeof(struct sms_deliver_header));
 
-	parser_create(&sms_deliver, sms_deliver_get_api());
+	err = parser_create(&sms_deliver, sms_deliver_get_api());
+	if (err) {
+		return err;
+	}
 
 	err = parser_process_str(&sms_deliver, pdu);
-
 	if (err) {
 		LOG_ERR("Parsing error (%d) in decoding SMS-DELIVER message due to no memory", err);
 		return err;
