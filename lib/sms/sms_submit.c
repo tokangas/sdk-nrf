@@ -205,14 +205,22 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 int sms_submit_send(char* number, char* text)
 {
 	char at_response_str[SMS_AT_RESPONSE_MAX_LEN];
+	char empty_string[] = "";
 	int ret;
+
+	if (number == NULL) {
+		number = empty_string;
+	}
+	if (text == NULL) {
+		text = empty_string;
+	}
 
 	LOG_DBG("Sending SMS to number=%s, text='%s'",
 		log_strdup(number), log_strdup(text));
 
 	/* Encode number into format required in SMS header */
 	uint8_t encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
-	uint8_t encoded_number_size = (number != NULL) ? strlen(number) : 0;
+	uint8_t encoded_number_size = strlen(number);
 	uint8_t encoded_number_size_octets = SMS_MAX_ADDRESS_LEN_CHARS + 1;
 	ret = sms_submit_encode_number(number, &encoded_number_size, encoded_number, &encoded_number_size_octets);
 	if (ret) {
@@ -221,7 +229,7 @@ int sms_submit_send(char* number, char* text)
 
 	/* Encode text into GSM 7bit encoding */
 	uint8_t size = 0;
-	uint16_t text_size = (text != NULL) ? strlen(text) : 0;
+	uint16_t text_size = strlen(text);
 	uint8_t encoded[SMS_MAX_DATA_LEN_CHARS];
 	uint8_t encoded_size = 0;
 	uint8_t encoded_data_size = 0;
