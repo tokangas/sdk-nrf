@@ -491,29 +491,6 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	       &DELIVER_DATA(parser)->timestamp,
 	       sizeof(struct sms_deliver_time));
 
-	sms_header->protocol_id       = DELIVER_DATA(parser)->field_pid;
-
-	/* 7-bit encodig will always be returned as 8-bit by the parser */
-	if(DELIVER_DATA(parser)->field_dcs.alphabet < 2) {
-		sms_header->alphabet = GSM_ENCODING_8BIT;
-	} else {
-		sms_header->alphabet = GSM_ENCODING_UCS2;
-	}
-
-	sms_header->compressed =
-		(bool)DELIVER_DATA(parser)->field_dcs.compressed;
-
-	sms_header->presence_of_class =
-		(bool)DELIVER_DATA(parser)->field_dcs.presence_of_class;
-
-	sms_header->class = DELIVER_DATA(parser)->field_dcs.class;
-
-	sms_header->service_center_address.length = parser->buf[0];
-	sms_header->service_center_address.type   = 0;
-	memcpy(sms_header->service_center_address.address,
-	       &parser->buf[1],
-	       parser->buf[0]);
-
 	/* Copy and log address string */
 	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
 	bool fill_bits = false;
@@ -565,9 +542,6 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 	memcpy(sms_header->originating_address.address,
 	       DELIVER_DATA(parser)->field_oa.adr,
 	       SMS_MAX_ADDRESS_LEN_OCTETS);
-
-	sms_header->ud_len = DELIVER_DATA(parser)->field_udl -
-			     DELIVER_DATA(parser)->field_udhl;
 
 	sms_header->app_port = DELIVER_DATA(parser)->field_udh_app_port;
 	sms_header->concatenated = DELIVER_DATA(parser)->field_udh_concatenated;

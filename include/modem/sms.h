@@ -33,18 +33,6 @@ enum sms_type {
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
-enum sms_deliver_alphabet {
-	GSM_ENCODING_8BIT,
-	GSM_ENCODING_UCS2,
-};
-
-enum sms_deliver_class {
-	GSM_CLASS0,
-	GSM_CLASS1,
-	GSM_CLASS2,
-	GSM_CLASS3,
-};
-
 struct sms_deliver_time {
 	uint8_t year;
 	uint8_t month;
@@ -55,7 +43,7 @@ struct sms_deliver_time {
 	int8_t timezone;
 };
 
-struct sms_deliver_address {
+struct sms_address {
 	char    address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
 	uint8_t length;
@@ -81,18 +69,10 @@ struct sms_udh_app_port {
  * message specified in 3GPP TS 23.040.
  */
 struct sms_deliver_header {
-	struct sms_deliver_time     time;
-	uint8_t                     protocol_id;
-	enum sms_deliver_alphabet   alphabet;
-	bool                        compressed;
-	bool                        presence_of_class;
-	enum sms_deliver_class      class;
-	struct sms_deliver_address  service_center_address;
-	struct sms_deliver_address  originating_address;
-	uint8_t                     ud_len;
-	struct sms_udh_app_port     app_port;
+	struct sms_deliver_time time;
+	struct sms_address originating_address;
+	struct sms_udh_app_port app_port;
 	struct sms_udh_concatenated concatenated;
-	int			    data_len;
 };
 
 union sms_header {
