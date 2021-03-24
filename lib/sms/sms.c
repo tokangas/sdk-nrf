@@ -20,23 +20,29 @@
 
 LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 
+/** @brief Number of parameters in CNMI AT command response. */
 #define AT_CNMI_PARAMS_COUNT 6
+/** @brief Maxmimum number of parameters for any AT command response. */
 #define AT_SMS_PARAMS_COUNT_MAX AT_CNMI_PARAMS_COUNT
+/** @brief Maximum length of an AT command response that we are expecting. */
 #define SMS_AT_RESPONSE_MAX_LEN 256
 
 /** @brief AT command to check if a client already exist. */
 #define AT_SMS_SUBSCRIBER_READ "AT+CNMI?"
-
 /** @brief AT command to register an SMS client. */
 #define AT_SMS_SUBSCRIBER_REGISTER "AT+CNMI=3,2,0,1"
-
 /** @brief AT command to unregister an SMS client. */
 #define AT_SMS_SUBSCRIBER_UNREGISTER "AT+CNMI=0,0,0,0"
-
 /** @brief AT command to an ACK in PDU mode. */
 #define AT_SMS_PDU_ACK "AT+CNMA=1"
 
+/** Worker handling SMS acknowledgements */
 static struct k_work sms_ack_work;
+/**
+ * @brief Response list used for AT command parsing.
+ * @details This is a global variable so that we can use the same structure requiring memory and
+ * initialization in various places of the code.
+ */
 static struct at_param_list resp_list;
 
 /**
@@ -45,19 +51,21 @@ static struct at_param_list resp_list;
  */
 static bool sms_client_registered;
 
+/** @brief SMS subscriber information. */
 struct sms_subscriber {
-	/* Listener user context. */
+	/** Listener user context. */
 	void *ctx;
-	/* Listener callback. */
+	/** Listener callback. */
 	sms_callback_t listener;
 };
 
 /** @brief List of subscribers. */
 static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 
-/** @brief Acknowledge SMS messages towards network.
+/**
+ * @brief Acknowledge SMS messages towards network.
  * 
- * @param work Unused k_work instance.
+ * @param[in] work Unused k_work instance required for k_work_submit signature.
  */
 static void sms_ack(struct k_work *work)
 {
@@ -68,7 +76,8 @@ static void sms_ack(struct k_work *work)
 	}
 }
 
-/** @brief Callback handler for AT notification library callback.
+/**
+ * @brief Callback handler for AT notification library callback.
  * 
  * @param[in] context Callback context info that is not used.
  * @param[in] at_notif AT notification string.
@@ -221,6 +230,8 @@ int sms_register_listener(sms_callback_t listener, void *context)
 
 /**
  * @brief Uninitialize the SMS subscriber module.
+ * 
+ * @details Doesn't do anything if there are still subscribers that haven't unregistered.
  */
 static void sms_uninit()
 {

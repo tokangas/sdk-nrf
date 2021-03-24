@@ -16,23 +16,26 @@
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
+/** @brief User Data Header size in octets/bytes. */
 #define SMS_UDH_CONCAT_SIZE_OCTETS 6
+/** @brief User Data Header size in septets. */
 #define SMS_UDH_CONCAT_SIZE_SEPTETS 7
 
+/* TODO: This is somewhere else too */
 #define SMS_AT_RESPONSE_MAX_LEN 256
 
 /**
  * @brief Encode phone number into format specified within SMS header.
  * 
- * Phone number means address specified in 3GPP TS 23.040 chapter 9.1.2.5.
+ * @details Phone number means address specified in 3GPP TS 23.040 chapter 9.1.2.5.
  *
- * @param number Number as a string.
- * @param number_size In: Length of the number string.
+ * @param[in] number Number as a string.
+ * @param[in,out] number_size In: Length of the number string.
  *                    Out: Amount of characters in number. Special characters
  *                         ignored from original number_size. This is also
  *                         number of semi-octets in encoded_number.
- * @param encoded_number Number encoded into 3GPP format.
- * @param encoded_number_size_octets Number of octets/bytes in encoded_number
+ * @param[in] encoded_number Number encoded into 3GPP format.
+ * @param[out] encoded_number_size_octets Number of octets/bytes in encoded_number.
  * 
  * @retval -EINVAL Invalid parameter.
  * @return Zero on success, otherwise error code.
@@ -67,8 +70,8 @@ static int sms_submit_encode_number(
 	memcpy(encoded_number, number, *number_size);
 
 	for (int i = 0; i < *number_size; i++) {
-		if (!(i%2)) {
-			if (i+1 < *number_size) {
+		if (!(i % 2)) {
+			if (i + 1 < *number_size) {
 				char first = encoded_number[i];
 				char second = encoded_number[i+1];
 				encoded_number[i] = second;
@@ -83,7 +86,23 @@ static int sms_submit_encode_number(
 	return 0;
 }
 
-static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t encoded_number_size, uint8_t encoded_number_size_octets)
+/**
+ * @brief Encode and send concatenated SMS.
+ * 
+ * @details Compose and send multiple SMS-SUBMIT messages with CMGS AT command.
+ * Includes User-Data-Header for concatenated message to indicate information
+ * about multiple messages that should be reconstructed in the receiving end.
+ * 
+ * This function should not be used for short texts that don't need concatenation
+ * because this will add concatenation User-Data-Header.
+ * 
+ * @param[in] text Text to be sent.
+ * @param[in] encoded_number Number in semi-octet representation for SMS-SUBMIT message.
+ * @param[in] encoded_number_size Number of characters in number (encoded_number).
+ * @param[in] encoded_number_size_octets Number of octets in number (encoded_number).
+ */
+static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
+	uint8_t encoded_number_size, uint8_t encoded_number_size_octets)
 {
 	char at_response_str[SMS_AT_RESPONSE_MAX_LEN];
 	int ret;
@@ -161,16 +180,6 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 		LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
 		LOG_DBG("%s", log_strdup(send_bufs[concat_seq_number]));
 		LOG_DBG("SMS data encoded: %s", log_strdup(encoded_data_hex_str));
-		LOG_DBG("encoded_number_size_octets=%d, encoded_number_size=%d, "
-			"size=%d, encoded_size=%d, encoded_data_size=%d, text_encoded_size=%d, text_size=%d, msg_size=%d",
-			encoded_number_size_octets,
-			encoded_number_size,
-			size,
-			encoded_size,
-			encoded_data_size,
-			text_encoded_size,
-			text_size,
-			msg_size);
 
 		message_ref++;
 		concat_seq_number++;
@@ -202,6 +211,17 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number, uint8_t e
 	return 0;
 }
 
+/**
+ * @brief Send SMS message, which is called SMS-SUBMIT message in SMS protocol.
+ * 
+ * SMS-SUBMIT message format is specified in 3GPP TS 23.040 chapter 9.2.2.2.
+ *
+ * @param[in] number Recipient number.
+ * @param[in] text Text to be sent.
+ * 
+ * @retval -EINVAL Invalid parameter.
+ * @return Zero on success, otherwise error code.
+ */
 int sms_submit_send(char* number, char* text)
 {
 	char at_response_str[SMS_AT_RESPONSE_MAX_LEN];
@@ -262,14 +282,6 @@ int sms_submit_send(char* number, char* text)
 	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
 	LOG_DBG("%s", log_strdup(send_data));
 	LOG_DBG("SMS data encoded: %s", log_strdup(encoded_data_hex_str));
-	LOG_DBG("encoded_number_size_octets=%d, encoded_number_size=%d, "
-		"size=%d, encoded_size=%d, encoded_data_size=%d, msg_size=%d",
-		encoded_number_size_octets,
-		encoded_number_size,
-		size,
-		encoded_size,
-		encoded_data_size,
-		msg_size);
 
 	enum at_cmd_state state = 0;
 	ret = at_cmd_write(send_data, at_response_str,

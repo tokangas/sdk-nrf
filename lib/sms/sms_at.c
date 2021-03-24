@@ -37,7 +37,10 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define AT_SMS_NOTIFICATION_DS_LEN (sizeof(AT_SMS_NOTIFICATION_DS) - 1)
 
 
-/* Parse 'CMT' notification with the following format:
+/**
+ * @brief Parses 'CMT' notification.
+ * 
+ * @details 'CMT' notification has the following format according to 3GPP TS 27.005:
  *   +CMT: <alpha>,<length><CR><LF><pdu>
  * For example:
  *   +CMT:""555272744"",4<CR><LF>DEADBEEF"
@@ -45,9 +48,8 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
  * @param[in] buf 'CDS' notification buffer.
  * @param[out] pdu Output buffer where PDU is copied.
  * @param[in] pdu_len Length of the output buffer.
- * @param[in] temp_resp_list Response list used by AT parser library. This is
- *                 readily initialized by caller and is passed here to
- *                 avoid using another instance of the list.
+ * @param[in] temp_resp_list Response list used by AT parser library. This is readily initialized
+ *                 by caller and is passed here to avoid using another instance of the list.
  * @return Zero on success and negative value in error cases.
  */
 static int sms_cmt_at_parse(const char *const buf, char *pdu, size_t pdu_len,
@@ -60,6 +62,7 @@ static int sms_cmt_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 		return err;
 	}
 
+	/* TODO: index constant */
 	(void)at_params_string_get(temp_resp_list, 3, pdu, &pdu_len);
 	pdu[pdu_len] = '\0';
 
@@ -68,7 +71,10 @@ static int sms_cmt_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 	return 0;
 }
 
-/* Parse 'CDS' notification with the following format:
+/**
+ * @brief Parses 'CDS' notification.
+ * 
+ * @details 'CDS' notification has the following format according to 3GPP TS 27.005:
  *   +CDS: <length><CR><LF><pdu>
  * For example:
  *   +CDS:4<CR><LF>DEADBEEF"
@@ -76,9 +82,8 @@ static int sms_cmt_at_parse(const char *const buf, char *pdu, size_t pdu_len,
  * @param[in] buf 'CDS' notification buffer.
  * @param[out] pdu Output buffer where PDU is copied.
  * @param[in] pdu_len Length of the output buffer.
- * @param[in] temp_resp_list Response list used by AT parser library. This is
- *                 readily initialized by caller and is passed here to
- *                 avoid using another instance of the list.
+ * @param[in] temp_resp_list Response list used by AT parser library. This is readily initialized
+ *                 by caller and is passed here to avoid using another instance of the list.
  * @return Zero on success and negative value in error cases.
  */
 static int sms_cds_at_parse(const char *const buf, char *pdu, size_t pdu_len,
@@ -90,21 +95,21 @@ static int sms_cds_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 		LOG_ERR("Unable to parse CDS notification, err=%d", err);
 		return err;
 	}
-
+	/* TODO: index constant */
 	(void)at_params_string_get(temp_resp_list, 2, pdu, &pdu_len);
 	pdu[pdu_len] = '\0';
 
 	return 0;
 }
 
-/* Parse AT notifications finding relevant notifications for SMS and
+/**
+ * Parse AT notifications finding relevant notifications for SMS and
  * dropping the rest.
  * 
- * @param at_notif[in] AT notication string.
- * @param sms_data_info[out] Parsed output data.
- * @param temp_resp_list[in] Response list used by AT parser library. This is
- *                 readily initialized by caller and is passed here to
- *                 avoid using another instance of the list.
+ * @param[in] at_notif AT notication string.
+ * @param[out] sms_data_info Parsed output data.
+ * @param[in] temp_resp_list Response list used by AT parser library. This is readily initialized
+ *                 by caller and is passed here to avoid using another instance of the list.
  * @return Zero on success and negative value in error cases.
  */
 int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,

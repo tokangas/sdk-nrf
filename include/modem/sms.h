@@ -104,8 +104,8 @@ typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
  * to unregister the listener. A listener can be registered multiple times with
  * the same or a different context.
  *
- * @param listener Callback function. Cannot be null.
- * @param context User context. Can be null if not used.
+ * @param[in] listener Callback function. Cannot be null.
+ * @param[in] context User context. Can be null if not used.
  *
  * @retval -EINVAL Invalid parameter.
  * @retval -ENOSPC List of observers is full.
@@ -123,15 +123,15 @@ int sms_register_listener(sms_callback_t listener, void *context);
  * Also unregisters from modem's SMS service if there are
  * no listeners registered.
  *
- * @param handle Handle identifying the listener to unregister.
+ * @param[in] handle Handle identifying the listener to unregister.
  */
 void sms_unregister_listener(int handle);
 
 /**
  * @brief Send SMS message.
  *
- * @param number Recipient number.
- * @param text Text to be sent.
+ * @param[in] number Recipient number.
+ * @param[in] text Text to be sent.
  */
 int sms_send(char *number, char *text);
 
