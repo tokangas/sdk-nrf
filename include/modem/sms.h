@@ -33,7 +33,7 @@ enum sms_type {
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
-struct sms_deliver_time {
+struct sms_time {
 	uint8_t year;
 	uint8_t month;
 	uint8_t day;
@@ -69,7 +69,7 @@ struct sms_udh_app_port {
  * message specified in 3GPP TS 23.040.
  */
 struct sms_deliver_header {
-	struct sms_deliver_time time;
+	struct sms_time time;
 	struct sms_address originating_address;
 	struct sms_udh_app_port app_port;
 	struct sms_udh_concatenated concatenated;

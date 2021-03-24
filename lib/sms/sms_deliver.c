@@ -68,7 +68,7 @@ struct pdu_deliver_data {
 	struct pdu_oa_field         field_oa;  /** TP-Originating-Address */
 	uint8_t                     field_pid; /** TP-Protocol-Identifier */
 	struct pdu_dcs_field        field_dcs; /** TP-Data-Coding-Scheme */
-	struct sms_deliver_time     timestamp; /** TP-Service-Centre-Time-Stamp */
+	struct sms_time             timestamp; /** TP-Service-Centre-Time-Stamp */
 	uint8_t                     field_udl; /** TP-User-Data-Length */
 	uint8_t                     field_udhl; /** User Data Header Length */
 	struct sms_udh_app_port     field_udh_app_port; /** Port addressing */
@@ -647,9 +647,7 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 {
 	struct sms_deliver_header *sms_header = header;
 
-	memcpy(&sms_header->time,
-	       &DELIVER_DATA(parser)->timestamp,
-	       sizeof(struct sms_deliver_time));
+	memcpy(&sms_header->time, &DELIVER_DATA(parser)->timestamp, sizeof(struct sms_time));
 
 	/* Copy and log address string */
 	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
