@@ -5,7 +5,6 @@
  */
 
 #include <zephyr.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,6 +15,13 @@
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
+/**
+ * @brief Convert hexadecimal character to integer value.
+ * 
+ * @param[in] input Hexadecimal character.
+ * 
+ * @return Integer value of the hexadecimal character
+ */
 static inline uint8_t char2int(char input)
 {
 	if (input >= '0' && input <= '9') {
@@ -31,20 +37,40 @@ static inline uint8_t char2int(char input)
 	return 0;
 }
 
-static int convert_to_bytes(char *str, uint32_t str_length,
-			    uint8_t* buf, uint16_t buf_length)
+/**
+ * @brief Convert ASCII formatted hexadecimal string into byte sequence.
+ * 
+ * @details Every two characters form a single byte. 3GPP TS 27.005 Section 3.1 says
+ * the following in <pdu> definition:
+ *   "ME/TA converts each octet of TP data unit into two IRA character long hexadecimal number
+ *    (e.g. octet with integer value 42 is presented to TE as two characters 2A (IRA 50 and 65))"
+ *
+ * @param[in] str Hexadecimal string.
+ * @param[in] str_length Hexadecimal string length.
+ * @param[out] buf Output buffer.
+ * @param[in] buf Output buffer length.
+ */
+static void convert_to_bytes(char *str, uint32_t str_length, uint8_t* buf, uint16_t buf_length)
 {
 	for (int i = 0; i < str_length; i++) {
 		__ASSERT((i >> 1) <= buf_length, "Too small internal buffer");
 
+		/* Character in an even index will be filled into byte that should be
+		 * initialized to zero to make sure the memory area is clean. */
 		if (!(i % 2)) {
 			buf[i >> 1] = 0;
 		}
 
+		/* The integer value of each character is added into the output buffer into
+		 * index that's half of the characters index in the input buffer as each byte is
+		 * represented by two characters. Division by 2 is done with right shift.
+		 * The first character of the two character set forms the most significant
+		 * 4 bits of the integer and the second character forms the least significant
+		 * 4 bits. This is where the shifting by four comes from based on whether the
+		 * index is even or odd.
+		 */
 		buf[i >> 1] |= (char2int(str[i]) << (4 * !(i % 2)));
 	}
-
-	return 0;
 }
 
 int parser_create(struct parser *parser, struct parser_api *api)
@@ -70,7 +96,14 @@ int parser_delete(struct parser *parser)
 	return 0;
 }
 
-static int parser_process(struct parser *parser, uint8_t *data)
+/**
+ * @brief Process given data with all sub parser of the given parser.
+ * 
+ * @param[in] parser Parser instance which has information on sub parsers that are executed.
+ *
+ * @return Zero if successful, negative value in error cases.
+ */
+static int parser_process(struct parser *parser)
 {
 	int ofs_inc;
 
@@ -78,10 +111,10 @@ static int parser_process(struct parser *parser, uint8_t *data)
 
 	parser->buf_pos = 0;
 
-	for(int i=0;i<parser->api->get_parser_count();i++) {
+	for (int i = 0; i < parser->api->get_parser_count(); i++) {
 		ofs_inc = parsers[i](parser, &parser->buf[parser->buf_pos]);
 
-		if(ofs_inc < 0) {
+		if (ofs_inc < 0) {
 			return ofs_inc;
 		}
 
@@ -117,14 +150,14 @@ int parser_process_str(struct parser *parser, char *data)
 
 	convert_to_bytes(data, length, parser->buf, PARSER_BUF_SIZE);
 
-	return parser_process(parser, data);
+	return parser_process(parser);
 }
 
 int parser_get_payload(struct parser *parser, char *buf, uint8_t buf_size)
 {
 	parser_module payload_decoder = parser->api->get_decoder();
 
-	parser->payload          = buf;
+	parser->payload = buf;
 	parser->payload_buf_size = buf_size;
 	return payload_decoder(parser, &parser->buf[parser->payload_pos]);
 }

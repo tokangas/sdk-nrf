@@ -28,102 +28,113 @@ struct parser;
 
 typedef int (*parser_module)(struct parser *parser, uint8_t *buf);
 
+/**
+ * @brief Set of parser functions needed for parser framework to operate.
+ */
 struct parser_api {
+	/** @brief Function type for getting data size. */
 	uint32_t (*data_size)(void);
+	/** @brief Function type for getting list of sub parsers that are processed sequentially. */
 	void*    (*get_parsers)(void);
+	/** @brief Function type for getting payload/data decoder. */
 	void*    (*get_decoder)(void);
+	/** @brief Function type for getting number of sub parsers. */
 	int      (*get_parser_count)(void);
+	/** @brief Function type for getting header information. */
 	int      (*get_header)(struct parser *parser, void *header);
 };
 
+/**
+ * @brief Set of parser variables needed for parser framework to operate.
+ * 
+ * @details Holds state information about the parsing as it proceeds by passing this structure
+ * to functions storing relevant information out of the parser buffers.
+ * 
+ * Parser contains sub parsers that are available through parser_api and its get_parsers function.
+ */
 struct parser {
-	uint8_t             buf_pos;
-	uint8_t             buf[PARSER_BUF_SIZE];
+	/** @brief Iterator type of state information on where the parsing is proceeding. */
+	uint8_t buf_pos;
+	/** @brief Parser data buffer that is processed. */
+	uint8_t buf[PARSER_BUF_SIZE];
 
-	uint8_t             *payload;
-	uint8_t             payload_buf_size;
-	uint8_t             payload_pos;
+	/** @brief Payload output buffer that is processed. */
+	uint8_t *payload;
+	/** @brief Payload output buffer size. */
+	uint8_t payload_buf_size;
+	/** @brief Index to the start of the payload within buf. */
+	uint8_t payload_pos;
 
-	void                *data;
-	uint16_t            data_length;
+	/** @brief Data structure to hold the parsed information. */
+	void *data;
+	/** @brief Data length of the actual data in buf.
+	 * TODO: This is confusing that it's more buffer size than related to data structure size.
+	 */
+	uint16_t data_length;
 
-	struct parser_api   *api;
+	/** @brief Functions defining the functionality of this specific parser. */
+	struct parser_api *api;
 };
 
-/** @brief Parser instance creation
+/**
+ * @brief Parser instance creation.
  *
- * @details This function is used to create a new parser instance
+ * @param[in] parser Parser instance.
+ * @param[in] api Parser API functions.
  *
- * @param[in] parser Pointer to parser instance data struct
- * @param[in] api    Pointer to parser_api struct with an parser implementation
- *
- * @return             Returns 0 if initialization was successful,
- *                     otherwise negative value
+ * @return Zero if successful, negative value in error cases.
  */
 int parser_create(struct parser *parser, struct parser_api *api);
 
-/** @brief Parser instance deletion
+/**
+ * @brief Parser instance deletion.
  *
- * @details This function will destroy a parser instance and free up any memory
- *          used.
+ * @details This function will destroy a parser instance and free up any memory used.
  *
- * @param[in] parser Pointer to parser instance data struct
+ * @param[in] parser Parser instance.
  *
- * @return             Returns 0 if initialization was successful,
- *                     otherwise negative value
+ * @return Zero if successful, negative value in error cases.
  */
 int parser_delete(struct parser *parser);
 
-/** @brief Parse ASCII formatted hex string
+/**
+ * @brief Parse ASCII formatted hexadecimal string.
  *
- * @details This function will take hex data as an 0-terminated ASCII string.
+ * @details The format of the hexadecimal string is defined in 3GPP TS 27.005 Section 4.0 and 3.1.
+ * <pdu> definition says the following:
+ *   "ME/TA converts each octet of TP data unit into two IRA character long hexadecimal number
+ *    (e.g. octet with integer value 42 is presented to TE as two characters 2A (IRA 50 and 65))"
  *
- * @param[in] parser Pointer to parser instance data struct
- * @param[in] data   Pointer to a HEX formatted ASCII string containing the
-                     data to be parsed
+ * @param[in] parser Parser instance.
+ * @param[in] data ASCII formatted hex string containing the data to be parsed.
  *
- * @return             Returns 0 if initialization was successful,
- *                     otherwise negative value
+ * @return Zero if successful, negative value in error cases.
  */
 int parser_process_str(struct parser *parser, char *data);
 
-/** @brief Parse raw data
+/**
+ * @brief Get the payload.
  *
- * @details This function will take data as an uint8_t data buffer.
+ * @details This function will fill a user supplied buffer with payload data.
  *
- * @param[in] parser Pointer to parser instance data struct
- * @param[in] data   Pointer to a data buffer withthe data to be parsed
- * @param[in] length Length of the data buffer
- *
- * @return             Returns 0 if initialization was successful,
- *                     otherwise negative value
- */
-int parser_process_raw(struct parser *parser, uint8_t *data, uint8_t length);
-
-/** @brief Get the payload in the data
- *
- * @details This function will fill a user supplied buffer with payload data
- *
- * @param[in] parser   Pointer to parser instance data struct
- * @param[in] buf      A user supplied buffer to put payload data in
+ * @param[in] parser Parser instance.
+ * @param[in,out] buf A user supplied buffer to put payload data into.
  * @param[in] buf_size How much can be stored in the buffer
  *
- * @return             Returns 0 if initialization was successful,
- *                     otherwise negative value
+ * @return Zero if successful, negative value in error cases.
  */
 int parser_get_payload(struct parser *parser, char *buf, uint8_t buf_size);
 
-/** @brief Get the header 
+/**
+ * @brief Get the header.
  *
- * @details This function will fill a databuffer with message header
-	    information. The header structure is defined in the parser
-	    implementation.
+ * @details This function will fill given header buffer with message header information.
+ * The header structure is defined in the parser implementation.
  *
- * @param[in] parser   Pointer to parser instance data struct
- * @param[in] header   A buffer big enough to hold the header information
+ * @param[in] parser Parser instance.
+ * @param[in,out] header Parser specific header structure to be filled.
  *
- * @return             Returns 0 if initialization was successful,
- *                     otherwise negative value
+ * @return Zero if successful, negative value in error cases.
  */
 int parser_get_header(struct parser *parser, void *header);
 
