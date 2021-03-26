@@ -24,42 +24,85 @@ extern "C" {
 #include <zephyr/types.h>
 #include <sys/types.h>
 
+/**
+ * @brief SMS message type.
+ */
 enum sms_type {
+	/** @brief SMS-DELIVER message type. */
 	SMS_TYPE_DELIVER = 0,
+	/** @brief SMS-DELIVER message type. */
 	SMS_TYPE_SUBMIT_REPORT
 };
 
+/** @brief Maximum length of SMS in number of characters. */
 #define SMS_MAX_DATA_LEN_CHARS 160
+/** @brief Maximum length of SMS address, i.e., phone number, in octets. */
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
+/** @brief Maximum length of SMS address in characters. */
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
+/**
+ * @brief SMS time information specified in 3GPP TS 23.040 Section 9.2.3.11.
+ */
 struct sms_time {
-	uint8_t year;
-	uint8_t month;
-	uint8_t day;
-	uint8_t hour;
-	uint8_t minute;
-	uint8_t second;
-	int8_t timezone;
+	uint8_t year;    /** @brief Year. Last two digits of the year.*/
+	uint8_t month;   /** @brief Month. */
+	uint8_t day;     /** @brief Day. */
+	uint8_t hour;    /** @brief Hour. */
+	uint8_t minute;  /** @brief Minute. */
+	uint8_t second;  /** @brief Second. */
+	int8_t timezone; /** @brief Timezone. */
 };
 
+/**
+ * @brief SMS address, i.e., phone number.
+ * 
+ * @details This may represent either originating or destination address and is
+ * specified in 3GPP TS 23.040 Section 9.1.2.5.
+ */
 struct sms_address {
+	/** @brief Address in NUL-terminated string format. */
 	char    address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
+	/**
+	 * @brief Address in semi-octet representation specified in
+	 * 3GPP TS 23.040 Section 9.1.2.3.
+	 * 
+	 * TODO: Just remove this field?
+	 */
 	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
+	/** @brief Address length in number of characters. */
 	uint8_t length;
+	/** @brief Address type as specified in 3GPP TS 23.040 Section 9.1.2.5. */
 	uint8_t type;
 };
 
+/**
+ * @brief SMS concatenated short message information.
+ * 
+ * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.1 and 9.2.3.24.8.
+ */
 struct sms_udh_concatenated {
+	/** @brief Indicates whether this field is present in the SMS message. */
 	bool present;
+	/** @brief Concatenated short message reference number. */
 	uint16_t ref_number;
+	/** @brief Maximum number of short messages in the concatenated short message. */
 	uint8_t total_msgs;
+	/** @brief Sequence number of the current short message. */
 	uint8_t seq_number;
 };
 
+/**
+ * @brief SMS application port addressing information.
+ * 
+ * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.3 and 9.2.3.24.4.
+ */
 struct sms_udh_app_port {
+	/** @brief Indicates whether this field is present in the SMS message. */
 	bool present;
+	/** @brief Destination port. */
 	uint16_t dest_port;
+	/** @brief Source port. */
 	uint16_t src_port;
 };
 
@@ -69,12 +112,21 @@ struct sms_udh_app_port {
  * message specified in 3GPP TS 23.040.
  */
 struct sms_deliver_header {
+	/** @brief Timestamp. */
 	struct sms_time time;
+	/** @brief Originating address, i.e., phone number. */
 	struct sms_address originating_address;
+	/** @brief Application port addressing information. */
 	struct sms_udh_app_port app_port;
+	/** @brief Concatenated short message information. */
 	struct sms_udh_concatenated concatenated;
 };
 
+/**
+ * @brief SMS header.
+ * 
+ * @details This can easily be extended to support additional message types.
+ */
 union sms_header {
 	struct sms_deliver_header deliver;
 };

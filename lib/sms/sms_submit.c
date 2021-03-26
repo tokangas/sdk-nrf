@@ -202,10 +202,9 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
 		LOG_DBG("AT Response:%s", log_strdup(at_response_str));
 
 		k_free(send_bufs[i]);
-		/* TODO: Just looping without threading may not work out and
-		        we need to wait for CDS response, which would mean
-			we need to send 2nd message from work queue and store
-			a lot of state information */
+		/* Just looping without threading seems to work fine and we don't need to wait
+		 * for CDS response. Otherwise we would need to send 2nd message from work queue
+		 * and store a lot of state information. */
 	}
 	concat_msg_id++;
 	return 0;
@@ -260,6 +259,7 @@ int sms_submit_send(char* number, char* text)
 
 	/* Check if this should be sent as concatenated SMS */
 	if (size < text_size) {
+		/* TODO: Still need to see if we could do both single and concatenated SMS from same function. */
 		LOG_DBG("Entire message doesn't fit into single SMS message. Using concatenated SMS.");
 		return sms_submit_send_concat(text, encoded_number, encoded_number_size, encoded_number_size_octets);
 	}

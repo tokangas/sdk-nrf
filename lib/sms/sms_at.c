@@ -21,20 +21,28 @@
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
+/** @brief Number of parameters in CMT AT notification. */
 #define AT_CMT_PARAMS_COUNT 4
 /* SMS PDU is a bit below 180 bytes which means 360 two character long
  * hexadecimal numbers. In addition CMT response has alpha and length so
  * reserving safely a bit over maximum. */
 #define AT_CMT_PDU_MAX_LEN 512
+/** @brief PDU index in CMT AT notification. */
+#define AT_CMT_PDU_INDEX 3
+/** @brief Number of parameters in CDS AT notification. */
 #define AT_CDS_PARAMS_COUNT 3
+/** @brief PDU index in CDS AT notification. */
+#define AT_CDS_PDU_INDEX 2
 
 /** @brief Start of AT notification for incoming SMS. */
-#define AT_SMS_NOTIFICATION "+CMT:"
-#define AT_SMS_NOTIFICATION_LEN (sizeof(AT_SMS_NOTIFICATION) - 1)
+#define AT_SMS_DELIVER "+CMT:"
+/** @brief Length of AT notification for incoming SMS. */
+#define AT_SMS_DELIVER_LEN (sizeof(AT_SMS_DELIVER) - 1)
 
 /** @brief Start of AT notification for incoming SMS status report. */
-#define AT_SMS_NOTIFICATION_DS "+CDS:"
-#define AT_SMS_NOTIFICATION_DS_LEN (sizeof(AT_SMS_NOTIFICATION_DS) - 1)
+#define AT_SMS_STATUS_REPORT "+CDS:"
+/** @brief Length of AT notification for incoming SMS status report. */
+#define AT_SMS_STATUS_REPORT_LEN (sizeof(AT_SMS_STATUS_REPORT) - 1)
 
 
 /**
@@ -62,8 +70,7 @@ static int sms_cmt_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 		return err;
 	}
 
-	/* TODO: index constant */
-	(void)at_params_string_get(temp_resp_list, 3, pdu, &pdu_len);
+	(void)at_params_string_get(temp_resp_list, AT_CMT_PDU_INDEX, pdu, &pdu_len);
 	pdu[pdu_len] = '\0';
 
 	LOG_DBG("PDU: %s", log_strdup(pdu));
@@ -95,8 +102,8 @@ static int sms_cds_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 		LOG_ERR("Unable to parse CDS notification, err=%d", err);
 		return err;
 	}
-	/* TODO: index constant */
-	(void)at_params_string_get(temp_resp_list, 2, pdu, &pdu_len);
+
+	(void)at_params_string_get(temp_resp_list, AT_CDS_PDU_INDEX, pdu, &pdu_len);
 	pdu[pdu_len] = '\0';
 
 	return 0;
@@ -123,8 +130,7 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 	__ASSERT(sms_data_info != NULL, "sms_data_info is NULL");
 	__ASSERT(temp_resp_list != NULL, "temp_resp_list is NULL");
 
-	if (strncmp(at_notif, AT_SMS_NOTIFICATION,
-		AT_SMS_NOTIFICATION_LEN) == 0) {
+	if (strncmp(at_notif, AT_SMS_DELIVER, AT_SMS_DELIVER_LEN) == 0) {
 
 		sms_data_info->type = SMS_TYPE_DELIVER;
 
@@ -140,8 +146,7 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 			LOG_ERR("sms_deliver_pdu_parse error: %d\n", err);
 			return err;
 		}
-	} else if (strncmp(at_notif, AT_SMS_NOTIFICATION_DS,
-		AT_SMS_NOTIFICATION_DS_LEN) == 0) {
+	} else if (strncmp(at_notif, AT_SMS_STATUS_REPORT, AT_SMS_STATUS_REPORT_LEN) == 0) {
 
 		LOG_DBG("SMS submit report received");
 		sms_data_info->type = SMS_TYPE_SUBMIT_REPORT;

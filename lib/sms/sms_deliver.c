@@ -65,7 +65,7 @@ struct pdu_dcs_field {
  */
 struct pdu_deliver_data {
 	struct pdu_deliver_header   field_header; /** First byte of header */
-	struct pdu_oa_field         field_oa;  /** TP-Originating-Address */
+	struct sms_address          field_oa;  /** TP-Originating-Address */
 	uint8_t                     field_pid; /** TP-Protocol-Identifier */
 	struct pdu_dcs_field        field_dcs; /** TP-Data-Coding-Scheme */
 	struct sms_time             timestamp; /** TP-Service-Centre-Time-Stamp */
@@ -106,7 +106,63 @@ static uint8_t semioctet_to_dec(uint8_t value)
 	return ((value & 0xf0) >> 4) + ((value & 0x0f) * 10);
 }
 
-/* TODO: Split SMSC into another function */
+/**
+ * @brief Convert phone number into string format.
+ * 
+ * @param[out] decoded_number Output buffer where number is stored.
+ */
+static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *str_number)
+{
+	/* Copy and log address string */
+	uint8_t length = number_length / 2;
+	bool fill_bits = false;
+	if (number_length % 2 == 1) {
+		/* There is an extra number in semi-octet and 4 fill bits*/
+		length++;
+		fill_bits = true;
+	}
+
+	uint8_t hex_str_index = 0;
+	for (int i = 0; i < length; i++) {
+		uint8_t number_value = (number[i] & 0xF0) >> 4;
+		if (number_value >= 10) {
+			LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
+				i, number_value);
+		}
+		sprintf(str_number + hex_str_index, "%d", number_value);
+
+		if (i < length - 1 || !fill_bits) {
+			uint8_t number_value = number[i] & 0x0F;
+			if (number_value >= 10) {
+				LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
+					i, number_value);
+			}
+			sprintf(str_number + hex_str_index + 1,
+				"%d", number_value);
+		}
+		hex_str_index += 2;
+	}
+	str_number[hex_str_index] = '\0';
+}
+
+/**
+ * @brief Decode SMS service center number specified in 3GPP TS 24.011 Section 8.2.5.1.
+ * 
+ * @param[in,out] parser Parser instance.
+ * @param[in] buf Buffer containing PDU and pointing to this field.
+ * 
+ * @return Number of parsed bytes.
+ */
+static int decode_pdu_deliver_smsc(struct parser *parser, uint8_t *buf)
+{
+	uint8_t smsc_size = *buf;
+	buf += smsc_size + 1;
+
+	LOG_DBG("SMSC size: %d", smsc_size);
+
+	return smsc_size + 1;
+}
+
 /**
  * @brief Decode first byte of SMS-DELIVER header as specified in 3GPP TS 23.040 Section 9.2.2.1.
  * 
@@ -117,15 +173,9 @@ static uint8_t semioctet_to_dec(uint8_t value)
  */
 static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 {
-	uint8_t smsc_size = *buf;
-	buf += smsc_size + 1;
+	DELIVER_DATA(parser)->field_header = *((struct pdu_deliver_header*)buf);
 
-	LOG_DBG("SMSC size: %d", smsc_size);
-
-	DELIVER_DATA(parser)->field_header = 
-		*((struct pdu_deliver_header*)buf);
-
-	LOG_DBG("SMS header 1st byte: 0x%X", *buf);
+	LOG_DBG("SMS header 1st byte: 0x%02X", *buf);
 
 	LOG_DBG("TP-Message-Type-Indicator: %d", DELIVER_DATA(parser)->field_header.mti);
 	LOG_DBG("TP-More-Messages-to-Send: %d", DELIVER_DATA(parser)->field_header.mms);
@@ -133,7 +183,7 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 	LOG_DBG("TP-User-Data-Header-Indicator: %d", DELIVER_DATA(parser)->field_header.udhi);
 	LOG_DBG("TP-Reply-Path: %d", DELIVER_DATA(parser)->field_header.rp);
 
-	return smsc_size + 2;
+	return 1;
 }
 
 /**
@@ -146,12 +196,11 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 {
-
-	DELIVER_DATA(parser)->field_oa.length   = (uint8_t)*buf++;
-	DELIVER_DATA(parser)->field_oa.adr_type = (uint8_t)*buf++;
+	DELIVER_DATA(parser)->field_oa.length = (uint8_t)*buf++;
+	DELIVER_DATA(parser)->field_oa.type = (uint8_t)*buf++;
 
 	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_oa.length);
-	LOG_DBG("Type-of-Address: %02X", DELIVER_DATA(parser)->field_oa.adr_type);
+	LOG_DBG("Type-of-Address: 0x%02X", DELIVER_DATA(parser)->field_oa.type);
 
 	if (DELIVER_DATA(parser)->field_oa.length > SMS_MAX_ADDRESS_LEN_CHARS) {
 		LOG_ERR("Maximum address length (%d) exceeded %d. Aborting decoding.",
@@ -166,14 +215,19 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 		length++;
 	}
 
-	memcpy(DELIVER_DATA(parser)->field_oa.adr,
+	memcpy(DELIVER_DATA(parser)->field_oa.address,
 	       buf, 
 	       length);
 
-	for(int i = 0; i < length; i++) {
-		DELIVER_DATA(parser)->field_oa.adr[i] = 
-			swap_nibbles(DELIVER_DATA(parser)->field_oa.adr[i]);
+	for (int i = 0; i < length; i++) {
+		DELIVER_DATA(parser)->field_oa.address[i] = 
+			swap_nibbles(DELIVER_DATA(parser)->field_oa.address[i]);
 	}
+
+	convert_number_to_str(
+		DELIVER_DATA(parser)->field_oa.address,
+		DELIVER_DATA(parser)->field_oa.length,
+		DELIVER_DATA(parser)->field_oa.address_str);
 
 	return 2 + length;
 }
@@ -209,7 +263,7 @@ static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 
 	/* TODO: This has to be checked carefully as 6th and 7th bit dictates how the rest are decoded. */
 
-	LOG_DBG("TP-Data-Coding-Scheme: %02X", *buf);
+	LOG_DBG("TP-Data-Coding-Scheme: 0x%02X", *buf);
 
 	return 1;
 }
@@ -587,14 +641,15 @@ static int decode_pdu_deliver_message(struct parser *parser, uint8_t *buf)
  * @brief List of parser required to parse entire SMS-DELIVER PDU.
  */
 const static parser_module sms_pdu_deliver_parsers[] = {
-		decode_pdu_deliver_header,
-		decode_pdu_oa_field,
-		decode_pdu_pid_field,
-		decode_pdu_dcs_field,
-		decode_pdu_scts_field,
-		decode_pdu_udl_field,
-		decode_pdu_udh,
-	};
+	decode_pdu_deliver_smsc,
+	decode_pdu_deliver_header,
+	decode_pdu_oa_field,
+	decode_pdu_pid_field,
+	decode_pdu_dcs_field,
+	decode_pdu_scts_field,
+	decode_pdu_udl_field,
+	decode_pdu_udh,
+};
 
 /**
  * @brief Return parsers.
@@ -635,7 +690,7 @@ static uint32_t sms_deliver_get_data_size(void)
 	return sizeof(struct pdu_deliver_data);
 }
 
-/** 
+/**
  * @brief Get SMS-DELIVER header for given parser.
  * 
  * @param[in] parser Parser instance.
@@ -649,59 +704,8 @@ static int sms_deliver_get_header(struct parser *parser, void *header)
 
 	memcpy(&sms_header->time, &DELIVER_DATA(parser)->timestamp, sizeof(struct sms_time));
 
-	/* Copy and log address string */
-	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
-	bool fill_bits = false;
-	if (DELIVER_DATA(parser)->field_oa.length % 2 == 1) {
-		/* There is an extra number in semi-octet and fill bits*/
-		length++;
-		fill_bits = true;
-	}
-
-	LOG_DBG("Address length octets: %d", length);
-
-	/* TODO: Move number encoding to separate function */
-	/* This is already ensured in decode_pdu_oa_field():
-	   assert(DELIVER_DATA(parser)->field_oa.length >= SMS_MAX_ADDRESS_LEN_CHARS);
-	*/
-	char encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
-	uint8_t hex_str_index = 0;
-	for (int i = 0; i < length; i++) {
-		uint8_t number = (DELIVER_DATA(parser)->field_oa.adr[i] & 0xF0) >> 4;
-		if (number >= 10) {
-			LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet",
-				i, number);
-		}
-		sprintf(encoded_number + hex_str_index, "%d", number);
-
-		if (i < length - 1 || !fill_bits) {
-			uint8_t number = DELIVER_DATA(parser)->field_oa.adr[i] & 0x0F;
-			if (number >= 10) {
-				LOG_WRN("Single number in phone number is higher than 10: index=%d, number=%d, lower semi-octet",
-					i, number);
-			}
-			sprintf(encoded_number + hex_str_index + 1,
-				"%d", number);
-		}
-		hex_str_index += 2;
-	}
-	encoded_number[hex_str_index] = '\0';
-
-	LOG_DBG("Address-Value: %s", log_strdup(encoded_number));
-
-	memset(sms_header->originating_address.address_str, 0,
-		SMS_MAX_ADDRESS_LEN_CHARS + 1);
-	memcpy(sms_header->originating_address.address_str, encoded_number,
-		SMS_MAX_ADDRESS_LEN_CHARS + 1);
-
-	sms_header->originating_address.length =
-		DELIVER_DATA(parser)->field_oa.length;
-	sms_header->originating_address.type   =
-		DELIVER_DATA(parser)->field_oa.adr_type;
-
-	memcpy(sms_header->originating_address.address,
-	       DELIVER_DATA(parser)->field_oa.adr,
-	       SMS_MAX_ADDRESS_LEN_OCTETS);
+	memcpy(&sms_header->originating_address, &DELIVER_DATA(parser)->field_oa,
+		sizeof(struct sms_address));
 
 	sms_header->app_port = DELIVER_DATA(parser)->field_udh_app_port;
 	sms_header->concatenated = DELIVER_DATA(parser)->field_udh_concatenated;
