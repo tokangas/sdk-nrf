@@ -45,9 +45,7 @@ struct pdu_oa_field {
 /**
  * @brief Data Coding Scheme (DCS) in 3GPP TS 23.038 chapter 4.
  * 
- * @details This encoding applies if bits 7 to 6 are zeroes.
- * 
- * TODO: Check 6th and 7th bit.
+ * @details This encoding applies if bits 7..6 are 00.
  */
 struct pdu_dcs_field {
 	uint8_t class:2;      /** Message Class */
@@ -109,7 +107,10 @@ static uint8_t semioctet_to_dec(uint8_t value)
 /**
  * @brief Convert phone number into string format.
  * 
- * @param[out] decoded_number Output buffer where number is stored.
+ * @param[in] number Number in semi-octet representation.
+ * @param[in] number_length Number length 
+ * @param[out] str_number Output buffer where number is stored. Size shall be at minimum twice the
+ *                        number length rounded up.
  */
 static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *str_number)
 {
@@ -117,13 +118,14 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 	uint8_t length = number_length / 2;
 	bool fill_bits = false;
 	if (number_length % 2 == 1) {
-		/* There is an extra number in semi-octet and 4 fill bits*/
+		/* There is one more number in semi-octet and 4 fill bits*/
 		length++;
 		fill_bits = true;
 	}
 
 	uint8_t hex_str_index = 0;
 	for (int i = 0; i < length; i++) {
+		/* Handle most significant 4 bits */
 		uint8_t number_value = (number[i] & 0xF0) >> 4;
 		if (number_value >= 10) {
 			LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
@@ -132,13 +134,13 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 		sprintf(str_number + hex_str_index, "%d", number_value);
 
 		if (i < length - 1 || !fill_bits) {
+			/* Handle least significant 4 bits */
 			uint8_t number_value = number[i] & 0x0F;
 			if (number_value >= 10) {
 				LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
 					i, number_value);
 			}
-			sprintf(str_number + hex_str_index + 1,
-				"%d", number_value);
+			sprintf(str_number + hex_str_index + 1,	"%d", number_value);
 		}
 		hex_str_index += 2;
 	}
@@ -187,7 +189,7 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 }
 
 /**
- * @brief Decode TP-Protocol-Identifier as specified in 3GPP TS 23.040 Section 9.2.3.9.
+ * @brief Decode TP-Originating-Address as specified in 3GPP TS 23.040 Section 9.2.3.7 and 9.1.2.5.
  * 
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
@@ -259,9 +261,21 @@ static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 {
-	DELIVER_DATA(parser)->field_dcs = *((struct pdu_dcs_field*)buf);
+	uint8_t value = *buf;
+	if ((value & 0b11000000) == 0) {
+		/* If bits 7..6 of the Coding Group Bits are 00 */
+		DELIVER_DATA(parser)->field_dcs = *((struct pdu_dcs_field*)&value);
 
-	/* TODO: This has to be checked carefully as 6th and 7th bit dictates how the rest are decoded. */
+	} else if (((value & 0b11110000) >> 4) == 0b1111) {
+		/* If bits 7..4 of the Coding Group Bits are 1111,
+		 * only first 3 bits are meaningful and they match to
+		 * the first 3 bits when Coding Group Bits 7..6 are 00 */
+		uint8_t temp = value & 0b00000111;
+		DELIVER_DATA(parser)->field_dcs = *(struct pdu_dcs_field*)&temp;
+		/* Additionally, to convert Coding Group Bits 7..4=1111 to same
+		 * meaning as 7..6=00, message class presence bit should be set. */
+		DELIVER_DATA(parser)->field_dcs.presence_of_class = 1;
+	}
 
 	LOG_DBG("TP-Data-Coding-Scheme: 0x%02X", *buf);
 
@@ -622,7 +636,6 @@ static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_deliver_message(struct parser *parser, uint8_t *buf)
 {
-	/* TODO: There are other bits (bits 4 to 7) than alphabet we need to consider because alphabet is not what we expect in some cases */
 	switch(DELIVER_DATA(parser)->field_dcs.alphabet) {
 		case 0:
 			return decode_pdu_ud_field_7bit(parser, buf);

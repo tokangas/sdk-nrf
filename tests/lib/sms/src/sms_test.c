@@ -22,7 +22,7 @@ static bool sms_callback_called_expected = false;
 static void sms_callback(struct sms_data *const data, void *context);
 
 /* sms_at_handler() is implemented in the library and we'll call it directly
-   to fake received SMS message */
+ * to fake received SMS message */
 extern void sms_at_handler(void *context, const char *at_notif);
 
 static void helper_sms_data_clear()
@@ -423,7 +423,7 @@ void test_send_concat_special_character_split(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
 }
 
-/* Text is empty. Message will be sent successfully. */
+/** Text is empty. Message will be sent successfully. */
 void test_send_text_empty(void)
 {
 	enum at_cmd_state state = 0;
@@ -436,7 +436,7 @@ void test_send_text_empty(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
-/* Text is NULL. Message will be sent successfully. */
+/** Text is NULL. Message will be sent successfully. */
 void test_send_text_null(void)
 {
 	enum at_cmd_state state = 0;
@@ -451,7 +451,7 @@ void test_send_text_null(void)
 
 /********* SMS SEND FAIL TESTS ******************/
 
-/* Phone number is empty. */
+/** Phone number is empty. */
 void test_send_fail_number_empty(void)
 {
 	enum at_cmd_state state = 0;
@@ -460,7 +460,7 @@ void test_send_fail_number_empty(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
-/* Phone number is NULL. */
+/** Phone number is NULL. */
 void test_send_fail_number_null(void)
 {
 	enum at_cmd_state state = 0;
@@ -469,6 +469,7 @@ void test_send_fail_number_null(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
+/** Failing AT command response to CMGS command. */
 void test_send_fail_atcmd(void)
 {
 	enum at_cmd_state state = AT_CMD_ERROR_CMS;
@@ -482,6 +483,7 @@ void test_send_fail_atcmd(void)
 	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CMS, state);
 }
 
+/** Failing AT command response to CMGS command when sending concatenated message. */
 void test_send_fail_atcmd_concat(void)
 {
 	enum at_cmd_state state1 = AT_CMD_ERROR_CME;
@@ -532,7 +534,7 @@ void test_send_fail_concat_800_more_than_5msgs(void)
 
 /********* SMS RECV TESTS ***********************/
 
-/* Callback that SMS library will call when a message is received */
+/** Callback that SMS library will call when a message is received. */
 static void sms_callback(struct sms_data *const data, void *context)
 {
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, true);
@@ -577,7 +579,7 @@ static void sms_callback(struct sms_data *const data, void *context)
 /**
  * Tests:
  * - 3 bytes long user data
- * - 13 characters long number
+ * - 13 characters long number (odd number of characters)
  */
 void test_recv_len3_number13(void)
 {
@@ -632,6 +634,11 @@ void test_recv_len1_number9(void)
 	sms_unreg_helper();
 }
 
+/**
+ * Tests:
+ * - 8 bytes long user data
+ * - 20 characters long number, which is maximum number length
+ */
 void test_recv_len8_number20(void)
 {
 	sms_reg_helper();
@@ -655,6 +662,7 @@ void test_recv_len8_number20(void)
 	sms_unreg_helper();
 }
 
+/** Receive concatenated SMS with 291 characters that are split into 2 messages. */
 void test_recv_concat_len291_msgs2(void)
 {
 	sms_reg_helper();
@@ -697,6 +705,10 @@ void test_recv_concat_len291_msgs2(void)
 	sms_unreg_helper();
 }
 
+/**
+ * Receive concatenated SMS with 755 characters that are split into 5 messages,
+ * which is maximum configured for tests.
+ */
 void test_recv_concat_len755_msgs5(void)
 {
 	sms_reg_helper();
@@ -838,6 +850,63 @@ void test_recv_concat_escape_character_last(void)
 	sms_callback_called_occurred = false;
 	sms_at_handler(NULL, "+CMT: \"1234567890\",159\r\n0791534874894370440A9121436587090000122022806550801305000351020236E5986C46ABD96EB81C0C\r\n");
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
+
+	sms_unreg_helper();
+}
+
+/**
+ * Tests:
+ * - Data Coding Scheme with Coding Group Bits 7..4 set to 1111 while normally
+ *   we have 7..6 set to 00.
+ * - Use GSM 7bit encoding.
+ */
+void test_recv_dcs1111_gsm7bit(void)
+{
+	sms_reg_helper();
+
+	strcpy(test_sms_header.originating_address.address_str, "12345");
+	test_sms_header.originating_address.length = 5;
+	test_sms_header.originating_address.type = 0x91;
+	test_sms_data.data_len = 8;
+	strcpy(test_sms_data.data, "12345678");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 9;
+	test_sms_header.time.hour = 20;
+	test_sms_header.time.minute = 58;
+	test_sms_header.time.second = 34;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+12345\",30\r\n07915348748943200405912143F500F0122090028543800831D98C56B3DD70\r\n");
+
+	sms_unreg_helper();
+}
+
+/**
+ * Data Coding Scheme with Coding Group Bits 7..4 set to 1111 while normally
+ * we have 7..6 set to 00.
+ * Use 8bit encoding.
+ */
+void test_recv_dcs1111_8bit(void)
+{
+	sms_reg_helper();
+
+	strcpy(test_sms_header.originating_address.address_str, "12345");
+	test_sms_header.originating_address.length = 5;
+	test_sms_header.originating_address.type = 0x91;
+	test_sms_data.data_len = 15;
+	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
+	test_sms_header.time.year = 21;
+	test_sms_header.time.month = 2;
+	test_sms_header.time.day = 9;
+	test_sms_header.time.hour = 20;
+	test_sms_header.time.minute = 58;
+	test_sms_header.time.second = 34;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
+	sms_callback_called_expected = true;
+	sms_at_handler(NULL, "+CMT: \"+12345\",30\r\n07915348748943200405912143F500F4122090028543800F0102030405060708090A0B0C0D0E0F\r\n");
 
 	sms_unreg_helper();
 }
@@ -1137,6 +1206,7 @@ void test_recv_invalid_udl_shorter_than_ud_8bit(void)
 	sms_unreg_helper();
 }
 
+/** Tests User-Data-Header Length that is longer than User-Data-Length. */
 void test_recv_fail_udhl_longer_than_udh(void)
 {
 	sms_reg_helper();
@@ -1248,7 +1318,8 @@ void test_recv_udh_with_datalen1(void)
 	sms_unreg_helper();
 }
 
-/** UDH IE is too long to fit to UDH based on UDH length:
+/**
+ * UDH IE is too long to fit to UDH based on UDH length:
  *   1B 0A 05040B841111 00037C01
  * Correct header for reference:
  *   1C 0B 05040B841111 00037C0101
