@@ -48,7 +48,6 @@ static void sms_callback(struct sms_data *const data, void *context)
 	} else {
 		printk("SMS protocol message with unknown type received\n");
 	}
-
 }
 
 void main(void)
@@ -78,6 +77,6 @@ void main(void)
 	/* In our application, we should unregister SMS in some conditions with:
 	 *   sms_unregister_listener(handle);
 	 * However, this sample will continue to be registered for
-	 * received SMS messages.
+	 * received SMS messages and they can be seen in serial port log.
 	 */
 }
