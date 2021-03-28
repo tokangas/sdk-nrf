@@ -152,8 +152,8 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
 
 		memcpy(ud + SMS_UDH_CONCAT_SIZE_SEPTETS, text_index, text_part_size);
 		
-		size = string_conversion_ascii_to_gsm7bit(
-			ud, sizeof(udh) + text_part_size, encoded, &encoded_size, &encoded_data_size, true);
+		size = string_conversion_ascii_to_gsm7bit(ud, sizeof(udh) + text_part_size,
+			encoded, &encoded_size, &encoded_data_size, true);
 
 		text_encoded_size += size - sizeof(udh);
 		text_index += size - sizeof(udh);
@@ -163,19 +163,27 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
 		uint8_t encoded_data_hex_str[SMS_MAX_DATA_LEN_CHARS * 2 + 1];
 		memset(encoded_data_hex_str, 0, SMS_MAX_DATA_LEN_CHARS * 2 + 1);
 		for (int i = SMS_UDH_CONCAT_SIZE_OCTETS; i < encoded_size; i++) {
-			sprintf(encoded_data_hex_str + (2 * (i - SMS_UDH_CONCAT_SIZE_OCTETS)), "%02X", encoded[i]);
+			sprintf(encoded_data_hex_str + (2 * (i - SMS_UDH_CONCAT_SIZE_OCTETS)),
+				"%02X",
+				encoded[i]);
 		}
 
 		int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
 		/* First, compose SMS header so that we get an index for
 		   User-Data-Header to add that when number of messages is known */
-		sprintf(send_bufs[concat_seq_number], "AT+CMGS=%d\r0061%02X%02X91%s0000%02X",
-			msg_size, message_ref, encoded_number_size, encoded_number, encoded_data_size);
+		sprintf(send_bufs[concat_seq_number],
+			"AT+CMGS=%d\r0061%02X%02X91%s0000%02X",
+			msg_size,
+			message_ref,
+			encoded_number_size,
+			encoded_number,
+			encoded_data_size);
 		send_bufs_udh_pos[concat_seq_number] = strlen(send_bufs[concat_seq_number]);
 
 		/* Then, add empty User-Data-Header to be filled later,
 		   and the actual user data */
-		sprintf(send_bufs[concat_seq_number] + send_bufs_udh_pos[concat_seq_number], "000000000000%s\x1a",
+		sprintf(send_bufs[concat_seq_number] + send_bufs_udh_pos[concat_seq_number],
+			"000000000000%s\x1a",
 			encoded_data_hex_str);
 		LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
 		LOG_DBG("%s", log_strdup(send_bufs[concat_seq_number]));
@@ -241,7 +249,8 @@ int sms_submit_send(char* number, char* text)
 	uint8_t encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	uint8_t encoded_number_size = strlen(number);
 	uint8_t encoded_number_size_octets = SMS_MAX_ADDRESS_LEN_CHARS + 1;
-	ret = sms_submit_encode_number(number, &encoded_number_size, encoded_number, &encoded_number_size_octets);
+	ret = sms_submit_encode_number(number, &encoded_number_size,
+		encoded_number, &encoded_number_size_octets);
 	if (ret) {
 		return ret;
 	}
@@ -261,7 +270,8 @@ int sms_submit_send(char* number, char* text)
 	if (size < text_size) {
 		/* TODO: Still need to see if we could do both single and concatenated SMS from same function. */
 		LOG_DBG("Entire message doesn't fit into single SMS message. Using concatenated SMS.");
-		return sms_submit_send_concat(text, encoded_number, encoded_number_size, encoded_number_size_octets);
+		return sms_submit_send_concat(text, encoded_number,
+				encoded_number_size, encoded_number_size_octets);
 	}
 
 	/* Create hexadecimal string representation of GSM 7bit encoded text */
@@ -276,9 +286,13 @@ int sms_submit_send(char* number, char* text)
 	memset(send_data, 0, 500);
 
 	int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
-	sprintf(send_data, "AT+CMGS=%d\r002100%02X91%s0000%02X%s\x1a",
-		msg_size, encoded_number_size, encoded_number,
-		encoded_data_size, encoded_data_hex_str);
+	sprintf(send_data,
+		"AT+CMGS=%d\r002100%02X91%s0000%02X%s\x1a",
+		msg_size,
+		encoded_number_size,
+		encoded_number,
+		encoded_data_size,
+		encoded_data_hex_str);
 	LOG_DBG("Sending encoded SMS data (length=%d):", msg_size);
 	LOG_DBG("%s", log_strdup(send_data));
 	LOG_DBG("SMS data encoded: %s", log_strdup(encoded_data_hex_str));
