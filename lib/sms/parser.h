@@ -101,7 +101,7 @@ int parser_delete(struct parser *parser);
  * @brief Parse ASCII formatted hexadecimal string.
  *
  * @details The format of the hexadecimal string is defined in 3GPP TS 27.005 Section 4.0 and 3.1.
- * <pdu> definition says the following:
+ * \<pdu\> definition says the following:
  *   "ME/TA converts each octet of TP data unit into two IRA character long hexadecimal number
  *    (e.g. octet with integer value 42 is presented to TE as two characters 2A (IRA 50 and 65))"
  *
