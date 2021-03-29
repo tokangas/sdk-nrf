@@ -44,7 +44,7 @@ After programming the sample to your development kit, test the sample by perform
 
 1. |connect_kit|
 #. |connect_terminal|
-#. Observe that the sample shows the :ref:`UART output <uart_output>` from the device.
+#. Observe that the sample shows the :ref:`UART output <sms_uart_output>` from the device.
    Note that this is an example and the output need not be identical to your observed output.
 #. Send SMS message to the number of the SIM card that you have placed into nRF9160 device.
 
@@ -54,7 +54,7 @@ After programming the sample to your development kit, test the sample by perform
 .. note::
    If more verbose logging of the SMS module processing is preferred, set the :option:`CONFIG_SMS_LOG_LEVEL_DBG` option in the ``prj.conf``.
 
-.. _uart_output:
+.. _sms_uart_output:
 
 
 Sample output
