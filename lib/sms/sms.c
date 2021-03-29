@@ -180,7 +180,7 @@ static int sms_init(void)
 	}
 
 	sms_client_registered = true;
-	LOG_INF("SMS client successfully registered");
+	LOG_DBG("SMS client successfully registered");
 	return 0;
 }
 
@@ -253,7 +253,7 @@ static void sms_uninit()
 				ret);
 			return;
 		}
-		LOG_INF("SMS client unregistered");
+		LOG_DBG("SMS client unregistered");
 
 		/* Unregister from AT commands notifications. */
 		(void)at_notif_deregister_handler(NULL, sms_at_handler);
