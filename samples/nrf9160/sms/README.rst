@@ -82,7 +82,7 @@ Dependencies
 
 This sample uses the following |NCS| libraries:
 
-* :ref:`lib_sms` which includes:
+* :ref:`sms_readme` which includes:
 
 It uses the following `sdk-nrfxlib`_ library:
 
