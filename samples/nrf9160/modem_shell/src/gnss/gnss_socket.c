@@ -735,7 +735,7 @@ int gnss_set_periodic_fix_mode(uint32_t interval, uint16_t retry)
 
 int gnss_set_periodic_fix_mode_gnss(uint16_t interval, uint16_t retry)
 {
-	if (interval < 10 || interval > 1800) {
+	if (interval < 10) {
 		return -EINVAL;
 	}
 

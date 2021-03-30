@@ -186,10 +186,10 @@ static int cmd_gnss_mode_periodic_gnss(const struct shell *shell, size_t argc, c
     int timeout;
 
     interval = atoi(argv[1]);
-    if (interval < 10 || interval > 1800) {
+    if (interval < 10 || interval > UINT16_MAX) {
         shell_error(
             shell,
-            "periodic_gnss: invalid interval value %d, the value must be 10...1800",
+            "periodic_gnss: invalid interval value %d, the value must be 10...65535",
             interval);
         return -EINVAL;
     }
