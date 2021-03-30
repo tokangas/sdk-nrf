@@ -28,7 +28,7 @@ static int sms_recv_counter = 0;
 static void sms_callback(struct sms_data *const data, void *context)
 {
 	if (data == NULL) {
-		printk("sms_callback with NULL data\n");
+		shell_error(shell_global, "SMS callback with NULL data\n");
 	}
 
 	if (data->type == SMS_TYPE_SUBMIT_REPORT) {
@@ -77,9 +77,10 @@ int sms_register()
 
 	int handle = sms_register_listener(sms_callback, NULL);
 	if (handle) {
-		printf("sms_register_listener returned err: %d\n", handle);
+		shell_error(shell_global, "sms_register_listener returned err: %d\n", handle);
 		return handle;
 	}
+	shell_print(shell_global, "SMS registered");
 
 	sms_handle = handle;
 	return 0;
@@ -89,6 +90,8 @@ int sms_unregister()
 {
 	sms_unregister_listener(sms_handle);
 	sms_handle = SMS_HANDLE_NONE;
+
+	shell_print(shell_global, "SMS unregistered");
 
 	return 0;
 }
