@@ -1508,6 +1508,34 @@ void test_send_recv_both(void)
 	sms_unreg_helper();
 }
 
+/**
+ * Tests sending in a loop.
+ */
+void test_send_loop(void)
+{
+	sms_reg_helper();
+
+	for (int i = 0; i < 20; i++) {
+		helper_sms_data_clear();
+		send_basic();
+	}
+	sms_unreg_helper();
+}
+
+/**
+ * Tests receiving in a loop.
+ */
+void test_recv_loop(void)
+{
+	sms_reg_helper();
+
+	for (int i = 0; i < 20; i++) {
+		helper_sms_data_clear();
+		recv_basic();
+	}
+	sms_unreg_helper();
+}
+
 /* It is required to be added to each test. That is because unity is using
  * different main signature (returns int) and zephyr expects main which does
  * not return value.
