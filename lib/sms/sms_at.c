@@ -46,65 +46,30 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 
 /**
- * @brief Parses 'CMT' notification.
+ * @brief Parses AT notification and finds PDU buffer.
  * 
- * @details 'CMT' notification has the following format according to 3GPP TS 27.005:
- *   +CMT: <alpha>,<length><CR><LF><pdu>
- * For example:
- *   +CMT:""555272744"",4<CR><LF>DEADBEEF"
- * 
- * @param[in] buf 'CDS' notification buffer.
+ * @param[in] buf AT notification buffer.
  * @param[out] pdu Output buffer where PDU is copied.
  * @param[in] pdu_len Length of the output buffer.
+ * @param[in] at_params_count Maximum number of AT parameters in AT notification.
+ * @param[in] pdu_index Index where PDU is found from AT notification parameter list.
  * @param[in] temp_resp_list Response list used by AT parser library. This is readily initialized
  *                 by caller and is passed here to avoid using another instance of the list.
  * @return Zero on success and negative value in error cases.
  */
-static int sms_cmt_at_parse(const char *const buf, char *pdu, size_t pdu_len,
-	struct at_param_list *temp_resp_list)
+static int sms_notif_at_parse(const char *const buf, char *pdu, size_t pdu_len,
+	int at_params_count, int pdu_index, struct at_param_list *temp_resp_list)
 {
-	int err = at_parser_max_params_from_str(buf, NULL, temp_resp_list,
-						AT_CMT_PARAMS_COUNT);
+	int err = at_parser_max_params_from_str(buf, NULL, temp_resp_list, at_params_count);
 	if (err != 0) {
-		LOG_ERR("Unable to parse CMT notification, err=%d", err);
+		LOG_ERR("Unable to parse AT notification, err=%d", err);
 		return err;
 	}
 
-	(void)at_params_string_get(temp_resp_list, AT_CMT_PDU_INDEX, pdu, &pdu_len);
+	(void)at_params_string_get(temp_resp_list, pdu_index, pdu, &pdu_len);
 	pdu[pdu_len] = '\0';
 
 	LOG_DBG("PDU: %s", log_strdup(pdu));
-
-	return 0;
-}
-
-/**
- * @brief Parses 'CDS' notification.
- * 
- * @details 'CDS' notification has the following format according to 3GPP TS 27.005:
- *   +CDS: <length><CR><LF><pdu>
- * For example:
- *   +CDS:4<CR><LF>DEADBEEF"
- * 
- * @param[in] buf 'CDS' notification buffer.
- * @param[out] pdu Output buffer where PDU is copied.
- * @param[in] pdu_len Length of the output buffer.
- * @param[in] temp_resp_list Response list used by AT parser library. This is readily initialized
- *                 by caller and is passed here to avoid using another instance of the list.
- * @return Zero on success and negative value in error cases.
- */
-static int sms_cds_at_parse(const char *const buf, char *pdu, size_t pdu_len,
-	struct at_param_list *temp_resp_list)
-{
-	int err = at_parser_max_params_from_str(buf, NULL, temp_resp_list,
-						AT_CDS_PARAMS_COUNT);
-	if (err != 0) {
-		LOG_ERR("Unable to parse CDS notification, err=%d", err);
-		return err;
-	}
-
-	(void)at_params_string_get(temp_resp_list, AT_CDS_PDU_INDEX, pdu, &pdu_len);
-	pdu[pdu_len] = '\0';
 
 	return 0;
 }
@@ -124,7 +89,6 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 {
 	char pdu[AT_CMT_PDU_MAX_LEN];
 	size_t pdu_len = sizeof(pdu) - 1; /* -1 so there is space for NUL */
-	int err;
 
 	__ASSERT(at_notif != NULL, "at_notif is NULL");
 	__ASSERT(sms_data_info != NULL, "sms_data_info is NULL");
@@ -135,8 +99,8 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 		sms_data_info->type = SMS_TYPE_DELIVER;
 
 		/* Extract and save the SMS notification parameters */
-		int err = sms_cmt_at_parse(at_notif, pdu, pdu_len,
-			temp_resp_list);
+		int err = sms_notif_at_parse(at_notif, pdu, pdu_len,
+				AT_CMT_PARAMS_COUNT, AT_CMT_PDU_INDEX, temp_resp_list);
 		if (err) {
 			return err;
 		}
@@ -151,7 +115,8 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 		LOG_DBG("SMS submit report received");
 		sms_data_info->type = SMS_TYPE_SUBMIT_REPORT;
 
-		err = sms_cds_at_parse(at_notif, pdu, pdu_len, temp_resp_list);
+		int err = sms_notif_at_parse(at_notif, pdu, pdu_len,
+				AT_CDS_PARAMS_COUNT, AT_CDS_PDU_INDEX, temp_resp_list);
 		if (err != 0) {
 			LOG_ERR("sms_cds_at_parse error: %d", err);
 			return err;
