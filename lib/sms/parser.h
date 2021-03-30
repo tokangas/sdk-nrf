@@ -57,6 +57,8 @@ struct parser {
 	uint8_t buf_pos;
 	/** @brief Parser data buffer that is processed. */
 	uint8_t buf[PARSER_BUF_SIZE];
+	/** @brief Size of the actual data in buf. */
+	uint16_t buf_size;
 
 	/** @brief Payload output buffer that is processed. */
 	uint8_t *payload;
@@ -67,10 +69,6 @@ struct parser {
 
 	/** @brief Data structure to hold the parsed information. */
 	void *data;
-	/** @brief Data length of the actual data in buf.
-	 * TODO: This is confusing that it's more buffer size than related to data structure size.
-	 */
-	uint16_t data_length;
 
 	/** @brief Functions defining the functionality of this specific parser. */
 	struct parser_api *api;

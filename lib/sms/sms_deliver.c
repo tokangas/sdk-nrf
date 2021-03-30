@@ -507,10 +507,10 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 			DELIVER_DATA(parser)->field_udl);
 		return -EMSGSIZE;
 	}
-	if (DELIVER_DATA(parser)->field_udhl > parser->data_length - parser->buf_pos) {
+	if (DELIVER_DATA(parser)->field_udhl > parser->buf_size - parser->buf_pos) {
 		LOG_ERR("User Data Header Length %d is bigger than remaining input data length %d",
 			DELIVER_DATA(parser)->field_udhl,
-			parser->data_length - parser->buf_pos);
+			parser->buf_size - parser->buf_pos);
 		return -EMSGSIZE;
 	}
 
@@ -554,7 +554,7 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	   because UDH is part of GSM 7bit encoding w.r.t.
 	   fill bits for the actual data. */
 	uint16_t actual_data_length =
-		(parser->data_length - parser->payload_pos) * 8 / 7;
+		(parser->buf_size - parser->payload_pos) * 8 / 7;
 	actual_data_length = MIN(actual_data_length,
 				DELIVER_DATA(parser)->field_udl);
 
@@ -610,10 +610,10 @@ static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
 	   length indicated by User-Data-Length taking into account
 	   User-Data-Header-Length. */
 	uint32_t actual_data_length =
-		MIN(parser->data_length - parser->payload_pos,
+		MIN(parser->buf_size - parser->payload_pos,
 		    DELIVER_DATA(parser)->field_udl - DELIVER_DATA(parser)->field_udhl);
 
-	__ASSERT(parser->data_length >= parser->payload_pos,
+	__ASSERT(parser->buf_size >= parser->payload_pos,
 		"Data length smaller than data iterator");
 	__ASSERT(actual_data_length <= parser->payload_buf_size,
 		"8bit User-Data-Length shorter than output buffer");

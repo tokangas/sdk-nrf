@@ -122,10 +122,10 @@ static int parser_process(struct parser *parser)
 
 		/* If we have gone beyond the length of the given data,
 		   we need to return a failure. We don't have issues in
-		   accessing memory beyond parser->data_length bytes of
+		   accessing memory beyond parser->buf_size bytes of
 		   parser->buf as the buffer is overly long.
 		   */
-		if (parser->buf_pos > parser->data_length) {
+		if (parser->buf_pos > parser->buf_size) {
 			return -EMSGSIZE;
 		}
 	}
@@ -138,16 +138,16 @@ static int parser_process(struct parser *parser)
 int parser_process_str(struct parser *parser, char *data)
 {
 	uint16_t length = strlen(data);
+	uint16_t buf_size = length / 2;
 
-	parser->data_length = length / 2;
-
-	if (parser->data_length > PARSER_BUF_SIZE) {
+	if (buf_size > PARSER_BUF_SIZE) {
 		LOG_ERR("Data length (%d) is bigger than the internal buffer size (%d)",
-			parser->data_length,
+			buf_size,
 			PARSER_BUF_SIZE);
 		return -EMSGSIZE;
 	}
 
+	parser->buf_size = buf_size;
 	convert_to_bytes(data, length, parser->buf, PARSER_BUF_SIZE);
 
 	return parser_process(parser);
