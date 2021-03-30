@@ -20,8 +20,7 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define SMS_UDH_CONCAT_SIZE_OCTETS 6
 /** @brief User Data Header size in septets. */
 #define SMS_UDH_CONCAT_SIZE_SEPTETS 7
-
-/* TODO: This is somewhere else too */
+/** @brief Maximum length of the response for AT commands. */
 #define SMS_AT_RESPONSE_MAX_LEN 256
 
 /**
