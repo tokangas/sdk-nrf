@@ -22,6 +22,8 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define SMS_UDH_CONCAT_SIZE_SEPTETS 7
 /** @brief Maximum length of the response for AT commands. */
 #define SMS_AT_RESPONSE_MAX_LEN 256
+/** @brief Buffer size reserved for CMGS AT command. */
+#define SMS_AT_CMGS_BUF_SIZE 500
 
 /**
  * @brief Encode phone number into format specified within SMS header.
@@ -139,7 +141,7 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
 		if (text_part_size > 153) {
 			text_part_size = 153;
 		}
-		send_bufs[concat_seq_number] = k_malloc(500);
+		send_bufs[concat_seq_number] = k_malloc(SMS_AT_CMGS_BUF_SIZE);
 		if (send_bufs[concat_seq_number] == NULL) {
 			LOG_ERR("Unable to send concatenated message due to no memory");
 			/* Free memory reserved earlier */
@@ -167,7 +169,14 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
 				encoded[i]);
 		}
 
-		int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
+		int msg_size =
+			2 + /* First header byte and TP-MR fields */
+			1 + /* Length of phone number */
+			1 + /* Phone number Type-of-Address */
+			encoded_number_size_octets +
+			2 + /* TP-PID and TP-DCS fields */
+			1 + /* TP-UDL field */
+			encoded_size;
 		/* First, compose SMS header so that we get an index for
 		   User-Data-Header to add that when number of messages is known */
 		sprintf(send_bufs[concat_seq_number],
@@ -177,6 +186,7 @@ static int sms_submit_send_concat(char* text, uint8_t *encoded_number,
 			encoded_number_size,
 			encoded_number,
 			encoded_data_size);
+		/* Store the position of User-Data-Header */
 		send_bufs_udh_pos[concat_seq_number] = strlen(send_bufs[concat_seq_number]);
 
 		/* Then, add empty User-Data-Header to be filled later,
@@ -267,7 +277,6 @@ int sms_submit_send(char* number, char* text)
 
 	/* Check if this should be sent as concatenated SMS */
 	if (size < text_size) {
-		/* TODO: Still need to see if we could do both single and concatenated SMS from same function. */
 		LOG_DBG("Entire message doesn't fit into single SMS message. Using concatenated SMS.");
 		return sms_submit_send_concat(text, encoded_number,
 				encoded_number_size, encoded_number_size_octets);
@@ -281,10 +290,15 @@ int sms_submit_send(char* number, char* text)
 	}
 
 	/* Create and send CMGS AT command */
-	char send_data[500];
-	memset(send_data, 0, 500);
-
-	int msg_size = 2 + 1 + 1 + encoded_number_size_octets + 2 + 1 + encoded_size;
+	char send_data[SMS_AT_CMGS_BUF_SIZE];
+	int msg_size =
+		2 + /* First header byte and TP-MR fields */
+		1 + /* Length of phone number */
+		1 + /* Phone number Type-of-Address */
+		encoded_number_size_octets +
+		2 + /* TP-PID and TP-DCS fields */
+		1 + /* TP-UDL field */
+		encoded_size;
 	sprintf(send_data,
 		"AT+CMGS=%d\r002100%02X91%s0000%02X%s\x1a",
 		msg_size,
