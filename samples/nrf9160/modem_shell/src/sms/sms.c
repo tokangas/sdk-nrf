@@ -31,9 +31,9 @@ static void sms_callback(struct sms_data *const data, void *context)
 		shell_error(shell_global, "SMS callback with NULL data\n");
 	}
 
-	if (data->type == SMS_TYPE_SUBMIT_REPORT) {
-		/* TODO: Check whether we should parse SMS-SUBMIT-REPORT more carefully */
-		shell_print(shell_global, "SMS submit report received");
+	if (data->type == SMS_TYPE_STATUS_REPORT) {
+		/* TODO: Check whether we should parse SMS-STATUS-REPORT more carefully */
+		shell_print(shell_global, "SMS status report received");
 		return;
 	} else if (data->type == SMS_TYPE_DELIVER) {
 		struct sms_deliver_header *header = &data->header.deliver;
