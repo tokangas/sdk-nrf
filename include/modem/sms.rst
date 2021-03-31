@@ -8,16 +8,19 @@ SMS subscriber
    :depth: 2
 
 The current modem firmware allows only one SMS client.
-The SMS subscriber module acts as a unique and global client in the system that can dispatch SMS notifications to many subscribers, which makes it possible for more than one module to receive SMS messages.
+The SMS subscriber module acts as a unique and global client in the system that can dispatch SMS notifications to many subscribers,
+which makes it possible for more than one module to receive SMS messages.
 
 The module provides functions to register and unregister SMS listeners, which are the modules that need to send or receive SMS messages.
 Each listener is identified by a unique handle and receives the SMS data and metadata through a callback function.
+Each registered listener of the module can also send SMS messages.
 
 SMS listeners can be registered or unregistered at run time.
-The SMS data payload is given as raw data.
+The SMS data payload is parsed and processed before it is given to the client.
 It is up to the listener to parse and process it.
 
-The SMS module uses AT commands to register as SMS client.
+The SMS module uses AT commands to register as SMS client towards the modem.
+In addition, AT commands are also used to send SMS messages.
 SMS notifications are received using AT commands, but those are not visible for the users of this module.
 The module automatically acknowledges received SMS messages on behalf of each listener.
 
@@ -30,14 +33,14 @@ Configuration
 Configure the following parameters when using this library:
 
 * :option:`CONFIG_SMS_SUBSCRIBERS_MAX_CNT` - The maximum number of SMS subscribers.
-* :option:`CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT` - Maximum number of concatenated messages support when sending SMS.
+* :option:`CONFIG_SMS_SEND_CONCATENATED_MSG_MAX_CNT` - Maximum number of concatenated messages supported when sending SMS.
 * :option:`CONFIG_AT_CMD_RESPONSE_MAX_LEN` - The maximum size of the AT command response which may limit receiving of SMS messages. Values over 512 bytes won't restrict the size of the received message as maximum data length of the SMS is 140 bytes.
   This parameter is defined in the :ref:`at_cmd_readme` module.
 
 Limitations
 ***********
 
-Only one SMS client can be registered in the system.
+Only one SMS client can be registered in the system towards the modem.
 If there already is an SMS client registered in the system (using AT commands, for example), the initialization of this module fails and an error is returned.
 
 API documentation
