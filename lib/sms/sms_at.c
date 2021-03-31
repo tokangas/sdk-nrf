@@ -112,8 +112,11 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 		}
 	} else if (strncmp(at_notif, AT_SMS_STATUS_REPORT, AT_SMS_STATUS_REPORT_LEN) == 0) {
 
-		LOG_DBG("SMS submit report received");
-		sms_data_info->type = SMS_TYPE_SUBMIT_REPORT;
+		/* This indicates SMS-STATUS-REPORT has been received. However, its content is not
+		 * parsed so we don't know if the message is delivered or if an error occurred.
+		 */
+		LOG_DBG("SMS status report received");
+		sms_data_info->type = SMS_TYPE_STATUS_REPORT;
 
 		int err = sms_notif_at_parse(at_notif, pdu, pdu_len,
 				AT_CDS_PARAMS_COUNT, AT_CDS_PDU_INDEX, temp_resp_list);

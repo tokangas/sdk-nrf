@@ -209,7 +209,7 @@ void test_send_len3_number10plus(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
 	/* Receive SMS-STATUS-REPORT */
-	test_sms_data.type = SMS_TYPE_SUBMIT_REPORT;
+	test_sms_data.type = SMS_TYPE_STATUS_REPORT;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
@@ -236,7 +236,7 @@ void test_send_len1_number20plus(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
 	/* Receive SMS-STATUS-REPORT */
-	test_sms_data.type = SMS_TYPE_SUBMIT_REPORT;
+	test_sms_data.type = SMS_TYPE_STATUS_REPORT;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
@@ -1452,7 +1452,7 @@ void send_basic(void)
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
 	/* Receive SMS-STATUS-REPORT */
-	test_sms_data.type = SMS_TYPE_SUBMIT_REPORT;
+	test_sms_data.type = SMS_TYPE_STATUS_REPORT;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;

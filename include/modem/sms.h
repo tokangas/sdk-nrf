@@ -30,15 +30,15 @@ extern "C" {
 enum sms_type {
 	/** @brief SMS-DELIVER message type. */
 	SMS_TYPE_DELIVER = 0,
-	/** @brief SMS-DELIVER message type. */
-	SMS_TYPE_SUBMIT_REPORT
+	/** @brief SMS-STATUS-REPORT message type. */
+	SMS_TYPE_STATUS_REPORT
 };
 
 /** @brief Maximum length of SMS in number of characters. */
 #define SMS_MAX_DATA_LEN_CHARS 160
 /** @brief Maximum length of SMS address, i.e., phone number, in octets. */
 #define SMS_MAX_ADDRESS_LEN_OCTETS 10
-/** @brief Maximum length of SMS address in characters. */
+/** @brief Maximum length of SMS address, i.e., phone number, in characters. */
 #define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
 
 /**
