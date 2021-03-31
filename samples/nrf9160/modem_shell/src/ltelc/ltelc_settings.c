@@ -491,6 +491,11 @@ int ltelc_sett_sysmode_get()
 {
 	return ltelc_settings.sysmode;
 }
+
+int ltelc_sett_sysmode_default_set()
+{
+	return ltelc_sett_sysmode_save(LTE_LC_SYSTEM_MODE_NONE);
+}
 /* ****************************************************************************/
 
 char *ltelc_sett_normal_mode_at_cmd_str_get(uint8_t mem_slot)
@@ -682,7 +687,7 @@ void ltelc_sett_defaults_set(const struct shell *shell)
 		LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD);
 	ltelc_sett_save_defcontauth_prot(LTELC_SETT_DEFCONTAUTH_PROT_NONE);
 
-	ltelc_sett_sysmode_save(LTE_LC_SYSTEM_MODE_NONE);
+	ltelc_sett_sysmode_default_set();
 
 	ltelc_sett_clear_normal_mode_at_cmd_str(1);
 	ltelc_sett_clear_normal_mode_at_cmd_str(2);

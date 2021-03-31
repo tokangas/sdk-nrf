@@ -44,7 +44,8 @@ typedef enum {
 	LTELC_COMMON_NONE = 0,
 	LTELC_COMMON_READ,
 	LTELC_COMMON_ENABLE,
-	LTELC_COMMON_DISABLE
+	LTELC_COMMON_DISABLE,
+	LTELC_COMMON_RESET
 } ltelc_shell_common_options;
 
 typedef enum {
@@ -125,7 +126,8 @@ const char ltelc_connect_usage_str[] =
 
 const char ltelc_sysmode_usage_str[] =
 	"Options for 'ltelc sysmode' command:\n"
-	"  -r, --read,       [bool] Read modem system mode\n"
+	"  -r, --read,       [bool] Read system modes set in modem and by 'ltelc sysmode'\n"
+	"      --reset,      [bool] Reset the set sysmode as default\n"
 	"  -m, --ltem,       [bool] LTE-M (LTE Cat-M1) system mode\n"
 	"  -n, --nbiot,      [bool] NB-IoT (LTE Cat-NB1) system mode\n"
 	"  -g, --gps,        [bool] GPS system mode\n"
@@ -308,7 +310,42 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 	};
 	return ltelc_shell_map_to_string(mapping_table, funmode, out_str_buff);
 }
+/******************************************************************************/
 
+/* From lte_lc.c, and to be updated if something is added
+ * (although subject to major changes with upcoming sdk changes): 
+ */
+#define SYS_MODE_PREFERRED \
+	(IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M)	? \
+		LTE_LC_SYSTEM_MODE_LTEM			: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT)	? \
+		LTE_LC_SYSTEM_MODE_NBIOT		: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M_GPS)	? \
+		LTE_LC_SYSTEM_MODE_LTEM_GPS		: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT_GPS)	? \
+		LTE_LC_SYSTEM_MODE_NBIOT_GPS		: \
+	LTE_LC_SYSTEM_MODE_NONE)
+
+static void ltelc_shell_sysmode_set(const struct shell *shell, int sysmode)
+{
+	char snum[64];
+	int ret = lte_lc_system_mode_set(sysmode);
+
+	if (ret < 0) {
+		shell_error(shell, "Cannot set system mode to modem: %d", ret);
+		ret = ltelc_func_mode_get();
+		if (ret != LTELC_FUNMODE_FLIGHTMODE || ret != LTELC_FUNMODE_PWROFF) {
+			shell_warn(
+				shell,
+				"Not in flighmode nor in pwroff, but no worries;\nrequested system mode will be set next time when going to normal mode by 'ltelc funmode'");
+		}
+	} else {
+		shell_print(
+			shell, 
+			"System mode set successfully to modem: %s",
+				ltelc_shell_sysmode_to_string(sysmode, snum));	
+	}	
+}
 /******************************************************************************/
 
 const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
@@ -338,8 +375,6 @@ void ltelc_shell_print_current_system_modes(const struct shell *shell)
 			ltelc_shell_sysmode_to_string(sys_mode_current, snum));
 	}
 }
-
-/******************************************************************************/
 
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
@@ -425,8 +460,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	bool psm_rptau_set = false;
 	char psm_rat_bit_str[LTELC_SHELL_PSM_PARAM_STR_LENGTH + 1];
 	bool psm_rat_set = false;
-
-	bool reset_option = false;
 
 	char *normal_mode_at_str = NULL;
 	uint8_t normal_mode_at_mem_slot = 0;
@@ -563,8 +596,11 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'P': /* defcont auth password */
 			password = optarg;
 			break;
-		
 		/* Options without short option: */
+		case LTELC_SHELL_OPT_RESET:
+			ltelc_cmd_args.common_option = LTELC_COMMON_RESET;
+			break;
+		
 		case LTELC_SHELL_OPT_MEM_SLOT_1:
 			normal_mode_at_str = optarg;
 			normal_mode_at_mem_slot = 1;
@@ -576,9 +612,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_SHELL_OPT_MEM_SLOT_3:
 			normal_mode_at_str = optarg;
 			normal_mode_at_mem_slot = 3;
-			break;
-		case LTELC_SHELL_OPT_RESET:
-			reset_option = true;
 			break;
 
 		case '?':
@@ -688,8 +721,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_CMD_SETTINGS:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ltelc_sett_all_print(shell);
-			} else if (reset_option == true) {
+			} else if (ltelc_cmd_args.common_option == LTELC_COMMON_RESET) {
 				ltelc_sett_defaults_set(shell);
+				ltelc_shell_sysmode_set(shell, SYS_MODE_PREFERRED);
 			} else {
 				goto show_usage;
 			}
@@ -700,29 +734,38 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 		case LTELC_CMD_SYSMODE:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
-
 				ret = lte_lc_system_mode_get(&sys_mode_current);
 				if (ret < 0) {
 					shell_error(shell, "Cannot read system mode of the modem: %d", ret);
 				} else {
+					enum lte_lc_system_mode sett_sys_mode = LTE_LC_SYSTEM_MODE_NONE;
+
 					shell_print(shell, "System mode read successfully from modem: %s", ltelc_shell_sysmode_to_string(sys_mode_current, snum));
+					
+					/* Print also settings stored in mosh side: */
+					ltelc_sett_sysmode_print(shell);
+					sett_sys_mode = ltelc_sett_sysmode_get();
+					if (sett_sys_mode != LTE_LC_SYSTEM_MODE_NONE &&
+						sett_sys_mode != sys_mode_current) {
+						shell_warn(
+							shell,
+							"note: seems that set ltelc sysmode and a counterpart in modem are not in synch");
+						shell_warn(
+							shell,
+							"      no worries; requested system mode will be set next time when going to normal mode by 'ltelc funmode'");
+					}
 				}
 			} else if (ltelc_cmd_args.sysmode_option != LTE_LC_SYSTEM_MODE_NONE) {
-				ret = lte_lc_system_mode_set(ltelc_cmd_args.sysmode_option);
-				if (ret < 0) {
-					shell_error(shell, "Cannot set system mode: %d", ret);
-					ret = ltelc_func_mode_get();
-					if (ret != LTELC_FUNMODE_FLIGHTMODE || ret != LTELC_FUNMODE_PWROFF) {
-						shell_info(shell, "Setting 1st to flightmode might help by using: \"ltelc funmode --flightmode\"");
-					}
-				} else {
-					shell_print(shell, "System mode set successfully to modem: %s", ltelc_shell_sysmode_to_string(ltelc_cmd_args.sysmode_option, snum));
-					
-					/* Save system modem: */
-					(void)ltelc_sett_sysmode_save(ltelc_cmd_args.sysmode_option);
-				}
-			}
-			else {
+				ltelc_shell_sysmode_set(shell, ltelc_cmd_args.sysmode_option);
+				
+				/* Save system modem to ltelc settings: */
+				(void)ltelc_sett_sysmode_save(ltelc_cmd_args.sysmode_option);
+
+			} else if (ltelc_cmd_args.common_option == LTELC_COMMON_RESET) {
+				ltelc_shell_sysmode_set(shell, SYS_MODE_PREFERRED);
+
+				(void)ltelc_sett_sysmode_default_set();
+			} else {
 				goto show_usage;
 			}
 			break;
