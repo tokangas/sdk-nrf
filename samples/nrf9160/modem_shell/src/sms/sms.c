@@ -89,9 +89,13 @@ int sms_register()
 int sms_unregister()
 {
 	sms_unregister_listener(sms_handle);
-	sms_handle = SMS_HANDLE_NONE;
+	if (sms_handle != SMS_HANDLE_NONE) {
+		/* Only print if we've registered earlier. Otherwise this will cause a crash
+		 * when called from other modules if shell_global is not set. */
+		shell_print(shell_global, "SMS unregistered");
+	}
 
-	shell_print(shell_global, "SMS unregistered");
+	sms_handle = SMS_HANDLE_NONE;
 
 	return 0;
 }
