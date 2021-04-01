@@ -361,7 +361,7 @@ int ltelc_func_mode_set(int fun)
 		   (ltelc sysmode -mosh command): */
 		sysmode = ltelc_sett_sysmode_get();
 		if (sysmode != LTE_LC_SYSTEM_MODE_NONE) {
-			(void)lte_lc_system_mode_set(sysmode);
+			(void)lte_lc_system_mode_set(sysmode, LTE_LC_SYSTEM_MODE_PREFER_AUTO);
 		}
 
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {

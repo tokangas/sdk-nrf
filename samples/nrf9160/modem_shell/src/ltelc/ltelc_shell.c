@@ -329,7 +329,7 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 static void ltelc_shell_sysmode_set(const struct shell *shell, int sysmode)
 {
 	char snum[64];
-	int ret = lte_lc_system_mode_set(sysmode);
+	int ret = lte_lc_system_mode_set(sysmode, LTE_LC_SYSTEM_MODE_PREFER_AUTO);
 
 	if (ret < 0) {
 		shell_error(shell, "Cannot set system mode to modem: %d", ret);
@@ -369,7 +369,7 @@ void ltelc_shell_print_current_system_modes(const struct shell *shell)
 	enum lte_lc_system_mode sys_mode_current;
 	char snum[64];
 
-	ret = lte_lc_system_mode_get(&sys_mode_current);
+	ret = lte_lc_system_mode_get(&sys_mode_current, NULL);
 	if (ret >= 0) {
 		shell_print(shell, "Modem system mode: %s", 
 			ltelc_shell_sysmode_to_string(sys_mode_current, snum));
@@ -734,7 +734,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 		case LTELC_CMD_SYSMODE:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
-				ret = lte_lc_system_mode_get(&sys_mode_current);
+				ret = lte_lc_system_mode_get(&sys_mode_current, NULL);
 				if (ret < 0) {
 					shell_error(shell, "Cannot read system mode of the modem: %d", ret);
 				} else {
