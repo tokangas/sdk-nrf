@@ -22,10 +22,10 @@
 
 /* If bootloader upgrades are supported we need room for two file strings. */
 #ifdef PM_S1_ADDRESS
-#define FILE_BUF_LEN (CONFIG_DOWNLOAD_CLIENT_MAX_FILENAME_SIZE)
-#else
 /* One file string for each of s0 and s1, and a space separator */
 #define FILE_BUF_LEN ((CONFIG_DOWNLOAD_CLIENT_MAX_FILENAME_SIZE*2)+1)
+#else
+#define FILE_BUF_LEN (CONFIG_DOWNLOAD_CLIENT_MAX_FILENAME_SIZE)
 #endif
 
 LOG_MODULE_REGISTER(fota_download, CONFIG_FOTA_DOWNLOAD_LOG_LEVEL);
@@ -37,6 +37,9 @@ static int socket_retries_left;
 #ifdef CONFIG_DFU_TARGET_MCUBOOT
 static uint8_t mcuboot_buf[CONFIG_FOTA_DOWNLOAD_MCUBOOT_FLASH_BUF_SZ];
 #endif
+static enum dfu_target_image_type img_type;
+static bool first_fragment;
+
 static void send_evt(enum fota_download_evt_id id)
 {
 	__ASSERT(id != FOTA_DOWNLOAD_EVT_PROGRESS, "use send_progress");
@@ -82,7 +85,6 @@ static void dfu_target_callback_handler(enum dfu_target_evt_id evt)
 
 static int download_client_callback(const struct download_client_evt *event)
 {
-	static bool first_fragment = true;
 	static size_t file_size;
 	size_t offset;
 	int err;
@@ -102,7 +104,7 @@ static int download_client_callback(const struct download_client_evt *event)
 				return err;
 			}
 			first_fragment = false;
-			int img_type = dfu_target_img_type(event->fragment.buf,
+			img_type = dfu_target_img_type(event->fragment.buf,
 							event->fragment.len);
 			err = dfu_target_init(img_type, file_size,
 					      dfu_target_callback_handler);
@@ -319,7 +321,7 @@ int fota_download_start(const char *host, const char *file, int sec_tag,
 	}
 
 	if (update != NULL) {
-		LOG_INF("B1 update, selected file:\n%s", update);
+		LOG_INF("B1 update, selected file:\n%s", log_strdup(update));
 		file_buf_ptr = update;
 	}
 #endif /* PM_S1_ADDRESS */
@@ -365,5 +367,38 @@ int fota_download_init(fota_download_callback_t client_callback)
 		return err;
 	}
 
+	first_fragment = true;
 	return 0;
+}
+
+int fota_download_cancel(void)
+{
+	int err;
+
+	if (dlc.fd == -1) {
+		/* Download not started, aborted or completed */
+		LOG_WRN("%s invalid state", __func__);
+		return -EAGAIN;
+	}
+
+	err = download_client_disconnect(&dlc);
+	if (err) {
+		LOG_ERR("%s failed to disconnect: %d", __func__, err);
+		return err;
+	}
+
+	err = dfu_target_done(false);
+	if (err && err != -EACCES) {
+		LOG_ERR("%s failed to clean up: %d", __func__, err);
+	} else {
+		first_fragment = true;
+		send_evt(FOTA_DOWNLOAD_EVT_CANCELLED);
+	}
+
+	return err;
+}
+
+int fota_download_target(void)
+{
+	return img_type;
 }

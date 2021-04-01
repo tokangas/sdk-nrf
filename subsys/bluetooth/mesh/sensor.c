@@ -56,7 +56,7 @@ bool bt_mesh_sensor_delta_threshold(const struct bt_mesh_sensor *sensor,
 	 */
 	if (sensor->state.threshold.delta.type ==
 	    BT_MESH_SENSOR_DELTA_PERCENT) {
-		int64_t prev_mill = abs(SENSOR_MILL(&sensor->state.prev));
+		int64_t prev_mill = llabs(SENSOR_MILL(&sensor->state.prev));
 
 		thrsh_mill = (prev_mill * thrsh_mill) / (100LL * 1000000LL);
 	}
@@ -429,6 +429,10 @@ int sensor_cadence_encode(struct net_buf_simple *buf,
 	err = sensor_ch_encode(buf, delta_format, &threshold->delta.up);
 	if (err) {
 		return err;
+	}
+
+	if (min_int > BT_MESH_SENSOR_INTERVAL_MAX) {
+		return -EINVAL;
 	}
 
 	net_buf_simple_add_u8(buf, min_int);

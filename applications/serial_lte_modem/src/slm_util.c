@@ -135,11 +135,20 @@ bool check_for_ipv4(const char *address, uint8_t length)
 	for (index = 0; index < length; index++) {
 		char ch = *(address + index);
 
-		if ((ch == '.') || (ch >= '0' && ch <= '9')) {
-			continue;
-		} else {
+		if ((ch != '.') && (ch < '0' || ch > '9')) {
 			return false;
 		}
+	}
+
+	return true;
+}
+
+/**@brief Check whether an integer value is in valid port range
+ */
+bool check_port_range(int32_t port)
+{
+	if (port > 65535 || port < 0) {
+		return false;
 	}
 
 	return true;

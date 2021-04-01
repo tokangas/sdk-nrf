@@ -46,7 +46,7 @@ static void ctl_get(struct bt_mesh_light_ctl_srv *srv,
 	status->current_light = light.current;
 	status->target_temp = temp.target.temp;
 	status->target_light = light.target;
-	status->remaining_time = temp.remaining_time;
+	status->remaining_time = MAX(temp.remaining_time, light.remaining_time);
 }
 
 static void ctl_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
@@ -295,29 +295,55 @@ static void handle_default_set_unack(struct bt_mesh_model *model,
 }
 
 const struct bt_mesh_model_op _bt_mesh_light_ctl_srv_op[] = {
-	{ BT_MESH_LIGHT_CTL_GET, BT_MESH_LIGHT_CTL_MSG_LEN_GET,
-	  handle_ctl_get },
-	{ BT_MESH_LIGHT_CTL_SET, BT_MESH_LIGHT_CTL_MSG_MINLEN_SET,
-	  handle_ctl_set },
-	{ BT_MESH_LIGHT_CTL_SET_UNACK, BT_MESH_LIGHT_CTL_MSG_MINLEN_SET,
-	  handle_ctl_set_unack },
-	{ BT_MESH_LIGHT_TEMP_RANGE_GET, BT_MESH_LIGHT_CTL_MSG_LEN_GET,
-	  handle_temp_range_get },
-	{ BT_MESH_LIGHT_CTL_DEFAULT_GET, BT_MESH_LIGHT_CTL_MSG_LEN_GET,
-	  handle_default_get },
+	{
+		BT_MESH_LIGHT_CTL_GET,
+		BT_MESH_LIGHT_CTL_MSG_LEN_GET,
+		handle_ctl_get,
+	},
+	{
+		BT_MESH_LIGHT_CTL_SET,
+		BT_MESH_LIGHT_CTL_MSG_MINLEN_SET,
+		handle_ctl_set,
+	},
+	{
+		BT_MESH_LIGHT_CTL_SET_UNACK,
+		BT_MESH_LIGHT_CTL_MSG_MINLEN_SET,
+		handle_ctl_set_unack,
+	},
+	{
+		BT_MESH_LIGHT_TEMP_RANGE_GET,
+		BT_MESH_LIGHT_CTL_MSG_LEN_GET,
+		handle_temp_range_get,
+	},
+	{
+		BT_MESH_LIGHT_CTL_DEFAULT_GET,
+		BT_MESH_LIGHT_CTL_MSG_LEN_GET,
+		handle_default_get,
+	},
 	BT_MESH_MODEL_OP_END,
 };
 
 const struct bt_mesh_model_op _bt_mesh_light_ctl_setup_srv_op[] = {
-	{ BT_MESH_LIGHT_TEMP_RANGE_SET,
-	  BT_MESH_LIGHT_CTL_MSG_LEN_TEMP_RANGE_SET, handle_temp_range_set },
-	{ BT_MESH_LIGHT_TEMP_RANGE_SET_UNACK,
-	  BT_MESH_LIGHT_CTL_MSG_LEN_TEMP_RANGE_SET,
-	  handle_temp_range_set_unack },
-	{ BT_MESH_LIGHT_CTL_DEFAULT_SET, BT_MESH_LIGHT_CTL_MSG_LEN_DEFAULT_MSG,
-	  handle_default_set },
-	{ BT_MESH_LIGHT_CTL_DEFAULT_SET_UNACK,
-	  BT_MESH_LIGHT_CTL_MSG_LEN_DEFAULT_MSG, handle_default_set_unack },
+	{
+		BT_MESH_LIGHT_TEMP_RANGE_SET,
+		BT_MESH_LIGHT_CTL_MSG_LEN_TEMP_RANGE_SET,
+		handle_temp_range_set,
+	},
+	{
+		BT_MESH_LIGHT_TEMP_RANGE_SET_UNACK,
+		BT_MESH_LIGHT_CTL_MSG_LEN_TEMP_RANGE_SET,
+		handle_temp_range_set_unack,
+	},
+	{
+		BT_MESH_LIGHT_CTL_DEFAULT_SET,
+		BT_MESH_LIGHT_CTL_MSG_LEN_DEFAULT_MSG,
+		handle_default_set,
+	},
+	{
+		BT_MESH_LIGHT_CTL_DEFAULT_SET_UNACK,
+		BT_MESH_LIGHT_CTL_MSG_LEN_DEFAULT_MSG,
+		handle_default_set_unack,
+	},
 	BT_MESH_MODEL_OP_END,
 };
 
@@ -377,9 +403,9 @@ static void bt_mesh_light_ctl_srv_reset(struct bt_mesh_model *model)
 	}
 }
 
-static int bt_mesh_light_ctl_srv_start(struct bt_mesh_model *mod)
+static int bt_mesh_light_ctl_srv_start(struct bt_mesh_model *model)
 {
-	struct bt_mesh_light_ctl_srv *srv = mod->user_data;
+	struct bt_mesh_light_ctl_srv *srv = model->user_data;
 	struct bt_mesh_model_transition transition;
 	struct bt_mesh_light_temp_set temp = {
 		.params = srv->temp_srv.dflt,
@@ -397,7 +423,7 @@ static int bt_mesh_light_ctl_srv_start(struct bt_mesh_model *mod)
 		return -EINVAL;
 	}
 
-	bt_mesh_dtt_srv_transition_get(mod, &transition);
+	bt_mesh_dtt_srv_transition_get(model, &transition);
 
 	switch (srv->lightness_srv.ponoff.on_power_up) {
 	case BT_MESH_ON_POWER_UP_OFF:

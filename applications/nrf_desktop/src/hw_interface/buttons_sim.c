@@ -7,16 +7,16 @@
 #include <zephyr.h>
 
 #include "event_manager.h"
-#include "button_event.h"
-#include "power_event.h"
+#include <caf/events/button_event.h>
+#include <caf/events/power_event.h>
 
 #define MODULE buttons_sim
-#include "module_state_event.h"
+#include <caf/events/module_state_event.h>
 
 #include "buttons_sim_def.h"
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_BUTTONS_LOG_LEVEL);
+LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_BUTTONS_SIM_LOG_LEVEL);
 
 enum state {
 	STATE_DISABLED,

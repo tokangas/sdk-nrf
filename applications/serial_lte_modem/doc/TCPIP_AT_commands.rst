@@ -347,7 +347,7 @@ Syntax
 
    #XBIND=<port>
 
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the specific port to use to bind the socket with.
 
 Examples
@@ -391,7 +391,7 @@ Syntax
   Its maximum size can be 128 bytes.
   When the parameter is an IP address, it supports IPv4 only, not IPv6.
 
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the port of the TCP service.
 
 Response syntax
@@ -592,7 +592,7 @@ Syntax
 
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -665,7 +665,7 @@ Response syntax
   It contains the data being received.
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -717,11 +717,11 @@ Syntax
   It indicates the hostname or the IP address to connect to.
   Its maximum size can be 128 bytes.
   When the parameter is an IP address, it supports IPv4 only, not IPv6.
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the port of the TCP service.
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -795,7 +795,7 @@ Response syntax
   It contains the data being received.
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -1026,7 +1026,7 @@ Syntax
   * ``1`` - Start the server
   * ``2`` - Start the server with data mode support
 
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the TCP service port.
   It is mandatory to set it when starting the server.
 * The ``<sec_tag>`` parameter is an integer.
@@ -1059,7 +1059,7 @@ It represents the error value according to the standard POSIX *errorno*.
 
 * The ``<datatype>`` value can assume one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -1076,9 +1076,9 @@ Examples
    #XTCPSVR: 2,"started"
    OK
    #XTCPSVR: "5.123.123.99","connected"
-   #XTCPRECV: 1,13
+   #XTCPDATA: 1,13
    Hello, TCP#1!
-   #XTCPRECV: 1,13
+   #XTCPDATA: 1,13
    Hello, TCP#2!
 
 Read command
@@ -1177,7 +1177,7 @@ Syntax
   It indicates the hostname or the IP address to connect to.
   Its maximum size is 128 bytes.
   When the parameter is an IP address, it supports IPv4 only, not IPv6.
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the TCP/TLS service port.
   It is mandatory for starting the server.
 * The ``<sec_tag>`` parameter is an integer.
@@ -1209,7 +1209,7 @@ The modem needs to be in the offline state.
 
 * The ``<datatype>`` value can assume one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -1225,7 +1225,7 @@ Examples
    at#xtcpcli=1,"remote.ip",1234
    #XTCPCLI: 2,"connected"
    OK
-   #XTCPRECV: 1,31
+   #XTCPDATA: 1,31
    PONG: b'Test TCP by IP address'
 
    at#xtcpcli=0
@@ -1301,7 +1301,7 @@ Syntax
 
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -1406,7 +1406,7 @@ Syntax
   * ``1`` - Start the server
   * ``2`` - Start the server with data mode support
 
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the UDP service port.
   It is mandatory for starting the server.
   The data mode is enabled when the TCP/TLS server is started.
@@ -1437,12 +1437,12 @@ It is reported to the client as follows:
 
 ::
 
-   #XUDPRECV: <datatype>,<size>
+   #XUDPDATA: <datatype>,<size>
    <data>
 
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -1457,9 +1457,9 @@ Examples
    at#xudpsvr=1,3442
    #XUDPSVR: 2,"started"
    OK
-   #XUDPRECV: 1,13
+   #XUDPDATA: 1,13
    Hello, UDP#1!
-   #XUDPRECV: 1,13
+   #XUDPDATA: 1,13
    Hello, UDP#2!
 
 Read command
@@ -1545,7 +1545,7 @@ Syntax
   It indicates the hostname or the IP address to connect to.
   Its maximum size can be 128 bytes.
   When the parameter is an IP address, it supports IPv4 only, not IPv6.
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the UDP/DTLS service port.
 * The ``<sec_tag>`` parameter is an integer.
   It indicates to the modem the credential of the security tag used for establishing a secure connection.
@@ -1572,12 +1572,12 @@ It is reported to the client as follows:
 
 ::
 
-   #XTCPCLI: <datatype>,<size>
+   #XUDPDATA: <datatype>,<size>
    <data>
 
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML
@@ -1594,7 +1594,7 @@ Examples
    at#xudpsend=1,"Test UDP by hostname"
    #XUDPSEND: 20
    OK
-   #XUDPRECV: 1,26
+   #XUDPDATA: 1,26
    PONG: Test UDP by hostname
    at#xudpcli=0
    OK
@@ -1667,7 +1667,7 @@ Syntax
 
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
   * ``2`` - JSON
   * ``3`` - HTML

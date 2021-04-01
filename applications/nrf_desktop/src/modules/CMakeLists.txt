@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
-target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_state.c)
-
 target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_bond.c)
+
+target_sources_ifdef(CONFIG_DESKTOP_BLE_ENABLE_PASSKEY
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_passkey.c)
 
 target_sources_ifdef(CONFIG_BT_PERIPHERAL
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_latency.c)
@@ -41,7 +42,7 @@ target_sources_ifdef(CONFIG_DESKTOP_HID_STATE_ENABLE
 target_sources_ifdef(CONFIG_DESKTOP_USB_ENABLE
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/usb_state.c)
 
-target_sources_ifdef(CONFIG_DESKTOP_LED_ENABLE
+target_sources_ifdef(CONFIG_CAF_LEDS
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/led_state.c)
 
 target_sources_ifdef(CONFIG_DESKTOP_LED_STREAM_ENABLE

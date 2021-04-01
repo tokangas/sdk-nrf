@@ -12,8 +12,9 @@
 #include <bluetooth/gatt_dm.h>
 
 #define MODULE ble_discovery
-#include "module_state_event.h"
+#include <caf/events/module_state_event.h>
 
+#include <caf/events/ble_common_event.h>
 #include "ble_event.h"
 #include "ble_discovery_def.h"
 #include "dev_descr.h"

@@ -521,7 +521,7 @@ static bool adv_addr_compare(const bt_addr_le_t *target_addr,
 
 static bool is_addr_filter_enabled(void)
 {
-	return bt_scan.scan_filters.addr.enabled;
+	return CONFIG_BT_SCAN_ADDRESS_CNT && bt_scan.scan_filters.addr.enabled;
 }
 
 static void check_addr(struct bt_scan_control *control,
@@ -605,9 +605,9 @@ static bool adv_name_compare(const struct bt_data *data,
 	return false;
 }
 
-static bool is_name_filter_enabled(void)
+static inline bool is_name_filter_enabled(void)
 {
-	return bt_scan.scan_filters.name.enabled;
+	return CONFIG_BT_SCAN_NAME_CNT && bt_scan.scan_filters.name.enabled;
 }
 
 static void name_check(struct bt_scan_control *control,
@@ -698,9 +698,9 @@ static bool adv_short_name_compare(const struct bt_data *data,
 	return false;
 }
 
-static bool is_short_name_filter_enabled(void)
+static inline bool is_short_name_filter_enabled(void)
 {
-	return bt_scan.scan_filters.short_name.enabled;
+	return CONFIG_BT_SCAN_SHORT_NAME_CNT && bt_scan.scan_filters.short_name.enabled;
 }
 
 static void short_name_check(struct bt_scan_control *control,
@@ -844,7 +844,7 @@ static bool adv_uuid_compare(const struct bt_data *data, uint8_t uuid_type,
 
 static bool is_uuid_filter_enabled(void)
 {
-	return bt_scan.scan_filters.uuid.enabled;
+	return CONFIG_BT_SCAN_UUID_CNT && bt_scan.scan_filters.uuid.enabled;
 }
 
 static void uuid_check(struct bt_scan_control *control,
@@ -963,9 +963,9 @@ static bool adv_appearance_compare(const struct bt_data *data,
 	return false;
 }
 
-static bool is_appearance_filter_enabled(void)
+static inline bool is_appearance_filter_enabled(void)
 {
-	return bt_scan.scan_filters.appearance.enabled;
+	return CONFIG_BT_SCAN_APPEARANCE_CNT && bt_scan.scan_filters.appearance.enabled;
 }
 
 static void appearance_check(struct bt_scan_control *control,
@@ -1049,10 +1049,10 @@ static bool adv_manufacturer_data_compare(const struct bt_data *data,
 
 	return false;
 }
-
-static bool is_manufacturer_data_filter_enabled(void)
+static inline bool is_manufacturer_data_filter_enabled(void)
 {
-	return bt_scan.scan_filters.manufacturer_data.enabled;
+	return CONFIG_BT_SCAN_MANUFACTURER_DATA_CNT &&
+		bt_scan.scan_filters.manufacturer_data.enabled;
 }
 
 static void manufacturer_data_check(struct bt_scan_control *control,

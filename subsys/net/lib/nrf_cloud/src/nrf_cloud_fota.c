@@ -22,6 +22,7 @@
 #include <settings/settings.h>
 #include <power/reboot.h>
 #include <cJSON.h>
+#include <cJSON_os.h>
 
 #if defined(CONFIG_BOOTLOADER_MCUBOOT)
 #include <dfu/mcuboot.h>
@@ -116,6 +117,7 @@ static int save_validate_status(const char *const job_id,
 			   const enum fota_validate_status status);
 static int fota_settings_set(const char *key, size_t len_rd,
 			     settings_read_cb read_cb, void *cb_arg);
+static int report_validated_job_status(void);
 
 static struct mqtt_client *client_mqtt;
 static nrf_cloud_fota_callback_t event_cb;
@@ -275,11 +277,28 @@ int nrf_cloud_fota_init(nrf_cloud_fota_callback_t cb)
 		    saved_job.validate == NRF_CLOUD_FOTA_VALIDATE_UNKNOWN) &&
 		    saved_job.type == NRF_CLOUD_FOTA_MODEM) {
 		/* Device has just rebooted from a modem FOTA */
+		LOG_INF("FOTA updated modem");
 		ret = 1;
 	}
 
 	initialized = true;
 	return ret;
+}
+
+int nrf_cloud_modem_fota_completed(const bool fota_success)
+{
+	if (saved_job.type != NRF_CLOUD_FOTA_MODEM ||
+	    saved_job.validate != NRF_CLOUD_FOTA_VALIDATE_PENDING) {
+		return -EOPNOTSUPP;
+	}
+
+	cleanup_job(&current_fota);
+
+	/* Failure to save settings here is not critical, ignore return */
+	(void)save_validate_status(saved_job.id, saved_job.type,
+		fota_success ? NRF_CLOUD_FOTA_VALIDATE_PASS : NRF_CLOUD_FOTA_VALIDATE_FAIL);
+
+	return report_validated_job_status();
 }
 
 static void reset_topic(struct mqtt_utf8 *const topic)
@@ -341,6 +360,50 @@ static int build_topic(const char *const client_id,
 	return 0;
 }
 
+static int report_validated_job_status(void)
+{
+	int ret = 0;
+
+	if (saved_job.type == NRF_CLOUD_FOTA_TYPE__INVALID) {
+		return 1;
+	}
+
+	struct nrf_cloud_fota_job job = {
+		.info = {
+			.type = saved_job.type,
+			.id = saved_job.id
+		}
+	};
+
+	switch (saved_job.validate) {
+	case NRF_CLOUD_FOTA_VALIDATE_UNKNOWN:
+		job.error = NRF_CLOUD_FOTA_ERROR_UNABLE_TO_VALIDATE;
+		/* fall-through */
+	case NRF_CLOUD_FOTA_VALIDATE_PASS:
+		job.status = NRF_CLOUD_FOTA_SUCCEEDED;
+		break;
+	case NRF_CLOUD_FOTA_VALIDATE_FAIL:
+		job.status = NRF_CLOUD_FOTA_FAILED;
+		break;
+	default:
+		LOG_ERR("Unexpected job validation status: %d",
+			saved_job.validate);
+		ret = save_validate_status(job.info.id, job.info.type,
+					   NRF_CLOUD_FOTA_VALIDATE_DONE);
+		job.info.type = NRF_CLOUD_FOTA_TYPE__INVALID;
+		break;
+	}
+
+	if (job.info.type != NRF_CLOUD_FOTA_TYPE__INVALID) {
+		ret = send_job_update(&job);
+		if (ret) {
+			LOG_ERR("Error sending job update: %d", ret);
+		}
+	}
+
+	return ret;
+}
+
 int nrf_cloud_fota_endpoint_set_and_report(struct mqtt_client *const client,
 	const char *const client_id, const struct mqtt_utf8 *const endpoint)
 {
@@ -351,41 +414,10 @@ int nrf_cloud_fota_endpoint_set_and_report(struct mqtt_client *const client,
 		return ret;
 	}
 
-	/* Report status of saved job now that the endpoint is available */
-	if (saved_job.type != NRF_CLOUD_FOTA_TYPE__INVALID) {
-
-		struct nrf_cloud_fota_job job = {
-			.info = {
-				.type = saved_job.type,
-				.id = saved_job.id
-			}
-		};
-
-		switch (saved_job.validate) {
-		case NRF_CLOUD_FOTA_VALIDATE_UNKNOWN:
-			job.error = NRF_CLOUD_FOTA_ERROR_UNABLE_TO_VALIDATE;
-			/* fall-through */
-		case NRF_CLOUD_FOTA_VALIDATE_PASS:
-			job.status = NRF_CLOUD_FOTA_SUCCEEDED;
-			break;
-		case NRF_CLOUD_FOTA_VALIDATE_FAIL:
-			job.status = NRF_CLOUD_FOTA_FAILED;
-			break;
-		default:
-			LOG_ERR("Unexpected job validation status: %d",
-				saved_job.validate);
-			save_validate_status(job.info.id, job.info.type,
-					     NRF_CLOUD_FOTA_VALIDATE_DONE);
-			job.info.type = NRF_CLOUD_FOTA_TYPE__INVALID;
-			break;
-		}
-
-		if (job.info.type != NRF_CLOUD_FOTA_TYPE__INVALID) {
-			ret = send_job_update(&job);
-			if (ret) {
-				LOG_ERR("Error sending job update: %d", ret);
-			}
-		}
+	ret = report_validated_job_status();
+	/* Positive value indicates no job exists, ignore */
+	if (ret > 0) {
+		ret = 0;
 	}
 
 	return ret;
@@ -505,6 +537,12 @@ static int save_validate_status(const char *const job_id,
 			   const enum nrf_cloud_fota_type job_type,
 			   const enum fota_validate_status validate)
 {
+#if defined(CONFIG_SHELL)
+	if (job_id == NULL) {
+		LOG_WRN("No job_id; assuming CLI-invoked FOTA.");
+		return 0;
+	}
+#endif
 	__ASSERT_NO_MSG(job_id != NULL);
 
 	int ret;
@@ -715,7 +753,7 @@ static int parse_job_info(struct nrf_cloud_fota_job_info *const job_info,
 	temp = cJSON_PrintUnformatted(array);
 	if (temp) {
 		LOG_DBG("JSON array: %s", log_strdup(temp));
-		cJSON_free(temp);
+		cJSON_FreeString(temp);
 	}
 
 #if CONFIG_NRF_CLOUD_FOTA_BLE_DEVICES
@@ -780,7 +818,7 @@ cleanup:
 	memset(job_info, 0, sizeof(*job_info));
 	job_info->type = NRF_CLOUD_FOTA_TYPE__INVALID;
 	if (array) {
-		cJSON_free(array);
+		cJSON_Delete(array);
 	}
 	return err;
 }
@@ -844,7 +882,7 @@ static void cleanup_job(struct nrf_cloud_fota_job *const job)
 		job->info.id ? log_strdup(job->info.id) : "N/A");
 
 	if (job->parsed_payload) {
-		cJSON_free(job->parsed_payload);
+		cJSON_Delete(job->parsed_payload);
 	}
 	memset(job, 0, sizeof(*job));
 	job->info.type = NRF_CLOUD_FOTA_TYPE__INVALID;
@@ -879,7 +917,7 @@ static int publish_and_free_array(cJSON *const array,
 	int ret;
 	char *array_str = cJSON_PrintUnformatted(array);
 
-	cJSON_free(array);
+	cJSON_Delete(array);
 
 	if (array_str == NULL) {
 		return -ENOMEM;
@@ -894,7 +932,7 @@ static int publish_and_free_array(cJSON *const array,
 		ret = -EINVAL;
 	}
 
-	cJSON_free(array_str);
+	cJSON_FreeString(array_str);
 
 	return ret;
 }
@@ -929,9 +967,11 @@ static bool is_job_status_terminal(const enum nrf_cloud_fota_status status)
 		return false;
 	}
 }
+
 static int send_job_update(struct nrf_cloud_fota_job *const job)
 {
-	if (job == NULL) {
+	/* ensure shell-invoked fota doesn't crash below */
+	if ((job == NULL) || (job->info.id == NULL)) {
 		return -EINVAL;
 	} else if (client_mqtt == NULL) {
 		return -ENXIO;
@@ -963,7 +1003,7 @@ static int send_job_update(struct nrf_cloud_fota_job *const job)
 	}
 
 	if (!result) {
-		cJSON_free(array);
+		cJSON_Delete(array);
 		return -ENOMEM;
 	}
 
@@ -1030,12 +1070,6 @@ static int handle_mqtt_evt_publish(const struct mqtt_evt *evt)
 		p->message_id,
 		p->message.payload.len);
 
-	if (is_fota_active() && !ble_id) {
-		LOG_INF("Job in progress... skipping");
-		skip = true;
-		goto send_ack;
-	}
-
 	payload = nrf_cloud_calloc(p->message.payload.len + 1, 1);
 	if (!payload) {
 		LOG_ERR("Unable to allocate memory for job");
@@ -1043,10 +1077,17 @@ static int handle_mqtt_evt_publish(const struct mqtt_evt *evt)
 		goto send_ack;
 	}
 
+	/* Always read the MQTT payload even if it is not needed */
 	ret = mqtt_readall_publish_payload(client_mqtt, payload,
 					   p->message.payload.len);
 	if (ret) {
 		LOG_ERR("Error reading MQTT payload: %d", ret);
+		goto send_ack;
+	}
+
+	if (is_fota_active() && !ble_id) {
+		LOG_INF("Job in progress... skipping");
+		skip = true;
 		goto send_ack;
 	}
 
@@ -1077,7 +1118,7 @@ send_ack:
 
 	if (skip || job_info->type == NRF_CLOUD_FOTA_TYPE__INVALID) {
 		if (payload_array) {
-			cJSON_free(payload_array);
+			cJSON_Delete(payload_array);
 		}
 		return ret;
 	}
@@ -1087,7 +1128,7 @@ send_ack:
 		if (ble_cb) {
 			ble_cb(&ble_job);
 		}
-		cJSON_free(payload_array);
+		cJSON_Delete(payload_array);
 #endif
 	} else {
 		/* Save JSON to current fota and start update */
@@ -1166,9 +1207,12 @@ int nrf_cloud_fota_mqtt_evt_handler(const struct mqtt_evt *evt)
 					NRF_CLOUD_FOTA_VALIDATE_DONE);
 			break;
 		case NRF_CLOUD_FOTA_VALIDATE_PENDING:
-			/* this event should cause reboot */
+			/* This event should cause reboot or modem-reinit.
+			 * Do not cleanup the job since a reboot should
+			 * occur or the user will call:
+			 * nrf_cloud_modem_fota_completed()
+			 */
 			send_event(NRF_CLOUD_FOTA_EVT_DONE, &current_fota);
-			cleanup_job(&current_fota);
 			break;
 		default:
 			break;
@@ -1229,7 +1273,7 @@ int nrf_cloud_fota_ble_update_check(const bt_addr_t *const ble_id)
 	}
 
 	if (!add_string_to_array(array, ble_id_str)) {
-		cJSON_free(array);
+		cJSON_Delete(array);
 		return -ENOMEM;
 	}
 
@@ -1280,7 +1324,7 @@ int nrf_cloud_fota_ble_job_update(const struct nrf_cloud_fota_ble_job
 	}
 
 	if (!result) {
-		cJSON_free(array);
+		cJSON_Delete(array);
 		return -ENOMEM;
 	}
 

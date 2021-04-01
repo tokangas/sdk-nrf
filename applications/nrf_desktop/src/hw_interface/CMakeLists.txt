@@ -15,14 +15,8 @@ target_sources_ifdef(CONFIG_DESKTOP_MOTION_BUTTONS_ENABLE app
 target_sources_ifdef(CONFIG_DESKTOP_MOTION_SIMULATED_ENABLE app PRIVATE
                      ${CMAKE_CURRENT_SOURCE_DIR}/motion_simulated.c)
 
-target_sources_ifdef(CONFIG_DESKTOP_BUTTONS_ENABLE app
-                     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/buttons.c)
-
 target_sources_ifdef(CONFIG_DESKTOP_BUTTONS_SIM_ENABLE app
 		     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/buttons_sim.c)
-
-target_sources_ifdef(CONFIG_DESKTOP_CLICK_DETECTOR_ENABLE app
-                     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/click_detector.c)
 
 target_sources_ifdef(CONFIG_DESKTOP_PASSKEY_BUTTONS app
                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/passkey_buttons.c)
@@ -32,9 +26,6 @@ target_sources_ifdef(CONFIG_DESKTOP_SELECTOR_HW_ENABLE app
 
 target_sources_ifdef(CONFIG_DESKTOP_WHEEL_ENABLE app
                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/wheel.c)
-
-target_sources_ifdef(CONFIG_DESKTOP_LED_ENABLE app
-		     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/leds.c)
 
 target_sources_ifdef(CONFIG_DESKTOP_BATTERY_CHARGER_DISCRETE app
                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/battery_charger.c)

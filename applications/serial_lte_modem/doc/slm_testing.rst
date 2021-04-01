@@ -26,7 +26,7 @@ Complete the following steps to test the functionality provided by the :ref:`SLM
       :class: highlight
 
       **AT#XSLMVER**
-      #XSLMVER: 1.4
+      #XSLMVER: "1.5"
       OK
 
 #. Read the current baud rate.
@@ -61,15 +61,18 @@ Complete the following steps to test the functionality provided by the :ref:`SLM
       :class: highlight
 
       **AT#XSLEEP=?**
-      #XSLEEP: (0,1)
+      #XSLEEP: (0,1,2)
       OK
 
-      **AT#XSLEEP=1**
+   ``AT#XSLEEP`` puts the kit in idle mode, and you can wake up by GPIO.
 
-   Reset the kit to exit sleep mode.
-   If you are testing with an external MCU and :option:`CONFIG_SLM_GPIO_WAKEUP` is enabled, you can wake up by GPIO as well.
+   Alternatively, you can use different modes for #XSLEEP:
 
+   * ``AT#XSLEEP=1`` puts the kit in sleep mode.
+     If you are testing with :option:`CONFIG_SLM_GPIO_WAKEUP` enabled, you can wake up by GPIO.
 
+   * ``AT#XSLEEP=2`` powers off UART.
+     You can power on UART by GPIO.
 
 TCP/IP AT commands
 ******************
@@ -90,7 +93,7 @@ TCP client
          #XSOCKET: (0,1),(1,2),(0,1),<sec-tag>
          OK
 
-   #. Open a TCP socket, read information (handle, protocol, and role) about the open socket, and set the receive time-out of the open socket to 30 seconds.
+   #. Open a TCP socket, read information (handle, protocol, and role) about the open socket, and set the receive timeout of the open socket to 30 seconds.
 
       .. parsed-literal::
          :class: highlight
@@ -460,7 +463,7 @@ UDP client
          **AT#XUDPSEND=1,"Test UDP"**
          #XUDPSEND: 8
          OK
-         #XUDPRECV: 1,14
+         #XUDPDATA: 1,14
          PONG: Test UDP
 
    #. Send hexadecimal data to the UDP server and check the returned data.
@@ -471,7 +474,7 @@ UDP client
          **AT#XUDPSEND=0,"DEADBEEF"**
          #XUDPSEND: 4
          OK
-         #XUDPRECV: 0,20
+         #XUDPDATA: 0,20
          504F4E473A20DEADBEEF
 
    #. Disconnect from the server.
@@ -1156,20 +1159,20 @@ To act as a UDP server, |global_private_address|
       .. parsed-literal::
          :class: highlight
 
-         #XUDPRECV: 1,13
+         #XUDPDATA: 1,13
          Hello, UDP#1!
-         #XUDPRECV: 1,13
+         #XUDPDATA: 1,13
          Hello, UDP#2!
 
          **AT#XUDPSEND=1,"UDP1/2 received"**
          #XUDPSEND: 15
          OK
 
-         #XUDPRECV: 1,13
+         #XUDPDATA: 1,13
          Hello, UDP#3!
-         #XUDPRECV: 1,13
+         #XUDPDATA: 1,13
          Hello, UDP#4!
-         #XUDPRECV: 1,13
+         #XUDPDATA: 1,13
          Hello, UDP#5!
 
          **AT#XUDPSEND=1,"UDP3/4/5 received"**

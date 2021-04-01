@@ -11,6 +11,7 @@
 #include <sys/__assert.h>
 #include <mpsl.h>
 #include <mpsl_timeslot.h>
+#include <mpsl/mpsl_assert.h>
 #include "mpsl_fem_internal.h"
 #include "multithreading_lock.h"
 #if defined(CONFIG_NRFX_DPPI)
@@ -110,11 +111,19 @@ ISR_DIRECT_DECLARE(mpsl_radio_isr_wrapper)
 	return 1;
 }
 
+#if IS_ENABLED(CONFIG_MPSL_ASSERT_HANDLER)
+void m_assert_handler(const char *const file, const uint32_t line)
+{
+	mpsl_assert_handle((char *) file, line);
+}
+
+#else /* !IS_ENABLED(CONFIG_MPSL_ASSERT_HANDLER) */
 static void m_assert_handler(const char *const file, const uint32_t line)
 {
 	LOG_ERR("MPSL ASSERT: %s, %d", log_strdup(file), line);
 	k_oops();
 }
+#endif /* IS_ENABLED(CONFIG_MPSL_ASSERT_HANDLER) */
 
 static uint8_t m_config_clock_source_get(void)
 {
@@ -197,13 +206,6 @@ static int mpsl_lib_init(const struct device *dev)
 	IRQ_DIRECT_CONNECT(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY,
 			   mpsl_radio_isr_wrapper, IRQ_ZERO_LATENCY);
 
-#if IS_ENABLED(CONFIG_MPSL_FEM)
-	err = mpsl_fem_configure();
-	if (err) {
-		return err;
-	}
-#endif
-
 	return 0;
 }
 
@@ -224,6 +226,18 @@ static int mpsl_signal_thread_init(const struct device *dev)
 	return 0;
 }
 
+static int mpsl_fem_init(const struct device *dev)
+{
+	ARG_UNUSED(dev);
+
+#if IS_ENABLED(CONFIG_MPSL_FEM)
+	return mpsl_fem_configure();
+#else
+	return 0;
+#endif
+}
+
 SYS_INIT(mpsl_lib_init, PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
 SYS_INIT(mpsl_signal_thread_init, POST_KERNEL,
 	 CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
+SYS_INIT(mpsl_fem_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);

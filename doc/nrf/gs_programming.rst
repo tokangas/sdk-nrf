@@ -12,7 +12,9 @@ The recommended way of building and programming an |NCS| sample is to use the No
 
 .. note::
 
-   See :ref:`precompiled_fw` and :ref:`building_pgming` for information about programming a Thingy:91.
+   For additional information, check the user guide for the hardware platform that you are using.
+   These user guides contain platform-specific instructions for building and programming.
+   For example, see :ref:`ug_nrf5340_building` in the :ref:`ug_nrf5340` user guide for information about programming an nRF5340 DK, or :ref:`precompiled_fw` and :ref:`building_pgming` for information about programming a Thingy:91.
 
 .. _gs_programming_ses:
 
@@ -102,7 +104,8 @@ Complete the following steps to build |NCS| projects with SES after :ref:`instal
    .. important::
       If you are working with an nRF9160 DK, make sure to select the correct controller before you program the application to your development kit.
 
-      Put the **SW5** switch (marked debug/prog) in the **NRF91** position to program the main controller, or in the **NRF52** position to program the board controller.
+      Set the **SW10** switch (marked debug/prog) in the **NRF91** position to program the main controller, or in the **NRF52** position to program the board controller.
+      In nRF9160 DK v0.9.0 and earlier, the switch is called **SW5**.
       See the `Device programming section in the nRF9160 DK User Guide`_ for more information.
 
    .. imp_note_nrf91_end
@@ -184,17 +187,19 @@ Complete the following steps to build |NCS| projects on the command line after c
 
       .. code-block:: console
 
-         west flash
+         west flash --erase
 
-      This command clears only the flash memory pages that are overwritten with the new application.
-      If the application depends on other flash areas (for example, if it uses the :ref:`zephyr:settings_api` partition), erase the full kit before programming to ensure that these areas are updated with the new content.
-      If you do not fully erase the kit, the old data in these areas will be retained.
+      This command clears the full flash memory before programming, which is the recommended approach.
+      If the application depends on other flash memory areas (for example, if it uses the :ref:`zephyr:settings_api` partition where bonding information is stored), erasing the full kit before programming ensures that these areas are updated with the new content.
 
-      To fully erase the kit before programming the new application, use the following command:
+      As an alternative, you can also clear only those flash memory pages that are to be overwritten with the new application.
+      With such approach, the old data in other areas will be retained.
+
+      To erase only the areas of flash memory that are required for programming the new application, use the following command:
 
       .. code-block:: console
 
-         west flash --erase
+         west flash
 
       The ``west flash`` command automatically resets the kit and starts the application.
 

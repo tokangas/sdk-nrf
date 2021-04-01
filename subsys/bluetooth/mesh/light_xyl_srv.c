@@ -364,36 +364,66 @@ static void range_set_unack_handle(struct bt_mesh_model *model,
 }
 
 const struct bt_mesh_model_op _bt_mesh_light_xyl_srv_op[] = {
-	{ BT_MESH_LIGHT_XYL_OP_GET, BT_MESH_LIGHT_XYL_MSG_LEN_GET,
-	  xyl_get_handle },
-	{ BT_MESH_LIGHT_XYL_OP_SET, BT_MESH_LIGHT_XYL_MSG_MINLEN_SET,
-	  xyl_set_handle },
-	{ BT_MESH_LIGHT_XYL_OP_SET_UNACK, BT_MESH_LIGHT_XYL_MSG_MINLEN_SET,
-	  xyl_set_unack_handle },
-	{ BT_MESH_LIGHT_XYL_OP_TARGET_GET, BT_MESH_LIGHT_XYL_MSG_LEN_GET,
-	  target_get_handle },
-	{ BT_MESH_LIGHT_XYL_OP_DEFAULT_GET, BT_MESH_LIGHT_XYL_MSG_LEN_GET,
-	  default_get_handle },
-	{ BT_MESH_LIGHT_XYL_OP_RANGE_GET, BT_MESH_LIGHT_XYL_MSG_LEN_GET,
-	  range_get_handle },
+	{
+		BT_MESH_LIGHT_XYL_OP_GET,
+		BT_MESH_LIGHT_XYL_MSG_LEN_GET,
+		xyl_get_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_SET,
+		BT_MESH_LIGHT_XYL_MSG_MINLEN_SET,
+		xyl_set_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_SET_UNACK,
+		BT_MESH_LIGHT_XYL_MSG_MINLEN_SET,
+		xyl_set_unack_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_TARGET_GET,
+		BT_MESH_LIGHT_XYL_MSG_LEN_GET,
+		target_get_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_DEFAULT_GET,
+		BT_MESH_LIGHT_XYL_MSG_LEN_GET,
+		default_get_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_RANGE_GET,
+		BT_MESH_LIGHT_XYL_MSG_LEN_GET,
+		range_get_handle,
+	},
 	BT_MESH_MODEL_OP_END,
 };
 
 const struct bt_mesh_model_op _bt_mesh_light_xyl_setup_srv_op[] = {
-	{ BT_MESH_LIGHT_XYL_OP_DEFAULT_SET, BT_MESH_LIGHT_XYL_MSG_LEN_DEFAULT,
-	  default_set_handle },
-	{ BT_MESH_LIGHT_XYL_OP_DEFAULT_SET_UNACK,
-	  BT_MESH_LIGHT_XYL_MSG_LEN_DEFAULT, default_set_unack_handle },
-	{ BT_MESH_LIGHT_XYL_OP_RANGE_SET, BT_MESH_LIGHT_XYL_MSG_LEN_RANGE_SET,
-	  range_set_handle },
-	{ BT_MESH_LIGHT_XYL_OP_RANGE_SET_UNACK,
-	  BT_MESH_LIGHT_XYL_MSG_LEN_RANGE_SET, range_set_unack_handle },
+	{
+		BT_MESH_LIGHT_XYL_OP_DEFAULT_SET,
+		BT_MESH_LIGHT_XYL_MSG_LEN_DEFAULT,
+		default_set_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_DEFAULT_SET_UNACK,
+		BT_MESH_LIGHT_XYL_MSG_LEN_DEFAULT,
+		default_set_unack_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_RANGE_SET,
+		BT_MESH_LIGHT_XYL_MSG_LEN_RANGE_SET,
+		range_set_handle,
+	},
+	{
+		BT_MESH_LIGHT_XYL_OP_RANGE_SET_UNACK,
+		BT_MESH_LIGHT_XYL_MSG_LEN_RANGE_SET,
+		range_set_unack_handle,
+	},
 	BT_MESH_MODEL_OP_END,
 };
 
-static ssize_t scene_store(struct bt_mesh_model *mod, uint8_t data[])
+static ssize_t scene_store(struct bt_mesh_model *model, uint8_t data[])
 {
-	struct bt_mesh_light_xyl_srv *srv = mod->user_data;
+	struct bt_mesh_light_xyl_srv *srv = model->user_data;
 	struct bt_mesh_light_xy_status xy_rsp = { 0 };
 
 	srv->handlers->xy_get(srv, NULL, &xy_rsp);
@@ -409,11 +439,11 @@ static ssize_t scene_store(struct bt_mesh_model *mod, uint8_t data[])
 	return sizeof(struct bt_mesh_light_xy);
 }
 
-static void scene_recall(struct bt_mesh_model *mod, const uint8_t data[],
+static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
 			 size_t len,
 			 struct bt_mesh_model_transition *transition)
 {
-	struct bt_mesh_light_xyl_srv *srv = mod->user_data;
+	struct bt_mesh_light_xyl_srv *srv = model->user_data;
 	struct bt_mesh_light_xy_status xy_dummy;
 	struct bt_mesh_light_xy_set xy_set = {
 		.params.x = sys_get_le16(data),
@@ -494,9 +524,9 @@ static int bt_mesh_light_xyl_srv_settings_set(struct bt_mesh_model *model,
 	return 0;
 }
 
-static int bt_mesh_light_xyl_srv_start(struct bt_mesh_model *mod)
+static int bt_mesh_light_xyl_srv_start(struct bt_mesh_model *model)
 {
-	struct bt_mesh_light_xyl_srv *srv = mod->user_data;
+	struct bt_mesh_light_xyl_srv *srv = model->user_data;
 	struct bt_mesh_light_xy_status xy_dummy;
 	struct bt_mesh_model_transition transition = {
 		.time = srv->lightness_srv.ponoff.dtt.transition_time,

@@ -181,6 +181,8 @@ function(add_child_image_from_source)
   if (NOT ${ACI_NAME}_CONF_FILE)
     ncs_file(CONF_FILES ${ACI_NAME_CONF_DIR}
              BOARD ${ACI_BOARD}
+             # Child image always uses the same revision as parent board.
+             BOARD_REVISION ${BOARD_REVISION}
              KCONF ${ACI_NAME}_CONF_FILE
              BUILD ${CONF_FILE_BUILD_TYPE}
     )
@@ -205,6 +207,7 @@ function(add_child_image_from_source)
     CMAKE_BUILD_TYPE
     CMAKE_VERBOSE_MAKEFILE
     BOARD_DIR
+    BOARD_REVISION
     ZEPHYR_MODULES
     ZEPHYR_EXTRA_MODULES
     ZEPHYR_TOOLCHAIN_VARIANT
@@ -226,8 +229,10 @@ function(add_child_image_from_source)
   list(REMOVE_DUPLICATES SHARED_MULTI_IMAGE_VARIABLES)
   foreach(shared_var ${SHARED_MULTI_IMAGE_VARIABLES})
     if(DEFINED ${shared_var})
+      # Any  shared var that is a list must be escaped to ensure correct behaviour.
+      string(REPLACE \; \\\\\; val "${${shared_var}}")
       list(APPEND image_cmake_args
-        -D${shared_var}=${${shared_var}}
+        -D${shared_var}=${val}
         )
     endif()
   endforeach()

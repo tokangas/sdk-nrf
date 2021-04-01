@@ -24,7 +24,7 @@ Overview: Firmware architecture
 
 The nRF Desktop application design aims at high performance, while still providing configurability and extensibility.
 
-The application architecture is modular and event-driven.
+The application architecture is modular, event-driven and build around :ref:`lib_caf`.
 This means that parts of the application functionality are separated into isolated modules that communicate with each other using application events, which are handled by the :ref:`event_manager`.
 Modules register themselves as listeners of those events that they are configured to react to.
 An application event can be submitted by multiple modules and it can have multiple listeners.
@@ -188,7 +188,7 @@ The nRF Desktop mouse sends HID input reports to host after the host connects an
 
 The :ref:`nrf_desktop_motion` sensor sampling is synchronized with sending the HID mouse input reports to the host.
 
-The :ref:`nrf_desktop_wheel` and :ref:`nrf_desktop_buttons` provide data to the :ref:`nrf_desktop_hid_state` when the mouse wheel is used or a button is pressed, respectively.
+The :ref:`nrf_desktop_wheel` and :ref:`caf_buttons` provide data to the :ref:`nrf_desktop_hid_state` when the mouse wheel is used or a button is pressed, respectively.
 These inputs are not synchronized with the HID report transmission to the host.
 
 When the mouse is constantly in use, the motion module is kept in the fetching state.
@@ -704,7 +704,7 @@ You can define the amount of time after which the peripherals are suspended or p
 By default, this period is set to 120 seconds.
 
 .. important::
-    When the gaming mouse is powered from USB, the power down time-out functionality is disabled.
+    When the gaming mouse is powered from USB, the power down timeout functionality is disabled.
 
     If a nRF Desktop device supports remote wakeup, the USB connected device goes to suspended state when USB is suspended.
     The device can then trigger remote wakeup of the connected host on user input.
@@ -765,7 +765,7 @@ After building the application with or without :ref:`specifying the build type <
 
    .. note::
         You can manually start the scanning for new peripheral devices by pressing the **SW1** button on the dongle for a short time.
-        This might be needed if the dongle does not connect with all the peripherals before time-out.
+        This might be needed if the dongle does not connect with all the peripherals before timeout.
         The scanning is interrupted after the amount of time predefined in :option:`CONFIG_DESKTOP_BLE_SCAN_DURATION_S`, because it negatively affects the performance of already connected peripherals.
 
 #. Move the mouse and press any key on the keyboard.
@@ -923,11 +923,11 @@ To use the nRF Desktop application with your custom board:
    In such case, the overlay file can be left empty.
 #. In Kconfig, ensure that the following modules that are specific for gaming mouse are enabled:
 
+   * :ref:`caf_buttons`
+   * :ref:`caf_leds`
    * :ref:`nrf_desktop_motion`
    * :ref:`nrf_desktop_wheel`
-   * :ref:`nrf_desktop_buttons`
    * :ref:`nrf_desktop_battery_meas`
-   * :ref:`nrf_desktop_leds`
 
 #. For each module enabled, change its :file:`_def` file to match your hardware.
    Apply the following changes, depending on the module:
@@ -1275,15 +1275,15 @@ The nRF Desktop devices use one of the following Link Layers:
 
 * :option:`CONFIG_BT_LL_SOFTDEVICE`
     This Link Layer does support the Low Latency Packet Mode (LLPM).
-    If you opt for this Link Layer and enable this option, the :option:`CONFIG_DESKTOP_BLE_USE_LLPM` is also enabled by default and can be configured further:
+    If you opt for this Link Layer and enable the :option:`CONFIG_BT_CTLR_LLPM`, the :option:`CONFIG_CAF_BLE_USE_LLPM` is also enabled by default and can be configured further:
 
-    * When :option:`CONFIG_DESKTOP_BLE_USE_LLPM` is enabled, set the value for :option:`CONFIG_SDC_MAX_CONN_EVENT_LEN_DEFAULT` to ``3000``.
+    * When :option:`CONFIG_CAF_BLE_USE_LLPM` is enabled, set the value for :option:`CONFIG_SDC_MAX_CONN_EVENT_LEN_DEFAULT` to ``3000``.
 
       This is required by the nRF Desktop central and helps avoid scheduling conflicts with Bluetooth Link Layer.
       Such conflicts could lead to a drop in HID input report rate or a disconnection.
       Setting the value to ``3000`` also enables the nRF Desktop central to exchange data with up to 2 standard Bluetooth LE peripherals during every connection interval (every 7.5 ms).
 
-    * When :option:`CONFIG_DESKTOP_BLE_USE_LLPM` is disabled, the device will use only standard Bluetooth LE connection parameters with the lowest available connection interval of 7.5 ms.
+    * When :option:`CONFIG_CAF_BLE_USE_LLPM` is disabled, the device will use only standard Bluetooth LE connection parameters with the lowest available connection interval of 7.5 ms.
 
       If the LLPM is disabled and more than 2 simultaneous Bluetooth connections are supported (:option:`CONFIG_BT_MAX_CONN`), you can set the value for :option:`CONFIG_SDC_MAX_CONN_EVENT_LEN_DEFAULT` to ``2500``.
       With this value, the nRF Desktop central is able to exchange the data with up to 3 Bluetooth LE peripherals during every 7.5-ms connection interval.
@@ -1548,6 +1548,7 @@ Dependencies
 
 This application uses the following |NCS| libraries and drivers:
 
+* :ref:`lib_caf`
 * :ref:`event_manager`
 * :ref:`profiler`
 * :ref:`hids_readme`
@@ -1582,6 +1583,7 @@ These are valid for events that have many listeners or sources, and are gathered
    doc/ble_conn_params.rst
    doc/ble_discovery.rst
    doc/ble_latency.rst
+   doc/ble_passkey.rst
    doc/ble_qos.rst
    doc/ble_scan.rst
    doc/ble_state.rst

@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cJSON_os.h"
+#include <net/net_ip.h>
 
 /**@file
  *
@@ -32,7 +33,7 @@ struct cloud_data_battery {
 	/** Battery data timestamp. UNIX milliseconds. */
 	int64_t bat_ts;
 	/** Flag signifying that the data entry is to be encoded. */
-	bool queued;
+	bool queued : 1;
 };
 
 /** @brief Structure containing GPS data published to cloud. */
@@ -52,7 +53,7 @@ struct cloud_data_gps {
 	/** Heading of movement in degrees. */
 	float hdg;
 	/** Flag signifying that the data entry is to be encoded. */
-	bool queued;
+	bool queued : 1;
 };
 
 struct cloud_data_cfg {
@@ -70,6 +71,14 @@ struct cloud_data_cfg {
 	int movement_timeout;
 	/** Accelerometer trigger threshold value in m/s2. */
 	double accelerometer_threshold;
+
+	/** Flags to signify if the corresponding data value is fresh and can be used. */
+	bool active_mode_fresh		   : 1;
+	bool gps_timeout_fresh		   : 1;
+	bool active_wait_timeout_fresh	   : 1;
+	bool movement_resolution_fresh	   : 1;
+	bool movement_timeout_fresh	   : 1;
+	bool accelerometer_threshold_fresh : 1;
 };
 
 struct cloud_data_accelerometer {
@@ -78,7 +87,7 @@ struct cloud_data_accelerometer {
 	/** Accelerometer readings. */
 	double values[3];
 	/** Flag signifying that the data entry is to be published. */
-	bool queued;
+	bool queued : 1;
 };
 
 struct cloud_data_sensors {
@@ -89,7 +98,7 @@ struct cloud_data_sensors {
 	/** Humidity level in percentage */
 	double hum;
 	/** Flag signifying that the data entry is to be encoded. */
-	bool queued;
+	bool queued : 1;
 };
 
 struct cloud_data_modem_static {
@@ -104,15 +113,15 @@ struct cloud_data_modem_static {
 	/** Network mode NB-IoT. */
 	uint16_t nw_nb_iot;
 	/** Integrated Circuit Card Identifier. */
-	char *iccid;
+	char iccid[23];
 	/** Application version and Mobile Network Code. */
-	char *appv;
+	char appv[CONFIG_ASSET_TRACKER_V2_APP_VERSION_MAX_LEN];
 	/** Device board version. */
-	const char *brdv;
+	char brdv[30];
 	/** Modem firmware. */
-	char *fw;
+	char fw[40];
 	/** Flag signifying that the data entry is to be encoded. */
-	bool queued;
+	bool queued : 1;
 };
 
 struct cloud_data_modem_dynamic {
@@ -121,15 +130,22 @@ struct cloud_data_modem_dynamic {
 	/** Area code. */
 	uint16_t area;
 	/** Cell id. */
-	uint16_t cell;
+	uint32_t cell;
 	/** Reference Signal Received Power. */
 	uint16_t rsrp;
 	/** Internet Protocol Address. */
-	char *ip;
+	char ip[INET6_ADDRSTRLEN];
 	/* Mobile Country Code*/
-	char *mccmnc;
+	char mccmnc[7];
 	/** Flag signifying that the data entry is to be encoded. */
-	bool queued;
+	bool queued : 1;
+
+	/** Flags to signify if the corresponding data value is fresh and can be used. */
+	bool area_code_fresh	: 1;
+	bool cell_id_fresh	: 1;
+	bool rsrp_fresh		: 1;
+	bool ip_address_fresh	: 1;
+	bool mccmnc_fresh	: 1;
 };
 
 struct cloud_data_ui {
@@ -138,7 +154,7 @@ struct cloud_data_ui {
 	/** Button data timestamp. UNIX milliseconds. */
 	int64_t btn_ts;
 	/** Flag signifying that the data entry is to be encoded. */
-	bool queued;
+	bool queued : 1;
 };
 
 struct cloud_codec_data {

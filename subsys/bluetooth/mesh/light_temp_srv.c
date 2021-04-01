@@ -138,12 +138,21 @@ static void temp_set_unack_handle(struct bt_mesh_model *model,
 }
 
 const struct bt_mesh_model_op _bt_mesh_light_temp_srv_op[] = {
-	{ BT_MESH_LIGHT_TEMP_GET, BT_MESH_LIGHT_CTL_MSG_LEN_GET,
-	  temp_get_handle },
-	{ BT_MESH_LIGHT_TEMP_SET, BT_MESH_LIGHT_CTL_MSG_MINLEN_TEMP_SET,
-	  temp_set_handle },
-	{ BT_MESH_LIGHT_TEMP_SET_UNACK,
-	  BT_MESH_LIGHT_CTL_MSG_MINLEN_TEMP_SET, temp_set_unack_handle },
+	{
+		BT_MESH_LIGHT_TEMP_GET,
+		BT_MESH_LIGHT_CTL_MSG_LEN_GET,
+		temp_get_handle,
+	},
+	{
+		BT_MESH_LIGHT_TEMP_SET,
+		BT_MESH_LIGHT_CTL_MSG_MINLEN_TEMP_SET,
+		temp_set_handle,
+	},
+	{
+		BT_MESH_LIGHT_TEMP_SET_UNACK,
+		BT_MESH_LIGHT_CTL_MSG_MINLEN_TEMP_SET,
+		temp_set_unack_handle,
+	},
 	BT_MESH_MODEL_OP_END,
 };
 
@@ -287,20 +296,20 @@ const struct bt_mesh_lvl_srv_handlers _bt_mesh_light_temp_srv_lvl_handlers = {
 	.move_set = lvl_move_set,
 };
 
-static int scene_store(struct bt_mesh_model *mod, uint8_t data[])
+static int scene_store(struct bt_mesh_model *model, uint8_t data[])
 {
-	struct bt_mesh_light_temp_srv *srv = mod->user_data;
+	struct bt_mesh_light_temp_srv *srv = model->user_data;
 
 	sys_put_le16(srv->last.delta_uv, data);
 
 	return sizeof(int16_t);
 }
 
-static void scene_recall(struct bt_mesh_model *mod, const uint8_t data[],
+static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
 			 size_t len,
 			 struct bt_mesh_model_transition *transition)
 {
-	struct bt_mesh_light_temp_srv *srv = mod->user_data;
+	struct bt_mesh_light_temp_srv *srv = model->user_data;
 	struct bt_mesh_light_temp_set set = {
 		.params = {
 			.temp = srv->last.temp,
@@ -318,11 +327,22 @@ static const struct bt_mesh_scene_entry_type scene_type = {
 	.maxlen = sizeof(int16_t),
 };
 
+static void light_temp_srv_reset(struct bt_mesh_light_temp_srv *srv)
+{
+	srv->dflt.delta_uv = 0;
+	srv->dflt.temp = BT_MESH_LIGHT_TEMP_MIN;
+	srv->last.delta_uv = 0;
+	srv->last.temp = BT_MESH_LIGHT_TEMP_MIN;
+	srv->range.min = BT_MESH_LIGHT_TEMP_MIN;
+	srv->range.max = BT_MESH_LIGHT_TEMP_MAX;
+}
+
 static int bt_mesh_light_temp_srv_init(struct bt_mesh_model *model)
 {
 	struct bt_mesh_light_temp_srv *srv = model->user_data;
 
 	srv->model = model;
+	light_temp_srv_reset(srv);
 	net_buf_simple_init(srv->pub.msg, 0);
 
 	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
@@ -336,12 +356,12 @@ static int bt_mesh_light_temp_srv_init(struct bt_mesh_model *model)
 	return 0;
 }
 
-static int bt_mesh_light_temp_srv_settings_set(struct bt_mesh_model *mod,
+static int bt_mesh_light_temp_srv_settings_set(struct bt_mesh_model *model,
 					       const char *name, size_t len_rd,
 					       settings_read_cb read_cb,
 					       void *cb_data)
 {
-	struct bt_mesh_light_temp_srv *srv = mod->user_data;
+	struct bt_mesh_light_temp_srv *srv = model->user_data;
 	struct settings_data data;
 	ssize_t len;
 
@@ -361,6 +381,7 @@ static void bt_mesh_light_temp_srv_reset(struct bt_mesh_model *model)
 {
 	struct bt_mesh_light_temp_srv *srv = model->user_data;
 
+	light_temp_srv_reset(srv);
 	net_buf_simple_reset(srv->pub.msg);
 }
 

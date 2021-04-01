@@ -8,13 +8,13 @@
 #include <assert.h>
 #include <drivers/pwm.h>
 
-#include "power_event.h"
-#include "led_event.h"
+#include <caf/events/power_event.h>
+#include <caf/events/led_event.h>
 
 #include "leds_def.h"
 
 #define MODULE leds
-#include "module_state_event.h"
+#include <caf/events/module_state_event.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_LED_LOG_LEVEL);
@@ -165,7 +165,7 @@ static int leds_init(void)
 static void leds_start(void)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(leds); i++) {
-#ifdef CONFIG_DEVICE_POWER_MANAGEMENT
+#ifdef CONFIG_PM_DEVICE
 		int err = device_set_power_state(leds[i].pwm_dev,
 						 DEVICE_PM_ACTIVE_STATE,
 						 NULL, NULL);
@@ -184,7 +184,7 @@ static void leds_stop(void)
 
 		pwm_off(&leds[i]);
 
-#ifdef CONFIG_DEVICE_POWER_MANAGEMENT
+#ifdef CONFIG_PM_DEVICE
 		int err = device_set_power_state(leds[i].pwm_dev,
 						 DEVICE_PM_SUSPEND_STATE,
 						 NULL, NULL);

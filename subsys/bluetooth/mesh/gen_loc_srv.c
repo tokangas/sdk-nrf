@@ -27,7 +27,7 @@
 static bool pub_in_progress(struct bt_mesh_loc_srv *srv)
 {
 	return (k_delayed_work_remaining_get(&srv->pub.timer) > 0) ||
-	       k_work_pending(&srv->pub.timer.work);
+	       k_delayed_work_pending(&srv->pub.timer);
 }
 
 /* Global location */
@@ -169,21 +169,39 @@ static void handle_local_set_unack(struct bt_mesh_model *model,
 }
 
 const struct bt_mesh_model_op _bt_mesh_loc_srv_op[] = {
-	{ BT_MESH_LOC_OP_GLOBAL_GET, BT_MESH_LOC_MSG_LEN_GLOBAL_GET,
-	  handle_global_get },
-	{ BT_MESH_LOC_OP_LOCAL_GET, BT_MESH_LOC_MSG_LEN_LOCAL_GET,
-	  handle_local_get },
+	{
+		BT_MESH_LOC_OP_GLOBAL_GET,
+		BT_MESH_LOC_MSG_LEN_GLOBAL_GET,
+		handle_global_get,
+	},
+	{
+		BT_MESH_LOC_OP_LOCAL_GET,
+		BT_MESH_LOC_MSG_LEN_LOCAL_GET,
+		handle_local_get,
+	},
 	BT_MESH_MODEL_OP_END
 };
 const struct bt_mesh_model_op _bt_mesh_loc_setup_srv_op[] = {
-	{ BT_MESH_LOC_OP_GLOBAL_SET, BT_MESH_LOC_MSG_LEN_GLOBAL_SET,
-	  handle_global_set },
-	{ BT_MESH_LOC_OP_GLOBAL_SET_UNACK, BT_MESH_LOC_MSG_LEN_GLOBAL_SET,
-	  handle_global_set_unack },
-	{ BT_MESH_LOC_OP_LOCAL_SET, BT_MESH_LOC_MSG_LEN_LOCAL_SET,
-	  handle_local_set },
-	{ BT_MESH_LOC_OP_LOCAL_SET_UNACK, BT_MESH_LOC_MSG_LEN_LOCAL_SET,
-	  handle_local_set_unack },
+	{
+		BT_MESH_LOC_OP_GLOBAL_SET,
+		BT_MESH_LOC_MSG_LEN_GLOBAL_SET,
+		handle_global_set,
+	},
+	{
+		BT_MESH_LOC_OP_GLOBAL_SET_UNACK,
+		BT_MESH_LOC_MSG_LEN_GLOBAL_SET,
+		handle_global_set_unack,
+	},
+	{
+		BT_MESH_LOC_OP_LOCAL_SET,
+		BT_MESH_LOC_MSG_LEN_LOCAL_SET,
+		handle_local_set,
+	},
+	{
+		BT_MESH_LOC_OP_LOCAL_SET_UNACK,
+		BT_MESH_LOC_MSG_LEN_LOCAL_SET,
+		handle_local_set_unack,
+	},
 	BT_MESH_MODEL_OP_END
 };
 
@@ -237,9 +255,9 @@ const struct bt_mesh_model_cb _bt_mesh_loc_srv_cb = {
 	.reset = bt_mesh_loc_srv_reset,
 };
 
-int32_t bt_mesh_loc_srv_global_pub(struct bt_mesh_loc_srv *srv,
-				 struct bt_mesh_msg_ctx *ctx,
-				 const struct bt_mesh_loc_global *global)
+int bt_mesh_loc_srv_global_pub(struct bt_mesh_loc_srv *srv,
+			       struct bt_mesh_msg_ctx *ctx,
+			       const struct bt_mesh_loc_global *global)
 {
 	BT_MESH_MODEL_BUF_DEFINE(msg, BT_MESH_LOC_OP_GLOBAL_STATUS,
 				 BT_MESH_LOC_MSG_LEN_GLOBAL_STATUS);
@@ -251,9 +269,9 @@ int32_t bt_mesh_loc_srv_global_pub(struct bt_mesh_loc_srv *srv,
 	return model_send(srv->model, ctx, &msg);
 }
 
-int32_t bt_mesh_loc_srv_local_pub(struct bt_mesh_loc_srv *srv,
-				struct bt_mesh_msg_ctx *ctx,
-				const struct bt_mesh_loc_local *local)
+int bt_mesh_loc_srv_local_pub(struct bt_mesh_loc_srv *srv,
+			      struct bt_mesh_msg_ctx *ctx,
+			      const struct bt_mesh_loc_local *local)
 {
 	BT_MESH_MODEL_BUF_DEFINE(msg, BT_MESH_LOC_OP_LOCAL_STATUS,
 				 BT_MESH_LOC_MSG_LEN_LOCAL_STATUS);
