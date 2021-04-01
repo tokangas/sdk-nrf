@@ -22,8 +22,11 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define SMS_UDH_CONCAT_SIZE_SEPTETS 7
 /** @brief Maximum length of the response for AT commands. */
 #define SMS_AT_RESPONSE_MAX_LEN 256
-/** @brief Buffer size reserved for CMGS AT command. */
-#define SMS_AT_CMGS_BUF_SIZE 500
+/** @brief Buffer size reserved for CMGS AT command.
+ * @details SMS data is maximum of 140 bytes and SMS SUBMIT 24 bytes. This is doubled in
+ * hexadecimal representation an then there is AT command overhead so we'll reserve safe value.
+ */
+#define SMS_AT_CMGS_BUF_SIZE 400
 
 /**
  * @brief Encode phone number into format specified within SMS header.
