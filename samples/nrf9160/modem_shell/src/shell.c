@@ -212,7 +212,7 @@ SHELL_CMD_REGISTER(sms, NULL, "Commands for sending and receiving SMS.", sms_she
 
 #if defined (CONFIG_MOSH_PPP)
 SHELL_CMD_REGISTER(ppp, NULL,
-	"Commands for controlling FTA PPP.",
+	"Commands for controlling PPP.",
 	ppp_shell_cmd);
 #endif
 

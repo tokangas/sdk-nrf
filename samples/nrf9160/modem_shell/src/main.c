@@ -184,10 +184,10 @@ void main(void)
 }
 
 #if defined (CONFIG_MOSH_PPP)
-static int fta_shell_init(const struct device *unused)
+static int mosh_shell_init(const struct device *unused)
 {
 	ppp_ctrl_init();
 	return 0;
 }
-SYS_INIT(fta_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+SYS_INIT(mosh_shell_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 #endif

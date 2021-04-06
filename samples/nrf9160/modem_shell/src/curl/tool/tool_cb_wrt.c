@@ -101,7 +101,7 @@ bool tool_create_output_file(struct OutStruct *outs,
   return TRUE;
 #else
   if (strcmp(outs->filename, "/dev/null") == 0) {
-    //FTA specific --output /dev/null -hook:
+    //MOSH specific --output /dev/null -hook:
     outs->s_isreg = FALSE;
     outs->stream = stdout;
     outs->bytes = 0;

@@ -1498,10 +1498,10 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             return PARAM_NO_MEM;
         }
       }
-      /* MOSH_CURL_INTEGRATION_CHANGE: FTA specific hook for workarounding the lack of file support for HTTP POST: */
+      /* MOSH_CURL_INTEGRATION_CHANGE: MOSH specific hook for workarounding the lack of file support for HTTP POST: */
       else if('#' == *nextarg && !raw_mode) {
         size_t len = 0;
-        /* FTA specific: 
+        /* MOSH specific: 
          * the data begins with a '#' letter, it means that a count of to be generated chars follows */
         nextarg++; /* pass the # */
         len = atoi(nextarg);

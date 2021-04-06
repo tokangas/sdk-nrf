@@ -310,7 +310,7 @@ static CURLcode bindlocal(struct connectdata *conn,
 #ifdef SO_BINDTODEVICE
 #if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
       /* MOSH_CURL_INTEGRATION_CHANGE:
-         with FTA & Zephyr we need to do that a little bit differently: */
+         with MOSH & Zephyr we need to do that a little bit differently: */
       struct ifreq ifr = {0};
       int opt_retvalue = -1;
       int cid;

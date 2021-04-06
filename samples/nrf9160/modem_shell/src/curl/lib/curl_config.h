@@ -865,7 +865,7 @@
 #undef NTLM_WB_FILE
 
 /* cpu-machine-OS */
-#define OS "FTA on top of Zephyr"
+#define OS "MOSH on top of Zephyr"
 
 /* Name of package */
 //#define PACKAGE "curl"
