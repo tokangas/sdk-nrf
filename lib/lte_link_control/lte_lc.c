@@ -365,8 +365,10 @@ static int parse_cereg(bool is_notification,
 		}
 	} else {
 		/* When device is not registered, PSM valies are invalid */
-		psm_cfg->tau = -1;
-		psm_cfg->active_time = -1;
+		if (psm_cfg) { /* fixed by jani, official fig under work by Jan-Tore */
+			psm_cfg->tau = -1;
+			psm_cfg->active_time = -1;
+		}
 	}
 
 clean_exit:
