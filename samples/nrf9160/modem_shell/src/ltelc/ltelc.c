@@ -24,6 +24,7 @@
 #include <nrf_socket.h>
 
 #include "ltelc_settings.h"
+#include "ltelc_shell.h"
 #include "ltelc_api.h"
 #include "ltelc.h"
 
@@ -124,6 +125,8 @@ void ltelc_init(void)
 
 void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 {
+	char snum[64];
+
 	switch (evt->type) {
 	case LTE_LC_EVT_LTE_MODE_UPDATE:
 		/** The currently active LTE mode is updated. If a system mode that
@@ -132,13 +135,9 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		 *  and network availability. This event will then indicate which
 		 *  LTE mode is currently used by the modem.
 		 */
-		if (evt->lte_mode != LTE_LC_LTE_MODE_NONE) {
-			shell_print(uart_shell, "Current LTE mode: %s",
-				evt->lte_mode == LTE_LC_LTE_MODE_LTEM ?
-				"LTE-M" : "NB-IoT");
-		} else {
-			shell_print(uart_shell, "Current LTE mode: %s", "None");
-		}
+		shell_print(uart_shell, "Currently active system mode: %s", 
+			ltelc_shell_sysmode_currently_active_to_string(
+				evt->lte_mode, snum));
 		break;	
 	case LTE_LC_EVT_NW_REG_STATUS:
 		switch (evt->nw_reg_status) {

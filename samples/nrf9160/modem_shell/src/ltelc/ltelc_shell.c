@@ -126,13 +126,14 @@ const char ltelc_connect_usage_str[] =
 
 const char ltelc_sysmode_usage_str[] =
 	"Options for 'ltelc sysmode' command:\n"
-	"  -r, --read,       [bool] Read system modes set in modem and by 'ltelc sysmode'\n"
-	"      --reset,      [bool] Reset the set sysmode as default\n"
-	"  -m, --ltem,       [bool] LTE-M (LTE Cat-M1) system mode\n"
-	"  -n, --nbiot,      [bool] NB-IoT (LTE Cat-NB1) system mode\n"
-	"  -g, --gps,        [bool] GPS system mode\n"
-	"  -M, --ltem_gps,   [bool] LTE-M + GPS system mode\n"
-	"  -N, --nbiot_gps,  [bool] NB-IoT + GPS system mode\n"
+	"  -r, --read,           [bool] Read system modes set in modem and by 'ltelc sysmode'\n"
+	"      --reset,          [bool] Reset the set sysmode as default\n"
+	"  -m, --ltem,           [bool] Set LTE-M (LTE Cat-M1) system mode\n"
+	"  -n, --nbiot,          [bool] Set NB-IoT (LTE Cat-NB1) system mode\n"
+	"  -g, --gps,            [bool] Set GPS system mode\n"
+	"  -M, --ltem_gps,       [bool] Set LTE-M + GPS system mode\n"
+	"      --ltem_nbiot,     [bool] Set LTE-M + NB-IoT system mode\n"
+	"      --ltem_nbiot_gps, [bool] Set LTE-M + NB-IoT + GPS system mode\n"
 	"\n";
 
 const char ltelc_funmode_usage_str[] =
@@ -312,18 +313,20 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 }
 /******************************************************************************/
 
-/* From lte_lc.c, and to be updated if something is added
- * (although subject to major changes with upcoming sdk changes): 
- */
+/* From lte_lc.c, and to be updated if something is added */
 #define SYS_MODE_PREFERRED \
-	(IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M)	? \
-		LTE_LC_SYSTEM_MODE_LTEM			: \
-	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT)	? \
-		LTE_LC_SYSTEM_MODE_NBIOT		: \
-	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M_GPS)	? \
-		LTE_LC_SYSTEM_MODE_LTEM_GPS		: \
-	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT_GPS)	? \
-		LTE_LC_SYSTEM_MODE_NBIOT_GPS		: \
+	(IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M)		? \
+		LTE_LC_SYSTEM_MODE_LTEM				: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT)		? \
+		LTE_LC_SYSTEM_MODE_NBIOT			: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M_GPS)		? \
+		LTE_LC_SYSTEM_MODE_LTEM_GPS			: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_NBIOT_GPS)		? \
+		LTE_LC_SYSTEM_MODE_NBIOT_GPS			: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M_NBIOT)		? \
+		LTE_LC_SYSTEM_MODE_LTEM_NBIOT			: \
+	IS_ENABLED(CONFIG_LTE_NETWORK_MODE_LTE_M_NBIOT_GPS)	? \
+		LTE_LC_SYSTEM_MODE_LTEM_NBIOT_GPS		: \
 	LTE_LC_SYSTEM_MODE_NONE)
 
 static void ltelc_shell_sysmode_set(const struct shell *shell, int sysmode)
@@ -351,28 +354,74 @@ static void ltelc_shell_sysmode_set(const struct shell *shell, int sysmode)
 const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
 {
 	struct mapping_tbl_item const mapping_table[] = {
-		{LTE_LC_SYSTEM_MODE_NONE,      "None"},
-		{LTE_LC_SYSTEM_MODE_LTEM,      "LTE-M"},
-		{LTE_LC_SYSTEM_MODE_NBIOT,     "NB-IoT"},
-		{LTE_LC_SYSTEM_MODE_GPS,       "GPS"},
-		{LTE_LC_SYSTEM_MODE_LTEM_GPS,  "LTE-M - GPS"},
-		{LTE_LC_SYSTEM_MODE_NBIOT_GPS, "NB-IoT - GPS"},
+		{LTE_LC_SYSTEM_MODE_NONE,           "None"},
+		{LTE_LC_SYSTEM_MODE_LTEM,           "LTE-M"},
+		{LTE_LC_SYSTEM_MODE_NBIOT,          "NB-IoT"},
+		{LTE_LC_SYSTEM_MODE_GPS,            "GPS"},
+		{LTE_LC_SYSTEM_MODE_LTEM_GPS,       "LTE-M - GPS"},
+		{LTE_LC_SYSTEM_MODE_LTEM_NBIOT,     "LTE-M - NB-IoT"},
+		{LTE_LC_SYSTEM_MODE_LTEM_NBIOT_GPS, "LTE-M - NB-IoT - GPS"},
+		{LTE_LC_SYSTEM_MODE_NBIOT_GPS,      "NB-IoT - GPS"},
 		{-1, NULL}
 	};
 	
 	return ltelc_shell_map_to_string(mapping_table, sysmode, out_str_buff);
 }
 
+const char *ltelc_shell_sysmode_preferred_to_string(int sysmode_preference, char *out_str_buff)
+{
+	struct mapping_tbl_item const mapping_table[] = {
+		{LTE_LC_SYSTEM_MODE_PREFER_AUTO,
+			"No preference, automatically selected by the modem"},
+		{LTE_LC_SYSTEM_MODE_PREFER_LTEM,
+			"LTE-M is preferred over PLMN selection"},
+		{LTE_LC_SYSTEM_MODE_PREFER_NBIOT,
+			"NB-IoT is preferred over PLMN selection"},
+		{LTE_LC_SYSTEM_MODE_PREFER_LTEM_PLMN_PRIO,
+			"LTE-M is preferred, but PLMN selection is more important"},
+		{LTE_LC_SYSTEM_MODE_PREFER_NBIOT_PLMN_PRIO,
+			"NB-IoT is preferred, but PLMN selection is more important"},
+		{-1, NULL}
+	};
+	
+	return ltelc_shell_map_to_string(mapping_table, sysmode_preference, out_str_buff);
+}
+
+const char *ltelc_shell_sysmode_currently_active_to_string(int actmode, char *out_str_buff)
+{
+	struct mapping_tbl_item const mapping_table[] = {
+		{LTE_LC_LTE_MODE_NONE,           "None"},
+		{LTE_LC_LTE_MODE_LTEM,           "LTE-M"},
+		{LTE_LC_LTE_MODE_NBIOT,          "NB-IoT"},
+		{-1, NULL}
+	};
+	
+	return ltelc_shell_map_to_string(mapping_table, actmode, out_str_buff);
+}
+
+
 void ltelc_shell_print_current_system_modes(const struct shell *shell)
 {
-	int ret;
+	int ret = -1;
 	enum lte_lc_system_mode sys_mode_current;
+	enum lte_lc_system_mode_preference sys_mode_preferred;
+	enum lte_lc_lte_mode currently_active_mode;
+
 	char snum[64];
 
-	ret = lte_lc_system_mode_get(&sys_mode_current, NULL);
+	ret = lte_lc_system_mode_get(&sys_mode_current, &sys_mode_preferred);
 	if (ret >= 0) {
-		shell_print(shell, "Modem system mode: %s", 
+		shell_print(shell, "Modem config for system mode: %s", 
 			ltelc_shell_sysmode_to_string(sys_mode_current, snum));
+		shell_print(shell, "Modem config for LTE preference: %s", 
+			ltelc_shell_sysmode_preferred_to_string(sys_mode_preferred, snum));
+	}
+
+	ret = lte_lc_lte_mode_get(&currently_active_mode);
+	if (ret >= 0) {
+		shell_print(shell, "Currently active system mode: %s", 
+			ltelc_shell_sysmode_currently_active_to_string(
+				currently_active_mode, snum));
 	}
 }
 
