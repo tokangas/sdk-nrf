@@ -125,6 +125,21 @@ void ltelc_init(void)
 void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 {
 	switch (evt->type) {
+	case LTE_LC_EVT_LTE_MODE_UPDATE:
+		/** The currently active LTE mode is updated. If a system mode that
+		 *  enables both LTE-M and NB-IoT is configured, the modem may change
+		 *  the currently active LTE mode based on the system mode preference
+		 *  and network availability. This event will then indicate which
+		 *  LTE mode is currently used by the modem.
+		 */
+		if (evt->lte_mode != LTE_LC_LTE_MODE_NONE) {
+			shell_print(uart_shell, "Current LTE mode: %s",
+				evt->lte_mode == LTE_LC_LTE_MODE_LTEM ?
+				"LTE-M" : "NB-IoT");
+		} else {
+			shell_print(uart_shell, "Current LTE mode: %s", "None");
+		}
+		break;	
 	case LTE_LC_EVT_NW_REG_STATUS:
 		switch (evt->nw_reg_status) {
 		case LTE_LC_NW_REG_NOT_REGISTERED:
