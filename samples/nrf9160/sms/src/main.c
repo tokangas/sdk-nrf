@@ -42,8 +42,8 @@ static void sms_callback(struct sms_data *const data, void *context)
 				header->concatenated.seq_number,
 				header->concatenated.total_msgs);
 		}
-	} else if (data->type == SMS_TYPE_SUBMIT_REPORT) {
-		printk("SMS submit report received\n");
+	} else if (data->type == SMS_TYPE_STATUS_REPORT) {
+		printk("SMS status report received\n");
 		return;
 	} else {
 		printk("SMS protocol message with unknown type received\n");
