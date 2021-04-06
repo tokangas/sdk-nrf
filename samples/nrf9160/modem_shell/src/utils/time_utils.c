@@ -9,7 +9,7 @@
 
 #include "time_utils.h"
 
-time_t fta_time(time_t *t)
+time_t time_utils_time(time_t *t)
 {
     //at+cclk? TODO to get real time? or use date_time.h services?
 	//for now: our epoch is the seconds since bootup

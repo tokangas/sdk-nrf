@@ -251,9 +251,9 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	    free(buf);
 		return (uint32_t)delta_t;
 	}
-	if (ping_argv.cid != FTA_ARG_NOT_SET) {
+	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
 		/* Binding a data socket to an APN: */
-		ret = fta_net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
+		ret = net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
 		if (ret != 0) {
 			shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
 			shell_error(shell, "probably due to https://projecttools.nordicsemi.no/jira/browse/NCSDK-6645");
@@ -456,7 +456,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 
 	shell_print(shell, "Initiating ping to: %s", ping_argv.target_name);
 
-	if (ping_argv.cid != FTA_ARG_NOT_SET) {
+	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
 		apn = ping_argv.current_apn_str;
 	}
 
@@ -509,10 +509,10 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 	} else {
 		struct sockaddr *sa;
 		sa = ping_argv.src->ai_addr;
-		shell_print(shell, "Source IP addr: %s", fta_net_utils_sckt_addr_ntop(sa));
+		shell_print(shell, "Source IP addr: %s", net_utils_sckt_addr_ntop(sa));
 		sa = ping_argv.dest->ai_addr;
 		shell_print(shell, "Destination IP addr: %s",
-			    fta_net_utils_sckt_addr_ntop(sa));
+			    net_utils_sckt_addr_ntop(sa));
 	}
 	/* Now we can check the max payload len for IPv6: */
 	uint32_t ipv6_max_payload_len = ping_argv.mtu - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN;

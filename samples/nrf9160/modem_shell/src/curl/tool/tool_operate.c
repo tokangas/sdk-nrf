@@ -2230,7 +2230,7 @@ static CURLcode add_parallel_transfers(struct GlobalConfig *global,
     if(per->added)
       /* already added */
       continue;
-    if(per->startat && (fta_time(NULL) < per->startat)) { //MOSH_CURL_INTEGRATION_CHANGE: no time() available
+    if(per->startat && (time_utils_time(NULL) < per->startat)) { //MOSH_CURL_INTEGRATION_CHANGE: no time() available
       /* this is still delaying */
       sleeping = TRUE;
       continue;
@@ -2273,7 +2273,7 @@ static CURLcode parallel_transfers(struct GlobalConfig *global,
   struct timeval start = tvnow();
   bool more_transfers;
   bool added_transfers;
-  time_t tick = fta_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: no time() available
+  time_t tick = time_utils_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: no time() available
 
   multi = curl_multi_init();
   if(!multi)
@@ -2315,14 +2315,14 @@ static CURLcode parallel_transfers(struct GlobalConfig *global,
           if(retry) {
             ended->added = FALSE; /* add it again */
             /* we delay retries in full integer seconds only */
-            ended->startat = delay ? fta_time(NULL) + delay/1000 : 0; //MOSH_CURL_INTEGRATION_CHANGE: no time() available
+            ended->startat = delay ? time_utils_time(NULL) + delay/1000 : 0; //MOSH_CURL_INTEGRATION_CHANGE: no time() available
           }
           else
             (void)del_per_transfer(ended);
         }
       } while(msg);
       if(!checkmore) {
-        time_t tock = fta_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: no time() available
+        time_t tock = time_utils_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: no time() available
         if(tick != tock) {
           checkmore = TRUE;
           tick = tock;

@@ -375,8 +375,8 @@ int sock_open_and_connect(
 	socket_info->pdn_cid = pdn_cid;
 
 	if (pdn_cid > 0) {
-		char apn_str[FTA_APN_STR_MAX_LEN];
-		memset(apn_str, 0, FTA_APN_STR_MAX_LEN);
+		char apn_str[MOSH_APN_STR_MAX_LEN];
+		memset(apn_str, 0, MOSH_APN_STR_MAX_LEN);
 		pdp_context_info_array_t pdp_context_info_tbl;
 
 		err = ltelc_api_pdp_contexts_read(&pdp_context_info_tbl);
@@ -401,7 +401,7 @@ int sock_open_and_connect(
 		}
 
 		/* Binding a data socket to an APN: */
-		err = fta_net_utils_socket_apn_set(fd, apn_str);
+		err = net_utils_socket_apn_set(fd, apn_str);
 		if (err != 0) {
 			shell_error(shell_global, "Cannot bind socket id=%d to apn %s", socket_info->id, apn_str);
 			shell_error(shell_global, "probably due to bug NCSDK-6645");

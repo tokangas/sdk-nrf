@@ -12,7 +12,7 @@
 
 #include "net_utils.h"
 
-int fta_net_utils_socket_apn_set(int fd, const char *apn)
+int net_utils_socket_apn_set(int fd, const char *apn)
 {
 	int ret;
 	size_t len;
@@ -36,7 +36,7 @@ int fta_net_utils_socket_apn_set(int fd, const char *apn)
 	return 0;
 }
 
-char *fta_net_utils_sckt_addr_ntop(const struct sockaddr *addr)
+char *net_utils_sckt_addr_ntop(const struct sockaddr *addr)
 {
 	static char buf[NET_IPV6_ADDR_LEN];
 
@@ -54,11 +54,10 @@ char *fta_net_utils_sckt_addr_ntop(const struct sockaddr *addr)
 	strcpy(buf, "Unknown AF");
 	return buf;
 }
-int fta_net_utils_sa_family_from_ip_string(const char *src)
+int net_utils_sa_family_from_ip_string(const char *src)
 {
 	char buf[INET6_ADDRSTRLEN];
 	if (inet_pton(AF_INET, src, buf)) {
-		//printf("fta_net_utils_sa_family_from_ip_string AF_INET");
 		return AF_INET;
 	} else if (inet_pton(AF_INET6, src, buf)) {
 		return AF_INET6;

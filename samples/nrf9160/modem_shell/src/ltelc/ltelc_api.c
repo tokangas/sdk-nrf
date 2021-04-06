@@ -150,7 +150,7 @@ int ltelc_api_pdp_context_dynamic_params_get(pdp_context_info_t *populated_info)
 		//printf("Primary DNS address (%d): %s\n", param_str_len, dns_addr_str);
 
 		if (dns_addr_str != NULL) {
-			int family = fta_net_utils_sa_family_from_ip_string(dns_addr_str);
+			int family = net_utils_sa_family_from_ip_string(dns_addr_str);
 			if (family == AF_INET) {
 				struct in_addr *addr = &(populated_info->dns_addr4_primary);
 				(void)inet_pton(AF_INET, dns_addr_str, addr);
@@ -176,7 +176,7 @@ int ltelc_api_pdp_context_dynamic_params_get(pdp_context_info_t *populated_info)
 		//printf("Secondary DNS address (%d): %s\n", param_str_len, dns_addr_str);
 
 		if (dns_addr_str != NULL) {
-			int family = fta_net_utils_sa_family_from_ip_string(dns_addr_str);
+			int family = net_utils_sa_family_from_ip_string(dns_addr_str);
 			if (family == AF_INET) {
 				struct in_addr *addr = &(populated_info->dns_addr4_secondary);
 				(void)inet_pton(AF_INET, dns_addr_str, addr);
@@ -555,7 +555,7 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 
 			if (ip_address1 != NULL) {
 				int family =
-					fta_net_utils_sa_family_from_ip_string(
+					net_utils_sa_family_from_ip_string(
 						ip_address1);
 				if (family == AF_INET) {
 					struct in_addr *addr4 =
@@ -572,7 +572,7 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 				/* Note: If we are here, PDP_addr_2 should be IPv6,
 				   thus in following ipv4 branch should not be possible: */
 				int family =
-					fta_net_utils_sa_family_from_ip_string(
+					net_utils_sa_family_from_ip_string(
 						ip_address2);
 				if (family == AF_INET) {
 					struct in_addr *addr4 =

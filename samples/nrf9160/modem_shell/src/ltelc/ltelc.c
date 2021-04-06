@@ -83,14 +83,14 @@ static void ltelc_rsrp_signal_handler(char rsrp_value)
 
 //**************************************************************************
 
-#define FTA_RSRP_UPDATE_INTERVAL_IN_SECS 5
+#define MOSH_RSRP_UPDATE_INTERVAL_IN_SECS 5
 static void ltelc_rsrp_signal_update(struct k_work *work)
 {
 	static uint32_t timestamp_prev = 0;
 
 	if ((timestamp_prev != 0) &&
 	    (k_uptime_get_32() - timestamp_prev <
-	     FTA_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
+	     MOSH_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
 		return;
 	}
 
@@ -513,7 +513,7 @@ int ltelc_pdn_disconnect(const char* apn, int pdn_cid)
 		return ltelc_pdn_socket_info_clear(pdn_socket_info);
 	} else {
 		/* Not existing connection by using ltelc */
-		printk("No existing connection created by using ltelc to apn %s\n", FTA_STRING_NULL_CHECK(apn));
+		printk("No existing connection created by using ltelc to apn %s\n", MOSH_STRING_NULL_CHECK(apn));
 		return -EINVAL;
 	}
 }

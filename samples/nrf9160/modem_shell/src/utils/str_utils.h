@@ -10,4 +10,4 @@
 int str_hex_to_bytes(char *str, uint32_t str_length,
 	uint8_t* buf, uint16_t *buf_length);
 
-#endif
+#endif /* _STR_UTILS_H_ */

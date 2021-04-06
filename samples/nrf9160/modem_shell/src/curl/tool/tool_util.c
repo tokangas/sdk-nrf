@@ -118,7 +118,7 @@ struct timeval tvnow(void)
   ** time() returns the value of time in seconds since the Epoch.
   */
   struct timeval now;
-  now.tv_sec = (long)fta_time(NULL);//MOSH_CURL_INTEGRATION_CHANGE: time() not supported
+  now.tv_sec = (long)time_utils_time(NULL);//MOSH_CURL_INTEGRATION_CHANGE: time() not supported
   now.tv_usec = 0;
   return now;
 }

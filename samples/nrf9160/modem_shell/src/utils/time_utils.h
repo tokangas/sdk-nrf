@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#ifndef _TIME_UTILS_H
-#define _TIME_UTILS_H
+#ifndef _TIME_UTILS_H_
+#define _TIME_UTILS_H_
 
-time_t fta_time(time_t *t);
+time_t time_utils_time(time_t *t);
 
-#endif /* _TIME_UTILS_H */
+#endif /* _TIME_UTILS_H_ */

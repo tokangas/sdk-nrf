@@ -71,7 +71,7 @@ enum ltelc_sett_defcontauth_prot {
 static const struct shell *uart_shell = NULL;
 
 struct ltelc_sett_t {
-	char defcont_apn_str[FTA_APN_STR_MAX_LEN + 1];
+	char defcont_apn_str[MOSH_APN_STR_MAX_LEN + 1];
 	char defcont_ip_family_str[LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN + 1]; //TODO: store as enum
 	bool defcont_enabled;
 
@@ -305,7 +305,7 @@ int ltelc_sett_save_defcont_apn(const char *defcont_apn_str)
 	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_DEFCONT_APN_KEY;
 	int len = strlen(defcont_apn_str);
 
-	assert(len <= FTA_APN_STR_MAX_LEN);
+	assert(len <= MOSH_APN_STR_MAX_LEN);
 
 	err = settings_save_one(
 		key,

@@ -980,7 +980,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case LTELC_CMD_DISCONNECT:
 			ret = ltelc_pdn_disconnect(apn, pdn_cid);
-			apn_print = FTA_STRING_NULL_CHECK(apn);
+			apn_print = MOSH_STRING_NULL_CHECK(apn);
 			if (ret < 0) {
 				shell_error(shell, "Cannot disconnect with given apn='%s', pdn_cid=%d", apn_print, pdn_cid);
 			} else {
