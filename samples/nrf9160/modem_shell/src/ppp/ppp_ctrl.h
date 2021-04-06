@@ -7,7 +7,7 @@
 #ifndef PPP_CTRL_H
 #define PPP_CTRL_H
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 #define PPP_MODEM_DATA_RAW_SCKT_FD_NONE -666
 
 void ppp_ctrl_init();

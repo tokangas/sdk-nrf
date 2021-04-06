@@ -12,7 +12,7 @@
 #include "ppp_ctrl.h"
 #include "ppp_shell.h"
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 #include <net/promiscuous.h>
 
 typedef enum {

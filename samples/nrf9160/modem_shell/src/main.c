@@ -24,20 +24,20 @@
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
 
-#if defined(CONFIG_FTA_PPP)
+#if defined(CONFIG_MOSH_PPP)
 #include <shell/shell.h>
 #include "ppp_ctrl.h"
 #endif
 
-#if defined(CONFIG_FTA_LTELC)
+#if defined(CONFIG_MOSH_LTELC)
 #include "ltelc.h"
 #endif
 
-#if defined(CONFIG_FTA_GNSS)
+#if defined(CONFIG_MOSH_GNSS)
 #include "gnss.h"
 #endif
 
-#if defined(CONFIG_FTA_FOTA)
+#if defined(CONFIG_MOSH_FOTA)
 #include "fota.h"
 #endif
 
@@ -150,18 +150,18 @@ void main(void)
 
 #endif
 
-#if defined(CONFIG_FTA_GNSS_ENABLE_LNA)
+#if defined(CONFIG_MOSH_GNSS_ENABLE_LNA)
 	gnss_set_lna_enabled(true);
 #endif
 
-#if defined(CONFIG_FTA_FOTA)
+#if defined(CONFIG_MOSH_FOTA)
 	err = fota_init();
 	if (err) {
 		printk("Could not initialize FOTA: %d\n", err);
 	}
 #endif
 
-#if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_FTA_LTELC)
+#if defined(CONFIG_LTE_LINK_CONTROL) && defined(CONFIG_MOSH_LTELC)
 	ltelc_init();
 #endif
 
@@ -183,7 +183,7 @@ void main(void)
 #endif
 }
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 static int fta_shell_init(const struct device *unused)
 {
 	ppp_ctrl_init();

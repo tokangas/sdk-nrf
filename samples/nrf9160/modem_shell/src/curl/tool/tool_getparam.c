@@ -113,7 +113,7 @@ static const struct LongShort aliases[]= {
   {"*q", "ftp-create-dirs",          ARG_BOOL},
   {"*r", "create-dirs",              ARG_BOOL},
   {"*s", "max-redirs",               ARG_STRING},
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   {"*S", "upload-buff-size",         ARG_STRING},
   {"*T", "curr-mdm-traces",          ARG_BOOL},    
 #endif
@@ -121,7 +121,7 @@ static const struct LongShort aliases[]= {
   {"*u", "crlf",                     ARG_BOOL},
   {"*v", "stderr",                   ARG_FILENAME},
   {"*w", "interface",                ARG_STRING},
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   {"*W", "cid",                      ARG_STRING},
 #endif
   {"*x", "krb",                      ARG_STRING},
@@ -793,7 +793,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         if(config->maxredirs < -1)
           return PARAM_BAD_NUMERIC;
         break;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
       case 'S': /* --upload-buff-size */
         err = str2num(&config->upload_buffsize, nextarg);
         if(err)
@@ -841,7 +841,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         /* interface */
         GetStr(&config->iface, nextarg);
         break;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
       case 'W': /* --cid */
         /* PDN CID */
         GetStr(&config->cid, nextarg);

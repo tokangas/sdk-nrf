@@ -84,9 +84,9 @@ struct ltelc_sett_t {
 
 	/* note: if adding more memory slots, remember also update 
 	   LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START/END accordingly. */
-	char normal_mode_at_cmd_str_1[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
-	char normal_mode_at_cmd_str_2[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
-	char normal_mode_at_cmd_str_3[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_1[CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_2[CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_3[CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
 
 	bool normal_mode_autoconn_enabled;
 };
@@ -522,10 +522,10 @@ int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot)
 	int len = strlen(at_str);
 	char *at_cmd_ram_storage_ptr;
 
-	if (len > CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN) {
+	if (len > CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN) {
 		shell_error(uart_shell, "ltelc_sett_save_normal_mode_at_cmd_str: at command string length (%d) over the limit %d",
 			len,
-			CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN);
+			CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN);
 		return -EINVAL;
 	}
 

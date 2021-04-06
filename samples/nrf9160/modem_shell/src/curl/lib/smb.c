@@ -117,7 +117,7 @@ const struct Curl_handler Curl_handler_smbs = {
 };
 #endif
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 /* In embedded this needs to be a lot of smaller */
 #define MAX_PAYLOAD_SIZE  (8*1024)
 #else

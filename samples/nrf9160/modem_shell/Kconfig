@@ -6,96 +6,96 @@
 
 source "Kconfig.zephyr"
 
-menu "Nordic FTA config"
+menu "Nordic Modem Shell config"
 
-config FTA_IPERF3
-	bool  "Enable FTA iperf3 support"
+config MOSH_IPERF3
+	bool  "Enable iperf3 support"
     default y
 	select NRF_IPERF3
 
-config FTA_SOCK
-	bool  "Enable FTA socket tool support"
+config MOSH_SOCK
+	bool  "Enable socket tool support"
     default y
 
-config FTA_PING
-	bool  "Enable FTA ICMP ping support"
+config MOSH_PING
+	bool  "Enable ICMP ping support"
     default y
 
-config FTA_LTELC
-	bool  "Enable FTA LTE link control support"
+config MOSH_LTELC
+	bool  "Enable LTE link control support"
     depends on LTE_LINK_CONTROL
     depends on SETTINGS
     default y
 
-config FTA_CURL
+config MOSH_CURL
 	bool  "Enable CURL"
     default y
 
-config FTA_GNSS
+config MOSH_GNSS
 	bool  "Enable GNSS support"
 	default y
 
-config FTA_PPP
+config MOSH_PPP
 	bool  "Enable PPP support"
 	default n
 
-config FTA_SMS
+config MOSH_SMS
 	bool  "Enable SMS support"
     default y
 
-config FTA_FOTA
+config MOSH_FOTA
 	bool "Enable FOTA support"
 	default y
 
-if FTA_LTELC
+if MOSH_LTELC
 menu "MoSH LTELC command selections"
 
-config FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN
+config MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN
 	int "configure string length for custom AT cmds stored in settings and used when going to normal mode"
 	default 127
 
 endmenu	
-endif #FTA_LTELC
+endif #MOSH_LTELC
 
-if FTA_CURL
-menu "FTA CURL selections"
+if MOSH_CURL
+menu "MOSH CURL selections"
 
 #invisible configs:
-config FTA_CURL_LIB
+config MOSH_CURL_LIB
 	bool
     default y
 
-config FTA_CURL_TOOL
+config MOSH_CURL_TOOL
 	bool
     default y
 
-config FTA_CURL_FUNCTIONAL_CHANGES
+config MOSH_CURL_FUNCTIONAL_CHANGES
 	bool
     default y
 
-endmenu #FTA CURL
-endif #FTA_CURL
+endmenu #MOSH_CURL
+endif #MOSH_CURL
 
-choice FTA_GNSS_API
+choice MOSH_GNSS_API
 	bool "Used GNSS API"
-	depends on FTA_GNSS
-	default FTA_GNSS_API_SOCKET
+	depends on MOSH_GNSS
+	default MOSH_GNSS_API_SOCKET
 	help
 	  Used GNSS API type.
 
-config FTA_GNSS_API_SOCKET
+config MOSH_GNSS_API_SOCKET
 	bool "GNSS socket API"
 
-config FTA_GNSS_API_GPS_DRIVER
+config MOSH_GNSS_API_GPS_DRIVER
 	bool "GPS driver"
 
 endchoice
 
-config FTA_GNSS_ENABLE_LNA
+config MOSH_GNSS_ENABLE_LNA
 	bool "Enable Low Noise Amplifier (LNA) during startup"
-	depends on FTA_GNSS
+	depends on MOSH_GNSS
 
-endmenu #FTA
+endmenu # Modem Shell
 
 #menu "Zephyr Kernel"
 #source "Kconfig.zephyr"

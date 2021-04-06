@@ -30,7 +30,7 @@
 #include "ppp_mdm_data_snd.h"
 #include "ppp_ctrl.h"
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 
 /* ppp globals: */
 struct net_if *ppp_iface_global;
@@ -223,4 +223,4 @@ void ppp_ctrl_stop()
 
 /* *************************************************************************************/
 
-#endif /* CONFIG_FTA_PPP */
+#endif /* CONFIG_MOSH_PPP */

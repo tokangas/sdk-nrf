@@ -23,7 +23,7 @@
  ***************************************************************************/
 #include "curl_setup.h"
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #define READBUFFER_SIZE (5*708)
 #define READBUFFER_MAX  CURL_MAX_READ_SIZE
 #define READBUFFER_MIN  100
@@ -40,7 +40,7 @@
    libcurl able to do significantly faster uploads in some circumstances. Even
    larger buffers can help further, but this is deemed a fair memory/speed
    compromise. */
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #include <nrf_modem_limits.h>
 /* In embedded this needs to be a lot of smaller */
 #define UPLOADBUFFER_DEFAULT (708)

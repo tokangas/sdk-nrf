@@ -84,7 +84,7 @@ struct OperationConfig {
   char *headerfile;
   char *ftpport;
   char *iface;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   char *cid;
   long upload_buffsize;
 #endif
@@ -317,7 +317,7 @@ struct GlobalConfig {
   long parallel_max;
   bool parallel_connect;
   char *help_category;            /* The help category, if set */
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   bool curr_mdm_traces;
 #endif
   struct OperationConfig *first;

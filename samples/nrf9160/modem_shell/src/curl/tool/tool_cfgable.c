@@ -64,7 +64,7 @@ static void free_config_fields(struct OperationConfig *config)
   Curl_safefree(config->headerfile);
   Curl_safefree(config->ftpport);
   Curl_safefree(config->iface);
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   Curl_safefree(config->cid);
 #endif
   Curl_safefree(config->range);

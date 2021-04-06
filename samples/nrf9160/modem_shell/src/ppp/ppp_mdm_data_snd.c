@@ -26,7 +26,7 @@
 #include "ppp_ctrl.h"
 #include "ppp_mdm_data_snd.h"
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 
 
 #define UPLINK_DATA_CLONE_TIMEOUT K_MSEC(1000)
@@ -114,4 +114,4 @@ void ppp_mdm_data_snd_init()
 	k_thread_name_set(&uplink_work_q.thread, "ppp_modem_ul_data_thread");
 #endif
 }
-#endif /* CONFIG_FTA_PPP */
+#endif /* CONFIG_MOSH_PPP */

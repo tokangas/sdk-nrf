@@ -7,7 +7,7 @@
 #ifndef PPP_SHELL_H
 #define PPP_SHELL_H
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 void ppp_mdm_data_snd_init();
 #endif
 

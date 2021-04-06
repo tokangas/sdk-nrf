@@ -1485,7 +1485,7 @@ enum dupstring {
   STRING_CUSTOMREQUEST,   /* HTTP/FTP/RTSP request/method to use */
   STRING_DEFAULT_PROTOCOL, /* Protocol to use when the URL doesn't specify */
   STRING_DEVICE,          /* local network interface/address to use */
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   STRING_DEVICE_CID,      /* PDN CID */
 #endif
   STRING_ENCODING,        /* Accept-Encoding string */

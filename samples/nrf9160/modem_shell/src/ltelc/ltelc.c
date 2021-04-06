@@ -28,7 +28,7 @@
 #include "ltelc_api.h"
 #include "ltelc.h"
 
-#if defined (CONFIG_FTA_SMS)
+#if defined (CONFIG_MOSH_SMS)
 #include "sms.h"
 #endif
 
@@ -353,7 +353,7 @@ int ltelc_func_mode_set(int fun)
 
 	switch (fun) {
 	case LTELC_FUNMODE_PWROFF:
-#if defined (CONFIG_FTA_SMS)	
+#if defined (CONFIG_MOSH_SMS)	
 		sms_unregister();
 #endif
 		return_value = lte_lc_power_off();

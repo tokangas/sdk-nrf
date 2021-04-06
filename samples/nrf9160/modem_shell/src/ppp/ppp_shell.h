@@ -7,7 +7,7 @@
 #ifndef PPP_SHELL_H
 #define PPP_SHELL_H
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 #include <shell/shell.h>
 int ppp_shell_cmd(const struct shell *shell, size_t argc, char **argv);
 #endif

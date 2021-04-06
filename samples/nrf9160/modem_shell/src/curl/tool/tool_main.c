@@ -32,7 +32,7 @@
 #include <plarenas.h>
 #endif
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 #include <modem/at_cmd.h>
@@ -212,7 +212,7 @@ static void free_globalconfig(struct GlobalConfig *config)
  */
 static void main_free(struct GlobalConfig *config)
 {
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
   if (!config->curr_mdm_traces) {
     static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";

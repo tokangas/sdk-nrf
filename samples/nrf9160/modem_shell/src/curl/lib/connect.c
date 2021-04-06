@@ -78,7 +78,7 @@
 #include "quic.h"
 #include "socks.h"
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #include "fta_defines.h"
 #include "ltelc_api.h"
 #include "utils/fta_net_utils.h"
@@ -264,7 +264,7 @@ static CURLcode bindlocal(struct connectdata *conn,
   /* how many port numbers to try to bind to, increasing one at a time */
   int portnum = data->set.localportrange;
   const char *dev = data->set.str[STRING_DEVICE];
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   const char *dev_cid = data->set.str[STRING_DEVICE_CID];
 #endif
   int error;
@@ -272,7 +272,7 @@ static CURLcode bindlocal(struct connectdata *conn,
   /*************************************************************
    * Select device to bind socket to
    *************************************************************/
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   if(!dev && !port && !dev_cid)
     /* no local kind of binding was requested */
     return CURLE_OK;
@@ -283,7 +283,7 @@ static CURLcode bindlocal(struct connectdata *conn,
 #endif
   memset(&sa, 0, sizeof(struct Curl_sockaddr_storage));
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   if((dev && (strlen(dev)<255)) || (dev_cid && (strlen(dev_cid)>0))) {
 #else
   if(dev && (strlen(dev)<255)) {
@@ -308,7 +308,7 @@ static CURLcode bindlocal(struct connectdata *conn,
     /* interface */
     if(!is_host) {
 #ifdef SO_BINDTODEVICE
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
       /* FTA_CURL_INTEGRATION_CHANGE:
          with FTA & Zephyr we need to do that a little bit differently: */
       struct ifreq ifr = {0};
@@ -1579,7 +1579,7 @@ CURLcode Curl_socket(struct connectdata *conn,
   addr->protocol = conn->transport != TRNSPRT_TCP ? IPPROTO_UDP :
     ai->ai_protocol;
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   /* wildcard (0) for protocol not supported by bsdlib/modemlib: */
   if (!addr->protocol) {
     if (addr->socktype == SOCK_STREAM) {

@@ -88,7 +88,7 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 #include <modem/at_cmd.h>
@@ -1810,7 +1810,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
         /* three new ones in libcurl 7.3: */
         my_setopt_str(curl, CURLOPT_INTERFACE, config->iface);
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
         my_setopt_str(curl, CURLOPT_INTERFACE_CID, config->cid);
         if (config->upload_buffsize) {
           my_setopt(curl, CURLOPT_UPLOAD_BUFFERSIZE, config->upload_buffsize);
