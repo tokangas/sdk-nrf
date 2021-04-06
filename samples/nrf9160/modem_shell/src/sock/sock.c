@@ -23,9 +23,9 @@
 #include <nrf_socket.h>
 
 #include "sock.h"
-#include "fta_defines.h"
+#include "mosh_defines.h"
 #include "ltelc_api.h"
-#include "fta_net_utils.h"
+#include "net_utils.h"
 #include "str_utils.h"
 
 /* Maximum number of sockets takes into account AT command socket */

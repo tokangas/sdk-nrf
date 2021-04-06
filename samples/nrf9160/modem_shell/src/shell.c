@@ -35,7 +35,7 @@
 #include "ltelc_shell.h"
 #endif
 #if defined (CONFIG_MOSH_CURL)	
-#include "fta_curl.h"
+#include "mosh_curl.h"
 #endif
 #if defined (CONFIG_MOSH_GNSS)
 #include "gnss/gnss_shell.h"

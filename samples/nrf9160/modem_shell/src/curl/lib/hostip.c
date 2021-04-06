@@ -69,7 +69,7 @@
 #include "memdebug.h"
 
 //MOSH_CURL_INTEGRATION_CHANGE:
-#include "utils/fta_time_utils.h"
+#include "utils/time_utils.h"
 
 #if defined(CURLRES_SYNCH) && \
     defined(HAVE_ALARM) && defined(SIGALRM) && defined(HAVE_SIGSETJMP)

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#ifndef FTA_DEFINES_H
-#define FTA_DEFINES_H
+#ifndef MOSH_DEFINES_H
+#define MOSH_DEFINES_H
 
 #define FTA_EMPTY_STRING "\0"
 
@@ -14,4 +14,4 @@
 
 #define FTA_STRING_NULL_CHECK(string) ((string != NULL) ? string : FTA_EMPTY_STRING)
 
-#endif /* FTA_DEFINES_H */
+#endif /* MOSH_DEFINES_H */

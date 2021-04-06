@@ -20,9 +20,9 @@
 #include <getopt.h>
 
 #include "sock.h"
-#include "fta_defines.h"
+#include "mosh_defines.h"
 #include "ltelc_api.h"
-#include "utils/fta_net_utils.h"
+#include "utils/net_utils.h"
 
 /* Maximum length of the address */
 #define SOCK_MAX_ADDR_LEN 100

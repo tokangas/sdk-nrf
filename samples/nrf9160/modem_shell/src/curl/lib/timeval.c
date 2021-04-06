@@ -162,7 +162,7 @@ struct curltime Curl_now(void)
 
 #else
 //MOSH_CURL_INTEGRATION_CHANGE:
-#include "utils/fta_time_utils.h"
+#include "utils/time_utils.h"
 
 struct curltime Curl_now(void)
 {

@@ -15,7 +15,7 @@
 #include <modem/sms.h>
 
 #include "sms.h"
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #define PAYLOAD_BUF_SIZE 160
 #define SMS_HANDLE_NONE -1

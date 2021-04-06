@@ -18,7 +18,7 @@
 #include <posix/arpa/inet.h>
 #include <net/net_ip.h>
 
-#include "utils/fta_net_utils.h"
+#include "utils/net_utils.h"
 
 #include "ltelc_shell.h"
 #include "ltelc_api.h"

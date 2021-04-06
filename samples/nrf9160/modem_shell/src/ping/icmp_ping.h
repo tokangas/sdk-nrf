@@ -14,7 +14,7 @@
  */
 
 #include <zephyr/types.h>
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #define ICMP_IPV4_HDR_LEN        20
 #define ICMP_IPV6_HDR_LEN        40

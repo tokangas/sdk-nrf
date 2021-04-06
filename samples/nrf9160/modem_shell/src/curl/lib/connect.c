@@ -79,9 +79,9 @@
 #include "socks.h"
 
 #if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
-#include "fta_defines.h"
+#include "mosh_defines.h"
 #include "ltelc_api.h"
-#include "utils/fta_net_utils.h"
+#include "utils/net_utils.h"
 #endif
 
 /* The last 3 #include files should be in this order */

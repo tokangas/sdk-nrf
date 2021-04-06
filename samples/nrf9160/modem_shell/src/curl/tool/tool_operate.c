@@ -46,7 +46,7 @@
 #include "strcase.h"
 
 //MOSH_CURL_INTEGRATION_CHANGE:
-#include "utils/fta_time_utils.h"
+#include "utils/time_utils.h"
 
 #define ENABLE_CURLX_PRINTF
 /* use our own printf() functions */

@@ -11,7 +11,7 @@
 #include <net/net_ip.h>
 #include <shell/shell.h>
 
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #define PDP_TYPE_UNKNOWN     0x00
 #define PDP_TYPE_IPV4        0x01

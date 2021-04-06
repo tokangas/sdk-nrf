@@ -20,7 +20,7 @@
 
 #include <posix/arpa/inet.h>
 
-#include "utils/fta_net_utils.h"
+#include "utils/net_utils.h"
 #include "ltelc_api.h"
 
 #include "icmp_ping.h"

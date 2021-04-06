@@ -7,7 +7,7 @@
 #include <zephyr.h>
 #include <time.h>
 
-#include "fta_time_utils.h"
+#include "time_utils.h"
 
 time_t fta_time(time_t *t)
 {

@@ -15,7 +15,7 @@
 
 #include <modem/lte_lc.h>
 
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #include "ltelc_shell.h"
 #include "ltelc_settings.h"

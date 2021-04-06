@@ -10,7 +10,7 @@
 #include <posix/sys/socket.h>
 #include <posix/netdb.h>
 
-#include "fta_net_utils.h"
+#include "net_utils.h"
 
 int fta_net_utils_socket_apn_set(int fd, const char *apn)
 {
