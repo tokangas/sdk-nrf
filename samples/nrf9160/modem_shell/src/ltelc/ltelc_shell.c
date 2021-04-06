@@ -130,9 +130,10 @@ const char ltelc_sysmode_usage_str[] =
 	"      --reset,          [bool] Reset the set sysmode as default\n"
 	"  -m, --ltem,           [bool] Set LTE-M (LTE Cat-M1) system mode\n"
 	"  -n, --nbiot,          [bool] Set NB-IoT (LTE Cat-NB1) system mode\n"
+	"      --ltem_nbiot,     [bool] Set LTE-M + NB-IoT system mode\n"
 	"  -g, --gps,            [bool] Set GPS system mode\n"
 	"  -M, --ltem_gps,       [bool] Set LTE-M + GPS system mode\n"
-	"      --ltem_nbiot,     [bool] Set LTE-M + NB-IoT system mode\n"
+	"  -N, --nbiot_gps,      [bool] Set NB-IoT + GPS system mode\n"
 	"      --ltem_nbiot_gps, [bool] Set LTE-M + NB-IoT + GPS system mode\n"
 	"\n";
 
@@ -183,10 +184,12 @@ const char ltelc_rsrp_usage_str[] =
 /******************************************************************************/
 
 /* Following are not having short options: */
-#define LTELC_SHELL_OPT_MEM_SLOT_1 1001
-#define LTELC_SHELL_OPT_MEM_SLOT_2 1002
-#define LTELC_SHELL_OPT_MEM_SLOT_3 1003
-#define LTELC_SHELL_OPT_RESET      1004
+#define LTELC_SHELL_OPT_MEM_SLOT_1             1001
+#define LTELC_SHELL_OPT_MEM_SLOT_2             1002
+#define LTELC_SHELL_OPT_MEM_SLOT_3             1003
+#define LTELC_SHELL_OPT_RESET                  1004
+#define LTELC_SHELL_OPT_SYSMODE_LTEM_NBIOT     1005
+#define LTELC_SHELL_OPT_SYSMODE_LTEM_NBIOT_GPS 1006
 
  /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
@@ -217,6 +220,8 @@ static struct option long_options[] = {
     {"mem2",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_2 },
     {"mem3",                    required_argument, 0,   LTELC_SHELL_OPT_MEM_SLOT_3 },
     {"reset",                   no_argument,       0,   LTELC_SHELL_OPT_RESET },
+    {"ltem_nbiot",              no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_LTEM_NBIOT },
+    {"ltem_nbiot_gps",          no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_LTEM_NBIOT_GPS },
     {0,                         0,                 0,   0  }
 };
 
@@ -357,9 +362,9 @@ const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff)
 		{LTE_LC_SYSTEM_MODE_NONE,           "None"},
 		{LTE_LC_SYSTEM_MODE_LTEM,           "LTE-M"},
 		{LTE_LC_SYSTEM_MODE_NBIOT,          "NB-IoT"},
+		{LTE_LC_SYSTEM_MODE_LTEM_NBIOT,     "LTE-M - NB-IoT"},
 		{LTE_LC_SYSTEM_MODE_GPS,            "GPS"},
 		{LTE_LC_SYSTEM_MODE_LTEM_GPS,       "LTE-M - GPS"},
-		{LTE_LC_SYSTEM_MODE_LTEM_NBIOT,     "LTE-M - NB-IoT"},
 		{LTE_LC_SYSTEM_MODE_LTEM_NBIOT_GPS, "LTE-M - NB-IoT - GPS"},
 		{LTE_LC_SYSTEM_MODE_NBIOT_GPS,      "NB-IoT - GPS"},
 		{-1, NULL}
@@ -661,6 +666,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_SHELL_OPT_MEM_SLOT_3:
 			normal_mode_at_str = optarg;
 			normal_mode_at_mem_slot = 3;
+			break;
+		case LTELC_SHELL_OPT_SYSMODE_LTEM_NBIOT:
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_LTEM_NBIOT;
+			break;
+		case LTELC_SHELL_OPT_SYSMODE_LTEM_NBIOT_GPS:
+			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_LTEM_NBIOT_GPS;
 			break;
 
 		case '?':
