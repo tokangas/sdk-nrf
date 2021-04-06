@@ -83,7 +83,7 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
-//FTA_CURL_INTEGRATION_CHANGE:
+//MOSH_CURL_INTEGRATION_CHANGE:
 #include "utils/fta_time_utils.h"
 
 /*
@@ -1100,7 +1100,7 @@ static int http_should_fail(struct connectdata *conn)
   return data->state.authproblem;
 }
 
-/* FTA_CURL_INTEGRATION_CHANGE: */
+/* MOSH_CURL_INTEGRATION_CHANGE: */
 static void fill_with_repeating_ascii_pattern(void *out, size_t length)
 {
     char *buf = (char *)out;
@@ -1144,7 +1144,7 @@ static size_t readmoredata(char *buffer,
   conn->data->req.forbidchunk = (http->sending == HTTPSEND_REQUEST)?TRUE:FALSE;
 
   if(http->postsize <= (curl_off_t)fullsize) {
-    /* FTA_CURL_INTEGRATION_CHANGE: */
+    /* MOSH_CURL_INTEGRATION_CHANGE: */
 	  if (http->generate_data) {
       fill_with_repeating_ascii_pattern(buffer, (size_t)http->postsize);
 	  }
@@ -1170,7 +1170,7 @@ static size_t readmoredata(char *buffer,
 
     return fullsize;    
   } 
-    /* FTA_CURL_INTEGRATION_CHANGE: */
+    /* MOSH_CURL_INTEGRATION_CHANGE: */
 	  if (http->generate_data) {
       fill_with_repeating_ascii_pattern(buffer, fullsize);
 	  }
@@ -2899,7 +2899,7 @@ CURLcode Curl_http(struct connectdata *conn, bool *done)
         if(result)
           return result;
        
-        /* FTA_CURL_INTEGRATION_CHANGE: */
+        /* MOSH_CURL_INTEGRATION_CHANGE: */
        if (strstr(data->set.postfields, "#")) {
           free(data->set.postfields);
           data->set.postfields = malloc(postsize + 1);
@@ -3926,7 +3926,7 @@ CURLcode Curl_http_readwrite_headers(struct Curl_easy *data,
       }
       else
         /* convert date to number of seconds into the future */
-        retry_after = date - fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
+        retry_after = date - fta_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: time() not supported
       data->info.retry_after = retry_after; /* store it */
     }
     else if(!k->http_bodyless && checkprefix("Content-Range:", headp)) {

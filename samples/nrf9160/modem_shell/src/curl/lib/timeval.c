@@ -161,7 +161,7 @@ struct curltime Curl_now(void)
 }
 
 #else
-//FTA_CURL_INTEGRATION_CHANGE:
+//MOSH_CURL_INTEGRATION_CHANGE:
 #include "utils/fta_time_utils.h"
 
 struct curltime Curl_now(void)
@@ -170,7 +170,7 @@ struct curltime Curl_now(void)
   ** time() returns the value of time in seconds since the Epoch.
   */
   struct curltime now;
-  now.tv_sec = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
+  now.tv_sec = fta_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: time() not supported
   now.tv_usec = 0; //this needs to be more accurate!, use HAVE_GETTIMEOFDAY
   return now;
 }

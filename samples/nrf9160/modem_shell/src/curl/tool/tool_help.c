@@ -488,7 +488,7 @@ static const struct helptxt helptext[] = {
   {"    --oauth2-bearer <token>",
    "OAuth 2 Bearer Token",
    CURLHELP_AUTH},
-#ifdef NOT_IN_FTA_CURL_INTEGRATION   
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION   
   {"-o, --output <file>",
    "Write to file instead of stdout",
    CURLHELP_IMPORTANT | CURLHELP_CURL},
@@ -818,7 +818,7 @@ static const struct helptxt helptext[] = {
   {"    --unix-socket <path>",
    "Connect through this Unix domain socket",
    CURLHELP_CONNECTION},
-#ifdef NOT_IN_FTA_CURL_INTEGRATION   
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION   
   {"-T, --upload-file <file>",
    "Transfer local FILE to destination",
    CURLHELP_IMPORTANT | CURLHELP_UPLOAD},

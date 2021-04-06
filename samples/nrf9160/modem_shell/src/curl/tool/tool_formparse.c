@@ -570,7 +570,7 @@ static int get_param_part(struct OperationConfig *config, char endchar,
             endpos--;
         sep = *p;
         *endpos = '\0';
-#ifdef NOT_IN_FTA_CURL_INTEGRATION        
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION        
         fp = fopen(hdrfile, FOPEN_READTEXT);
 #else
         fp = NULL;

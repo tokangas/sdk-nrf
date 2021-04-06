@@ -62,7 +62,7 @@ static long memsize = 0;  /* set number of mallocs allowed */
 void curl_dbg_memdebug(const char *logname)
 {
   if(!curl_dbg_logfile) {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION    
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION    
     if(logname && *logname)
       curl_dbg_logfile = fopen(logname, FOPEN_WRITETEXT);
     else
@@ -398,7 +398,7 @@ int curl_dbg_sclose(curl_socket_t sockfd, int line, const char *source)
 FILE *curl_dbg_fopen(const char *file, const char *mode,
                     int line, const char *source)
 {
- #ifdef NOT_IN_FTA_CURL_INTEGRATION
+ #ifdef NOT_IN_MOSH_CURL_INTEGRATION
   FILE *res = fopen(file, mode);
 
   if(source)
@@ -414,7 +414,7 @@ FILE *curl_dbg_fopen(const char *file, const char *mode,
 FILE *curl_dbg_fdopen(int filedes, const char *mode,
                       int line, const char *source)
 {
- #ifdef NOT_IN_FTA_CURL_INTEGRATION  
+ #ifdef NOT_IN_MOSH_CURL_INTEGRATION  
   FILE *res = fdopen(filedes, mode);
   if(source)
     curl_dbg_log("FILE %s:%d fdopen(\"%d\",\"%s\") = %p\n",

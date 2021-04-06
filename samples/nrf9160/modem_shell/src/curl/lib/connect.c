@@ -112,7 +112,7 @@ static void
 tcpkeepalive(struct Curl_easy *data,
              curl_socket_t sockfd)
 {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
   int optval = data->set.tcp_keepalive?1:0;
   /* only set IDLE and INTVL if setting KEEPALIVE is successful */
   if(setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE,
@@ -309,7 +309,7 @@ static CURLcode bindlocal(struct connectdata *conn,
     if(!is_host) {
 #ifdef SO_BINDTODEVICE
 #if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
-      /* FTA_CURL_INTEGRATION_CHANGE:
+      /* MOSH_CURL_INTEGRATION_CHANGE:
          with FTA & Zephyr we need to do that a little bit differently: */
       struct ifreq ifr = {0};
       int opt_retvalue = -1;
@@ -556,7 +556,7 @@ static CURLcode bindlocal(struct connectdata *conn,
 static bool verifyconnect(curl_socket_t sockfd, int *error)
 {
   bool rc = TRUE;
-#ifdef NOT_IN_FTA_CURL_INTEGRATION //jani: jostain syystä vaikka ei erroria niin BSD lib assertoi TODO: write bug?
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION //jani: jostain syystä vaikka ei erroria niin BSD lib assertoi TODO: write bug?
 #ifdef SO_ERROR
   int err = 0;
   curl_socklen_t errSize = sizeof(err);

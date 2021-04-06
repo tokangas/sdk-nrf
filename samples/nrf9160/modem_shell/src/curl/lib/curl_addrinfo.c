@@ -106,7 +106,7 @@ Curl_freeaddrinfo(struct Curl_addrinfo *cahead)
  * whole library, any such call should be 'routed' through this one.
  */
 
-//FTA_CURL_INTEGRATION_CHANGE
+//MOSH_CURL_INTEGRATION_CHANGE
 #define EAI_MEMORY DNS_EAI_MEMORY
 #define EAI_NODATA DNS_EAI_NODATA
 

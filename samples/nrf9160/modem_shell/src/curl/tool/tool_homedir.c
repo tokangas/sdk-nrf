@@ -85,7 +85,7 @@ char *homedir(const char *fname)
     if(home) {
       char *c = curl_maprintf("%s" DIR_CHAR "%s", home, fname);
       if(c) {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
         int fd = open(c, O_RDONLY);
 #else
         int fd = -1;

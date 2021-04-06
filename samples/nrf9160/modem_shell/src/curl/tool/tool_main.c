@@ -300,7 +300,7 @@ static void restore_terminal(void)
 #ifdef _UNICODE
 int wmain(int argc, wchar_t *argv[])
 #else
-//FTA_CURL_INTEGRATION_CHANGE:
+//MOSH_CURL_INTEGRATION_CHANGE:
 int curl_tool_main(int argc, char *argv[])
 #endif
 {

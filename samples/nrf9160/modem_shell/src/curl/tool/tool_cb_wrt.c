@@ -52,7 +52,7 @@
 bool tool_create_output_file(struct OutStruct *outs,
                              struct OperationConfig *config)
 {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION  
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION  
   struct GlobalConfig *global;
   FILE *file = NULL;
   DEBUGASSERT(outs);
@@ -240,7 +240,7 @@ size_t tool_write_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
   else
 #endif
 
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
     rc = fwrite(buffer, sz, nmemb, outs->stream);
 
   if(bytes == rc)

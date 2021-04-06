@@ -217,7 +217,7 @@ static bool ttyecho(bool enable, int fd)
   return TRUE; /* enabled */
 }
 
-//FTA_CURL_INTEGRATION_CHANGE: should have come from elsewhere?
+//MOSH_CURL_INTEGRATION_CHANGE: should have come from elsewhere?
 #ifndef STDIN_FILENO
 #  define STDIN_FILENO  fileno(stdin)
 #endif
@@ -228,7 +228,7 @@ char *getpass_r(const char *prompt, /* prompt to display */
 {
   ssize_t nread;
   bool disabled;
-#ifdef NOT_IN_FTA_CURL_INTEGRATION  
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION  
   int fd = open("/dev/tty", O_RDONLY);
 #else
 int fd = -1;

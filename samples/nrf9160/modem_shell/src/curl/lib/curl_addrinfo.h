@@ -41,7 +41,7 @@
 #endif
 
 
-//FTA_CURL_INTEGRATION_CHANGE: zephyr is not having this? normally in netdb.h
+//MOSH_CURL_INTEGRATION_CHANGE: zephyr is not having this? normally in netdb.h
  struct hostent {
     char    *h_name;
     char    **h_aliases;

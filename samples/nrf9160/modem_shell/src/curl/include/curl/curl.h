@@ -82,7 +82,7 @@
 #if !defined(CURL_WIN32) && !defined(_WIN32_WCE)
 
 
-#include <sys/select.h> //FTA_CURL_INTEGRATION_CHANGE: added
+#include <sys/select.h> //MOSH_CURL_INTEGRATION_CHANGE: added
 #include <sys/socket.h>
 #endif
 
