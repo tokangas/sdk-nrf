@@ -29,7 +29,7 @@ extern "C" {
  */
 enum sms_type {
 	/** @brief SMS-DELIVER message type. */
-	SMS_TYPE_DELIVER = 0,
+	SMS_TYPE_DELIVER,
 	/** @brief SMS-STATUS-REPORT message type. */
 	SMS_TYPE_STATUS_REPORT
 };
@@ -45,13 +45,13 @@ enum sms_type {
  * @brief SMS time information specified in 3GPP TS 23.040 Section 9.2.3.11.
  */
 struct sms_time {
-	uint8_t year;    /** @brief Year. Last two digits of the year.*/
-	uint8_t month;   /** @brief Month. */
-	uint8_t day;     /** @brief Day. */
-	uint8_t hour;    /** @brief Hour. */
-	uint8_t minute;  /** @brief Minute. */
-	uint8_t second;  /** @brief Second. */
-	int8_t timezone; /** @brief Timezone. */
+	uint8_t year;    /**< @brief Year. Last two digits of the year.*/
+	uint8_t month;   /**< @brief Month. */
+	uint8_t day;     /**< @brief Day. */
+	uint8_t hour;    /**< @brief Hour. */
+	uint8_t minute;  /**< @brief Minute. */
+	uint8_t second;  /**< @brief Second. */
+	int8_t timezone; /**< @brief Timezone. */
 };
 
 /**
