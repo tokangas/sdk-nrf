@@ -282,17 +282,6 @@ error:
 	return err;
 }
 
-/**
- * @brief Send SMS message, which is called SMS-SUBMIT message in SMS protocol.
- * 
- * SMS-SUBMIT message format is specified in 3GPP TS 23.040 chapter 9.2.2.2.
- *
- * @param[in] number Recipient number.
- * @param[in] text Text to be sent.
- * 
- * @retval -EINVAL Invalid parameter.
- * @return Zero on success, otherwise error code.
- */
 int sms_submit_send(char* number, char* text)
 {
 	char at_response_str[SMS_AT_RESPONSE_MAX_LEN];

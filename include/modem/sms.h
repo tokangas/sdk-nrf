@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Nordic Semiconductor ASA
+ * Copyright (c) 2019 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
@@ -36,10 +36,12 @@ enum sms_type {
 
 /** @brief Maximum length of SMS in number of characters. */
 #define SMS_MAX_DATA_LEN_CHARS 160
-/** @brief Maximum length of SMS address, i.e., phone number, in octets. */
-#define SMS_MAX_ADDRESS_LEN_OCTETS 10
-/** @brief Maximum length of SMS address, i.e., phone number, in characters. */
-#define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
+
+/**
+ * @brief Maximum length of SMS address, i.e., phone number, in characters
+ * as specified in 3GPP TS 23.040 Section 9.1.2.3.
+ */
+#define SMS_MAX_ADDRESS_LEN_CHARS 20
 
 /**
  * @brief SMS time information specified in 3GPP TS 23.040 Section 9.2.3.11.
@@ -62,14 +64,7 @@ struct sms_time {
  */
 struct sms_address {
 	/** @brief Address in NUL-terminated string format. */
-	char    address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
-	/**
-	 * @brief Address in semi-octet representation specified in
-	 * 3GPP TS 23.040 Section 9.1.2.3.
-	 * 
-	 * TODO: Just remove this field?
-	 */
-	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
+	char address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	/** @brief Address length in number of characters. */
 	uint8_t length;
 	/** @brief Address type as specified in 3GPP TS 23.040 Section 9.1.2.5. */
@@ -107,8 +102,9 @@ struct sms_udh_app_port {
 };
 
 /**
- * SMS-DELIVER message header.
- * This is for incoming SMS message and more specifically SMS-DELIVER
+ * @brief SMS-DELIVER message header.
+ * 
+ * @details This is for incoming SMS message and more specifically SMS-DELIVER
  * message specified in 3GPP TS 23.040.
  */
 struct sms_deliver_header {
@@ -150,7 +146,7 @@ typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
 /**
  * @brief Register a new listener to SMS library.
  *
- * Also registers to modem's SMS service if it's not already subscribed.
+ * @details Also registers to modem's SMS service if it's not already subscribed.
  *
  * A listener is identified by a unique handle value. This handle should be used
  * to unregister the listener. A listener can be registered multiple times with
@@ -165,14 +161,13 @@ typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
  * @retval -ENOMEM Out of memory.
  * @return Handle identifying the listener,
  *         or a negative value if an error occurred.
- * TODO: List of error codes is not complete.
  */
 int sms_register_listener(sms_callback_t listener, void *context);
 
 /**
  * @brief Unregister a listener.
  *
- * Also unregisters from modem's SMS service if there are
+ * @details Also unregisters from modem's SMS service if there are
  * no listeners registered.
  *
  * @param[in] handle Handle identifying the listener to unregister.
@@ -184,6 +179,9 @@ void sms_unregister_listener(int handle);
  *
  * @param[in] number Recipient number.
  * @param[in] text Text to be sent.
+ *
+ * @retval -EINVAL Invalid parameter.
+ * @return 0 on success, otherwise error code.
  */
 int sms_send(char *number, char *text);
 

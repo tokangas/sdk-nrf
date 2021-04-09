@@ -10,6 +10,17 @@
 /* Forward declaration */
 struct sms_data;
 
+/**
+ * @brief Decode received SMS message, i.e., SMS-DELIVER message as specified
+ * in 3GPP TS 23.040 Section 9.2.2.1.
+ * 
+ * @param[in] pdu SMS-DELIVER PDU.
+ * @param[out] data SMS message decoded into a structure.
+ * 
+ * @retval -EINVAL Invalid parameter.
+ * @retval -ENOMEM No memory to register new observers.
+ * @return Zero on success, otherwise error code.
+ */
 int sms_deliver_pdu_parse(char *pdu, struct sms_data *out);
 
 #endif

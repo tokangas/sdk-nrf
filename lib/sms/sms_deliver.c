@@ -16,8 +16,13 @@
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
+/** @brief Maximum length of SMS address, i.e., phone number, in octets. */
+#define SMS_MAX_ADDRESS_LEN_OCTETS 10
+
+/** @brief Length of TP-Service-Centre-Time-Stamp field. */
 #define SCTS_FIELD_SIZE 7
 
+/** @brief Convenience macro to access parser data. */
 #define DELIVER_DATA(parser_data) ((struct pdu_deliver_data*)parser_data->data)
 
 /**
@@ -31,15 +36,6 @@ struct pdu_deliver_header {
 	uint8_t sri:1;  /** TP-Status-Report-Indication */
 	uint8_t udhi:1; /** TP-User-Data-Header-Indicator */
 	uint8_t rp:1;   /** TP-Reply-Path */
-};
-
-/**
- * @brief Address field in 3GPP TS 23.040 chapter 9.1.2.5.
- */
-struct pdu_oa_field {
-	uint8_t length;   /** Address-Length */
-	uint8_t adr_type; /** Type-of-Address */
-	uint8_t adr[SMS_MAX_ADDRESS_LEN_OCTETS];  /** Address-Value */
 };
 
 /**
@@ -198,6 +194,8 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 {
+	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
+
 	DELIVER_DATA(parser)->field_oa.length = (uint8_t)*buf++;
 	DELIVER_DATA(parser)->field_oa.type = (uint8_t)*buf++;
 
@@ -217,20 +215,18 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 		length++;
 	}
 
-	memcpy(DELIVER_DATA(parser)->field_oa.address,
-	       buf, 
-	       length);
+	memcpy(address, buf, length);
 
 	for (int i = 0; i < length; i++) {
-		DELIVER_DATA(parser)->field_oa.address[i] = 
-			swap_nibbles(DELIVER_DATA(parser)->field_oa.address[i]);
+		address[i] = swap_nibbles(address[i]);
 	}
 
 	convert_number_to_str(
-		DELIVER_DATA(parser)->field_oa.address,
+		address,
 		DELIVER_DATA(parser)->field_oa.length,
 		DELIVER_DATA(parser)->field_oa.address_str);
 
+	/* 2 for length and type fields */
 	return 2 + length;
 }
 
@@ -747,17 +743,6 @@ void *sms_deliver_get_api(void)
 	return (struct parser_api*)&sms_deliver_api;
 }
 
-/** 
- * @brief Decode received SMS message, i.e., SMS-DELIVER message as specified
- * in 3GPP TS 23.040 Section 9.2.2.1.
- * 
- * @param[in] pdu SMS-DELIVER PDU.
- * @param[out] data SMS message decoded into a structure.
- * 
- * @retval -EINVAL Invalid parameter.
- * @retval -ENOMEM No memory to register new observers.
- * @return Zero on success, otherwise error code.
- */
 int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 {
 	struct parser sms_deliver;
