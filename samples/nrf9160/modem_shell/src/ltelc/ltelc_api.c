@@ -617,10 +617,14 @@ clean_exit:
 void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 {
 	pdp_context_info_array_t pdp_context_info_tbl;
+	enum lte_lc_system_mode sys_mode_current;
+	enum lte_lc_system_mode_preference sys_mode_preferred;
+	enum lte_lc_lte_mode currently_active_mode;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE + 1];
 	int ret;
 
-	ltelc_shell_print_current_system_modes(shell);
+	(void)ltelc_shell_get_and_print_current_system_modes(
+		shell, &sys_mode_current, &sys_mode_preferred, &currently_active_mode);
 
 	ret = modem_info_string_get(MODEM_INFO_FW_VERSION, info_str,
 				    sizeof(info_str));

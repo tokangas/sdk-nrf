@@ -350,6 +350,7 @@ int ltelc_func_mode_set(int fun)
 {
 	int return_value = 0;
 	int sysmode;
+	int lte_pref;
 
 	switch (fun) {
 	case LTELC_FUNMODE_PWROFF:
@@ -371,11 +372,17 @@ int ltelc_func_mode_set(int fun)
 		ltelc_default_pdp_context_set();
 		ltelc_default_pdp_context_auth_set();
 
-		/* Set saved system mode (if set) to modem
-		   (ltelc sysmode -mosh command): */
+		/* Set saved system mode (if set) from settings
+		   (by ltelc sysmode -mosh command): */
 		sysmode = ltelc_sett_sysmode_get();
+		lte_pref = ltelc_sett_sysmode_lte_preference_get();
 		if (sysmode != LTE_LC_SYSTEM_MODE_NONE) {
-			(void)lte_lc_system_mode_set(sysmode, LTE_LC_SYSTEM_MODE_PREFER_AUTO);
+			return_value = lte_lc_system_mode_set(sysmode, lte_pref);
+			if (uart_shell != NULL && return_value < 0) {
+				shell_warn(
+					uart_shell, "lte_lc_system_mode_set returned error %d",
+						return_value);
+			}
 		}
 
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
