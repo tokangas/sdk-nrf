@@ -368,54 +368,69 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 		"3: Evaluation failed, only barred cells available",
         "4: Evaluation failed, busy (e.g. GNSS activity)",
 		"5: Evaluation failed, aborted because of higher priority operation",
-		"6: Evaluation failed, unspecified"
+		"6: Evaluation failed, not registered"
+		"7: Evaluation failed, unspecified"
 	};
 	static const char *coneval_rrc_state_strs[] = {
 		"0: RRC connection in idle state during measurements",
 		"1: RRC connection in connected state during measurements"
 	};
-	static const char *coneval_quality_strs[] = {
-		"5: Radio link quality -2",
-		"6: Radio link quality -1",
-		"7: Radio link quality normal",
-		"8: Radio link quality +1",
-		"9: Radio link quality +2"
+	static const char *coneval_energy_est_strs[] = {
+		"5: Energy estimate: -2, excessive energy consumption estimated",
+		"6: Energy estimate: -1, slightly increased",
+		"7: Energy estimate: 0, normal",
+		"8: Energy estimate: +1, slightly reduced",
+		"8: Energy estimate: +2, energy efficient transmission estimated"
+	};
+	static const char *coneval_tau_strs[] = {
+		"0: Evaluated cell is part of TAI list",
+		"1: Evaluated cell is NOT part of TAI list, TAU will be triggered"
+	};
+	static const char *coneval_ce_level_strs[] = {
+		"0: CE level 0, No repetitions or small nbr of repetitions",
+		"1: CE level 1, Medium nbr of repetitions",
+		"2: CE level 1, Large nbr of repetitions",
+		"3: CE level 1, Very large nbr of repetitions"
 	};
 
 	int ret = ltelc_api_coneval_read(&coneval_resp);
 	if (ret) {
-		shell_error(shell, "Cannot evaluate connection parameters, result: \"%s\", ret %d", 
-			((coneval_resp.result <= 6)?coneval_result_strs[coneval_resp.result]:"unknown"), ret);
+		shell_error(shell, "Cannot evaluate connection parameters, result: %s, ret %d", 
+			((coneval_resp.result <= 6) ? coneval_result_strs[coneval_resp.result]:"unknown"), ret);
 		return;
 	}
 	int cell_id = strtol(coneval_resp.cell_id_str, NULL, 16);
 
 	shell_print(shell, "Evaluated connection parameters:");
-	shell_print(shell, "  result:         \"%s\"", 
+	shell_print(shell, "  result:          %s", 
 		((coneval_resp.result <= 6) ? coneval_result_strs[coneval_resp.result] : "unknown"));
-	shell_print(shell, "  rrc_state:      %s", 
+	shell_print(shell, "  rrc_state:       %s", 
 		((coneval_resp.rrc_state == 0 || coneval_resp.rrc_state == 1) ? 
 			coneval_rrc_state_strs[coneval_resp.rrc_state] : "unknown"));
-	shell_print(shell, "  quality:        %s", 
+	shell_print(shell, "  energy estimate: %s", 
 		((coneval_resp.quality >= 5 && coneval_resp.quality <= 9) ? 
-			coneval_quality_strs[coneval_resp.quality - 5] : "unknown"));
-	shell_print(shell, "  rsrp:           %d: %ddBm", 
+			coneval_energy_est_strs[coneval_resp.quality - 5] : "unknown"));
+	shell_print(shell, "  rsrp:            %d: %ddBm", 
 		coneval_resp.rsrp, (coneval_resp.rsrp - MODEM_INFO_RSRP_OFFSET_VAL));
-	shell_print(shell, "  rsrq:           %d", coneval_resp.rsrq);
-	shell_print(shell, "  snr:            %d: %ddB",
+	shell_print(shell, "  rsrq:            %d", coneval_resp.rsrq);
+	shell_print(shell, "  snr:             %d: %ddB",
 		coneval_resp.snr, (coneval_resp.snr - LTELC_API_SNR_OFFSET_VALUE));
 
-	shell_print(shell, "  cell_id:        \"%s\": %d", coneval_resp.cell_id_str, cell_id);
-	shell_print(shell, "  plmn:           \"%s\"", coneval_resp.plmn_str);
-	shell_print(shell, "  phy_cell_id:    %d", coneval_resp.phy_cell_id);
-	shell_print(shell, "  earfcn:         %d", coneval_resp.earfcn);
-	shell_print(shell, "  band:           %d", coneval_resp.band);
-	shell_print(shell, "  tau_triggered:  %d", coneval_resp.tau_triggered);
-	shell_print(shell, "  ce_level:       %d", coneval_resp.ce_level);
-	shell_print(shell, "  tx_power:       %d", coneval_resp.tx_power);
-	shell_print(shell, "  tx_repetitions: %d", coneval_resp.tx_repetitions);
-	shell_print(shell, "  rx_repetitions: %d", coneval_resp.rx_repetitions);
-	shell_print(shell, "  dl_pathloss:    %d", coneval_resp.dl_pathloss);
+	shell_print(shell, "  cell_id:         \"%s\": %d", coneval_resp.cell_id_str, cell_id);
+	shell_print(shell, "  plmn:            \"%s\"", coneval_resp.plmn_str);
+	shell_print(shell, "  phy_cell_id:     %d", coneval_resp.phy_cell_id);
+	shell_print(shell, "  earfcn:          %d", coneval_resp.earfcn);
+	shell_print(shell, "  band:            %d", coneval_resp.band);
+	shell_print(shell, "  tau_triggered:   %s",
+		((coneval_resp.tau_triggered == 0 || coneval_resp.tau_triggered == 1) ? 
+			coneval_tau_strs[coneval_resp.tau_triggered] : "unknown"));
+	shell_print(shell, "  ce_level:        %s",
+		((coneval_resp.ce_level >= 0 && coneval_resp.ce_level <= 3) ? 
+			coneval_ce_level_strs[coneval_resp.ce_level] : "unknown"));
+	shell_print(shell, "  tx_power:        %d", coneval_resp.tx_power);
+	shell_print(shell, "  tx_repetitions:  %d", coneval_resp.tx_repetitions);
+	shell_print(shell, "  rx_repetitions:  %d", coneval_resp.rx_repetitions);
+	shell_print(shell, "  dl_pathloss:     %d", coneval_resp.dl_pathloss);
 }
 /* ****************************************************************************/
 
