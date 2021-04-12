@@ -64,18 +64,17 @@ The following is a sample output:
 
 .. code-block:: console
 
-   *** Booting Zephyr OS build v2.4.99-ncs1-snapshot1-109-g4018ecbe5b43  ***
+   *** Booting Zephyr OS build v2.4.99-ncs1-1818-g54dea0b2b530  ***
+
    SMS sample starting
    SMS sample is ready for receiving messages
-
-   If you want to send an SMS, please find this line from the code.
-   Then, uncomment next line and change your phone number in there.
+   Sending SMS: number=1234567890, text="SMS sample: testing"
+   SMS status report received
 
    SMS received:
-         Time:   21-03-29 11:46:57
+         Time:   21-04-12 15:42:52
          Text:   'Testing'
          Length: 7
-
 
 Dependencies
 ************

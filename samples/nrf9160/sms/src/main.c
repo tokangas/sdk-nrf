@@ -66,6 +66,8 @@ void main(void)
 	 * or if it's left empty, an information text is printed.
 	 */
 	if (strcmp(CONFIG_SMS_SEND_PHONE_NUMBER, "")) {
+		printk("Sending SMS: number=%s, text=\"SMS sample: testing\"\n",
+			CONFIG_SMS_SEND_PHONE_NUMBER);
 		int ret = sms_send(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
 		if (ret) {
 			printk("sms_send returned err: %d\n", ret);

@@ -157,7 +157,8 @@ typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
  *
  * @retval -EINVAL Invalid parameter.
  * @retval -ENOSPC List of observers is full.
- * @retval -EBUSY Indicates that one SMS client has already been registered.
+ * @retval -EBUSY Indicates that one SMS client has already been registered towards the modem
+ *                and SMS subscriber module is not able to do it.
  * @retval -ENOMEM Out of memory.
  * @return Handle identifying the listener,
  *         or a negative value if an error occurred.
@@ -176,6 +177,11 @@ void sms_unregister_listener(int handle);
 
 /**
  * @brief Send SMS message.
+ *
+ * @details Sending is done with GSM 7bit encoding used to encode textual SMS messages.
+ * SMS-SUBMIT message is specified in 3GPP TS 23.040 Section 9.2.2.2 and data encoding
+ * in 3GPP TS 23.038 Section 4 and Section 6.2.
+ * This function doesn't support sending of 8bit binary data messages.
  *
  * @param[in] number Recipient number.
  * @param[in] text Text to be sent.
