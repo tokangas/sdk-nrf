@@ -62,18 +62,18 @@ void main(void)
 
 	printk("SMS sample is ready for receiving messages\n");
 
-	/* SMS sending is commented out here as destination phone number that
-	 * we should use is unknown. User can tweak the code, e.g., to send
-	 * the message to his/her personal phone.
+	/* Sending is done to the phone number specified in the configuration,
+	 * or if it's left empty, an information text is printed.
 	 */
-	printk("\nIf you want to send an SMS, please find this line from the code.\n"
-		"Then, uncomment next line and change your phone number in there.\n");
-	/*
-	int ret = sms_send("000000000000", "SMS sample: testing"); 
-	if (ret) {
-		printk("sms_send returned err: %d\n", ret);
+	if (strcmp(CONFIG_SMS_SEND_PHONE_NUMBER, "")) {
+		int ret = sms_send(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
+		if (ret) {
+			printk("sms_send returned err: %d\n", ret);
+		}
+	} else {
+		printk("\nSMS sending is skipped but receiving will still work.\n"
+			"If you wish to send SMS, please configure CONFIG_SMS_SEND_PHONE_NUMBER\n");
 	}
-	*/
 
 	/* In our application, we should unregister SMS in some conditions with:
 	 *   sms_unregister_listener(handle);
