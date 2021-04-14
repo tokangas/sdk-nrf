@@ -25,7 +25,8 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define AT_CMT_PARAMS_COUNT 4
 /* SMS PDU is a bit below 180 bytes which means 360 two character long
  * hexadecimal numbers. In addition CMT response has alpha and length so
- * reserving safely a bit over maximum. */
+ * reserving safely a bit over maximum.
+ */
 #define AT_CMT_PDU_MAX_LEN 512
 /** @brief PDU index in CMT AT notification. */
 #define AT_CMT_PDU_INDEX 3
@@ -47,7 +48,7 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 /**
  * @brief Parses AT notification and finds PDU buffer.
- * 
+ *
  * @param[in] buf AT notification buffer.
  * @param[out] pdu Output buffer where PDU is copied.
  * @param[in] pdu_len Length of the output buffer.
@@ -61,6 +62,7 @@ static int sms_notif_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 	int at_params_count, int pdu_index, struct at_param_list *temp_resp_list)
 {
 	int err = at_parser_max_params_from_str(buf, NULL, temp_resp_list, at_params_count);
+
 	if (err != 0) {
 		LOG_ERR("Unable to parse AT notification, err=%d", err);
 		return err;

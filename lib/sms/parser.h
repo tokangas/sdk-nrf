@@ -46,10 +46,10 @@ struct parser_api {
 
 /**
  * @brief Set of parser variables needed for parser framework to operate.
- * 
+ *
  * @details Holds state information about the parsing as it proceeds by passing this structure
  * to functions storing relevant information out of the parser buffers.
- * 
+ *
  * Parser contains sub parsers that are available through parser_api and its get_parsers function.
  */
 struct parser {
@@ -137,5 +137,3 @@ int parser_get_payload(struct parser *parser, char *buf, uint8_t buf_size);
 int parser_get_header(struct parser *parser, void *header);
 
 #endif /* _PARSER_H_ */
-
-

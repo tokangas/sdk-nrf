@@ -23,7 +23,7 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 #define SCTS_FIELD_SIZE 7
 
 /** @brief Convenience macro to access parser data. */
-#define DELIVER_DATA(parser_data) ((struct pdu_deliver_data*)parser_data->data)
+#define DELIVER_DATA(parser_data) ((struct pdu_deliver_data *)parser_data->data)
 
 /**
  * @brief First byte of SMS-DELIVER PDU in 3GPP TS 23.040 chapter 9.2.2.1.
@@ -32,7 +32,7 @@ struct pdu_deliver_header {
 	uint8_t mti:2;  /** TP-Message-Type-Indicator */
 	uint8_t mms:1;  /** TP-More-Messages-to-Send */
 	uint8_t lp:1;   /** TP-Loop-Prevention */
-	uint8_t :1;     /** Empty bit */
+	uint8_t:1;      /** Empty bit */
 	uint8_t sri:1;  /** TP-Status-Report-Indication */
 	uint8_t udhi:1; /** TP-User-Data-Header-Indicator */
 	uint8_t rp:1;   /** TP-Reply-Path */
@@ -40,17 +40,19 @@ struct pdu_deliver_header {
 
 /**
  * @brief Data Coding Scheme (DCS) in 3GPP TS 23.038 chapter 4.
- * 
+ *
  * @details This encoding applies if bits 7..6 are 00.
  */
 struct pdu_dcs_field {
 	uint8_t class:2;      /** Message Class */
 	uint8_t alphabet:2;   /** Character set */
 	/** If set to 1, indicates that bits 1 to 0 have a message class
-	 *  meaning. Otherwise bits 1 to 0 are reserved. */
-	uint8_t presence_of_class:1; 
+	 *  meaning. Otherwise bits 1 to 0 are reserved.
+	 */
+	uint8_t presence_of_class:1;
 	/** If set to 0, indicates the text is uncompressed.
-	 *  Otherwise it's compressed. */
+	 *  Otherwise it's compressed.
+	 */
 	uint8_t compressed:1;
 };
 
@@ -80,7 +82,7 @@ static uint8_t swap_nibbles(uint8_t value)
 
 /**
  * @brief Converts an octet having two semi-octets into a decimal.
- * 
+ *
  * @details Semi-octet representation is explained in 3GPP TS 23.040 Section 9.1.2.3.
  * An octet has semi-octets in the following order:
  *   semi-octet-digit2, semi-octet-digit1
@@ -88,9 +90,9 @@ static uint8_t swap_nibbles(uint8_t value)
  *   00010010
  * This function is needed in timestamp (TP SCTS) conversion that is specified
  * in 3GPP TS 23.040 Section 9.2.3.11.
- * 
+ *
  * @param[in] value Octet to be converted.
- * 
+ *
  * @return Decimal value.
  */
 static uint8_t semioctet_to_dec(uint8_t value)
@@ -102,9 +104,9 @@ static uint8_t semioctet_to_dec(uint8_t value)
 
 /**
  * @brief Convert phone number into string format.
- * 
+ *
  * @param[in] number Number in semi-octet representation.
- * @param[in] number_length Number length 
+ * @param[in] number_length Number length.
  * @param[out] str_number Output buffer where number is stored. Size shall be at minimum twice the
  *                        number length rounded up.
  */
@@ -113,6 +115,7 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 	/* Copy and log address string */
 	uint8_t length = number_length / 2;
 	bool fill_bits = false;
+
 	if (number_length % 2 == 1) {
 		/* There is one more number in semi-octet and 4 fill bits*/
 		length++;
@@ -120,9 +123,11 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 	}
 
 	uint8_t hex_str_index = 0;
+
 	for (int i = 0; i < length; i++) {
 		/* Handle most significant 4 bits */
 		uint8_t number_value = (number[i] & 0xF0) >> 4;
+
 		if (number_value >= 10) {
 			LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
 				i, number_value);
@@ -132,6 +137,7 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 		if (i < length - 1 || !fill_bits) {
 			/* Handle least significant 4 bits */
 			uint8_t number_value = number[i] & 0x0F;
+
 			if (number_value >= 10) {
 				LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
 					i, number_value);
@@ -145,15 +151,16 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 
 /**
  * @brief Decode SMS service center number specified in 3GPP TS 24.011 Section 8.2.5.1.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_deliver_smsc(struct parser *parser, uint8_t *buf)
 {
 	uint8_t smsc_size = *buf;
+
 	buf += smsc_size + 1;
 
 	LOG_DBG("SMSC size: %d", smsc_size);
@@ -163,15 +170,15 @@ static int decode_pdu_deliver_smsc(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode first byte of SMS-DELIVER header as specified in 3GPP TS 23.040 Section 9.2.2.1.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 {
-	DELIVER_DATA(parser)->field_header = *((struct pdu_deliver_header*)buf);
+	DELIVER_DATA(parser)->field_header = *((struct pdu_deliver_header *)buf);
 
 	LOG_DBG("SMS header 1st byte: 0x%02X", *buf);
 
@@ -186,10 +193,10 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode TP-Originating-Address as specified in 3GPP TS 23.040 Section 9.2.3.7 and 9.1.2.5.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
@@ -210,6 +217,7 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 	}
 
 	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
+
 	if (DELIVER_DATA(parser)->field_oa.length % 2 == 1) {
 		/* There is an extra number in semi-octet and fill bits*/
 		length++;
@@ -232,10 +240,10 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode TP-Protocol-Identifier as specified in 3GPP TS 23.040 Section 9.2.3.9.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
@@ -249,27 +257,31 @@ static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode TP-Data-Coding-Scheme as specified in 3GPP TS 23.038 Section 4.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 {
 	uint8_t value = *buf;
+
 	if ((value & 0b11000000) == 0) {
 		/* If bits 7..6 of the Coding Group Bits are 00 */
-		DELIVER_DATA(parser)->field_dcs = *((struct pdu_dcs_field*)&value);
+		DELIVER_DATA(parser)->field_dcs = *((struct pdu_dcs_field *)&value);
 
 	} else if (((value & 0b11110000) >> 4) == 0b1111) {
 		/* If bits 7..4 of the Coding Group Bits are 1111,
 		 * only first 3 bits are meaningful and they match to
-		 * the first 3 bits when Coding Group Bits 7..6 are 00 */
+		 * the first 3 bits when Coding Group Bits 7..6 are 00
+		 */
 		uint8_t temp = value & 0b00000111;
-		DELIVER_DATA(parser)->field_dcs = *(struct pdu_dcs_field*)&temp;
+
+		DELIVER_DATA(parser)->field_dcs = *(struct pdu_dcs_field *)&temp;
 		/* Additionally, to convert Coding Group Bits 7..4=1111 to same
-		 * meaning as 7..6=00, message class presence bit should be set. */
+		 * meaning as 7..6=00, message class presence bit should be set.
+		 */
 		DELIVER_DATA(parser)->field_dcs.presence_of_class = 1;
 	}
 
@@ -280,16 +292,16 @@ static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode TP-Service-Centre-Time-Stamp as specified in 3GPP TS 23.040 Section 9.2.3.11.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 {
 	int tmp_tz;
-	
+
 	DELIVER_DATA(parser)->timestamp.year   = semioctet_to_dec(*(buf++));
 	DELIVER_DATA(parser)->timestamp.month  = semioctet_to_dec(*(buf++));
 	DELIVER_DATA(parser)->timestamp.day    = semioctet_to_dec(*(buf++));
@@ -297,9 +309,15 @@ static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 	DELIVER_DATA(parser)->timestamp.minute = semioctet_to_dec(*(buf++));
 	DELIVER_DATA(parser)->timestamp.second = semioctet_to_dec(*(buf++));
 
-	tmp_tz = ((*buf&0xf7) * 15) / 60;
+	/* 3GPP TS 23.040 Section 9.2.3.11:
+	 *  "The Time Zone indicates the difference, expressed in quarters of an hour,
+	 *   between the local time and GMT. In the first of the two semi octets, the first bit
+	 *   (bit 3 of the seventh octet of the TP Service Centre Time Stamp field) represents
+	 *   the algebraic sign of this difference (0: positive, 1: negative)."
+	 */
+	tmp_tz = ((*buf & 0xf7) * 15) / 60;
 
-	if(*buf&0x08) {
+	if (*buf & 0x08) {
 		tmp_tz = -(tmp_tz);
 	}
 
@@ -310,10 +328,10 @@ static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode TP-User-Data-Length as specified in 3GPP TS 23.040 Section 9.2.3.16.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
@@ -327,9 +345,9 @@ static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Check validity of concatenated message information element.
- * 
+ *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.1 and 9.2.3.24.8.
- * 
+ *
  * @param[in,out] parser Parser instance containing the fields to check. If invalid fields are
  *                       detected, all concatenation fields are reset and whole information
  *                       element is ignored.
@@ -367,10 +385,10 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
 /**
  * @brief Decode User Data Header Information Elements as specified
  * in 3GPP TS 23.040 Section 9.2.3.24.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
@@ -386,10 +404,10 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 
 		if (ie_length > DELIVER_DATA(parser)->field_udhl - ofs) {
 			/* 3GPP TS 23.040 Section 9.2.3.24:
-			     If the length of the User Data Header is such that
-			     there are too few or too many octets in the final
-			     Information Element then the whole User Data Header shall be ignored.
-			*/
+			 *  "If the length of the User Data Header is such that there are too few
+			 *   or too many octets in the final Information Element
+			 *   then the whole User Data Header shall be ignored."
+			 */
 			LOG_DBG("User Data Header Information Element too long (%d) for remaining length (%d)",
 				ie_length, DELIVER_DATA(parser)->field_udhl - ofs);
 
@@ -480,10 +498,10 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode User Data Header as specified in 3GPP TS 23.040 Section 9.2.3.24.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
@@ -512,11 +530,10 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 
 	decode_pdu_udh_ie(parser, buf);
 
-	/* Returning zero for GSM 7bit encoding so that the start of the
-	   payload won't move further as SMS 7bit encoding is done for UDH
-	   also to get the fill bits correctly for the actual user data.
-	   For any other encoding, we'll return User Data Header Length.
-	*/
+	/* Returning zero for GSM 7bit encoding so that the start of the payload won't move
+	 * further as SMS 7bit encoding is done for UDH also to get the fill bits correctly
+	 * for the actual user data. For any other encoding, we'll return User Data Header Length.
+	 */
 	if (DELIVER_DATA(parser)->field_dcs.alphabet != 0) {
 		return DELIVER_DATA(parser)->field_udhl;
 	} else {
@@ -526,14 +543,14 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode user data for GSM 7 bit coding scheme.
- * 
+ *
  * @details This will decode the user data based on GSM 7 bit coding scheme and packing
  * specified in 3GPP TS 23.038 Section 6.1.2.1 and 6.2.1.
  * User Data Header is also taken into account as specified in 3GPP TS 23.040 Section 9.2.3.24.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
@@ -543,16 +560,13 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 		return -EMSGSIZE;
 	}
 
-	/* Data length to be used is the minimum from the
-	   remaining bytes in the input buffer and
-	   length indicated by User-Data-Length.
-	   User-Data-Header-Length is taken into account later
-	   because UDH is part of GSM 7bit encoding w.r.t.
-	   fill bits for the actual data. */
-	uint16_t actual_data_length =
-		(parser->buf_size - parser->payload_pos) * 8 / 7;
-	actual_data_length = MIN(actual_data_length,
-				DELIVER_DATA(parser)->field_udl);
+	/* Data length to be used is the minimum from the remaining bytes in the input buffer and
+	 * length indicated by User-Data-Length. User-Data-Header-Length is taken into account
+	 * later because UDH is part of GSM 7bit encoding w.r.t. fill bits for the actual data.
+	 */
+	uint16_t actual_data_length = (parser->buf_size - parser->payload_pos) * 8 / 7;
+
+	actual_data_length = MIN(actual_data_length, DELIVER_DATA(parser)->field_udl);
 
 	/* Convert GSM 7bit data to ASCII characters */
 	uint8_t temp_buf[160];
@@ -560,19 +574,21 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 		buf, temp_buf, actual_data_length, true);
 
 	/* Check whether User Data Header is present.
-	   If yes, we need to skip those septets in the temp_buf, which has
-	   all of the data decoded including User Data Header. This is done
-	   because the actual data/text is aligned into septet (7bit) boundary
-	   after User Data Header. */
+	 * If yes, we need to skip those septets in the temp_buf, which has all of the data
+	 * decoded including User Data Header. This is done because the actual data/text is
+	 * aligned into septet (7bit) boundary after User Data Header.
+	 */
 	uint8_t skip_bits = DELIVER_DATA(parser)->field_udhl * 8;
 	uint8_t skip_septets = skip_bits / 7;
+
 	if (skip_bits % 7 > 0) {
 		skip_septets++;
 	}
 
 	/* Number of characters/bytes in the actual data which excludes
-	   User Data Header but minimum is 0. In some corner cases this would
-	   result in negative value causing crashes. */
+	 * User Data Header but minimum is 0. In some corner cases this would
+	 * result in negative value causing crashes.
+	 */
 	int length_udh_skipped = (length >= skip_septets) ?
 		(int)(length - skip_septets) : 0;
 
@@ -588,23 +604,22 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode user data for 8 bit data coding scheme.
- * 
+ *
  * @details This will essentially just copy the data from the SMS-DELIVER message into the
  * decoded payload as 8bit data means there is really no coding scheme.
  *
  * User Data Header is also taken into account as specified in 3GPP TS 23.040 Section 9.2.3.24.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Number of parsed bytes.
  */
 static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
 {
-	/* Data length to be used is the minimum from the
-	   remaining bytes in the input buffer and
-	   length indicated by User-Data-Length taking into account
-	   User-Data-Header-Length. */
+	/* Data length to be used is the minimum from the remaining bytes in the input buffer and
+	 * length indicated by User-Data-Length taking into account User-Data-Header-Length.
+	 */
 	uint32_t actual_data_length =
 		MIN(parser->buf_size - parser->payload_pos,
 		    DELIVER_DATA(parser)->field_udl - DELIVER_DATA(parser)->field_udhl);
@@ -621,26 +636,24 @@ static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
 
 /**
  * @brief Decode user data for SMS-DELIVER message based on data coding scheme.
- * 
+ *
  * @details User Data Header is also taken into account as specified in
  * 3GPP TS 23.040 Section 9.2.3.24.
- * 
+ *
  * @param[in,out] parser Parser instance.
  * @param[in] buf Buffer containing PDU and pointing to this field.
- * 
+ *
  * @return Non-negative number indicates number of parsed bytes. Negative value is an error code.
  */
 static int decode_pdu_deliver_message(struct parser *parser, uint8_t *buf)
 {
-	switch(DELIVER_DATA(parser)->field_dcs.alphabet) {
-		case 0:
-			return decode_pdu_ud_field_7bit(parser, buf);
-			break;
-		case 1:
-			return decode_pdu_ud_field_8bit(parser, buf);
-			break;
-		default:
-			return -ENOTSUP;
+	switch (DELIVER_DATA(parser)->field_dcs.alphabet) {
+	case 0:
+		return decode_pdu_ud_field_7bit(parser, buf);
+	case 1:
+		return decode_pdu_ud_field_8bit(parser, buf);
+	default:
+		return -ENOTSUP;
 	};
 
 	return 0;
@@ -662,12 +675,12 @@ const static parser_module sms_pdu_deliver_parsers[] = {
 
 /**
  * @brief Return parsers.
- * 
+ *
  * @return Parsers.
  */
-static void *sms_deliver_get_parsers(void) 
+static void *sms_deliver_get_parsers(void)
 {
-	return (parser_module*)sms_pdu_deliver_parsers;
+	return (parser_module *)sms_pdu_deliver_parsers;
 }
 
 /**
@@ -680,7 +693,7 @@ static void *sms_deliver_get_decoder(void)
 
 /**
  * @brief Return number of parsers.
- * 
+ *
  * @return Number of parsers.
  */
 static int sms_deliver_get_parser_count(void)
@@ -691,7 +704,7 @@ static int sms_deliver_get_parser_count(void)
 
 /**
  * @brief Return deliver data structure size to store all the information.
- * 
+ *
  * @return Data structure size.
  */
 static uint32_t sms_deliver_get_data_size(void)
@@ -701,10 +714,10 @@ static uint32_t sms_deliver_get_data_size(void)
 
 /**
  * @brief Get SMS-DELIVER header for given parser.
- * 
+ *
  * @param[in] parser Parser instance.
  * @param[out] header Output structure of type: struct sms_deliver_header*
- * 
+ *
  * @return Zero on success, otherwise error code.
  */
 static int sms_deliver_get_header(struct parser *parser, void *header)
@@ -735,12 +748,12 @@ const static struct parser_api sms_deliver_api = {
 
 /**
  * @brief Return SMS-DELIVER parser API.
- * 
+ *
  * @return SMS-DELIVER API structure of type struct parser_api*.
  */
 void *sms_deliver_get_api(void)
 {
-	return (struct parser_api*)&sms_deliver_api;
+	return (struct parser_api *)&sms_deliver_api;
 }
 
 int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
@@ -752,6 +765,7 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 	__ASSERT(data != NULL, "Parameter 'data' cannot be NULL.");
 
 	struct sms_deliver_header *header = &data->header.deliver;
+
 	__ASSERT(header != NULL, "Parameter 'header' cannot be NULL.");
 	memset(header, 0, sizeof(struct sms_deliver_header));
 

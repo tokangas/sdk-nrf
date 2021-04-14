@@ -58,7 +58,7 @@ struct sms_time {
 
 /**
  * @brief SMS address, i.e., phone number.
- * 
+ *
  * @details This may represent either originating or destination address and is
  * specified in 3GPP TS 23.040 Section 9.1.2.5.
  */
@@ -73,7 +73,7 @@ struct sms_address {
 
 /**
  * @brief SMS concatenated short message information.
- * 
+ *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.1 and 9.2.3.24.8.
  */
 struct sms_udh_concatenated {
@@ -89,7 +89,7 @@ struct sms_udh_concatenated {
 
 /**
  * @brief SMS application port addressing information.
- * 
+ *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.3 and 9.2.3.24.4.
  */
 struct sms_udh_app_port {
@@ -103,7 +103,7 @@ struct sms_udh_app_port {
 
 /**
  * @brief SMS-DELIVER message header.
- * 
+ *
  * @details This is for incoming SMS message and more specifically SMS-DELIVER
  * message specified in 3GPP TS 23.040.
  */
@@ -120,7 +120,7 @@ struct sms_deliver_header {
 
 /**
  * @brief SMS header.
- * 
+ *
  * @details This can easily be extended to support additional message types.
  */
 union sms_header {

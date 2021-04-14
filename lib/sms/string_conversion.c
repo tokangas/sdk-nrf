@@ -17,7 +17,7 @@
 /**
  * @brief Conversion table from ASCII (with ISO-8859-15 extension) to GSM 7 bit
  * Default Alphabet character set (3GPP TS 23.038 chapter 6.2.1).
- * 
+ *
  * @details Table index equals the ASCII character code and the value stored in
  * the index is the corresponding GSM 7 bit character code.
  *
@@ -33,8 +33,8 @@
  *   instead of letters with different accents, if there is no equivalent
  *   character available.
  */
-static const uint8_t ascii_to_7bit_table[256] =
-{
+static const uint8_t ascii_to_7bit_table[256] = {
+
 	/* Standard ASCII, character codes 0-127 */
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,  /* 0-7:   Control characters */
 	0x20, 0x20, 0x0A, 0x20, 0x20, 0x0D, 0x20, 0x20,  /* 8-15:  ...LF,..CR...      */
@@ -61,8 +61,8 @@ static const uint8_t ascii_to_7bit_table[256] =
 	0x78, 0x79, 0x7A, 0xA8, 0xC0, 0xA9, 0xBD, 0x20,  /* 120-127: x y z { | } ~ DEL */
 
 	/* Character codes 128-255 (beyond standard ASCII) have different possible
-	 * interpretations. This table has been done according to ISO-8859-15. */
-
+	 * interpretations. This table has been done according to ISO-8859-15.
+	 */
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,  /* 128-159: Undefined   */
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -91,7 +91,7 @@ static const uint8_t ascii_to_7bit_table[256] =
 /**
  * @brief Conversion table from GSM 7 bit Default Alphabet character set
  * (3GPP TS 23.038 chapter 6.2.1) to ASCII (with ISO-8859-15 extension).
- * 
+ *
  * @details Table index equals the GSM 7 bit character code and the value stored
  * in the index is the corresponding ASCII character code.
  *
@@ -103,8 +103,8 @@ static const uint8_t ascii_to_7bit_table[256] =
  *   character available in the ASCII char set, and for the undefined extension
  *   codes.
  */
-static const uint8_t gsm7bit_to_ascii_table[256] =
-{
+static const uint8_t gsm7bit_to_ascii_table[256] = {
+
 	/* GSM 7 bit Default Alphabet table */
 	0x40, 0xA3, 0x24, 0xA5, 0xE8, 0xE9, 0xF9, 0xEC,  /*  0- 7: @£$...        */
 	0xF2, 0xC7, 0x0A, 0xD8, 0xF8, 0x0D, 0xC5, 0xE5,  /*  8-15: ...LF..CR..Åå */
@@ -132,7 +132,8 @@ static const uint8_t gsm7bit_to_ascii_table[256] =
 
 	/* GSM 7 bit Default Alphabet extension table:
 	 * These codes are used for interpreting extended character codes
-	 * following the "escape" code 0x1B. */
+	 * following the "escape" code 0x1B.
+	 */
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,  /* 128-135/ext 0-7      */
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,  /* 136-143/ext 8-15     */
 
@@ -160,7 +161,7 @@ static const uint8_t gsm7bit_to_ascii_table[256] =
 
 /**
  * @brief Convert ASCII characters into GSM 7 bit Default Alphabet character set.
- * 
+ *
  * @details ascii_to_7bit_table conversion table is used. Optionally perform
  * also packing for the resulting 7 bit string. Note that the 7 bit string may
  * be longer than the original due to possible extension table usage. Each
@@ -240,7 +241,7 @@ uint8_t string_conversion_ascii_to_gsm7bit(
 
 /**
  * @brief Convert GSM 7 bit Default Alphabet characters to ASCII characters.
- * 
+ *
  * @details gsm7bit_to_ascii_table conversion table is used. Perform also unpacking of
  * the 7 bit string before conversion, if caller indicates that the string is packed.
  *

@@ -13,12 +13,13 @@
 static void sms_callback(struct sms_data *const data, void *context)
 {
 	if (data == NULL) {
-		printk("sms_callback with NULL data\n");
+		printk("%s with NULL data\n", __func__);
 	}
 
 	if (data->type == SMS_TYPE_DELIVER) {
 		/* When SMS message is received, print information */
 		struct sms_deliver_header *header = &data->header.deliver;
+
 		printk("\nSMS received:\n");
 		printk("\tTime:   %02d-%02d-%02d %02d:%02d:%02d\n",
 			header->time.year,
@@ -44,7 +45,6 @@ static void sms_callback(struct sms_data *const data, void *context)
 		}
 	} else if (data->type == SMS_TYPE_STATUS_REPORT) {
 		printk("SMS status report received\n");
-		return;
 	} else {
 		printk("SMS protocol message with unknown type received\n");
 	}
@@ -52,9 +52,12 @@ static void sms_callback(struct sms_data *const data, void *context)
 
 void main(void)
 {
+	int handle = 0;
+	int ret = 0;
+
 	printk("\nSMS sample starting\n");
 
-	int handle = sms_register_listener(sms_callback, NULL);
+	handle = sms_register_listener(sms_callback, NULL);
 	if (handle) {
 		printk("sms_register_listener returned err: %d\n", handle);
 		return;
@@ -68,7 +71,7 @@ void main(void)
 	if (strcmp(CONFIG_SMS_SEND_PHONE_NUMBER, "")) {
 		printk("Sending SMS: number=%s, text=\"SMS sample: testing\"\n",
 			CONFIG_SMS_SEND_PHONE_NUMBER);
-		int ret = sms_send(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
+		ret = sms_send(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
 		if (ret) {
 			printk("sms_send returned err: %d\n", ret);
 		}
