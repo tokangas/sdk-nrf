@@ -101,11 +101,34 @@ static void modem_trace_enable(void)
 	NRF_P0_NS->DIR = 0xFFFFFFFF;
 }
 
+static void mosh_print_version_info(void)
+{
+#if defined(APP_VERSION)
+	printk("\nMOSH version:       %s", STRINGIFY(APP_VERSION));
+#else
+	printk("\nMOSH version:       unknown");
+#endif
+
+#if defined(BUILD_ID)
+	printk("\nMOSH build id:      v%s", STRINGIFY(BUILD_ID));
+#else
+	printk("\nMOSH build id:      custom");
+#endif
+
+#if defined(BUILD_VARIANT)
+	printk("\nMOSH build variant: %s\n\n", STRINGIFY(BUILD_VARIANT));
+#else
+	/* TODO: Uncomment next line when build system has changed to set BUILD_VARIANT */
+	/*printk("\nMOSH build variant: dev\n\n");*/
+	printk("\n\n");
+#endif
+}
+
 void main(void)
 {
 	int err;
 
-	printk("\nMoSH build %s\n\n", STRINGIFY(APP_VERSION));
+	mosh_print_version_info();
 
 	modem_trace_enable();
 

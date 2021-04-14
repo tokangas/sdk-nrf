@@ -26,6 +26,18 @@ target_include_directories(app PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/ping
   ${CMAKE_CURRENT_SOURCE_DIR}/utils)
 
+if (DEFINED ENV{BUILD_ID})
+  zephyr_compile_definitions(
+    BUILD_ID=$ENV{BUILD_ID}
+  )
+endif()
+
+if (DEFINED ENV{BUILD_VARIANT})
+  zephyr_compile_definitions(
+    BUILD_VARIANT=$ENV{BUILD_VARIANT}
+  )
+endif()
+
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/at/at_shell.c)
