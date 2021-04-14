@@ -61,6 +61,7 @@ typedef struct {
 	ltelc_shell_common_options common_option;
 	enum lte_lc_system_mode sysmode_option;
 	enum lte_lc_system_mode_preference sysmode_lte_pref_option;
+	enum lte_lc_lte_mode lte_mode;
 } ltelc_shell_cmd_args_t;
 
 /******************************************************************************/
@@ -169,6 +170,8 @@ const char ltelc_edrx_usage_str[] =
 	"Options for 'ltelc edrx' command:\n"
 	"  -e, --enable,     [bool] Enable eDRX\n"
 	"  -d, --disable,    [bool] Disable eDRX\n"
+	"  -m, --ltem,       [bool] Set for LTE-M (LTE Cat-M1) system mode\n"
+	"  -n, --nbiot,      [bool] Set for NB-IoT (LTE Cat-NB1) system mode\n"		
 	"  -x, --edrx_value, [str]  Sets custom eDRX value to be requested when enabling eDRX with -e option.\n"
 	"  -w, --ptw,        [str]  Sets custom Paging Time Window value to be requested when enabling eDRX -e option.\n"
 	"\n";
@@ -295,7 +298,7 @@ static void ltelc_shell_cmd_defaults_set(ltelc_shell_cmd_args_t *ltelc_cmd_args)
 	ltelc_cmd_args->funmode_option = LTELC_FUNMODE_NONE;
 	ltelc_cmd_args->sysmode_option = LTE_LC_SYSTEM_MODE_NONE;
 	ltelc_cmd_args->sysmode_lte_pref_option = LTE_LC_SYSTEM_MODE_PREFER_AUTO;
-
+	ltelc_cmd_args->lte_mode = LTE_LC_LTE_MODE_NONE;
 }
 
 /******************************************************************************/
@@ -613,9 +616,11 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		/* Modem system modes: */
 		case 'm':
 			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_LTEM;
+			ltelc_cmd_args.lte_mode = LTE_LC_LTE_MODE_LTEM;
 			break;
 		case 'n':
 			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_NBIOT;
+			ltelc_cmd_args.lte_mode = LTE_LC_LTE_MODE_NBIOT;
 			break;
 		case 'g':
 			ltelc_cmd_args.sysmode_option = LTE_LC_SYSTEM_MODE_GPS;
@@ -939,10 +944,18 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_CMD_EDRX:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
 				char *value = NULL; /* Set with the defaults if not given */
+
+ 				if (ltelc_cmd_args.lte_mode == LTE_LC_LTE_MODE_NONE) {
+					shell_error(
+						shell, "LTE mode is mandatory to be given. See usage:");
+					goto show_usage;
+				 }
+
 				if (edrx_value_set) {
 					value = edrx_value_str;
 				}
-				ret = lte_lc_edrx_param_set(value);
+
+				ret = lte_lc_edrx_param_set(ltelc_cmd_args.lte_mode, value);
 				if (ret < 0) {
 					shell_error(shell, "Cannot set eDRX value %s, error: %d", ((value == NULL)? "NULL" : value), ret);
 					return -EINVAL;
@@ -951,7 +964,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				if (edrx_ptw_set) {
 					value = edrx_ptw_bit_str;
 				}
-				ret = lte_lc_ptw_set(value);
+
+				ret = lte_lc_ptw_set(ltelc_cmd_args.lte_mode, value);
 				if (ret < 0) {
 					shell_error(shell, "Cannot set PTW value %s, error: %d", ((value == NULL)? "NULL" : value), ret);
 					return -EINVAL;
