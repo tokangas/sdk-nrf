@@ -341,8 +341,11 @@ nRF Desktop
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0
 
 DESK-978: Directed advertising issues with SoftDevice Link Layer
-  Directed advertising (:option:`CONFIG_DESKTOP_BLE_DIRECT_ADV`) should not be used by the :ref:`nrf_desktop` application when the :ref:`nrfxlib:softdevice_controller` is in use, because that leads to reconnection problems.
+  Directed advertising (``CONFIG_DESKTOP_BLE_DIRECT_ADV``) should not be used by the :ref:`nrf_desktop` application when the :ref:`nrfxlib:softdevice_controller` is in use, because that leads to reconnection problems.
   For more detailed information, see the ``Known issues and limitations`` section of the SoftDevice Controller's :ref:`nrfxlib:softdevice_controller_changelog`.
+
+.. note::
+   The Kconfig option name changed from ``CONFIG_DESKTOP_BLE_DIRECT_ADV`` to :option:`CONFIG_CAF_BLE_ADV_DIRECT_ADV` beginning with the nRF Connect SDK v1.5.99.
 
   **Workaround:** Directed advertising is disabled by default for nRF Desktop.
 
@@ -359,6 +362,19 @@ Subsystems
 
 Bluetooth LE
 ============
+
+.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0
+
+DRGN-15435: GATT notifications and Writes Without Response might be sent out of order
+  GATT notifications and Writes Without Response might be sent out of order when not using a complete callback.
+
+  **Workaround:** Always set a callback for notifications and Writes Without Response.
+
+.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
+
+DRGN-15448: Incomplete bond overwrite during pairing procedure when peer is not using the IRK stored in the bond
+  When pairing with a peer that has deleted its bond information and is using a new IRK to establish the connection, the existing bond is not overwritten during the pairing procedure.
+  This can lead to MIC errors during reconnection if the old LTK is used instead.
 
 .. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
 
@@ -828,6 +844,17 @@ KRKNWK-8133: CSMA-CA issues
 
 SoftDevice Controller
 =====================
+
+.. rst-class:: v1-5-0
+
+DRGN-15465: Corrupted advertising data when :option:`CONFIG_BT_EXT_ADV` is set
+  Setting scan response data for a legacy advertiser on a build with extended advertising support corrupts parts of the advertising data.
+  When using ``BT_LE_ADV_OPT_USE_NAME`` (which is the default configuration in most samples), the device name is put in the scan response.
+  This corrupts the advertising data.
+
+  **Workaround:** Do not set scan response data.
+  That implies not using the ``BT_LE_ADV_OPT_USE_NAME`` option, or the :c:macro:`BT_LE_ADV_CONN_NAME` macro when initializing Bluetooth.
+  Instead, use :c:macro:`BT_LE_ADV_CONN`, and if necessary set the device name in the advertising data manually.
 
 .. rst-class:: v1-5-0
 

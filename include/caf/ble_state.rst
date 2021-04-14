@@ -15,8 +15,10 @@ When enabled for an application, the |ble_state| is responsible for the followin
 * Propagating information about the connection state and parameters with :ref:`event_manager` events
 
 The |ble_state| does not handle Bluetooth advertising or scanning.
-If you want to use these functionalities to connect over Bluetooth LE, use Zephyr's Bluetooth API directly.
-See :ref:`zephyr:bluetooth_api` for more detailed information about Zephyr's Bluetooth API.
+If you want to use these functionalities to connect over Bluetooth LE, use :ref:`CAF's Bluetooth LE advertising module <caf_ble_adv>` or Zephyr's :ref:`Bluetooth API <zephyr:bluetooth_api>` directly.
+
+.. note::
+   CAF assumes that Bluetooth Peripheral device supports only one simultaneous connection and can have up to one bond per Bluetooth local identity.
 
 Configuration
 *************
@@ -49,6 +51,11 @@ Connection state change
 The module propagates information about the connection state changes using :c:struct:`ble_peer_event`.
 In this event, :c:member:`ble_peer_event.id` is a pointer to the connection object and :c:member:`ble_peer_event.state` is the connection state.
 
+.. figure:: /images/caf_ble_state_transitions.svg
+   :alt: Bluetooth connection state handling in CAF
+
+   Bluetooth connection state handling in CAF
+
 The connection state can be set to one of the following values:
 
 * :c:enum:`PEER_STATE_CONNECTED` - Bluetooth stack successfully connected to the remote peer.
@@ -57,7 +64,7 @@ The connection state can be set to one of the following values:
 * :c:enum:`PEER_STATE_DISCONNECTED` - Bluetooth stack disconnected from the remote peer.
 
 Other application modules can call :c:func:`bt_conn_disconnect` to disconnect the remote peer.
-The application module can submit an :c:struct:`ble_peer_event` with :c:member:`ble_peer_event.state` set to :c:enum:`PEER_STATE_DISCONNECTING` to let other application modules prepare for the disconnection.
+The application module can submit a :c:struct:`ble_peer_event` with :c:member:`ble_peer_event.state` set to :c:enum:`PEER_STATE_DISCONNECTING` to let other application modules prepare for the disconnection.
 
 On Bluetooth Peripheral, the |ble_state| requires the connection security level 2.
 If the connection security level 2 is not established, the Peripheral disconnects.

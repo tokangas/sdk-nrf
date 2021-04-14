@@ -39,7 +39,7 @@ manifest:
   defaults:
     remote: ncs
 
-  group-filter: [-homekit]
+  group-filter: [-homekit, -nrf-802154]
 
   # "projects" is a list of git repositories which make up the NCS
   # source code.
@@ -52,7 +52,7 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
       repo-path: sdk-zephyr
-      revision: 54dea0b2b5309098c388a836fe9b152318592495
+      revision: ca2b2af6b699bdb3834bbbe90d8b15bae3d2ff39
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
@@ -99,7 +99,7 @@ manifest:
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: c229bd9a0decb897c35f7b34c4ea1960fc8d52d6
+      revision: fb936182435a1ae90fafbb8840e70a45d6f99a4e
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tfm
@@ -111,7 +111,7 @@ manifest:
     - name: connectedhomeip
       repo-path: sdk-connectedhomeip
       path: modules/lib/connectedhomeip
-      revision: v1.5.0
+      revision: a008cba6c6671f0db8858c3c51cc619a43ddecdc
       submodules:
         - name: nlio
           path: third_party/nlio/repo
@@ -119,6 +119,12 @@ manifest:
           path: third_party/nlassert/repo
         - name: pigweed
           path: third_party/pigweed/repo
+    - name: nrf-802154
+      repo-path: sdk-nrf-802154
+      path: nrf-802154
+      revision: b8ad3b317626d1500f281276de40f9c6870fd5a4
+      groups:
+      - nrf-802154
     # Other third-party repositories.
     - name: cmock
       path: test/cmock

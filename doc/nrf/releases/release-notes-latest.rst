@@ -72,7 +72,8 @@ nRF9160
 
     * Fixed TCP/UDP port range issue (0~65535).
     * Added AT#XSLEEP=2 to power off UART interface.
-    * Added data mode to FTP service.
+    * Added support for the ``verbose``, ``uput``, ``mput`` commands and data mode to the FTP service.
+    * Added URC (unsolicited response code) to the FOTA service.
     * Enabled all SLM services by default.
     * Updated the HTTP client service code to handle chunked HTTP responses.
 
@@ -125,6 +126,18 @@ The current |NCS| release is based on Zephyr v2.5.99.
 The following list summarizes the most important changes inherited from upstream Zephyr:
 
 * No changes yet
+
+Project CHIP
+============
+
+The Project CHIP fork in |NCS| (``sdk-connectedhomeip``) contains all commits from the upstream Project CHIP repository up to and including ``1a94b9e720``.
+
+The following list summarizes the most important changes inherited from the upstream Project CHIP:
+
+* Added:
+
+  * Completed the persistent storage feature, which allows Project CHIP devices to successfully communicate with each other even after reboot.
+  * Added support for OpenThread's Service Registration Protocol (SRP) to enable the discovery of Project CHIP nodes using the DNS-SD protocol.
 
 Documentation
 =============
