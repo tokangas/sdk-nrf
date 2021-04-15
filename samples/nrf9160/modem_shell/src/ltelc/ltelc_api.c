@@ -368,7 +368,7 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 		"3: Evaluation failed, only barred cells available",
         "4: Evaluation failed, busy (e.g. GNSS activity)",
 		"5: Evaluation failed, aborted because of higher priority operation",
-		"6: Evaluation failed, not registered"
+		"6: Evaluation failed, not registered",
 		"7: Evaluation failed, unspecified"
 	};
 	static const char *coneval_rrc_state_strs[] = {
