@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Nordic Semiconductor ASA
+ * Copyright (c) 2019 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
@@ -64,7 +64,7 @@ static struct sms_subscriber subscribers[CONFIG_SMS_SUBSCRIBERS_MAX_CNT];
 
 /**
  * @brief Acknowledge SMS messages towards network.
- * 
+ *
  * @param[in] work Unused k_work instance required for k_work_submit signature.
  */
 static void sms_ack(struct k_work *work)
@@ -78,7 +78,7 @@ static void sms_ack(struct k_work *work)
 
 /**
  * @brief Callback handler for AT notification library callback.
- * 
+ *
  * @param[in] context Callback context info that is not used.
  * @param[in] at_notif AT notification string.
  */
@@ -93,6 +93,7 @@ void sms_at_handler(void *context, const char *at_notif)
 	/* Parse AT command and SMS PDU */
 	struct sms_data sms_data_info = {0};
 	int err = sms_at_parse(at_notif, &sms_data_info, &resp_list);
+
 	if (err) {
 		return;
 	}
@@ -189,9 +190,10 @@ static int sms_init(void)
  *
  * @return Number of registered subscribers to this module.
  */
-static int sms_subscriber_count()
+static int sms_subscriber_count(void)
 {
 	int count = 0;
+
 	for (size_t i = 0; i < ARRAY_SIZE(subscribers); i++) {
 		if (subscribers[i].ctx != NULL ||
 		    subscribers[i].listener != NULL) {
@@ -209,6 +211,7 @@ int sms_register_listener(sms_callback_t listener, void *context)
 
 	if (!sms_client_registered) {
 		int err = sms_init();
+
 		if (err != 0) {
 			return err;
 		}
@@ -230,15 +233,16 @@ int sms_register_listener(sms_callback_t listener, void *context)
 
 /**
  * @brief Uninitialize the SMS subscriber module.
- * 
+ *
  * @details Doesn't do anything if there are still subscribers that haven't unregistered.
  */
-static void sms_uninit()
+static void sms_uninit(void)
 {
 	char resp[SMS_AT_RESPONSE_MAX_LEN];
 
 	/* Don't do anything if there are subscribers */
 	int count = sms_subscriber_count();
+
 	if (count > 0) {
 		LOG_DBG("Unregistering skipped as there are %d subscriber(s)",
 			count);
@@ -285,7 +289,7 @@ void sms_unregister_listener(int handle)
 	sms_uninit();
 }
 
-int sms_send(char* number, char* text)
+int sms_send(char *number, char *text)
 {
 	return sms_submit_send(number, text);
 }

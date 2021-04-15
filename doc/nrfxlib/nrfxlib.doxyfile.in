@@ -808,7 +808,7 @@ EXCLUDE_PATTERNS       = */zboss/* \
                          */nrf_cc312_platform/* \
                          */nrf_cc312_mbedcrypto/* \
                          */nrf_cc310_mbedcrypto/include/mbedtls_extra/* \
-                         */nrf_802154_sl/* \
+                         */nrf_802154/* \
                          */nrf_cc310_mbedcrypto/include/nrf-config-cc310.h
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -1962,7 +1962,7 @@ PREDEFINED             = "MBEDTLS_CONFIG_FILE=\"@NRFXLIB_BINARY_DIR@/mbedtls_dox
                          "CONFIG_UART_INTERRUPT_DRIVEN=y" \
                          "CONFIG_UART_DRV_CMD=y" \
                          "CONFIG_SYS_POWER_MANAGEMENT=y" \
-                         "CONFIG_DEVICE_POWER_MANAGEMENT=y" \
+                         "CONFIG_PM_DEVICE=y" \
                          "CONFIG_BT_SMP=y" \
                          "CONFIG_USERSPACE=y" \
                          "CONFIG_BT_BREDR=y" \

@@ -51,14 +51,14 @@ After programming the application and all prerequisites to your board, test the 
 
 	SPM: prepare to jump to Non-Secure image.
 
-	uart-fta:~$ *** Booting Zephyr OS build v2.3.0 ***
+	uart-mosh:~$ *** Booting Zephyr OS build v2.3.0 ***
 
 	The MoSH sample started
 
 	LTE cell changed: Cell ID: 1480706, Tracking area: 2002
 	Network registration status: searching
 	Network registration status: Connected - roaming
-	uart-fta:~$
+	uart-mosh:~$
 
 #. Type any of the commands listed in the Features section to the terminal. Typing just the command will show the usage, e.g. 'sock'.
 

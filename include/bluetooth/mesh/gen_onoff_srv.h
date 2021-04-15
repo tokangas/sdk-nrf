@@ -99,6 +99,8 @@ struct bt_mesh_onoff_srv {
 		BT_MESH_ONOFF_OP_STATUS, BT_MESH_ONOFF_MSG_MAXLEN_STATUS)];
 	/* Scene entry */
 	struct bt_mesh_scene_entry scene;
+	/** Internal flag state. */
+	atomic_t flags;
 };
 
 /** @brief Publish the Generic OnOff Server model status.
@@ -119,9 +121,9 @@ struct bt_mesh_onoff_srv {
  * not configured.
  * @retval -EAGAIN The device has not been provisioned.
  */
-int32_t bt_mesh_onoff_srv_pub(struct bt_mesh_onoff_srv *srv,
-			    struct bt_mesh_msg_ctx *ctx,
-			    const struct bt_mesh_onoff_status *status);
+int bt_mesh_onoff_srv_pub(struct bt_mesh_onoff_srv *srv,
+			  struct bt_mesh_msg_ctx *ctx,
+			  const struct bt_mesh_onoff_status *status);
 
 /** @cond INTERNAL_HIDDEN */
 extern const struct bt_mesh_model_op _bt_mesh_onoff_srv_op[];

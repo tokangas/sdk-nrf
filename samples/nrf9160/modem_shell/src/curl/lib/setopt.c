@@ -1789,7 +1789,7 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
     result = Curl_setstropt(&data->set.str[STRING_DEVICE],
                             va_arg(param, char *));
     break;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   case CURLOPT_INTERFACE_CID:
     result = Curl_setstropt(&data->set.str[STRING_DEVICE_CID],
                             va_arg(param, char *));
@@ -2102,7 +2102,7 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
      * Cap it to sensible.
      */
     arg = va_arg(param, long);
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
     if(arg > UPLOADBUFFER_MAX) {
       arg = UPLOADBUFFER_MAX;
       printf("CURLOPT_UPLOAD_BUFFERSIZE: maximum upload_buffer_size %d set\n", arg);

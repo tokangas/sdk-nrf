@@ -45,8 +45,8 @@
 #include "memdebug.h" /* keep this as LAST include */
 
 
-//FTA_CURL_INTEGRATION_CHANGE:
-#include "utils/fta_time_utils.h"
+//MOSH_CURL_INTEGRATION_CHANGE:
+#include "utils/time_utils.h"
 
 #ifdef MSDOS
 #  define USE_WATT32
@@ -113,7 +113,7 @@ static const struct LongShort aliases[]= {
   {"*q", "ftp-create-dirs",          ARG_BOOL},
   {"*r", "create-dirs",              ARG_BOOL},
   {"*s", "max-redirs",               ARG_STRING},
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   {"*S", "upload-buff-size",         ARG_STRING},
   {"*T", "curr-mdm-traces",          ARG_BOOL},    
 #endif
@@ -121,7 +121,7 @@ static const struct LongShort aliases[]= {
   {"*u", "crlf",                     ARG_BOOL},
   {"*v", "stderr",                   ARG_FILENAME},
   {"*w", "interface",                ARG_STRING},
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   {"*W", "cid",                      ARG_STRING},
 #endif
   {"*x", "krb",                      ARG_STRING},
@@ -793,7 +793,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         if(config->maxredirs < -1)
           return PARAM_BAD_NUMERIC;
         break;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
       case 'S': /* --upload-buff-size */
         err = str2num(&config->upload_buffsize, nextarg);
         if(err)
@@ -821,7 +821,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         break;
 
       case 'v': /* --stderr */
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
         if(strcmp(nextarg, "-")) {
           FILE *newfile = fopen(nextarg, FOPEN_WRITETEXT);
           if(!newfile)
@@ -841,7 +841,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         /* interface */
         GetStr(&config->iface, nextarg);
         break;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
       case 'W': /* --cid */
         /* PDN CID */
         GetStr(&config->cid, nextarg);
@@ -1396,7 +1396,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             set_binmode(stdin);
           }
           else {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION            
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION            
             file = fopen(p, "rb");
 #else
             file = NULL;
@@ -1466,7 +1466,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             set_binmode(stdin);
         }
         else {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION          
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION          
           file = fopen(nextarg, "rb");
 #else
           file = NULL;
@@ -1498,10 +1498,10 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             return PARAM_NO_MEM;
         }
       }
-      /* FTA_CURL_INTEGRATION_CHANGE: FTA specific hook for workarounding the lack of file support for HTTP POST: */
+      /* MOSH_CURL_INTEGRATION_CHANGE: MOSH specific hook for workarounding the lack of file support for HTTP POST: */
       else if('#' == *nextarg && !raw_mode) {
         size_t len = 0;
-        /* FTA specific: 
+        /* MOSH specific: 
          * the data begins with a '#' letter, it means that a count of to be generated chars follows */
         nextarg++; /* pass the # */
         len = atoi(nextarg);
@@ -1519,7 +1519,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
             return PARAM_NO_MEM;
           size = 0;
         }
-      } /* FTA_CURL_INTEGRATION_CHANGE: end */
+      } /* MOSH_CURL_INTEGRATION_CHANGE: end */
       else {
         GetStr(&postdata, nextarg);
         if(postdata)
@@ -1856,7 +1856,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         char *string;
         size_t len;
         bool use_stdin = !strcmp(&nextarg[1], "-");
-#ifdef NOT_IN_FTA_CURL_INTEGRATION        
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION        
         FILE *file = use_stdin?stdin:fopen(&nextarg[1], FOPEN_READTEXT);
 #else
         FILE *file = use_stdin?stdin:NULL;
@@ -1955,7 +1955,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
 #ifdef USE_MANUAL
         return PARAM_MANUAL_REQUESTED;
 #else
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
         warnf(global,
               "built-in manual was disabled at build-time!\n");
         return PARAM_OPTION_UNKNOWN;
@@ -2225,7 +2225,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         }
         else {
           fname = nextarg;
-#ifdef NOT_IN_FTA_CURL_INTEGRATION          
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION          
           file = fopen(nextarg, FOPEN_READTEXT);
 #else
           file = NULL;
@@ -2313,7 +2313,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         nextarg++;
         break;
       }
-      now = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: time() not supported
+      now = time_utils_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: time() not supported
       config->condtime = (curl_off_t)curl_getdate(nextarg, &now);
       if(-1 == config->condtime) {
         /* now let's see if it is a file name to get the time from instead! */

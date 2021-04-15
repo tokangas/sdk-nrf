@@ -33,7 +33,7 @@ Syntax
 
 * The ``<host>`` parameter is a string.
   It represents the HTTP server hostname.
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It represents the HTTP server port.
 * The ``<sec_tag>`` parameter is an integer.
   It indicates to the modem the credential of the security tag used for establishing a secure connection.
@@ -128,9 +128,10 @@ Syntax
   Each header field should end with ``<CR><LF>``.
 * The ``<payload_length>`` is an integer.
   It represents the length of the payload.
-  If ``payload_length`` is greater than ``0``, the SLM will enter the pass-through mode and expect the upcoming UART input data as payload.
+  If ``payload_length`` is greater than ``0``, the SLM will enter data mode and expect the upcoming UART input data as payload.
   The SLM will then send the payload to the HTTP server until the ``payload_length`` bytes are sent.
-  To abort sending the payload, use ``AT#XHTTPCCON=0`` to disconnect from the server.
+  To abort sending the payload, terminate data mode by sending the terminator string defined in :option:`CONFIG_SLM_DATAMODE_TERMINATOR`.
+  The default pattern string is "+++". Keep in mind that UART silence as configured in :option:`CONFIG_SLM_DATAMODE_SILENCE` is required before and after the pattern string.
 
 Response syntax
 ~~~~~~~~~~~~~~~
@@ -153,17 +154,28 @@ The following example sends a GET request to retrieve data from the server witho
 ::
 
    AT#XHTTPCREQ="GET","/get?foo1=bar1&foo2=bar2",""
+
    OK
+
+
    #XHTTPCREQ: 0
-   #XHTTPCRSP: 576,0
+
+   #XHTTPCRSP:341,0
    HTTP/1.1 200 OK
-   Date: Wed, 09 Sep 2020 08:08:45 GMT
+   Date: Thu, 11 Mar 2021 04:36:19 GMT
    Content-Type: application/json; charset=utf-8
    Content-Length: 244
    Connection: keep-alive
-   ETag: W/"f4-8qqGYUH6MF4k5ssZjXy/pQ2Wv2M"
+   ETag: W/"f4-ZKlqfH53aEj3f4zb0kDtYvHD+XU"
    Vary: Accept-Encoding
-   set-cookie: sails.sid=s%3Awm7Yy6ZHF1L9bhf5GQFyOfskldPnP1AU.3tM0APxqLZLEaHtZMlUi9OJH8AR7OI%2F9qNV8h1NQOj8; Path=/; HttpOnly
+   set-cookie: sails.sid=s%3AHGcBwpqlDDUZhU16VzuQkfTMhWhA4W1T.%2Bgm1%2BezKGo2JnWxaB5yYDo%2FNh0NbnJzJjEnkMcrfdEI; Path=/; HttpOnly
+
+
+   #XHTTPCRSP:243,0
+   {"args":{"foo1":"bar1","foo2":"bar2"},"headers":{"x-forwarded-proto":"http","x-forwarded-port":"80","host":"postman-echo.com","x-amzn-trace-id":"Root=1-60499e43-67a96f1e18fec45b1db78c25"},"url":"http://postman-echo.com/get?foo1=bar1&foo2=bar2"
+   #XHTTPCRSP:1,0
+   }
+   #XHTTPCRSP:0,1
 
 Read command
 ------------
@@ -196,36 +208,53 @@ Syntax
   It represents the length of a partially received HTTP response.
 * The ``<state>`` value can assume one of the following values:
 
-  * ``0`` - The entire HTTP response has been received.
-  * ``1`` - There is more HTTP response data to come.
+  * ``0`` - There is more HTTP response data to come.
+  * ``1`` - The entire HTTP response has been received.
 
 * The ``<response>`` is the raw data of the HTTP response, including headers and body.
 
 Example
 ~~~~~~~
 
-The following example sends a POST request to send data to the server with an optional header.
+The following example sends a PUT request to send data in JSON format to the server, with an optional header.
 
 ::
 
-   AT#XHTTPCREQ="POST","/post","User-Agent: SLM/1.2.0
-   Accept: */*
-   Content-Type: application/x-www-form-urlencoded
-   Content-Length: 20
-   ",20
+   AT#XHTTPCCON=1,"example.com",80
+   #XHTTPCCON: 1
+
    OK
+   AT#XHTTPCREQ="PUT","/iot/v1/device/12345678901","User-Agent: curl/7.58.0
+   accept: */*
+   CK: DEADBEEFDEADBEEFDE
+   Content-Type: application/json
+   Content-Length: 224
+   ",224
+   OK
+
    #XHTTPCREQ: 1
-   12345678901234567890
+   {"id":"123456789","name":"iamchanged","desc":"My Hygrometer","type":"general","uri":"http://a.b.c.d/hygrometer","lat":24.95,"lon":121.16,"attributes":[{"key":"label","value":"thermometer"},{"key":"region","value":"Taiwan"}]}
    OK
+
    #XHTTPCREQ: 0
-   #XHTTPCRSP: 576,1
-   HTTP/1.1 200 OK
-   Date: Wed, 09 Sep 2020 08:21:03 GMT
-   Content-Type: application/json; charset=utf-8
-   Content-Length: 405
+   #XHTTPCRSP:408,0
+   HTTP/1.1 200
+   Server: nginx/1.17.3
+   Date: Wed, 17 Mar 2021 08:43:56 GMT
+   Content-Type: application/json;charset=UTF-8
+   Transfer-Encoding: chunked
    Connection: keep-alive
-   ETag: W/"195-JTHehAiV7LQRCKihfzcZBX1rgGM"
-   Vary: Accept-Encoding
-   set-cookie: sails.sid=s%3AtApCs6p2Ja2on5dYO8QvhQSEEfnvkjOX.31HKOpZcip6MzzUoqPw2WZib0rPpimc5y10Mjczukoc; Path=/; HttpOnly
-   {"args":{},"data":"","files":{},"form":{"12345678901234567890":""},"headers":{"x-forwarded-proto":"https","x-forwarded-port":"443","host":"postman-echo.com","x-amzn-trace-id":"Root=1-5f589067-d61d0850c65f3568f9c9e050","content-length":"20",#XHTTPCRSP:165,0
-   "user-agent":"SLM/1.2.0","accept":"*/*","content-type":"application/x-www-form-urlencoded"},"json":{"12345678901234567890":""},"url":"https://postman-echo.com/post"}
+   X-Application-Context: iotapi:pob:80
+   Vary: Origin
+   X-Content-Type-Options: nosniff
+   X-XSS-Protection: 1; mode=block
+   Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+   Pragma: no-cache
+   Expires: 0
+   X-Frame-Options: DENY
+
+
+   #XHTTPCRSP:22,0
+   {"id":"12345678901"}
+
+   #XHTTPCRSP:0,1

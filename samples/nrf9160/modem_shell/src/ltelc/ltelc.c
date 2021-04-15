@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <stdio.h>
@@ -24,10 +24,11 @@
 #include <nrf_socket.h>
 
 #include "ltelc_settings.h"
+#include "ltelc_shell.h"
 #include "ltelc_api.h"
 #include "ltelc.h"
 
-#if defined (CONFIG_FTA_SMS)
+#if defined (CONFIG_MOSH_SMS)
 #include "sms.h"
 #endif
 
@@ -82,14 +83,14 @@ static void ltelc_rsrp_signal_handler(char rsrp_value)
 
 //**************************************************************************
 
-#define FTA_RSRP_UPDATE_INTERVAL_IN_SECS 5
+#define MOSH_RSRP_UPDATE_INTERVAL_IN_SECS 5
 static void ltelc_rsrp_signal_update(struct k_work *work)
 {
 	static uint32_t timestamp_prev = 0;
 
 	if ((timestamp_prev != 0) &&
 	    (k_uptime_get_32() - timestamp_prev <
-	     FTA_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
+	     MOSH_RSRP_UPDATE_INTERVAL_IN_SECS * MSEC_PER_SEC)) {
 		return;
 	}
 
@@ -124,7 +125,20 @@ void ltelc_init(void)
 
 void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 {
+	char snum[64];
+
 	switch (evt->type) {
+	case LTE_LC_EVT_LTE_MODE_UPDATE:
+		/** The currently active LTE mode is updated. If a system mode that
+		 *  enables both LTE-M and NB-IoT is configured, the modem may change
+		 *  the currently active LTE mode based on the system mode preference
+		 *  and network availability. This event will then indicate which
+		 *  LTE mode is currently used by the modem.
+		 */
+		shell_print(uart_shell, "Currently active system mode: %s", 
+			ltelc_shell_sysmode_currently_active_to_string(
+				evt->lte_mode, snum));
+		break;	
 	case LTE_LC_EVT_NW_REG_STATUS:
 		switch (evt->nw_reg_status) {
 		case LTE_LC_NW_REG_NOT_REGISTERED:
@@ -336,10 +350,11 @@ int ltelc_func_mode_set(int fun)
 {
 	int return_value = 0;
 	int sysmode;
+	int lte_pref;
 
 	switch (fun) {
 	case LTELC_FUNMODE_PWROFF:
-#if defined (CONFIG_FTA_SMS)	
+#if defined (CONFIG_MOSH_SMS)	
 		sms_unregister();
 #endif
 		return_value = lte_lc_power_off();
@@ -357,11 +372,17 @@ int ltelc_func_mode_set(int fun)
 		ltelc_default_pdp_context_set();
 		ltelc_default_pdp_context_auth_set();
 
-		/* Set saved system mode (if set) to modem
-		   (ltelc sysmode -mosh command): */
+		/* Set saved system mode (if set) from settings
+		   (by ltelc sysmode -mosh command): */
 		sysmode = ltelc_sett_sysmode_get();
+		lte_pref = ltelc_sett_sysmode_lte_preference_get();
 		if (sysmode != LTE_LC_SYSTEM_MODE_NONE) {
-			(void)lte_lc_system_mode_set(sysmode);
+			return_value = lte_lc_system_mode_set(sysmode, lte_pref);
+			if (uart_shell != NULL && return_value < 0) {
+				shell_warn(
+					uart_shell, "lte_lc_system_mode_set returned error %d",
+						return_value);
+			}
 		}
 
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
@@ -499,7 +520,7 @@ int ltelc_pdn_disconnect(const char* apn, int pdn_cid)
 		return ltelc_pdn_socket_info_clear(pdn_socket_info);
 	} else {
 		/* Not existing connection by using ltelc */
-		printk("No existing connection created by using ltelc to apn %s\n", FTA_STRING_NULL_CHECK(apn));
+		printk("No existing connection created by using ltelc to apn %s\n", MOSH_STRING_NULL_CHECK(apn));
 		return -EINVAL;
 	}
 }

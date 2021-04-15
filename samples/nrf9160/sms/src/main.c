@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <stdio.h>
@@ -13,12 +13,13 @@
 static void sms_callback(struct sms_data *const data, void *context)
 {
 	if (data == NULL) {
-		printk("sms_callback with NULL data\n");
+		printk("%s with NULL data\n", __func__);
 	}
 
 	if (data->type == SMS_TYPE_DELIVER) {
 		/* When SMS message is received, print information */
 		struct sms_deliver_header *header = &data->header.deliver;
+
 		printk("\nSMS received:\n");
 		printk("\tTime:   %02d-%02d-%02d %02d:%02d:%02d\n",
 			header->time.year,
@@ -44,7 +45,6 @@ static void sms_callback(struct sms_data *const data, void *context)
 		}
 	} else if (data->type == SMS_TYPE_STATUS_REPORT) {
 		printk("SMS status report received\n");
-		return;
 	} else {
 		printk("SMS protocol message with unknown type received\n");
 	}
@@ -52,9 +52,12 @@ static void sms_callback(struct sms_data *const data, void *context)
 
 void main(void)
 {
+	int handle = 0;
+	int ret = 0;
+
 	printk("\nSMS sample starting\n");
 
-	int handle = sms_register_listener(sms_callback, NULL);
+	handle = sms_register_listener(sms_callback, NULL);
 	if (handle) {
 		printk("sms_register_listener returned err: %d\n", handle);
 		return;
@@ -62,18 +65,20 @@ void main(void)
 
 	printk("SMS sample is ready for receiving messages\n");
 
-	/* SMS sending is commented out here as destination phone number that
-	 * we should use is unknown. User can tweak the code, e.g., to send
-	 * the message to his/her personal phone.
+	/* Sending is done to the phone number specified in the configuration,
+	 * or if it's left empty, an information text is printed.
 	 */
-	printk("\nIf you want to send an SMS, please find this line from the code.\n"
-		"Then, uncomment next line and change your phone number in there.\n");
-	/*
-	int ret = sms_send("000000000000", "SMS sample: testing"); 
-	if (ret) {
-		printk("sms_send returned err: %d\n", ret);
+	if (strcmp(CONFIG_SMS_SEND_PHONE_NUMBER, "")) {
+		printk("Sending SMS: number=%s, text=\"SMS sample: testing\"\n",
+			CONFIG_SMS_SEND_PHONE_NUMBER);
+		ret = sms_send(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
+		if (ret) {
+			printk("sms_send returned err: %d\n", ret);
+		}
+	} else {
+		printk("\nSMS sending is skipped but receiving will still work.\n"
+			"If you wish to send SMS, please configure CONFIG_SMS_SEND_PHONE_NUMBER\n");
 	}
-	*/
 
 	/* In our application, we should unregister SMS in some conditions with:
 	 *   sms_unregister_listener(handle);

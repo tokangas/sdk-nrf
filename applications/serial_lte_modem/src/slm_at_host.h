@@ -18,15 +18,14 @@
 #include <modem/at_cmd_parser.h>
 #include <modem/at_cmd.h>
 
-/**@brief AT command handler type. */
-typedef int (*slm_at_handler_t) (enum at_cmd_type);
+/**@brief Operations in datamode. */
+enum slm_datamode_operation_t {
+	DATAMODE_SEND,  /* Send data in datamode */
+	DATAMODE_EXIT   /* Exit data mode */
+};
 
-/**@brief AT command list item type. */
-typedef struct slm_at_cmd_list {
-	uint8_t type;
-	char *string;
-	slm_at_handler_t handler;
-} slm_at_cmd_list_t;
+/**@brief Data mode sending handler type. */
+typedef int (*slm_datamode_handler_t)(uint8_t op, const uint8_t *data, int len);
 
 /**@brief Arbitrary data type over AT channel. */
 enum slm_data_type_t {
@@ -34,7 +33,8 @@ enum slm_data_type_t {
 	DATATYPE_PLAINTEXT,
 	DATATYPE_JSON,
 	DATATYPE_HTML,
-	DATATYPE_OMATLV
+	DATATYPE_OMATLV,
+	DATATYPE_ARBITRARY = 9 /* reserved for data mode */
 };
 
 /**
@@ -44,6 +44,12 @@ enum slm_data_type_t {
  *           Otherwise, a (negative) error code is returned.
  */
 int slm_at_host_init(void);
+
+/**
+ * @brief Uninitialize AT host for serial LTE modem
+ *
+ */
+void slm_at_host_uninit(void);
 
 /** @} */
 

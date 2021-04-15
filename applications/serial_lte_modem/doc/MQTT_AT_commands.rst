@@ -40,7 +40,7 @@ Syntax
   It indicates the MQTT Client password in cleartext.
 * The ``<url>`` parameter is a string.
   It indicates the MQTT broker hostname.
-* The ``<port>`` parameter is an integer.
+* The ``<port>`` parameter is an unsigned 16-bit integer (0 - 65535).
   It indicates the MQTT broker port.
 * The ``<sec_tag>`` parameter is an integer.
   It indicates the credential of the security tag used for establishing a secure connection.
@@ -103,7 +103,7 @@ Response syntax
   It indicates the MQTT Client password in cleartext.
 * The ``<url>`` value is a string.
   It indicates the MQTT broker hostname.
-* The ``<port>`` value is an integer.
+* The ``<port>`` value is an unsigned 16-bit integer (0 - 65535).
   It indicates the MQTT broker port.
 * The ``<sec_tag>`` value is an integer.
   It indicates the credential of the security tag used for establishing a secure connection.
@@ -184,7 +184,7 @@ If the MQTT client successfully subscribes to a topic, the following unsolicited
 
 * The ``<datatype>`` value can assume one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
 
 * The ``<topic_length>`` value is an integer.
@@ -306,7 +306,7 @@ Syntax
   It indicates the topic on which data is published.
 * The ``<datatype>`` parameter can accept one of the following values:
 
-  * ``0`` - hexidecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
+  * ``0`` - hexadecimal string (e.g. "DEADBEEF" for 0xDEADBEEF)
   * ``1`` - plain text (default value)
 
 * The ``<msg>`` parameter is a string.

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <zephyr.h>
@@ -20,7 +20,7 @@
 #include <posix/sys/socket.h>
 #include <shell/shell.h>
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 
 /* ppp globals: */
 extern int ppp_modem_data_socket_fd;
@@ -94,4 +94,4 @@ K_THREAD_DEFINE(ppp_modem_dl_data_thread, PPP_MODEM_DATA_RCV_THREAD_STACK_SIZE,
                 ppp_modem_dl_data_thread_handler, NULL, NULL, NULL,
                 PPP_MODEM_DATA_RCV_THREAD_PRIORITY, 0, 0);
 
-#endif /* CONFIG_FTA_PPP */
+#endif /* CONFIG_MOSH_PPP */

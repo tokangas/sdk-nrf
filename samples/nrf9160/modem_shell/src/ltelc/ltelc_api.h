@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #ifndef LTELC_API_H
@@ -11,7 +11,7 @@
 #include <net/net_ip.h>
 #include <shell/shell.h>
 
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #define PDP_TYPE_UNKNOWN     0x00
 #define PDP_TYPE_IPV4        0x01
@@ -26,7 +26,7 @@ typedef struct {
 	uint32_t cid;
 	uint32_t mtu;
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
-	char apn_str[FTA_APN_STR_MAX_LEN];
+	char apn_str[MOSH_APN_STR_MAX_LEN];
 	char pdp_type;
 	struct in_addr ip_addr4;
 	struct in6_addr ip_addr6;

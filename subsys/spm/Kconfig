@@ -16,6 +16,17 @@ config SPM
 if SPM
 module=SPM
 source "${ZEPHYR_BASE}/../nrf/subsys/partition_manager/Kconfig.template.build_strategy"
+
+config SPM_NS_DEBUG_LOGS_DUMP
+	bool "Enable dumping non-secure logs on secure fault"
+	depends on SPM_SERVICE_NS_HANDLER_FROM_SPM_FAULT
+	help
+	  When enabled secure fault handler is calling a non-secure handler to
+	  synchronously dump all pending logs. Feature is only for debugging
+	  purposes and is considered a security violation. It requires specific
+	  spm configuration with SPM_SHARE_CONSOLE_UART and
+	  SPM_SERVICE_NS_HANDLER_FROM_SPM_FAULT enabled.
+
 endif
 
 
@@ -25,12 +36,16 @@ menuconfig IS_SPM
 	select TRUSTED_EXECUTION_SECURE
 
 if IS_SPM
+
+config SPM_MIN_PARTITION_SIZE
+	bool "Use minimimal partition size for SPM"
+
 # Define used by partition_manager.py to deduce size of partition.
 # Unable to use the size template due to non-trivial defaults.
 config PM_PARTITION_SIZE_SPM
 	hex "Flash space reserved for SPM"
-	default 0xc000 if SPM_SERVICE_RNG # To build correctly with MCUboot.
-	default 0x8000
+	default 0x8000 if SPM_MIN_PARTITION_SIZE
+	default 0x10000
 	help
 	  Flash space set aside for the SPM. Note, the name
 	  of this configuration needs to match the requirements set by the
@@ -52,6 +67,14 @@ config PM_PARTITION_SIZE_SPM_SRAM
 config SPM_BOOT_SILENTLY
 	bool "Boot silently"
 	default n
+
+config SPM_SHARE_CONSOLE_UART
+	bool "Enable sharing console between domains"
+	help
+	  When enabled, UARTE0 can be used for printing from secure domain
+	  after jumping to the non-secure application, e.g. from exception
+	  handler. If enabled, zephyr console must be changed do spm_uart.
+
 endif #IS_SPM
 
 if IS_SPM || SPM
@@ -74,9 +97,6 @@ config SPM_SERVICE_RNG
 	default y if SPM
 	select NORDIC_SECURITY_BACKEND if IS_SPM
 	select FPU if IS_SPM
-
-# NORDIC_SECURITY_BACKEND is not supported on 53 yet
-	depends on ! SOC_NRF5340_CPUAPP
 
 	help
 	  The Non-Secure Firmware is not allowed to use the crypto hardware.
@@ -130,6 +150,17 @@ config SPM_SERVICE_BUSY_WAIT
 	help
 	  Busy wait in secure mode. Will keep the CPU in secure mode for the
 	  duration specified. Use to write tests that require secure mode.
+
+config SPM_SERVICE_NS_HANDLER_FROM_SPM_FAULT
+	bool "Call non-secure handler from secure fault context"
+	help
+	  When enabled, non-secure handler is called from spm fatal error
+	  handler. Non-secure handler is registered through secure service API.
+
+if SPM_SERVICE_NS_HANDLER_FROM_SPM_FAULT
+comment "*** WARNING ***"
+comment "SPM_SERVICE_NS_HANDLER_FROM_SPM_FAULT can only be used for debugging"
+endif
 
 endif # SPM_SECURE_SERVICES
 

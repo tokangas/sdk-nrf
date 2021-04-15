@@ -7,7 +7,7 @@ Working with nRF9160 DK
    :local:
    :depth: 2
 
-The |NCS| provides support for developing on the nRF9160 System in Package (SiP) using the nRF9160 DK (PCA10090), and :ref:`offers samples <nrf9160_ug_drivs_libs_samples>` dedicated to this device.
+The |NCS| provides support for developing on the nRF9160 System in Package (SiP) using the nRF9160 DK (PCA10090), and offers :ref:`samples <nrf9160_samples>` dedicated to this device.
 
 See the `nRF9160 DK Hardware`_ guide for detailed information about the nRF9160 DK hardware.
 To get started with the nRF9160 DK, follow the steps in the `nRF9160 DK Getting Started`_ guide.
@@ -17,7 +17,7 @@ To get started with the nRF9160 DK, follow the steps in the `nRF9160 DK Getting 
 Introduction
 ************
 
-The nRF9160 SiP integrates an application MCU, a full LTE modem, RF front end, and power management.
+The nRF9160 SiP integrates an application MCU, a full LTE modem, an RF front end, and power management.
 With built-in GPS support, it is dedicated to asset tracking applications.
 
 For more details on the SiP, see the `nRF9160 product website`_ and the `nRF9160 Product Specification`_.
@@ -34,7 +34,7 @@ Application MCU
 
 The M33 TrustZone divides the application MCU into secure and non-secure domains.
 When the MCU boots, it always starts executing from the secure area.
-The secure bootloader chain starts the :ref:`nrf9160_ug_secure_partition_manager` or :ref:`TF-M <ug_tfm>`, which configures a part of memory and peripherals to be non-secure and then jumps to the main application located in the non-secure area.
+The secure bootloader chain starts the :ref:`nrf9160_ug_secure_partition_manager` or the :ref:`Trusted Firmware-M (TF-M) <ug_tfm>`, which configures a part of memory and peripherals to be non-secure and then jumps to the main application located in the non-secure area.
 
 In Zephyr, :ref:`zephyr:nrf9160dk_nrf9160` is divided into two different build targets:
 
@@ -80,14 +80,6 @@ Depending on the configuration, all these images can be built at the same time i
 All nRF9160 samples include the :ref:`secure_partition_manager` sample, which can be enabled or disabled with the :option:`CONFIG_SPM` option.
 Some also include the :ref:`bootloader` sample (:option:`CONFIG_SECURE_BOOT`) and :doc:`mcuboot:index` (:option:`CONFIG_BOOTLOADER_MCUBOOT`).
 
-Socket API
-----------
-
-All nRF9160 applications must include the Modem library.
-The Modem library is the primary interface for operating the nRF9160 modem to establish LTE-M, NBIOT, and GNSS connections.
-
-The Modem library is Nordic Semiconductor's implementation of the Socket API.
-See :ref:`nrfxlib:nrf_modem` for detailed information.
 
 LTE modem
 =========
@@ -99,7 +91,7 @@ The firmware for the modem is available as a precompiled binary.
 You can download the firmware from the `nRF9160 product website (compatible downloads)`_.
 The zip file contains both the full firmware and patches to upgrade from one version to another.
 
-Different versions of the LTE modem firmware are available and these versions are certified for the mobile network operators who have their own certification programs.
+Different versions of the LTE modem firmware are available, and these versions are certified for the mobile network operators who have their own certification programs.
 See the `Mobile network operator certifications`_ for more information.
 
 .. note::
@@ -110,9 +102,19 @@ See the `Mobile network operator certifications`_ for more information.
 There are two ways to update the modem firmware:
 
 Full upgrade
-  A full upgrade of the modem firmware requires a wired connection.
-  The upgrade is done through the nRF Connect Programmer, which is part of `nRF Connect for Desktop`_.
-  See `Updating the nRF9160 DK cellular modem`_ in the nRF Connect Programmer User Guide for instructions.
+  You can use either a wired or a wireless connection to do a full upgrade of the modem firmware:
+
+  * When using a wired connection, you can use either the `nRF Connect Programmer`_, which is part of `nRF Connect for Desktop`_, or the `nRF pynrfjprog`_ Python package.
+    Both methods use the Simple Management Protocol (SMP) to provide an interface over UART, which enables the device to perform the update.
+
+    * You can use the nRF Connect Programmer to perform the update, regardless of the images that are part of the existing firmware of the device.
+      See `Updating the nRF9160 DK cellular modem`_ in the nRF Connect Programmer user guide for more details.
+
+    * You can also use the nRF pynrfjprog Python package to perform the update, as long as a custom application image integrating the ``lib_fmfu_mgmt`` subsystem is included in the existing firmware of the device.
+      See the :ref:`fmfu_smp_svr_sample` sample for an example on how to integrate the :ref:`subsystem <lib_fmfu_mgmt>` in your custom application.
+
+  * When using a wireless connection, the upgrade is applied over-the-air (OTA).
+    See :ref:`nrf9160_ug_fota` for more information.
 
 Delta patches
   Delta patches are upgrades that contain only the difference from the last version.
@@ -120,6 +122,16 @@ Delta patches
   When applying a delta patch, you must therefore ensure that this patch works with the current firmware version on your device.
   Delta patches are applied as firmware over-the-air (FOTA) upgrades.
   See :ref:`nrf9160_ug_fota` for more information.
+
+Modem library
+=============
+
+The |NCS| applications for the nRF9160 DK that communicate with the nRF9160 modem firmware must include the Modem library.
+The :ref:`nrfxlib:nrf_modem` is released as an OS-independent binary library in the :ref:`nrfxlib` repository and it is integrated into |NCS| via an integration layer, ``nrf_modem_lib``.
+
+The Modem library integration layer fulfills the integration requirements of the Modem library in |NCS|.
+For more information on the integration, see :ref:`nrf_modem_lib_readme`.
+
 
 .. _nrf9160_ug_band_lock:
 
@@ -139,7 +151,7 @@ To set the LTE band lock, enable the *LTE Link Control Library* in your project 
 
    CONFIG_LTE_LINK_CONTROL=y
 
-Then, enable the LTE band lock feature and the band lock mask in your projects configuration file, as follows::
+Then, enable the LTE band lock feature and the band lock mask in the configuration file of your project, as follows::
 
    CONFIG_LTE_LOCK_BANDS=y
    CONFIG_LTE_LOCK_BAND_MASK="10000001000000001100"
@@ -152,8 +164,8 @@ The band lock is a non-volatile setting that must be set before activating the m
 It disappears when the modem is reset.
 To prevent this, you can set the modem in *power off* mode, by either:
 
-* sending directly the AT command ``AT+CFUN=0``.
-* calling the ``lte_lc_power_off`` function while the *LTE Link Control Library* is enabled.
+* Sending the AT command ``AT+CFUN=0`` directly.
+* Calling the :c:func:`lte_lc_power_off` function while the *LTE Link Control Library* is enabled.
 
 Both these options save the configurations and historical data in the Non-Volatile Storage before powering off the modem.
 
@@ -196,7 +208,7 @@ Concurrent GPS and LTE
 ======================
 
 |An nRF9160-based device| supports GPS in LTE-M and NB-IoT.
-Concurrent operation of GPS with optional power-saving features, such as extended Discontinuous Reception (eDRX) and Power Saving Mode (PSM), is also supported and recommended.
+Concurrent operation of GPS with optional power-saving features, such as extended Discontinuous Reception (eDRX) and Power Saving Mode (PSM), is also supported, and recommended.
 
 The following figure shows how the data transfer occurs in |an nRF9160-based device| with power-saving in place.
 
@@ -207,7 +219,7 @@ See `Energy efficiency`_ for more information.
 
 Asset Tracker enables the concurrent working of GPS and LTE in eDRX and PSM modes when the device is in `RRC idle mode`_.
 The time between the transition of a device from RRC connected mode (data transfer mode) to RRC idle mode is dependent on the network.
-Typically the time ranges between 5 seconds to 70 seconds after the last data transfer on LTE.
+Typically, the time ranges between 5 seconds to 70 seconds after the last data transfer on LTE.
 Sensor and GPS data is sent to the cloud only during the data transfer phase.
 
 .. nrf9160_gps_lte_end
@@ -259,7 +271,14 @@ To perform a FOTA upgrade, complete the following steps:
      You can hardcode the information in the application, or you can use functionality like AWS jobs to provide the URL dynamically.
 
 The full FOTA procedure depends on where the binary files are hosted for download.
-See the :ref:`aws_fota_sample` sample for a full implementation using AWS.
+
+You can refer to the following implementation samples:
+
+* :ref:`http_full_modem_update_sample` - performs a full firmware OTA update of the modem.
+* :ref:`http_modem_delta_update_sample` - performs a delta OTA update of the modem firmware.
+* :ref:`http_application_update_sample` - performs a basic application FOTA update.
+* :ref:`aws_fota_sample` - performs a FOTA update via MQTT and HTTP, where the firmware download is triggered through an AWS IoT job.
+
 
 Board controller
 ****************

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <stdio.h>
@@ -15,7 +15,7 @@
 
 #include <modem/lte_lc.h>
 
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #include "ltelc_shell.h"
 #include "ltelc_settings.h"
@@ -48,6 +48,7 @@
 /* ****************************************************************************/
 
 #define LTELC_SETT_SYSMODE_KEY		              "sysmode"
+#define LTELC_SETT_SYSMODE_LTE_PREFERENCE_KEY     "sysmode_lte_pref"
 
 /* ****************************************************************************/
 
@@ -71,7 +72,7 @@ enum ltelc_sett_defcontauth_prot {
 static const struct shell *uart_shell = NULL;
 
 struct ltelc_sett_t {
-	char defcont_apn_str[FTA_APN_STR_MAX_LEN + 1];
+	char defcont_apn_str[MOSH_APN_STR_MAX_LEN + 1];
 	char defcont_ip_family_str[LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN + 1]; //TODO: store as enum
 	bool defcont_enabled;
 
@@ -81,12 +82,13 @@ struct ltelc_sett_t {
 	bool defcontauth_enabled;
 
 	enum lte_lc_system_mode sysmode;
+	enum lte_lc_system_mode_preference sysmode_lte_preference;
 
 	/* note: if adding more memory slots, remember also update 
 	   LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START/END accordingly. */
-	char normal_mode_at_cmd_str_1[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
-	char normal_mode_at_cmd_str_2[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
-	char normal_mode_at_cmd_str_3[CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_1[CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_2[CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
+	char normal_mode_at_cmd_str_3[CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN + 1];
 
 	bool normal_mode_autoconn_enabled;
 };
@@ -173,7 +175,16 @@ static int ltelc_sett_handler(const char *key, size_t len,
 		err = read_cb(cb_arg, &ltelc_settings.sysmode,
 			      sizeof(ltelc_settings.sysmode));
 		if (err < 0) {
-			shell_error(uart_shell, "Failed to read syhsmode, error: %d", err);
+			shell_error(uart_shell, "Failed to read sysmode, error: %d", err);
+			return err;
+		}
+		return 0;
+	}
+	else if (strcmp(key, LTELC_SETT_SYSMODE_LTE_PREFERENCE_KEY) == 0) {
+		err = read_cb(cb_arg, &ltelc_settings.sysmode_lte_preference,
+			      sizeof(ltelc_settings.sysmode_lte_preference));
+		if (err < 0) {
+			shell_error(uart_shell, "Failed to read LTE preference, error: %d", err);
 			return err;
 		}
 		return 0;
@@ -305,7 +316,7 @@ int ltelc_sett_save_defcont_apn(const char *defcont_apn_str)
 	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_DEFCONT_APN_KEY;
 	int len = strlen(defcont_apn_str);
 
-	assert(len <= FTA_APN_STR_MAX_LEN);
+	assert(len <= MOSH_APN_STR_MAX_LEN);
 
 	err = settings_save_one(
 		key,
@@ -463,9 +474,13 @@ void ltelc_sett_defcontauth_conf_shell_print(const struct shell *shell)
 }
 
 /* ****************************************************************************/
-int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode)
+int ltelc_sett_sysmode_save(
+	enum lte_lc_system_mode mode,
+	enum lte_lc_system_mode_preference lte_pref)
 {
 	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_SYSMODE_KEY;
+	const char *lte_pref_key =
+		LTELC_SETT_KEY "/" LTELC_SETT_SYSMODE_LTE_PREFERENCE_KEY;
 	int err;
 
 	err = settings_save_one(key, &mode, sizeof(mode));
@@ -476,8 +491,17 @@ int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode)
 	ltelc_settings.sysmode = mode;
 	shell_print(uart_shell, "sysmode %d saved succesfully to settings", mode);
 
+	err = settings_save_one(lte_pref_key, &lte_pref, sizeof(lte_pref));
+	if (err) {
+		shell_error(uart_shell, "ltelc_sett_save_sysmode for lte pref: erro %d from settings_save_one()", err);
+		return err;
+	}
+	ltelc_settings.sysmode_lte_preference = lte_pref;
+	shell_print(uart_shell, "LTE preference %d saved succesfully to settings", lte_pref);
+
 	return 0;
 }
+
 void ltelc_sett_sysmode_print(const struct shell *shell)
 {
 	char snum[64];
@@ -485,6 +509,9 @@ void ltelc_sett_sysmode_print(const struct shell *shell)
 	shell_print(shell, "ltelc sysmode config:");
 		shell_print(shell, "  mode: %s", 
 			ltelc_shell_sysmode_to_string(ltelc_sett_sysmode_get(), snum));
+		shell_print(shell, "  LTE preference: %s", 
+			ltelc_shell_sysmode_preferred_to_string(
+				ltelc_sett_sysmode_lte_preference_get(), snum));
 }
 
 int ltelc_sett_sysmode_get()
@@ -492,9 +519,16 @@ int ltelc_sett_sysmode_get()
 	return ltelc_settings.sysmode;
 }
 
+int ltelc_sett_sysmode_lte_preference_get()
+{
+	return ltelc_settings.sysmode_lte_preference;
+}
+
 int ltelc_sett_sysmode_default_set()
 {
-	return ltelc_sett_sysmode_save(LTE_LC_SYSTEM_MODE_NONE);
+	return ltelc_sett_sysmode_save(
+		LTE_LC_SYSTEM_MODE_NONE,
+		CONFIG_LTE_MODE_PREFERENCE);
 }
 /* ****************************************************************************/
 
@@ -522,10 +556,10 @@ int ltelc_sett_save_normal_mode_at_cmd_str(const char *at_str, uint8_t mem_slot)
 	int len = strlen(at_str);
 	char *at_cmd_ram_storage_ptr;
 
-	if (len > CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN) {
+	if (len > CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN) {
 		shell_error(uart_shell, "ltelc_sett_save_normal_mode_at_cmd_str: at command string length (%d) over the limit %d",
 			len,
-			CONFIG_FTA_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN);
+			CONFIG_MOSH_LTELC_SETT_NORMAL_MODE_AT_CMD_STR_LEN);
 		return -EINVAL;
 	}
 

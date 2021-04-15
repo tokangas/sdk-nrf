@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <shell/shell.h>
@@ -15,7 +15,7 @@
 #include <modem/sms.h>
 
 #include "sms.h"
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #define PAYLOAD_BUF_SIZE 160
 #define SMS_HANDLE_NONE -1

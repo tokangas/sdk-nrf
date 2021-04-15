@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Nordic Semiconductor ASA
+ * Copyright (c) 2019 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
@@ -29,47 +29,42 @@ extern "C" {
  */
 enum sms_type {
 	/** @brief SMS-DELIVER message type. */
-	SMS_TYPE_DELIVER = 0,
+	SMS_TYPE_DELIVER,
 	/** @brief SMS-STATUS-REPORT message type. */
 	SMS_TYPE_STATUS_REPORT
 };
 
 /** @brief Maximum length of SMS in number of characters. */
 #define SMS_MAX_DATA_LEN_CHARS 160
-/** @brief Maximum length of SMS address, i.e., phone number, in octets. */
-#define SMS_MAX_ADDRESS_LEN_OCTETS 10
-/** @brief Maximum length of SMS address, i.e., phone number, in characters. */
-#define SMS_MAX_ADDRESS_LEN_CHARS (2 * SMS_MAX_ADDRESS_LEN_OCTETS)
+
+/**
+ * @brief Maximum length of SMS address, i.e., phone number, in characters
+ * as specified in 3GPP TS 23.040 Section 9.1.2.3.
+ */
+#define SMS_MAX_ADDRESS_LEN_CHARS 20
 
 /**
  * @brief SMS time information specified in 3GPP TS 23.040 Section 9.2.3.11.
  */
 struct sms_time {
-	uint8_t year;    /** @brief Year. Last two digits of the year.*/
-	uint8_t month;   /** @brief Month. */
-	uint8_t day;     /** @brief Day. */
-	uint8_t hour;    /** @brief Hour. */
-	uint8_t minute;  /** @brief Minute. */
-	uint8_t second;  /** @brief Second. */
-	int8_t timezone; /** @brief Timezone. */
+	uint8_t year;    /**< @brief Year. Last two digits of the year.*/
+	uint8_t month;   /**< @brief Month. */
+	uint8_t day;     /**< @brief Day. */
+	uint8_t hour;    /**< @brief Hour. */
+	uint8_t minute;  /**< @brief Minute. */
+	uint8_t second;  /**< @brief Second. */
+	int8_t timezone; /**< @brief Timezone. */
 };
 
 /**
  * @brief SMS address, i.e., phone number.
- * 
+ *
  * @details This may represent either originating or destination address and is
  * specified in 3GPP TS 23.040 Section 9.1.2.5.
  */
 struct sms_address {
 	/** @brief Address in NUL-terminated string format. */
-	char    address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
-	/**
-	 * @brief Address in semi-octet representation specified in
-	 * 3GPP TS 23.040 Section 9.1.2.3.
-	 * 
-	 * TODO: Just remove this field?
-	 */
-	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
+	char address_str[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	/** @brief Address length in number of characters. */
 	uint8_t length;
 	/** @brief Address type as specified in 3GPP TS 23.040 Section 9.1.2.5. */
@@ -78,7 +73,7 @@ struct sms_address {
 
 /**
  * @brief SMS concatenated short message information.
- * 
+ *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.1 and 9.2.3.24.8.
  */
 struct sms_udh_concatenated {
@@ -94,7 +89,7 @@ struct sms_udh_concatenated {
 
 /**
  * @brief SMS application port addressing information.
- * 
+ *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.3 and 9.2.3.24.4.
  */
 struct sms_udh_app_port {
@@ -107,8 +102,9 @@ struct sms_udh_app_port {
 };
 
 /**
- * SMS-DELIVER message header.
- * This is for incoming SMS message and more specifically SMS-DELIVER
+ * @brief SMS-DELIVER message header.
+ *
+ * @details This is for incoming SMS message and more specifically SMS-DELIVER
  * message specified in 3GPP TS 23.040.
  */
 struct sms_deliver_header {
@@ -124,7 +120,7 @@ struct sms_deliver_header {
 
 /**
  * @brief SMS header.
- * 
+ *
  * @details This can easily be extended to support additional message types.
  */
 union sms_header {
@@ -150,7 +146,7 @@ typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
 /**
  * @brief Register a new listener to SMS library.
  *
- * Also registers to modem's SMS service if it's not already subscribed.
+ * @details Also registers to modem's SMS service if it's not already subscribed.
  *
  * A listener is identified by a unique handle value. This handle should be used
  * to unregister the listener. A listener can be registered multiple times with
@@ -161,18 +157,18 @@ typedef void (*sms_callback_t)(struct sms_data *const data, void *context);
  *
  * @retval -EINVAL Invalid parameter.
  * @retval -ENOSPC List of observers is full.
- * @retval -EBUSY Indicates that one SMS client has already been registered.
+ * @retval -EBUSY Indicates that one SMS client has already been registered towards the modem
+ *                and SMS subscriber module is not able to do it.
  * @retval -ENOMEM Out of memory.
  * @return Handle identifying the listener,
  *         or a negative value if an error occurred.
- * TODO: List of error codes is not complete.
  */
 int sms_register_listener(sms_callback_t listener, void *context);
 
 /**
  * @brief Unregister a listener.
  *
- * Also unregisters from modem's SMS service if there are
+ * @details Also unregisters from modem's SMS service if there are
  * no listeners registered.
  *
  * @param[in] handle Handle identifying the listener to unregister.
@@ -182,8 +178,16 @@ void sms_unregister_listener(int handle);
 /**
  * @brief Send SMS message.
  *
+ * @details Sending is done with GSM 7bit encoding used to encode textual SMS messages.
+ * SMS-SUBMIT message is specified in 3GPP TS 23.040 Section 9.2.2.2 and data encoding
+ * in 3GPP TS 23.038 Section 4 and Section 6.2.
+ * This function doesn't support sending of 8bit binary data messages.
+ *
  * @param[in] number Recipient number.
  * @param[in] text Text to be sent.
+ *
+ * @retval -EINVAL Invalid parameter.
+ * @return 0 on success, otherwise error code.
  */
 int sms_send(char *number, char *text);
 

@@ -40,7 +40,7 @@ timediff_t Curl_timeleft(struct Curl_easy *data,
                          struct curltime *nowp,
                          bool duringconnect);
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 //we want this much smaller because not currently have possibility to signal the interupt/cancel: */
 #define DEFAULT_CONNECT_TIMEOUT 20000 /* milliseconds == 20 seconds */
 #else

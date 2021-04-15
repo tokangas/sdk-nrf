@@ -1,0 +1,11 @@
+#
+# Copyright (c) 2021 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+rsource "Kconfig.ei_data_forwarder"
+rsource "Kconfig.led_state"
+rsource "Kconfig.ml_runner"
+rsource "Kconfig.ml_state"
+rsource "Kconfig.sensor_sim_ctrl"

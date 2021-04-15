@@ -117,7 +117,7 @@ void helpf(FILE *errors, const char *fmt, ...)
     vfprintf(errors, fmt, ap);
     va_end(ap);
   }
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
   /* Zephyr shell is "stoling" help hook, thus we are using "manual": */
   fprintf(errors, "curl: try 'curl --manual' "
 #else

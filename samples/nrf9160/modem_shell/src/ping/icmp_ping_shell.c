@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <stdlib.h>
@@ -55,7 +55,7 @@ static void icmp_ping_shell_cmd_defaults_set(icmp_ping_shell_cmd_argv_t *ping_ar
     ping_args->interval = ICMP_PARAM_INTERVAL_DEFAULT;
     ping_args->timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
     ping_args->len = ICMP_PARAM_LENGTH_DEFAULT;
-    ping_args->cid = FTA_ARG_NOT_SET;
+    ping_args->cid = MOSH_ARG_NOT_SET;
 }
 /*****************************************************************************/
 int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
@@ -98,7 +98,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_warn(
 					shell,
 					"CID not an integer (> 0), default context used");
-                ping_args.cid = FTA_ARG_NOT_SET;
+                ping_args.cid = MOSH_ARG_NOT_SET;
               }
             break;
 		case 'c': //count
@@ -159,7 +159,7 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
             if (pdp_context_info_tbl.size > 0) {
 
                 /* Default context: */
-                if (ping_args.cid == FTA_ARG_NOT_SET) {
+                if (ping_args.cid == MOSH_ARG_NOT_SET) {
                     ping_args.current_pdp_type = pdp_context_info_tbl.array[0].pdp_type;
                     ping_args.current_addr4 = pdp_context_info_tbl.array[0].ip_addr4;
                     ping_args.current_addr6 = pdp_context_info_tbl.array[0].ip_addr6;

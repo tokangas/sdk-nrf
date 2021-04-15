@@ -12,25 +12,20 @@
  * @brief Vendor-specific AT command for FOTA service.
  * @{
  */
+enum fota_stages {
+	FOTA_STAGE_INIT,
+	FOTA_STAGE_DOWNLOAD,
+	FOTA_STAGE_DOWNLOAD_ERASE_PENDING,
+	FOTA_STAGE_DOWNLOAD_ERASED,
+	FOTA_STAGE_ACTIVATE,
+	FOTA_STAGE_COMPLETE
+};
 
-#include <zephyr/types.h>
-#include <modem/at_cmd.h>
-
-/**
- * @brief FOTA AT command parser.
- *
- * @param at_cmd  AT command string.
- *
- * @retval 0 If the operation was successful.
- *           Otherwise, a (negative) error code is returned.
- */
-int slm_at_fota_parse(const char *at_cmd);
-
-/**
- * @brief List FOTA AT commands.
- *
- */
-void slm_at_fota_clac(void);
+enum fota_status {
+	FOTA_STATUS_OK,
+	FOTA_STATUS_ERROR,
+	FOTA_STATUS_CANCELLED
+};
 
 /**
  * @brief Initialize FOTA AT command parser.
@@ -48,6 +43,11 @@ int slm_at_fota_init(void);
  */
 int slm_at_fota_uninit(void);
 
+/**
+ * @brief FOTA post-process after reboot.
+ *
+ */
+void slm_fota_post_process(void);
 /** @} */
 
 #endif /* SLM_AT_FOTA_ */

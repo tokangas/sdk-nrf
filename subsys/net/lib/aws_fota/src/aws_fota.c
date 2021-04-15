@@ -261,6 +261,8 @@ static int job_update_accepted(struct mqtt_client *const client,
 			LOG_ERR("Error (%d) when trying to start firmware "
 				"download", err);
 			execution_state = AWS_JOBS_FAILED;
+			aws_fota_evt.id = AWS_FOTA_EVT_ERROR;
+			fota_state = NONE;
 			err = update_job_execution(client, job_id,
 						   execution_state, "");
 			if (err) {
@@ -589,6 +591,10 @@ static void http_fota_handler(const struct fota_download_evt *evt)
 		aws_fota_evt.id = AWS_FOTA_EVT_DL_PROGRESS;
 		aws_fota_evt.dl.progress = download_progress;
 		callback(&aws_fota_evt);
+		break;
+
+	default:
+		LOG_WRN("Unhandled FOTA event ID: %d", evt->id);
 		break;
 	}
 }

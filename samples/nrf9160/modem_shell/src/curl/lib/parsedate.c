@@ -581,7 +581,7 @@ time_t Curl_getdate_capped(const char *p)
  * gmtime_r() or gmtime() functions anywhere else but here.
  *
  */
-#ifndef CURL_DISABLE_PARSEDATE //FTA_CURL_INTEGRATION_CHANGE
+#ifndef CURL_DISABLE_PARSEDATE //MOSH_CURL_INTEGRATION_CHANGE
 CURLcode Curl_gmtime(time_t intime, struct tm *store)
 {
   const struct tm *tm;

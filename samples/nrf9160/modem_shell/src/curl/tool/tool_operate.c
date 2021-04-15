@@ -45,8 +45,8 @@
 
 #include "strcase.h"
 
-//FTA_CURL_INTEGRATION_CHANGE:
-#include "utils/fta_time_utils.h"
+//MOSH_CURL_INTEGRATION_CHANGE:
+#include "utils/time_utils.h"
 
 #define ENABLE_CURLX_PRINTF
 /* use our own printf() functions */
@@ -88,7 +88,7 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 #include <modem/at_cmd.h>
@@ -295,7 +295,7 @@ static CURLcode pre_transfer(struct GlobalConfig *global,
      * header for VARIABLE header files only the bare record data needs
      * to be considered with one appended if implied CC
      */
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
 #ifdef __VMS
     /* Calculate the real upload size for VMS */
     per->infd = -1;
@@ -320,7 +320,7 @@ static CURLcode pre_transfer(struct GlobalConfig *global,
 #endif
     {
       helpf(global->errors, "Can't open '%s'!\n", per->uploadfile);
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
       if(per->infd != -1) {
         close(per->infd);
         per->infd = STDIN_FILENO;
@@ -409,8 +409,8 @@ static CURLcode post_per_transfer(struct GlobalConfig *global,
   if(!outs->s_isreg && outs->stream) {
     /* Dump standard stream buffered data */
     
-    /* FTA_CURL_INTEGRATION_CHANGE: dump with newline */
-    //fputc('\n', outs->stream); //FTA_CURL_INTEGRATION_CHANGE
+    /* MOSH_CURL_INTEGRATION_CHANGE: dump with newline */
+    //fputc('\n', outs->stream); //MOSH_CURL_INTEGRATION_CHANGE
 
     int rc = fflush(outs->stream);
     if(!result && rc) {
@@ -899,7 +899,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           /* open file for output: */          
           if(strcmp(config->headerfile, "-")) {
             FILE *newfile;
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
             newfile = fopen(config->headerfile, per->prev == NULL?"wb":"ab");
 #else
             newfile = NULL;
@@ -935,7 +935,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         outs->stream = stdout;
 
         /* --etag-compare */
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
         if(config->etag_compare_file) {
           char *etag_from_file = NULL;
           char *header = NULL;
@@ -983,7 +983,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
         if(config->etag_save_file) {
           /* open file for output: */
           if(strcmp(config->etag_save_file, "-")) {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION            
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION            
             FILE *newfile = fopen(config->etag_save_file, "wb");
 #else
             FILE *newfile = NULL;
@@ -1109,7 +1109,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           }
 
           if(config->resume_from_current) {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
 //not supported decently by newlibc, if enabled, following linker error:
 //.1/../../../../arm-none-eabi/bin/ld.exe: C:/work/nRFConnectSDK/v1.3.0/toolchain/opt/arm-none-eabi/lib/thumb/v8-m.main+fp/hard\libc_nano.a(lib_a-statr.o): in function `_stat_r':
 //statr.c:(.text._stat_r+0xe): undefined reference to `_stat'
@@ -1128,7 +1128,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           }
 
           if(config->resume_from) {
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
 #ifdef __VMS
             /* open file for output, forcing VMS output format into stream
                mode which is needed for stat() call above to always work. */
@@ -1207,7 +1207,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
         if(per->uploadfile && config->resume_from_current)
           config->resume_from = -1; /* -1 will then force get-it-yourself */
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
         if(output_expected(per->this_url, per->uploadfile) && outs->stream &&
            isatty(fileno(outs->stream)))
           /* we send the output to a tty, therefore we switch off the progress
@@ -1616,7 +1616,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
            *    --cert <filename>:<password> --cert-type p12
            *  but is designed to test blob */
 #if defined(CURLDEBUG) || defined(DEBUGBUILD)
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
           if(config->cert && (strlen(config->cert) > 8) &&
              (memcmp(config->cert, "loadmem=",8) == 0)) {
             FILE *fInCert = fopen(config->cert + 8, "rb");
@@ -1661,7 +1661,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
 
 #if defined(CURLDEBUG) || defined(DEBUGBUILD)
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
           if(config->key && (strlen(config->key) > 8) &&
              (memcmp(config->key, "loadmem=",8) == 0)) {
             FILE *fInCert = fopen(config->key + 8, "rb");
@@ -1810,7 +1810,7 @@ static CURLcode single_transfer(struct GlobalConfig *global,
 
         /* three new ones in libcurl 7.3: */
         my_setopt_str(curl, CURLOPT_INTERFACE, config->iface);
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_MOSH_CURL_FUNCTIONAL_CHANGES)
         my_setopt_str(curl, CURLOPT_INTERFACE_CID, config->cid);
         if (config->upload_buffsize) {
           my_setopt(curl, CURLOPT_UPLOAD_BUFFERSIZE, config->upload_buffsize);
@@ -2230,7 +2230,7 @@ static CURLcode add_parallel_transfers(struct GlobalConfig *global,
     if(per->added)
       /* already added */
       continue;
-    if(per->startat && (fta_time(NULL) < per->startat)) { //FTA_CURL_INTEGRATION_CHANGE: no time() available
+    if(per->startat && (time_utils_time(NULL) < per->startat)) { //MOSH_CURL_INTEGRATION_CHANGE: no time() available
       /* this is still delaying */
       sleeping = TRUE;
       continue;
@@ -2273,7 +2273,7 @@ static CURLcode parallel_transfers(struct GlobalConfig *global,
   struct timeval start = tvnow();
   bool more_transfers;
   bool added_transfers;
-  time_t tick = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: no time() available
+  time_t tick = time_utils_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: no time() available
 
   multi = curl_multi_init();
   if(!multi)
@@ -2315,14 +2315,14 @@ static CURLcode parallel_transfers(struct GlobalConfig *global,
           if(retry) {
             ended->added = FALSE; /* add it again */
             /* we delay retries in full integer seconds only */
-            ended->startat = delay ? fta_time(NULL) + delay/1000 : 0; //FTA_CURL_INTEGRATION_CHANGE: no time() available
+            ended->startat = delay ? time_utils_time(NULL) + delay/1000 : 0; //MOSH_CURL_INTEGRATION_CHANGE: no time() available
           }
           else
             (void)del_per_transfer(ended);
         }
       } while(msg);
       if(!checkmore) {
-        time_t tock = fta_time(NULL); //FTA_CURL_INTEGRATION_CHANGE: no time() available
+        time_t tock = time_utils_time(NULL); //MOSH_CURL_INTEGRATION_CHANGE: no time() available
         if(tick != tock) {
           checkmore = TRUE;
           tick = tock;
@@ -2627,7 +2627,7 @@ CURLcode operate(struct GlobalConfig *global, int argc, argv_item_t argv[])
       if(res == PARAM_HELP_REQUESTED)
         tool_help(global->help_category);
       /* Check if we were asked for the manual */
-#ifdef NOT_IN_FTA_CURL_INTEGRATION
+#ifdef NOT_IN_MOSH_CURL_INTEGRATION
       else if(res == PARAM_MANUAL_REQUESTED)
         hugehelp();
       /* Check if we were asked for the version information */

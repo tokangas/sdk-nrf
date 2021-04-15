@@ -25,6 +25,7 @@ BUILD_ASSERT(CONFIG_EI_WRAPPER_THREAD_STACK_SIZE > 0);
 
 enum state {
 	STATE_DISABLED,
+	STATE_WAITING_FOR_DATA,
 	STATE_PROCESSING,
 	STATE_READY,
 };
@@ -82,15 +83,20 @@ static void buf_processing_end(struct data_buffer *b)
 	k_spin_unlock(&b->lock, key);
 }
 
-static int buf_cleanup(struct data_buffer *b)
+static int buf_cleanup(struct data_buffer *b, bool *cancelled)
 {
 	int err = 0;
+
+	*cancelled = false;
 
 	k_spinlock_key_t key = k_spin_lock(&b->lock);
 
 	if (b->state == STATE_PROCESSING) {
 		err = -EBUSY;
 	} else {
+		if (b->state == STATE_WAITING_FOR_DATA) {
+			*cancelled = true;
+		}
 		b->process_idx = 0;
 		b->append_idx = 0;
 		b->wait_data_size = 0;
@@ -123,6 +129,7 @@ static int buf_append(struct data_buffer *b, const float *data, size_t len,
 			b->wait_data_size -= len;
 		} else {
 			b->wait_data_size = 0;
+			b->state = STATE_PROCESSING;
 			*process_buf = true;
 		}
 	}
@@ -183,7 +190,7 @@ static int buf_processing_move(struct data_buffer *b, size_t move,
 	k_spinlock_key_t key = k_spin_lock(&b->lock);
 
 	if (b->state == STATE_READY) {
-		b->state = STATE_PROCESSING;
+		b->state = STATE_WAITING_FOR_DATA;
 	} else {
 		__ASSERT_NO_MSG(b->state != STATE_DISABLED);
 		k_spin_unlock(&b->lock, key);
@@ -202,6 +209,7 @@ static int buf_processing_move(struct data_buffer *b, size_t move,
 	if (processing_end_move > max_move) {
 		b->wait_data_size = processing_end_move - max_move;
 	} else {
+		b->state = STATE_PROCESSING;
 		*process_buf = true;
 	}
 
@@ -241,9 +249,9 @@ int ei_wrapper_add_data(const float *data, size_t data_size)
 	return err;
 }
 
-int ei_wrapper_clear_data(void)
+int ei_wrapper_clear_data(bool *cancelled)
 {
-	return buf_cleanup(&ei_input);
+	return buf_cleanup(&ei_input, cancelled);
 }
 
 int ei_wrapper_start_prediction(size_t window_shift, size_t frame_shift)
@@ -365,8 +373,10 @@ int ei_wrapper_init(ei_wrapper_result_ready_cb cb)
 
 	user_cb = cb;
 
-	int err = buf_cleanup(&ei_input);
+	bool cancelled;
+	int err = buf_cleanup(&ei_input, &cancelled);
 
+	__ASSERT_NO_MSG(!cancelled);
 	__ASSERT_NO_MSG(!err);
 	ARG_UNUSED(err);
 

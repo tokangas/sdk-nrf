@@ -1,12 +1,12 @@
 #
-# Copyright (c) 2018 Nordic Semiconductor
+# Copyright (c) 2018-2021 Nordic Semiconductor ASA
 #
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 menu "BLE"
 
-comment "BLE State"
+comment "BLE Passkey"
 
 config DESKTOP_BLE_ENABLE_PASSKEY
 	bool "Enable passkey based pairing"
@@ -15,10 +15,13 @@ config DESKTOP_BLE_ENABLE_PASSKEY
 	help
 	  Enable passkey based pairing for increased security.
 
-module = DESKTOP_BLE_STATE
-module-str = BLE state
+if DESKTOP_BLE_ENABLE_PASSKEY
+
+module = DESKTOP_BLE_PASSKEY
+module-str = BLE passkey
 source "subsys/logging/Kconfig.template.log_config"
 
+endif
 
 comment "BLE Bond"
 
@@ -32,7 +35,7 @@ config DESKTOP_BLE_USE_DEFAULT_ID
 
 config DESKTOP_BLE_PEER_CONTROL
 	bool "Enable interaction with peer configuration"
-	depends on !DESKTOP_BUTTONS_NONE
+	depends on CAF_BUTTON_EVENTS
 	help
 	  Let user control Bluetooth peers by pressing a dedicated button.
 
@@ -130,62 +133,6 @@ module = DESKTOP_BLE_BOND
 module-str = BLE bonds
 source "subsys/logging/Kconfig.template.log_config"
 
-
-comment "BLE Advertising"
-
-config DESKTOP_BLE_ADVERTISING_ENABLE
-	bool "Enable BLE advertising"
-	depends on BT_PERIPHERAL
-	help
-	  Make device discoverable via BLE.
-
-config DESKTOP_BLE_DIRECT_ADV
-	bool "Advertise to bonded peer directly"
-	depends on DESKTOP_BLE_ADVERTISING_ENABLE
-	help
-	  Device will use direct advertising if bonded.
-
-config DESKTOP_BLE_FAST_ADV
-	bool "Enable period of fast advertising"
-	depends on DESKTOP_BLE_ADVERTISING_ENABLE
-	help
-	  Device will initially advertise with shorter interval.
-
-config DESKTOP_BLE_FAST_ADV_TIMEOUT
-	int "Time of initial fast advertising [s]"
-	default 30
-	depends on DESKTOP_BLE_FAST_ADV
-	help
-	  Device will initially advertise with shorter interval to enable
-	  quicker discovery by hosts. After this time it will shift to normal
-	  cadence advertising.
-
-config DESKTOP_BLE_SWIFT_PAIR
-	bool "Enable Swift Pair feature"
-	depends on DESKTOP_BLE_ADVERTISING_ENABLE
-	depends on DESKTOP_BLE_FAST_ADV
-	help
-	  Enable quick pairing with Microsoft Swift Pair.
-
-config DESKTOP_BLE_SWIFT_PAIR_GRACE_PERIOD
-	int "No Swift Pair time gap before suspend [s]"
-	default 30
-	depends on DESKTOP_POWER_MANAGER_ENABLE
-	depends on DESKTOP_BLE_SWIFT_PAIR
-	help
-	  To ensure users will not try to connect to a device which is no longer
-	  available, Swift Pair vendor section will be removed before exiting
-	  from advertising mode.
-
-if DESKTOP_BLE_ADVERTISING_ENABLE
-
-module = DESKTOP_BLE_ADV
-module-str = BLE advertising
-source "subsys/logging/Kconfig.template.log_config"
-
-endif
-
-
 comment "BLE Scanning"
 
 config DESKTOP_BLE_SCANNING_ENABLE
@@ -250,17 +197,6 @@ source "subsys/logging/Kconfig.template.log_config"
 endif
 
 comment "BLE connection parameters"
-
-config DESKTOP_BLE_USE_LLPM
-	bool "Use LLPM connection parameters"
-	depends on BT_LL_SOFTDEVICE
-	default y
-	help
-	  LLPM connection interval is necessary to achieve high report rates
-	  (up to 1000 reports/second). With standard BLE connection, the lowest
-	  available connection interval is 7.5 ms. LLPM parameters can be used
-	  for given connection only if it's supported by both peripheral and
-	  central.
 
 if BT_PERIPHERAL
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <stdlib.h>
@@ -10,10 +10,10 @@
 #include <modem/at_cmd.h>
 #include <modem/at_notif.h>
 #include <modem/lte_lc.h>
-#if defined (CONFIG_FTA_PING)
+#if defined (CONFIG_MOSH_PING)
 #include "ping/icmp_ping_shell.h"
 #endif
-#if defined (CONFIG_FTA_SOCK)
+#if defined (CONFIG_MOSH_SOCK)
 #include "sock_shell.h"
 #endif
 #if defined (CONFIG_POSIX_API)
@@ -23,13 +23,13 @@
 #include <posix/sys/select.h>
 #endif
 #endif
-#if defined (CONFIG_FTA_LTELC)
+#if defined (CONFIG_MOSH_LTELC)
 #include "ltelc_shell.h"
 #endif
-#if defined (CONFIG_FTA_CURL)	
-#include "fta_curl.h"
+#if defined (CONFIG_MOSH_CURL)	
+#include "mosh_curl.h"
 #endif
-#if defined (CONFIG_FTA_GNSS)
+#if defined (CONFIG_MOSH_GNSS)
 #include "gnss/gnss_shell.h"
 #endif
 

@@ -16,14 +16,14 @@
 
 #include "hids_event.h"
 #include "hid_event.h"
-#include "ble_event.h"
+#include <caf/events/ble_common_event.h>
 #include "config_event.h"
 
 #include "hid_report_desc.h"
 #include "config_channel_transport.h"
 
 #define MODULE hids
-#include "module_state_event.h"
+#include <caf/events/module_state_event.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_HIDS_LOG_LEVEL);

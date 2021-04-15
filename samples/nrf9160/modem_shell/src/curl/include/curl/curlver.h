@@ -30,7 +30,7 @@
 
 /* This is the version number of the libcurl package from which this header
    file origins: */
-#define LIBCURL_VERSION "7.73.0-FTA-Zephyr"
+#define LIBCURL_VERSION "7.73.0-MOSH-Zephyr"
 
 /* The numeric version number is also available "in parts" by using these
    defines: */

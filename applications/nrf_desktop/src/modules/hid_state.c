@@ -18,11 +18,11 @@
 #include <sys/util.h>
 #include <sys/byteorder.h>
 
-#include "button_event.h"
+#include <caf/events/button_event.h>
 #include "motion_event.h"
 #include "wheel_event.h"
 #include "hid_event.h"
-#include "ble_event.h"
+#include <caf/events/ble_common_event.h>
 #include "usb_event.h"
 
 #include "hid_keymap.h"
@@ -30,7 +30,7 @@
 #include "hid_report_desc.h"
 
 #define MODULE hid_state
-#include "module_state_event.h"
+#include <caf/events/module_state_event.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_HID_STATE_LOG_LEVEL);
@@ -1423,7 +1423,7 @@ static bool event_handler(const struct event_header *eh)
 		return handle_wheel_event(cast_wheel_event(eh));
 	}
 
-	if (!IS_ENABLED(CONFIG_DESKTOP_BUTTONS_NONE) &&
+	if (IS_ENABLED(CONFIG_CAF_BUTTON_EVENTS) &&
 	    is_button_event(eh)) {
 		return handle_button_event(cast_button_event(eh));
 	}

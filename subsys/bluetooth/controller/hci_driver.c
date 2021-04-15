@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
+#include <drivers/entropy.h>
 #include <drivers/bluetooth/hci_driver.h>
 #include <bluetooth/controller.h>
 #include <bluetooth/hci_vs.h>
@@ -13,8 +14,10 @@
 #include <soc.h>
 #include <sys/byteorder.h>
 #include <stdbool.h>
+#include <sys/__assert.h>
 
 #include <sdc.h>
+#include <sdc_soc.h>
 #include <sdc_hci.h>
 #include <sdc_hci_vs.h>
 #include "multithreading_lock.h"
@@ -79,6 +82,14 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_CENTRAL) ||
 BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_PERIPHERAL) ||
 			 (CONFIG_SDC_SLAVE_COUNT > 0));
 
+#if defined(CONFIG_BT_EXT_ADV)
+	#define SDC_ADV_SET_COUNT CONFIG_BT_EXT_ADV_MAX_ADV_SET
+#elif defined(CONFIG_BT_BROADCASTER)
+	#define SDC_ADV_SET_COUNT 1
+#else
+	#define SDC_ADV_SET_COUNT 0
+#endif
+
 #ifdef CONFIG_BT_CTLR_DATA_LENGTH_MAX
 	#define MAX_TX_PACKET_SIZE CONFIG_BT_CTLR_DATA_LENGTH_MAX
 	#define MAX_RX_PACKET_SIZE CONFIG_BT_CTLR_DATA_LENGTH_MAX
@@ -102,7 +113,8 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_PERIPHERAL) ||
 	+ SDC_MEM_SLAVE_LINKS_SHARED)
 
 #define MEMPOOL_SIZE ((CONFIG_SDC_SLAVE_COUNT * SLAVE_MEM_SIZE) + \
-		      (SDC_MASTER_COUNT * MASTER_MEM_SIZE))
+		      (SDC_MASTER_COUNT * MASTER_MEM_SIZE) + \
+		      (SDC_ADV_SET_COUNT * SDC_MEM_DEFAULT_ADV_SIZE))
 
 static uint8_t sdc_mempool[MEMPOOL_SIZE];
 
@@ -372,6 +384,33 @@ void host_signal(void)
 	k_sem_give(&sem_recv);
 }
 
+
+static const struct device *entropy_source;
+
+static uint8_t rand_prio_low_vector_get(uint8_t *p_buff, uint8_t length)
+{
+	int ret = entropy_get_entropy_isr(entropy_source, p_buff, length, 0);
+
+	__ASSERT(ret >= 0, "The entropy source returned an error in the low priority context");
+	return ret >= 0 ? ret : 0;
+}
+
+static uint8_t rand_prio_high_vector_get(uint8_t *p_buff, uint8_t length)
+{
+	int ret = entropy_get_entropy_isr(entropy_source, p_buff, length, 0);
+
+	__ASSERT(ret >= 0, "The entropy source returned an error in the high priority context");
+	return ret >= 0 ? ret : 0;
+}
+
+static void rand_prio_low_vector_get_blocking(uint8_t *p_buff, uint8_t length)
+{
+	int err = entropy_get_entropy(entropy_source, p_buff, length);
+
+	__ASSERT(err == 0, "The entropy source returned an error in a blocking call");
+	(void) err;
+}
+
 static int hci_driver_open(void)
 {
 	BT_DBG("Open");
@@ -436,6 +475,16 @@ static int hci_driver_open(void)
 		return required_memory;
 	}
 
+	cfg.adv_count.count = SDC_ADV_SET_COUNT;
+
+	required_memory =
+	sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+		    SDC_CFG_TYPE_ADV_COUNT,
+		    &cfg);
+	if (required_memory < 0) {
+		return required_memory;
+	}
+
 	BT_DBG("BT mempool size: %u, required: %u",
 	       sizeof(sdc_mempool), required_memory);
 
@@ -445,6 +494,24 @@ static int hci_driver_open(void)
 		k_panic();
 		/* No return from k_panic(). */
 		return -ENOMEM;
+	}
+
+	entropy_source = device_get_binding(DT_LABEL(DT_NODELABEL(rng)));
+	if (!entropy_source) {
+		BT_ERR("An entropy source is required");
+		return -ENODEV;
+	}
+
+	sdc_rand_source_t rand_functions = {
+		.rand_prio_low_get = rand_prio_low_vector_get,
+		.rand_prio_high_get = rand_prio_high_vector_get,
+		.rand_poll = rand_prio_low_vector_get_blocking
+	};
+
+	err = sdc_rand_source_register(&rand_functions);
+	if (err) {
+		BT_ERR("Failed to register rand source (%d)", err);
+		return -EINVAL;
 	}
 
 	if (IS_ENABLED(CONFIG_BT_BROADCASTER)) {

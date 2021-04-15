@@ -11,6 +11,7 @@
 #include <random/rand32.h>
 #include <net/mqtt.h>
 #include <net/socket.h>
+#include <modem/at_cmd.h>
 #include <modem/lte_lc.h>
 #include <logging/log.h>
 #if defined(CONFIG_MODEM_KEY_MGMT)
@@ -348,6 +349,59 @@ static int broker_init(void)
 	return err;
 }
 
+#if defined(CONFIG_NRF_MODEM_LIB)
+#define IMEI_LEN 15
+#define CGSN_RESPONSE_LENGTH 19
+#define CLIENT_ID_LEN sizeof("nrf-") + IMEI_LEN
+#else
+#define RANDOM_LEN 10
+#define CLIENT_ID_LEN sizeof(CONFIG_BOARD) + 1 + RANDOM_LEN
+#endif /* defined(CONFIG_NRF_MODEM_LIB) */
+
+/* Function to get the client id */
+static const uint8_t* client_id_get(void)
+{
+	static uint8_t client_id[MAX(sizeof(CONFIG_MQTT_CLIENT_ID),
+				     CLIENT_ID_LEN)];
+
+	if (strlen(CONFIG_MQTT_CLIENT_ID) > 0) {
+		snprintf(client_id, sizeof(client_id), "%s",
+			 CONFIG_MQTT_CLIENT_ID);
+		goto exit;
+	}
+
+#if defined(CONFIG_NRF_MODEM_LIB)
+	char imei_buf[CGSN_RESPONSE_LENGTH + 1];
+	int err;
+
+	if (!IS_ENABLED(CONFIG_AT_CMD_SYS_INIT)) {
+		err = at_cmd_init();
+		if (err) {
+			LOG_ERR("at_cmd failed to initialize, error: %d", err);
+			goto exit;
+		}
+	}
+
+	err = at_cmd_write("AT+CGSN", imei_buf, sizeof(imei_buf), NULL);
+	if (err) {
+		LOG_ERR("Failed to obtain IMEI, error: %d", err);
+		goto exit;
+	}
+
+	imei_buf[IMEI_LEN] = '\0';
+
+	snprintf(client_id, sizeof(client_id), "nrf-%.*s", IMEI_LEN, imei_buf);
+#else
+	uint32_t id = sys_rand32_get();
+	snprintf(client_id, sizeof(client_id), "%s-%010u", CONFIG_BOARD, id);
+#endif /* !defined(NRF_CLOUD_CLIENT_ID) */
+
+exit:
+	LOG_DBG("client_id = %s", log_strdup(client_id));
+
+	return client_id;
+}
+
 /**@brief Initialize the MQTT client structure
  */
 static int client_init(struct mqtt_client *client)
@@ -365,8 +419,8 @@ static int client_init(struct mqtt_client *client)
 	/* MQTT client configuration */
 	client->broker = &broker;
 	client->evt_cb = mqtt_evt_handler;
-	client->client_id.utf8 = (uint8_t *)CONFIG_MQTT_CLIENT_ID;
-	client->client_id.size = strlen(CONFIG_MQTT_CLIENT_ID);
+	client->client_id.utf8 = client_id_get();
+	client->client_id.size = strlen(client->client_id.utf8);
 	client->password = NULL;
 	client->user_name = NULL;
 	client->protocol_version = MQTT_VERSION_3_1_1;
@@ -428,6 +482,7 @@ static int fds_init(struct mqtt_client *c)
 	return 0;
 }
 
+#if defined(CONFIG_DK_LIBRARY)
 static void button_handler(uint32_t button_states, uint32_t has_changed)
 {
 	if (has_changed & button_states &
@@ -443,13 +498,14 @@ static void button_handler(uint32_t button_states, uint32_t has_changed)
 		}
 	}
 }
+#endif
 
 /**@brief Configures modem to provide LTE link. Blocks until link is
  * successfully established.
  */
 static int modem_configure(void)
 {
-
+#if defined(CONFIG_LTE_LINK_CONTROL)
 	/* Turn off LTE power saving features for a more responsive demo. Also,
 	 * request power saving features before network registration. Some
 	 * networks rejects timer updates after the device has registered to the
@@ -459,7 +515,6 @@ static int modem_configure(void)
 	lte_lc_psm_req(false);
 	lte_lc_edrx_req(false);
 
-#if defined(CONFIG_LTE_LINK_CONTROL)
 	if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 		/* Do nothing, modem is already turned on
 		 * and connected.
@@ -519,7 +574,9 @@ void main(void)
 		return;
 	}
 
+#if defined(CONFIG_DK_LIBRARY)
 	dk_buttons_init(button_handler);
+#endif
 
 do_connect:
 	if (connect_attempt++ > 0) {

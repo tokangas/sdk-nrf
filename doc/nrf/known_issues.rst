@@ -1,5 +1,3 @@
-:orphan:
-
 .. _known_issues:
 
 Known issues
@@ -216,8 +214,15 @@ Thread
 
 .. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0
 
+KRKNWK-9094: Possible deadlock in shell subsystem
+  Issuing OpenThread commands too fast might cause a deadlock in the shell subsystem.
+
+  **Workaround:** If possible, avoid invoking a new command before execution of the previous one has completed.
+
+.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0
+
 KRKNWK-6848: Reduced throughput
-  Performance testing for :ref:`NCP sample <ot_ncp_sample>` shows a decrease of throughput of around 10-20% compared with the standard OpenThread.
+  Performance testing for the :ref:`ot_coprocessor_sample` sample shows a decrease of throughput of around 10-20% compared with the standard OpenThread.
 
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0
 
@@ -252,10 +257,10 @@ KRKNWK-7962: Logging interferes with shell output
 .. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0
 
 KRKNWK-7803: Automatically generated libraries are missing otPlatLog for NCP
-  When building OpenThread libraries using a different sample than the :ref:`Thread NCP sample <ot_ncp_sample>`, the :file:`ncp_base.cpp` is not compiled with the :c:func:`otPlatLog` function.
+  When building OpenThread libraries using a different sample than the :ref:`ot_coprocessor_sample` sample, the :file:`ncp_base.cpp` is not compiled with the :c:func:`otPlatLog` function.
   This results in a linking failure when building the NCP with these libraries.
 
-  **Workaround:** Use the :ref:`Thread NCP sample <ot_ncp_sample>` to create OpenThread libraries.
+  **Workaround:** Use the :ref:`ot_coprocessor_sample` sample to create OpenThread libraries.
 
 .. rst-class:: v1-3-1 v1-3-0
 
@@ -336,8 +341,11 @@ nRF Desktop
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0
 
 DESK-978: Directed advertising issues with SoftDevice Link Layer
-  Directed advertising (:option:`CONFIG_DESKTOP_BLE_DIRECT_ADV`) should not be used by the :ref:`nrf_desktop` application when the :ref:`nrfxlib:softdevice_controller` is in use, because that leads to reconnection problems.
+  Directed advertising (``CONFIG_DESKTOP_BLE_DIRECT_ADV``) should not be used by the :ref:`nrf_desktop` application when the :ref:`nrfxlib:softdevice_controller` is in use, because that leads to reconnection problems.
   For more detailed information, see the ``Known issues and limitations`` section of the SoftDevice Controller's :ref:`nrfxlib:softdevice_controller_changelog`.
+
+.. note::
+   The Kconfig option name changed from ``CONFIG_DESKTOP_BLE_DIRECT_ADV`` to :option:`CONFIG_CAF_BLE_ADV_DIRECT_ADV` beginning with the nRF Connect SDK v1.5.99.
 
   **Workaround:** Directed advertising is disabled by default for nRF Desktop.
 
@@ -355,6 +363,27 @@ Subsystems
 Bluetooth LE
 ============
 
+.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0
+
+DRGN-15435: GATT notifications and Writes Without Response might be sent out of order
+  GATT notifications and Writes Without Response might be sent out of order when not using a complete callback.
+
+  **Workaround:** Always set a callback for notifications and Writes Without Response.
+
+.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
+
+DRGN-15448: Incomplete bond overwrite during pairing procedure when peer is not using the IRK stored in the bond
+  When pairing with a peer that has deleted its bond information and is using a new IRK to establish the connection, the existing bond is not overwritten during the pairing procedure.
+  This can lead to MIC errors during reconnection if the old LTK is used instead.
+
+.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
+
+NCSDK-8321: NUS shell transport sample does not display the initial shell prompt *uart:~$* on the remote terminal.
+  Also few logs with sending errors are displayed on the terminal connected directly to the DK.
+  This issue is caused by the shell being enabled before turning on the notifications for the NUS service by the remote peer.
+
+  **Workaround:** Enable the shell after turning on the NUS notifications or block it until turning on the notifications.
+
 .. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
 
 NCSDK-8224: Callbacks for "security changed" and "pairing failed" are not always called
@@ -367,9 +396,9 @@ NCSDK-8224: Callbacks for "security changed" and "pairing failed" are not always
 NCSDK-8223: GATT requests might deadlock RX thread
   GATT requests might deadlock the RX thread when all TX buffers are taken by GATT requests and the RX thread tries to allocate a TX buffer for a response.
   This causes a deadlock because only the RX thread releases the TX buffers for the GATT requests.
-  The deadlock is resolved by a 30 second time-out, but the ATT bearer cannot transmit without reconnecting.
+  The deadlock is resolved by a 30 second timeout, but the ATT bearer cannot transmit without reconnecting.
 
-  **Workaround:** Set :option:`CONFIG_BT_L2CAP_TX_BUF_COUNT` >= :option:`CONFIG_BT_ATT_TX_MAX` + 2.
+  **Workaround:** Set :option:`CONFIG_BT_L2CAP_TX_BUF_COUNT` >= ``CONFIG_BT_ATT_TX_MAX`` + 2.
 
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
 
@@ -635,7 +664,7 @@ Offset not retained with an MCUboot target
 
 .. rst-class:: v1-1-0
 
-Download stopped on socket connection time-out
+Download stopped on socket connection timeout
   In the :ref:`aws_fota_sample` and :ref:`http_application_update_sample` samples, the download is stopped if the socket connection times out before the modem can delete the modem firmware.
   A fix for this issue is available in commit `38625ba7 <https://github.com/nrfconnect/sdk-nrf/commit/38625ba775adda3cdc7dbf516eeb3943c7403227>`_.
 
@@ -816,6 +845,32 @@ KRKNWK-8133: CSMA-CA issues
 SoftDevice Controller
 =====================
 
+.. rst-class:: v1-5-0
+
+DRGN-15465: Corrupted advertising data when :option:`CONFIG_BT_EXT_ADV` is set
+  Setting scan response data for a legacy advertiser on a build with extended advertising support corrupts parts of the advertising data.
+  When using ``BT_LE_ADV_OPT_USE_NAME`` (which is the default configuration in most samples), the device name is put in the scan response.
+  This corrupts the advertising data.
+
+  **Workaround:** Do not set scan response data.
+  That implies not using the ``BT_LE_ADV_OPT_USE_NAME`` option, or the :c:macro:`BT_LE_ADV_CONN_NAME` macro when initializing Bluetooth.
+  Instead, use :c:macro:`BT_LE_ADV_CONN`, and if necessary set the device name in the advertising data manually.
+
+.. rst-class:: v1-5-0
+
+DRGN-15475: Samples might not initialize the SoftDevice Controller HCI driver correctly
+  Samples using both the advertising and the scanning state, but not the connected state, fail to initialize the SoftDevice Controller HCI driver.
+  As a result, the function :c:func:`bt_enable()` returns an error code.
+
+  **Workaround:** Manually enable :option:`CONFIG_SOFTDEVICE_CONTROLLER_MULTIROLE` for the project configuration.
+
+.. rst-class:: v1-5-0
+
+DRGN-15382: The SoftDevice Controller cannot be qualified on nRF52832
+  The SoftDevice Controller cannot be qualified on nRF52832.
+
+  **Workaround:** Upgrade to v1.5.1 (once available) or use the master branch.
+
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0
 
 DRGN-15226: Link disconnects with reason "LMP Response Timeout (0x22)"
@@ -830,16 +885,6 @@ DRGN-11963: LL control procedures cannot be initiated at the same time
 
   **Workaround:** Do not initiate these procedures at the same time.
 
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
-
-DRGN-8476: Long packets not supported in connections on Coded PHY
-  In connections, the Link Layer payload size is limited to 27 bytes on LE Coded PHY.
-
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
-
-DRGN-9083: AAR populated with zero IRK
-  If the application has set an all zeroes IRK for a device in the resolving list, then a resolvable address that can be resolved with the all zeroes IRK will be reported to the application as that device in the advertisement report or the connected event.
-
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
 
 DRGN-13921: Directed advertising issues using RPA in TargetA
@@ -849,43 +894,8 @@ DRGN-13921: Directed advertising issues using RPA in TargetA
 
 .. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
 
-DRGN-11297: Maximum CI before entering LLPM-mode
-  The maximum connection interval that can be active when switching to a connection interval of 1 ms is 10 ms.
-
-  **Workaround:** An application that needs to use a higher interval than 10 ms needs to perform two connection updates to use 1 ms connection interval:
-
-  * A first update to 10 ms connection interval.
-  * A second update to 1 ms connection interval.
-
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
-
-DRGN-10305: Scanner can't have more than 16 seconds scan window
-  If the scanner is configured with a scan window larger than 16 seconds, the scanner will truncate the scan window to 16 seconds.
-
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
-
-DRGN-8569: SEVONPEND flag must not be modified
-  Applications must not modify the SEVONPEND flag in the SCR register when running in priority levels higher than 6 (priority level numerical values lower than 6) as this can lead to undefined behavior.
-
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0
-
-DRGN-6362: Synthesized low frequency clock source not tested
-  Synthesized low frequency clock source is not tested or intended for use with the Bluetooth LE stack.
-
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
-
 DRGN-10367: Advertiser times out earlier than expected
   If an extended advertiser is configured with limited duration, it will time out after the first primary channel packet in the last advertising event.
-
-.. rst-class:: v1-5-0 v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0
-
-DRGN-12259: HCI Receiver and Transmitter Test commands not available
-  The HCI Receiver and Transmitter Test commands are not available.
-
-  **Workaround:** To perform a radio test, use a DTM application:
-
-  * For nRF52, use the DTM application in the nRF5 SDK.
-  * For nRF53, use :ref:`direct_test_mode`.
 
 .. rst-class:: v1-1-0
 
@@ -975,7 +985,7 @@ Assert on writing to flash
 
 .. rst-class:: v1-0-0
 
-Time-out without sending packet
+Timeout without sending packet
   A directed advertiser may time out without sending a packet on air.
 
 nrfx

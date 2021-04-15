@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #ifndef ICMP_PING_H
@@ -14,7 +14,7 @@
  */
 
 #include <zephyr/types.h>
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 #define ICMP_IPV4_HDR_LEN        20
 #define ICMP_IPV6_HDR_LEN        40
@@ -39,7 +39,7 @@ typedef struct {
 	struct addrinfo *dest;
 	struct in_addr current_addr4;
 	struct in6_addr current_addr6;
-    char current_apn_str[FTA_APN_STR_MAX_LEN];
+    char current_apn_str[MOSH_APN_STR_MAX_LEN];
     char current_pdp_type;
 	uint32_t mtu;
 	uint32_t len;

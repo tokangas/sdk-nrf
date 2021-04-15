@@ -48,21 +48,97 @@ enum lte_lc_system_mode {
 	LTE_LC_SYSTEM_MODE_NBIOT,
 	LTE_LC_SYSTEM_MODE_GPS,
 	LTE_LC_SYSTEM_MODE_LTEM_GPS,
-	LTE_LC_SYSTEM_MODE_NBIOT_GPS
+	LTE_LC_SYSTEM_MODE_NBIOT_GPS,
+	LTE_LC_SYSTEM_MODE_LTEM_NBIOT,
+	LTE_LC_SYSTEM_MODE_LTEM_NBIOT_GPS,
 };
 
-/* NOTE: enum lte_lc_func_mode maps directly to the functional mode
- *	 as returned by the AT command "AT+CFUN?" as specified in
- *	 "nRF91 AT Commands - Command Reference Guide v1.1"
+/** LTE mode. The values for LTE-M and NB-IoT correspond to the values for the
+ *  AcT field in an AT+CEREG response.
+ */
+enum lte_lc_lte_mode {
+	LTE_LC_LTE_MODE_NONE	= 0,
+	LTE_LC_LTE_MODE_LTEM	= 7,
+	LTE_LC_LTE_MODE_NBIOT	= 9,
+};
+
+/** LTE mode preference. If more than one LTE system mode is enabled, the modem
+ *  can select the mode that best meets the criteria set by this configuration.
+ *  The LTE mode preference does not affect the way GPS operates.
+ *
+ *  Note that there's a distinction between preferred and prioritized mode.
+ */
+enum lte_lc_system_mode_preference {
+	/** No LTE preference, automatically selected by the modem. */
+	LTE_LC_SYSTEM_MODE_PREFER_AUTO = 0,
+
+	/** LTE-M is preferred over PLMN selection. The modem will prioritize to
+	 *  use LTE-M and switch over to a PLMN where LTE-M is available whenever
+	 *  possible.
+	 */
+	LTE_LC_SYSTEM_MODE_PREFER_LTEM,
+
+	/** NB-IoT is preferred over PLMN selection. The modem will prioritize to
+	 *  use NB-IoT and switch over to a PLMN where NB-IoT is available
+	 *  whenever possible.
+	 */
+	LTE_LC_SYSTEM_MODE_PREFER_NBIOT,
+
+	/** LTE-M is preferred, but PLMN selection is more important. The modem
+	 *  will prioritize to stay on home network and switch over to NB-IoT
+	 *  if LTE-M is not available.
+	 */
+	LTE_LC_SYSTEM_MODE_PREFER_LTEM_PLMN_PRIO,
+
+	/** NB-IoT is preferred, but PLMN selection is more important. The modem
+	 *  will prioritize to stay on home network and switch over to LTE-M
+	 *  if NB-IoT is not available.
+	 */
+	LTE_LC_SYSTEM_MODE_PREFER_NBIOT_PLMN_PRIO
+};
+
+/** @brief Functional modes, used to control RF functionality in the modem.
+ *
+ *  @note The functional modes map directly to the functional modes as described
+ *	  in "nRF91 AT Commands - Command Reference Guide". Please refer to the
+ *	  AT command guide to verify if a functional mode is supported by a
+ *	  given modem firmware version.
  */
 enum lte_lc_func_mode {
+	/* Sets the device to minimum functionality. Disables both transmit and
+	 * receive RF circuits and deactivates LTE and GNSS.
+	 */
 	LTE_LC_FUNC_MODE_POWER_OFF		= 0,
+
+	/* Sets the device to full functionality. Both LTE and GNSS will become
+	 * active if the respective system modes are enabled.
+	 */
 	LTE_LC_FUNC_MODE_NORMAL			= 1,
+
+	/* Sets the device to flight mode. Disables both transmit and receive RF
+	 * circuits and deactivates LTE and GNSS services.
+	 */
 	LTE_LC_FUNC_MODE_OFFLINE		= 4,
+
+	/* Deactivates LTE without shutting down GNSS services. */
 	LTE_LC_FUNC_MODE_DEACTIVATE_LTE		= 20,
+
+	/* Activates LTE without changing GNSS. */
 	LTE_LC_FUNC_MODE_ACTIVATE_LTE		= 21,
+
+	/* Deactivates GNSS without shutting down LTE services. */
 	LTE_LC_FUNC_MODE_DEACTIVATE_GNSS	= 30,
+
+	/* Activates GNSS without changing LTE. */
 	LTE_LC_FUNC_MODE_ACTIVATE_GNSS		= 31,
+
+	/* Deactivates UICC. */
+	LTE_LC_FUNC_MODE_DEACTIVATE_UICC	= 40,
+
+	/* Activates UICC. */
+	LTE_LC_FUNC_MODE_ACTIVATE_UICC		= 41,
+
+	/* Sets the device to flight mode without shutting down UICC. */
 	LTE_LC_FUNC_MODE_OFFLINE_UICC_ON	= 44,
 };
 
@@ -72,6 +148,14 @@ enum lte_lc_evt_type {
 	LTE_LC_EVT_EDRX_UPDATE,
 	LTE_LC_EVT_RRC_UPDATE,
 	LTE_LC_EVT_CELL_UPDATE,
+
+	/** The currently active LTE mode is updated. If a system mode that
+	 *  enables both LTE-M and NB-IoT is configured, the modem may change
+	 *  the currently active LTE mode based on the system mode preference
+	 *  and network availability. This event will then indicate which
+	 *  LTE mode is currently used by the modem.
+	 */
+	LTE_LC_EVT_LTE_MODE_UPDATE,
 };
 
 enum lte_lc_rrc_mode {
@@ -102,6 +186,7 @@ struct lte_lc_evt {
 		struct lte_lc_psm_cfg psm_cfg;
 		struct lte_lc_edrx_cfg edrx_cfg;
 		struct lte_lc_cell cell;
+		enum lte_lc_lte_mode lte_mode;
 	};
 };
 
@@ -139,8 +224,11 @@ int lte_lc_init(void);
 
 /** @brief Function to make a connection with the modem.
  *
- * @note prior to calling this function a call to @ref lte_lc_init
+ * @note Prior to calling this function a call to @ref lte_lc_init
  *	 must be made, otherwise -EPERM is returned.
+ *
+ * @note After initialization, the system mode will be set to the default mode
+ *	 selected with Kconfig and LTE preference set to automatic selection.
  *
  * @return Zero on success, -EPERM if the module has not been initialized,
  *	   otherwise a (negative) error code.
@@ -244,26 +332,33 @@ int lte_lc_psm_req(bool enable);
 int lte_lc_psm_get(int *tau, int *active_time);
 
 /** @brief Function for setting Paging Time Window (PTW) value to be used when
- *	   eDRX is requested using `lte_lc_edrx_req`.
- *	   For reference see subclause 10.5.5.32 of 3GPP TS 24.008.
+ *	   eDRX is requested using `lte_lc_edrx_req`. PTW is set individually
+ *	   for LTE-M and NB-IoT.
+ *	   Requesting a specific PTW configuration should be done with caution.
+ *	   The requested value must be compliant with the eDRX value that is
+ *	   configured, and it's usually best to let the modem use default PTW
+ *	   values.
+ *	   For reference to which values can be set, see subclause 10.5.5.32 of 3GPP TS 24.008.
  *
+ * @param mode LTE mode to which the PTW value applies.
  * @param ptw Paging Time Window value as null-terminated string.
  *        Set NULL to use manufacturer-specific default value.
  *
  * @return Zero on success or (negative) error code otherwise.
  */
-int lte_lc_ptw_set(const char *ptw);
+int lte_lc_ptw_set(enum lte_lc_lte_mode mode, const char *ptw);
 
 /** @brief Function for setting modem eDRX value to be used when
  * eDRX is subsequently enabled using `lte_lc_edrx_req`.
  * For reference see 3GPP 27.007 Ch. 7.40.
  *
+ * @param mode LTE mode to which the eDRX value applies.
  * @param edrx eDRX value as null-terminated string.
  *        Set NULL to use manufacturer-specific default.
  *
  * @return Zero on success or (negative) error code otherwise.
  */
-int lte_lc_edrx_param_set(const char *edrx);
+int lte_lc_edrx_param_set(enum lte_lc_lte_mode mode, const char *edrx);
 
 /** @brief Function for requesting modem to enable or disable
  * use of eDRX using values set by `lte_lc_edrx_param_set`. The
@@ -336,21 +431,33 @@ int lte_lc_pdn_auth_set(enum lte_lc_pdn_auth_type auth_prot,
  */
 int lte_lc_nw_reg_status_get(enum lte_lc_nw_reg_status *status);
 
-/**@brief Set the modem's system mode.
+/**@brief Set the modem's system mode and LTE preference.
  *
  * @param mode System mode to set.
+ * @param preference System mode preference.
  *
  * @return Zero on success or (negative) error code otherwise.
  */
-int lte_lc_system_mode_set(enum lte_lc_system_mode mode);
+int lte_lc_system_mode_set(enum lte_lc_system_mode mode,
+			   enum lte_lc_system_mode_preference preference);
 
-/**@brief Get the modem's system mode.
+/**@brief Get the modem's system mode and LTE preference.
  *
  * @param mode Pointer to system mode variable.
+ * @param preference Pointer to system mode preference variable. Can be NULL.
  *
  * @return Zero on success or (negative) error code otherwise.
  */
-int lte_lc_system_mode_get(enum lte_lc_system_mode *mode);
+int lte_lc_system_mode_get(enum lte_lc_system_mode *mode,
+			   enum lte_lc_system_mode_preference *preference);
+
+/**@brief Set the modem's functional mode.
+ *
+ * @param mode Functional mode to set.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_func_mode_set(enum lte_lc_func_mode mode);
 
 /**@brief Get the modem's functional mode.
  *
@@ -359,6 +466,14 @@ int lte_lc_system_mode_get(enum lte_lc_system_mode *mode);
  * @return Zero on success or (negative) error code otherwise.
  */
 int lte_lc_func_mode_get(enum lte_lc_func_mode *mode);
+
+/**@brief Get the currently active LTE mode.
+ *
+ * @param mode Pointer to LTE mode variable.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_lte_mode_get(enum lte_lc_lte_mode *mode);
 
 /** @} */
 

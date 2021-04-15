@@ -11,9 +11,7 @@
 # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/west/index.html
 
 manifest:
-  # This west.yml requires west 0.9 or later, because the "submodules"
-  # feature used below was introduced then.
-  version: 0.9
+  version: "0.10"
 
   # "remotes" is a list of locations where git repositories are cloned
   # and fetched from.
@@ -22,8 +20,6 @@ manifest:
     # NCS repositories are hosted here.
     - name: ncs
       url-base: https://github.com/nrfconnect
-    - name: mosh-dev
-      url-base: https://github.com/trantanen
     # Third-party repository sources:
     - name: zephyrproject
       url-base: https://github.com/zephyrproject-rtos
@@ -43,6 +39,8 @@ manifest:
   defaults:
     remote: ncs
 
+  group-filter: [-homekit, -nrf-802154]
+
   # "projects" is a list of git repositories which make up the NCS
   # source code.
   projects:
@@ -54,13 +52,12 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
       repo-path: sdk-zephyr
-      revision: ppp-dial-up-with-zpckt-sckt
-      remote: mosh-dev
+      revision: ca2b2af6b699bdb3834bbbe90d8b15bae3d2ff39
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
         # revision. Only the projects explicitly named in the
-        # following whitelist are imported.
+        # following allowlist are imported.
         #
         # Note that the zephyr west extensions (like 'build', 'flash',
         # 'debug', etc.) are automatically provided by this import, so
@@ -68,7 +65,7 @@ manifest:
         # the zephyr project.
         #
         # Please keep this list sorted alphabetically.
-        name-whitelist:
+        name-allowlist:
           - canopennode
           - cmsis
           - civetweb
@@ -97,16 +94,16 @@ manifest:
     # changes.
     - name: mcuboot
       repo-path: sdk-mcuboot
-      revision: v1.7.99-ncs1
+      revision: 3ea42d2d5a7ebc5f7c691325a9f0d90b5d64fa1d
       path: bootloader/mcuboot
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: c229bd9a0decb897c35f7b34c4ea1960fc8d52d6
+      revision: fb936182435a1ae90fafbb8840e70a45d6f99a4e
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tfm
-      revision: v1.2.99-ncs1
+      revision: 3599bcc187f3ac05119b9424c859332f5acb0db3
     - name: tfm-mcuboot # This is used by the trusted-firmware-m module.
       repo-path: sdk-mcuboot
       path: modules/tee/tfm-mcuboot
@@ -114,7 +111,7 @@ manifest:
     - name: connectedhomeip
       repo-path: sdk-connectedhomeip
       path: modules/lib/connectedhomeip
-      revision: v1.5.0
+      revision: a008cba6c6671f0db8858c3c51cc619a43ddecdc
       submodules:
         - name: nlio
           path: third_party/nlio/repo
@@ -122,6 +119,12 @@ manifest:
           path: third_party/nlassert/repo
         - name: pigweed
           path: third_party/pigweed/repo
+    - name: nrf-802154
+      repo-path: sdk-nrf-802154
+      path: nrf-802154
+      revision: b8ad3b317626d1500f281276de40f9c6870fd5a4
+      groups:
+      - nrf-802154
     # Other third-party repositories.
     - name: cmock
       path: test/cmock
@@ -148,6 +151,11 @@ manifest:
       remote: nordicsemi
       revision: 24f1b2b0c64c694b7f9ac1b7eab60b39236ca0bf
       path: modules/lib/cddl-gen
+    - name: homekit
+      repo-path: sdk-homekit
+      revision: 6f257f34b84e494bc18202e8c6411e6be4cc81aa
+      groups:
+      - homekit
 
   # West-related configuration for the nrf repository.
   self:

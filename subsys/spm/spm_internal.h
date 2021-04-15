@@ -31,21 +31,12 @@ extern "C" {
 				/ RAM_SECURE_ATTRIBUTION_REGION_SIZE)
 
 /* SPU FLASH regions */
-#if (defined(CONFIG_SOC_NRF5340_CPUAPP) \
-	&& defined(CONFIG_NRF5340_CPUAPP_ERRATUM19))
-
-#define FLASH_SECURE_ATTRIBUTION_REGION_SIZE \
-				(nrf53_errata_19() ? 32*1024 : 16*1024)
-#define NUM_FLASH_SECURE_ATTRIBUTION_REGIONS (nrf53_errata_19() ? 32 : 64)
-#else
-
 #define SOC_NV_FLASH_NODE DT_INST(0, soc_nv_flash)
 #define SOC_NV_FLASH_SIZE DT_REG_SIZE(SOC_NV_FLASH_NODE)
 
 #define FLASH_SECURE_ATTRIBUTION_REGION_SIZE CONFIG_NRF_SPU_FLASH_REGION_SIZE
 #define NUM_FLASH_SECURE_ATTRIBUTION_REGIONS (SOC_NV_FLASH_SIZE \
 				/ FLASH_SECURE_ATTRIBUTION_REGION_SIZE)
-#endif
 
 /* Minimum size of Non-Secure Callable regions. */
 #define FLASH_NSC_MIN_SIZE 32
@@ -120,10 +111,20 @@ extern "C" {
 	  << SPU_PERIPHID_PERM_SECATTR_Pos) &                                  \
 	 SPU_PERIPHID_PERM_SECATTR_Msk)
 
+#define PERIPH_SEC                                                             \
+	((SPU_PERIPHID_PERM_SECATTR_Secure                                     \
+	  << SPU_PERIPHID_PERM_SECATTR_Pos) &                                  \
+	 SPU_PERIPHID_PERM_SECATTR_Msk)
+
 #define PERIPH_DMA_NOSEP                                                       \
 	((SPU_PERIPHID_PERM_DMA_NoSeparateAttribute                            \
 	  << SPU_PERIPHID_PERM_DMA_Pos) &                                      \
 	 SPU_PERIPHID_PERM_DMA_Msk)
+
+#define PERIPH_DMASEC                                                          \
+	((SPU_PERIPHID_PERM_DMASEC_Secure                                      \
+	  << SPU_PERIPHID_PERM_DMASEC_Pos) &                                   \
+	 SPU_PERIPHID_PERM_DMASEC_Msk)
 
 #define PERIPH_LOCK                                                            \
 	((SPU_PERIPHID_PERM_LOCK_Locked << SPU_PERIPHID_PERM_LOCK_Pos) &       \

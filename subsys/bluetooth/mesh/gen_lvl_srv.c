@@ -210,24 +210,47 @@ static void handle_move_set_unack(struct bt_mesh_model *model,
 }
 
 const struct bt_mesh_model_op _bt_mesh_lvl_srv_op[] = {
-	{ BT_MESH_LVL_OP_GET, BT_MESH_LVL_MSG_LEN_GET, handle_get },
-	{ BT_MESH_LVL_OP_SET, BT_MESH_LVL_MSG_MINLEN_SET, handle_set },
-	{ BT_MESH_LVL_OP_SET_UNACK, BT_MESH_LVL_MSG_MINLEN_SET,
-	  handle_set_unack },
-	{ BT_MESH_LVL_OP_DELTA_SET, BT_MESH_LVL_MSG_MINLEN_DELTA_SET,
-	  handle_delta_set },
-	{ BT_MESH_LVL_OP_DELTA_SET_UNACK, BT_MESH_LVL_MSG_MINLEN_DELTA_SET,
-	  handle_delta_set_unack },
-	{ BT_MESH_LVL_OP_MOVE_SET, BT_MESH_LVL_MSG_MINLEN_MOVE_SET,
-	  handle_move_set },
-	{ BT_MESH_LVL_OP_MOVE_SET_UNACK, BT_MESH_LVL_MSG_MINLEN_MOVE_SET,
-	  handle_move_set_unack },
+	{
+		BT_MESH_LVL_OP_GET,
+		BT_MESH_LVL_MSG_LEN_GET,
+		handle_get,
+	},
+	{
+		BT_MESH_LVL_OP_SET,
+		BT_MESH_LVL_MSG_MINLEN_SET,
+		handle_set,
+	},
+	{
+		BT_MESH_LVL_OP_SET_UNACK,
+		BT_MESH_LVL_MSG_MINLEN_SET,
+		handle_set_unack,
+	},
+	{
+		BT_MESH_LVL_OP_DELTA_SET,
+		BT_MESH_LVL_MSG_MINLEN_DELTA_SET,
+		handle_delta_set,
+	},
+	{
+		BT_MESH_LVL_OP_DELTA_SET_UNACK,
+		BT_MESH_LVL_MSG_MINLEN_DELTA_SET,
+		handle_delta_set_unack,
+	},
+	{
+		BT_MESH_LVL_OP_MOVE_SET,
+		BT_MESH_LVL_MSG_MINLEN_MOVE_SET,
+		handle_move_set,
+	},
+	{
+		BT_MESH_LVL_OP_MOVE_SET_UNACK,
+		BT_MESH_LVL_MSG_MINLEN_MOVE_SET,
+		handle_move_set_unack,
+	},
 	BT_MESH_MODEL_OP_END,
 };
 
-static int scene_store(struct bt_mesh_model *mod, uint8_t data[])
+static int scene_store(struct bt_mesh_model *model, uint8_t data[])
 {
-	struct bt_mesh_lvl_srv *srv = mod->user_data;
+	struct bt_mesh_lvl_srv *srv = model->user_data;
 	struct bt_mesh_lvl_status status = { 0 };
 
 	srv->handlers->get(srv, NULL, &status);
@@ -237,11 +260,11 @@ static int scene_store(struct bt_mesh_model *mod, uint8_t data[])
 	return 2;
 }
 
-static void scene_recall(struct bt_mesh_model *mod, const uint8_t data[],
+static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
 			 size_t len,
 			 struct bt_mesh_model_transition *transition)
 {
-	struct bt_mesh_lvl_srv *srv = mod->user_data;
+	struct bt_mesh_lvl_srv *srv = model->user_data;
 	struct bt_mesh_lvl_set set = {
 		.lvl = sys_get_le16(data),
 		.new_transaction = true,

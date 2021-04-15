@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <zephyr.h>
@@ -17,9 +17,9 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 /**
  * @brief Convert hexadecimal character to integer value.
- * 
+ *
  * @param[in] input Hexadecimal character.
- * 
+ *
  * @return Integer value of the hexadecimal character
  */
 static inline uint8_t char2int(char input)
@@ -39,7 +39,7 @@ static inline uint8_t char2int(char input)
 
 /**
  * @brief Convert ASCII formatted hexadecimal string into byte sequence.
- * 
+ *
  * @details Every two characters form a single byte. 3GPP TS 27.005 Section 3.1 says
  * the following in <pdu> definition:
  *   "ME/TA converts each octet of TP data unit into two IRA character long hexadecimal number
@@ -50,13 +50,14 @@ static inline uint8_t char2int(char input)
  * @param[out] buf Output buffer.
  * @param[in] buf Output buffer length.
  */
-static void convert_to_bytes(char *str, uint32_t str_length, uint8_t* buf, uint16_t buf_length)
+static void convert_to_bytes(char *str, uint32_t str_length, uint8_t *buf, uint16_t buf_length)
 {
 	for (int i = 0; i < str_length; i++) {
 		__ASSERT((i >> 1) <= buf_length, "Too small internal buffer");
 
 		/* Character in an even index will be filled into byte that should be
-		 * initialized to zero to make sure the memory area is clean. */
+		 * initialized to zero to make sure the memory area is clean.
+		 */
 		if (!(i % 2)) {
 			buf[i >> 1] = 0;
 		}
@@ -98,7 +99,7 @@ int parser_delete(struct parser *parser)
 
 /**
  * @brief Process given data with all sub parser of the given parser.
- * 
+ *
  * @param[in] parser Parser instance which has information on sub parsers that are executed.
  *
  * @return Zero if successful, negative value in error cases.
@@ -120,11 +121,10 @@ static int parser_process(struct parser *parser)
 
 		parser->buf_pos += ofs_inc;
 
-		/* If we have gone beyond the length of the given data,
-		   we need to return a failure. We don't have issues in
-		   accessing memory beyond parser->buf_size bytes of
-		   parser->buf as the buffer is overly long.
-		   */
+		/* If we have gone beyond the length of the given data, we need to return a failure.
+		 * We don't have issues in accessing memory beyond parser->buf_size bytes of
+		 * parser->buf as the buffer is overly long.
+		 */
 		if (parser->buf_pos > parser->buf_size) {
 			return -EMSGSIZE;
 		}
@@ -166,4 +166,3 @@ int parser_get_header(struct parser *parser, void *header)
 {
 	return parser->api->get_header(parser, header);
 }
-

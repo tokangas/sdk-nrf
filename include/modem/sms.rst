@@ -13,11 +13,10 @@ which makes it possible for more than one module to receive SMS messages.
 
 The module provides functions to register and unregister SMS listeners, which are the modules that need to send or receive SMS messages.
 Each listener is identified by a unique handle and receives the SMS data and metadata through a callback function.
-Each registered listener of the module can also send SMS messages.
+The module also provides possibility to send SMS messages.
 
 SMS listeners can be registered or unregistered at run time.
 The SMS data payload is parsed and processed before it is given to the client.
-It is up to the listener to parse and process it.
 
 The SMS module uses AT commands to register as SMS client towards the modem.
 In addition, AT commands are also used to send SMS messages.

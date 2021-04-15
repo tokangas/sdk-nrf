@@ -14,11 +14,11 @@
 #include "event_manager.h"
 #include "config_event.h"
 #include "hid_event.h"
-#include "ble_event.h"
+#include <caf/events/ble_common_event.h>
 #include "dfu_lock.h"
 
 #define MODULE dfu
-#include "module_state_event.h"
+#include <caf/events/module_state_event.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_DESKTOP_CONFIG_CHANNEL_DFU_LOG_LEVEL);

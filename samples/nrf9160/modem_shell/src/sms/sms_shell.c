@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <shell/shell.h>
@@ -11,7 +11,7 @@
 #include <getopt.h>
 
 #include "sms.h"
-#include "fta_defines.h"
+#include "mosh_defines.h"
 
 /* Maximum length of the message data that can be specified with -m option */
 #define SMS_MAX_MESSAGE_LEN CONFIG_SHELL_CMD_BUFF_SIZE

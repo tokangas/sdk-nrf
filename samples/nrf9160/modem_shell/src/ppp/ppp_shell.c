@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
 #include <zephyr.h>
@@ -12,7 +12,7 @@
 #include "ppp_ctrl.h"
 #include "ppp_shell.h"
 
-#if defined (CONFIG_FTA_PPP)
+#if defined (CONFIG_MOSH_PPP)
 #include <net/promiscuous.h>
 
 typedef enum {
