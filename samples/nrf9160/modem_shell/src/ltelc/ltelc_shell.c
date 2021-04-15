@@ -137,6 +137,7 @@ const char ltelc_sysmode_usage_str[] =
 	"  -M, --ltem_gps,             [bool] Set LTE-M + GPS system mode\n"
 	"  -N, --nbiot_gps,            [bool] Set NB-IoT + GPS system mode\n"
 	"      --ltem_nbiot_gps,       [bool] Set LTE-M + NB-IoT + GPS system mode\n"
+	"Additional preference might make impact in multimode system modes: --ltem_nbiot and --ltem_nbiot_gps\n"
 	"      --pref_auto,            [bool] Set LTE mode preference: auto, selected by modem (set as default if not given)\n"
 	"      --pref_ltem,            [bool] Set LTE mode preference: LTE-M is preferred over PLMN selection\n"
 	"      --pref_nbiot,           [bool] Set LTE mode preference: NB-IoT is preferred over PLMN selection\n"
