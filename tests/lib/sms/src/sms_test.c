@@ -16,21 +16,22 @@ static struct sms_data test_sms_data = {0};
 static struct sms_deliver_header test_sms_header = {0};
 static bool test_sms_header_exists = true;
 static int test_handle;
-static bool sms_callback_called_occurred = false;
-static bool sms_callback_called_expected = false;
+static bool sms_callback_called_occurred;
+static bool sms_callback_called_expected;
 
 static void sms_callback(struct sms_data *const data, void *context);
 
 /* sms_at_handler() is implemented in the library and we'll call it directly
- * to fake received SMS message */
+ * to fake received SMS message
+ */
 extern void sms_at_handler(void *context, const char *at_notif);
 
-static void helper_sms_data_clear()
+static void helper_sms_data_clear(void)
 {
 	memset(&test_sms_data, 0, sizeof(test_sms_data));
 
 	test_sms_data.type = SMS_TYPE_DELIVER;
-	memset(test_sms_data.data, 0, SMS_MAX_DATA_LEN_CHARS);
+	memset(test_sms_data.payload, 0, SMS_MAX_PAYLOAD_LEN_CHARS);
 
 	memset(&test_sms_header, 0, sizeof(test_sms_header));
 
@@ -50,20 +51,22 @@ void tearDown(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 }
 
-static void sms_reg_helper()
+static void sms_reg_helper(void)
 {
+	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=3,2,0,1", NULL, 0, NULL, 0);
 
 	test_handle = sms_register_listener(sms_callback, NULL);
 	TEST_ASSERT_EQUAL(0, test_handle);
 }
 
-static void sms_unreg_helper()
+static void sms_unreg_helper(void)
 {
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=0,0,0,0", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
@@ -84,6 +87,7 @@ void test_sms_init_uninit(void)
 void test_sms_init_fail_register_null(void)
 {
 	int handle = sms_register_listener(NULL, NULL);
+
 	TEST_ASSERT_EQUAL(-EINVAL, handle);
 }
 
@@ -94,9 +98,9 @@ void test_sms_init_fail_register_too_many(void)
 	/* Register listener with context pointer */
 	int value2 = 2;
 	int handle2 = sms_register_listener(sms_callback, &value2);
-	TEST_ASSERT_EQUAL(1, handle2);
-
 	int handle3 = sms_register_listener(sms_callback, NULL);
+
+	TEST_ASSERT_EQUAL(1, handle2);
 	TEST_ASSERT_EQUAL(-ENOSPC, handle3);
 
 	sms_unregister_listener(handle2);
@@ -111,44 +115,51 @@ void test_sms_init_fail_cnmi_query_ret_err(void)
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 	int handle = sms_register_listener(sms_callback, NULL);
+
 	TEST_ASSERT_EQUAL(-EINVAL, handle);
 }
 
 /** Test unexpected response for AT+CNMI? */
 void test_sms_init_fail_cnmi_resp_unexpected_value(void)
 {
+	char resp[] = "+CNMI: 0,0,5,0,1\r\n";
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	char resp[] = "+CNMI: 0,0,5,0,1\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
 	int handle = sms_register_listener(sms_callback, NULL);
+
 	TEST_ASSERT_EQUAL(-EBUSY, handle);
 }
 
 /** Test erroneous response for AT+CNMI? */
 void test_sms_init_fail_cnmi_resp_erroneous(void)
 {
+	/* Make at_parser_max_params_from_str() fail */
+	char resp[] = "+CNMI: 0,0,\"moi\",0,1,\r\n";
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	/* Make at_parser_max_params_from_str() fail */
-	char resp[] = "+CNMI: 0,0,\"moi\",0,1,\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
 	int handle = sms_register_listener(sms_callback, NULL);
+
 	TEST_ASSERT_EQUAL(-E2BIG, handle);
 }
 
 /** Test erroneous response for AT+CNMI? */
 void test_sms_init_fail_cnmi_set_ret_err(void)
 {
+	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI?", NULL, 0, NULL, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
-	char resp[] = "+CNMI: 0,0,0,0,1\r\n";
 	__wrap_at_cmd_write_ReturnArrayThruPtr_buf(resp, sizeof(resp));
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMI=3,2,0,1", NULL, 0, NULL, -EIO);
 	int handle = sms_register_listener(sms_callback, NULL);
+
 	TEST_ASSERT_EQUAL(-EIO, handle);
 }
 
@@ -189,8 +200,8 @@ void test_sms_uninit_cnmi_ret_err(void)
 
 /********* SMS SEND TESTS ***********************/
 /* The following site used as a reference for generated messages:
-   http://smstools3.kekekasvi.com/topic.php?id=288
-*/
+ * http://smstools3.kekekasvi.com/topic.php?id=288
+ */
 
 /**
  * Test sending using phone number with 10 characters and preceded by '+' sign.
@@ -200,11 +211,13 @@ void test_send_len3_number10plus(void)
 	sms_reg_helper();
 
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+1234567890", "Moi");
+	int ret = sms_send_text("+1234567890", "Moi");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
@@ -227,11 +240,13 @@ void test_send_len1_number20plus(void)
 	sms_reg_helper();
 
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=18\r00210014912143658709214365870900000131\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+12345678901234567890", "1");
+	int ret = sms_send_text("+12345678901234567890", "1");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
@@ -253,11 +268,13 @@ void test_send_len1_number20plus(void)
 void test_send_len7_number11(void)
 {
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=20\r0021000B912143658709F100000731D98C56B3DD00\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("12345678901", "1234567");
+	int ret = sms_send_text("12345678901", "1234567");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
@@ -270,11 +287,13 @@ void test_send_len7_number11(void)
 void test_send_len8_number1(void)
 {
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000191F100000831D98C56B3DD70\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("1", "12345678");
+	int ret = sms_send_text("1", "12345678");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
@@ -286,11 +305,13 @@ void test_send_len8_number1(void)
 void test_send_len9_number5(void)
 {
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=18\r00210005912143F500000931D98C56B3DD7039\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("12345", "123456789");
+	int ret = sms_send_text("12345", "123456789");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
@@ -302,16 +323,18 @@ void test_send_len9_number5(void)
 void test_send_concat_220chars_2msgs(void)
 {
 	enum at_cmd_state state1 = 0;
+	enum at_cmd_state state2 = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061010C912143658709210000A005000301020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state2 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=78\r0061020C9121436587092100004A0500030102026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD703918\x1A", NULL, 0, &state2, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+	int ret = sms_send_text("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
@@ -324,16 +347,18 @@ void test_send_concat_220chars_2msgs(void)
 void test_send_concat_291chars_2msgs(void)
 {
 	enum at_cmd_state state1 = 0;
+	enum at_cmd_state state2 = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061030C912143658709210000A005000302020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state2 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=140\r0061040C912143658709210000910500030202026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031\x1A", NULL, 0, &state2, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+123456789012", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
+	int ret = sms_send_text("+123456789012", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
@@ -346,31 +371,33 @@ void test_send_concat_291chars_2msgs(void)
 void test_send_concat_700chars_5msgs(void)
 {
 	enum at_cmd_state state1 = 0;
+	enum at_cmd_state state2 = 0;
+	enum at_cmd_state state3 = 0;
+	enum at_cmd_state state4 = 0;
+	enum at_cmd_state state5 = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061050C912143658709210000A005000303050162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state2 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061060C912143658709210000A00500030305026835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C\x1A", NULL, 0, &state2, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state3 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061070C912143658709210000A00500030305036EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172\x1A", NULL, 0, &state3, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state4 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r0061080C912143658709210000A00500030305046031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564\x1A", NULL, 0, &state4, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state5 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=97\r0061090C9121436587092100005F05000303050566B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC100\x1A", NULL, 0, &state5, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+	int ret = sms_send_text("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
@@ -385,20 +412,22 @@ void test_send_concat_700chars_5msgs(void)
 void test_send_special_characters(void)
 {
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=49\r00210005912143F500002C5378799C0EB3416374581E1ED3CBF2B90EB4A1803628D02605DAF0401B1F68F3026D7AA00DD005\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("12345", "Special characters: ^ { } [ ] \\ ~ |.");
+	int ret = sms_send_text("12345", "Special characters: ^ { } [ ] \\ ~ |.");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
-/** 
+/**
  * Test sending of special character so that escape char would go into
  * first concatenated message and next byte to second message.
  * Checks that implementation puts also escape code to second message.
- * 
+ *
  * Expected AT commands have been obtained by checking what the library
  * returns and using them. Concatenation User Data Header makes it complex
  * to generate it yourself manually and no web tools exist for encoding
@@ -408,16 +437,18 @@ void test_send_special_characters(void)
 void test_send_concat_special_character_split(void)
 {
 	enum at_cmd_state state1 = 0;
+	enum at_cmd_state state2 = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=150\r00610A05912143F500009F05000304020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC900\x1A", NULL, 0, &state1, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	enum at_cmd_state state2 = 0;
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=27\r00610B05912143F500001305000304020236E5986C46ABD96EB81C0C\x1A", NULL, 0, &state2, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("12345", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012\xA4""1234567890");
+	int ret = sms_send_text("12345", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012\xA4""1234567890");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state1);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state2);
@@ -427,11 +458,13 @@ void test_send_concat_special_character_split(void)
 void test_send_text_empty(void)
 {
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=12\r002100099121436587F9000000\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("123456789", "");
+	int ret = sms_send_text("123456789", "");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
@@ -440,11 +473,13 @@ void test_send_text_empty(void)
 void test_send_text_null(void)
 {
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=12\r002100099121436587F9000000\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("123456789", NULL);
+	int ret = sms_send_text("123456789", NULL);
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
@@ -454,31 +489,31 @@ void test_send_text_null(void)
 /** Phone number is empty. */
 void test_send_fail_number_empty(void)
 {
-	enum at_cmd_state state = 0;
-	int ret = sms_send("", "123456789");
+	int ret = sms_send_text("", "123456789");
+
 	TEST_ASSERT_EQUAL(-EINVAL, ret);
-	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
 /** Phone number is NULL. */
 void test_send_fail_number_null(void)
 {
-	enum at_cmd_state state = 0;
-	int ret = sms_send(NULL, "123456789");
+	int ret = sms_send_text(NULL, "123456789");
+
 	TEST_ASSERT_EQUAL(-EINVAL, ret);
-	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 }
 
 /** Failing AT command response to CMGS command. */
 void test_send_fail_atcmd(void)
 {
 	enum at_cmd_state state = AT_CMD_ERROR_CMS;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 205);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 	__wrap_at_cmd_write_IgnoreArg_state();
 
-	int ret = sms_send("+1234567890", "Moi");
+	int ret = sms_send_text("+1234567890", "Moi");
+
 	TEST_ASSERT_EQUAL(205, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CMS, state);
 }
@@ -486,15 +521,17 @@ void test_send_fail_atcmd(void)
 /** Failing AT command response to CMGS command when sending concatenated message. */
 void test_send_fail_atcmd_concat(void)
 {
-	enum at_cmd_state state1 = AT_CMD_ERROR_CME;
-	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r00610C0C912143658709210000A005000305020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state1, 304);
+	enum at_cmd_state state = AT_CMD_ERROR_CME;
+
+	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=153\r00610C0C912143658709210000A005000305020162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966B49AED86CBC162B219AD66BBE172B0986C46ABD96EB81C2C269BD16AB61B2E078BC966\x1A", NULL, 0, &state, 304);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 	__wrap_at_cmd_write_IgnoreArg_state();
 
-	int ret = sms_send("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+	int ret = sms_send_text("+123456789012", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+
 	TEST_ASSERT_EQUAL(304, ret);
-	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CME, state1);
+	TEST_ASSERT_EQUAL(AT_CMD_ERROR_CME, state);
 }
 
 /**
@@ -505,11 +542,13 @@ void test_send_cds_erroneous(void)
 	sms_reg_helper();
 
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
 
-	int ret = sms_send("+1234567890", "Moi");
+	int ret = sms_send_text("+1234567890", "Moi");
+
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
@@ -528,7 +567,9 @@ void test_send_cds_erroneous(void)
  */
 void test_send_fail_concat_800_more_than_5msgs(void)
 {
-	int ret = sms_send("+123456789012", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+	int ret = sms_send_text("+123456789012",
+		"12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+
 	TEST_ASSERT_EQUAL(-E2BIG, ret);
 }
 
@@ -542,22 +583,21 @@ static void sms_callback(struct sms_data *const data, void *context)
 	sms_callback_called_occurred = true;
 	TEST_ASSERT_EQUAL(test_sms_data.type, data->type);
 
-	TEST_ASSERT_EQUAL_STRING(test_sms_data.data, data->data);
-	TEST_ASSERT_EQUAL(test_sms_data.data_len, data->data_len);
+	TEST_ASSERT_EQUAL_STRING(test_sms_data.payload, data->payload);
+	TEST_ASSERT_EQUAL(test_sms_data.payload_len, data->payload_len);
 
 	struct sms_deliver_header *sms_header = &data->header.deliver;
 
 	if (!test_sms_header_exists) {
-		/* TODO: Check what to do with this check
-		TEST_ASSERT_EQUAL(NULL, sms_header);
-		*/
 		return;
 	}
 
-	TEST_ASSERT_EQUAL_STRING(test_sms_header.originating_address.address_str, sms_header->originating_address.address_str);
-	TEST_ASSERT_EQUAL(test_sms_header.originating_address.length, sms_header->originating_address.length);
-	TEST_ASSERT_EQUAL(test_sms_header.originating_address.type, sms_header->originating_address.type);
-	/* Not checking sms_header->originating_address.address as that's semi-octet representation */
+	TEST_ASSERT_EQUAL_STRING(test_sms_header.originating_address.address_str,
+		sms_header->originating_address.address_str);
+	TEST_ASSERT_EQUAL(test_sms_header.originating_address.length,
+		sms_header->originating_address.length);
+	TEST_ASSERT_EQUAL(test_sms_header.originating_address.type,
+		sms_header->originating_address.type);
 
 	TEST_ASSERT_EQUAL(test_sms_header.time.year, sms_header->time.year);
 	TEST_ASSERT_EQUAL(test_sms_header.time.month, sms_header->time.month);
@@ -571,9 +611,12 @@ static void sms_callback(struct sms_data *const data, void *context)
 	TEST_ASSERT_EQUAL(test_sms_header.app_port.src_port, sms_header->app_port.src_port);
 
 	TEST_ASSERT_EQUAL(test_sms_header.concatenated.present, sms_header->concatenated.present);
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.ref_number, sms_header->concatenated.ref_number);
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.seq_number, sms_header->concatenated.seq_number);
-	TEST_ASSERT_EQUAL(test_sms_header.concatenated.total_msgs, sms_header->concatenated.total_msgs);
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.ref_number,
+		sms_header->concatenated.ref_number);
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.seq_number,
+		sms_header->concatenated.seq_number);
+	TEST_ASSERT_EQUAL(test_sms_header.concatenated.total_msgs,
+		sms_header->concatenated.total_msgs);
 }
 
 /**
@@ -588,8 +631,8 @@ void test_recv_len3_number13(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890123");
 	test_sms_header.originating_address.length = 13;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 3;
-	strcpy(test_sms_data.data, "Moi");
+	test_sms_data.payload_len = 3;
+	strcpy(test_sms_data.payload, "Moi");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -599,7 +642,8 @@ void test_recv_len3_number13(void)
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
-	sms_at_handler(NULL, "+CMT: \"+1234567890123\",22\r\n0791534874894320040D91214365870921F300001220900285438003CD771A\r\n");
+	sms_at_handler(NULL,
+		"+CMT: \"+1234567890123\",22\r\n0791534874894320040D91214365870921F300001220900285438003CD771A\r\n");
 
 	sms_unreg_helper();
 }
@@ -618,8 +662,8 @@ void test_recv_len1_number9(void)
 	strcpy(test_sms_header.originating_address.address_str, "123456789");
 	test_sms_header.originating_address.length = 9;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 1;
-	strcpy(test_sms_data.data, "1");
+	test_sms_data.payload_len = 1;
+	strcpy(test_sms_data.payload, "1");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -629,7 +673,8 @@ void test_recv_len1_number9(void)
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
 	sms_callback_called_expected = true;
-	sms_at_handler(NULL, "+CMT: \"+123456789012\",20\r\n079153487489432004099121436587F90000122090028543800131\r\n");
+	sms_at_handler(NULL,
+		"+CMT: \"+123456789012\",20\r\n079153487489432004099121436587F90000122090028543800131\r\n");
 
 	sms_unreg_helper();
 }
@@ -646,8 +691,8 @@ void test_recv_len8_number20(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345678901234567890");
 	test_sms_header.originating_address.length = 20;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 8;
-	strcpy(test_sms_data.data, "12345678");
+	test_sms_data.payload_len = 8;
+	strcpy(test_sms_data.payload, "12345678");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -682,8 +727,8 @@ void test_recv_concat_len291_msgs2(void)
 	test_sms_header.concatenated.ref_number = 126;
 
 	/* Part 1 */
-	test_sms_data.data_len = 153;
-	strcpy(test_sms_data.data, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
+	test_sms_data.payload_len = 153;
+	strcpy(test_sms_data.payload, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
 	test_sms_header.concatenated.seq_number = 1;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -693,8 +738,8 @@ void test_recv_concat_len291_msgs2(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	/* Part 2 */
-	test_sms_data.data_len = 138;
-	strcpy(test_sms_data.data, "456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
+	test_sms_data.payload_len = 138;
+	strcpy(test_sms_data.payload, "456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
 	test_sms_header.concatenated.seq_number = 2;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -728,8 +773,8 @@ void test_recv_concat_len755_msgs5(void)
 	test_sms_header.concatenated.ref_number = 128;
 
 	/* Part 1 */
-	test_sms_data.data_len = 153;
-	strcpy(test_sms_data.data, "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr");
+	test_sms_data.payload_len = 153;
+	strcpy(test_sms_data.payload, "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr");
 	test_sms_header.concatenated.seq_number = 1;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -740,8 +785,8 @@ void test_recv_concat_len755_msgs5(void)
 
 	/* Part 4 */
 	test_sms_header.time.second = 6;
-	test_sms_data.data_len = 153;
-	strcpy(test_sms_data.data, "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr");
+	test_sms_data.payload_len = 153;
+	strcpy(test_sms_data.payload, "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr");
 	test_sms_header.concatenated.seq_number = 4;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -750,8 +795,8 @@ void test_recv_concat_len755_msgs5(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	/* Part 2 */
-	test_sms_data.data_len = 153;
-	strcpy(test_sms_data.data, "stuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghi");
+	test_sms_data.payload_len = 153;
+	strcpy(test_sms_data.payload, "stuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghi");
 	test_sms_header.concatenated.seq_number = 2;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -760,8 +805,8 @@ void test_recv_concat_len755_msgs5(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	/* Part 3 */
-	test_sms_data.data_len = 153;
-	strcpy(test_sms_data.data, "jklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz ");
+	test_sms_data.payload_len = 153;
+	strcpy(test_sms_data.payload, "jklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz ");
 	test_sms_header.concatenated.seq_number = 3;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -770,8 +815,8 @@ void test_recv_concat_len755_msgs5(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	/* Part 5 */
-	test_sms_data.data_len = 143;
-	strcpy(test_sms_data.data, "stuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz");
+	test_sms_data.payload_len = 143;
+	strcpy(test_sms_data.payload, "stuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz");
 	test_sms_header.concatenated.seq_number = 5;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -790,9 +835,9 @@ void test_recv_special_characters(void)
 	strcpy(test_sms_header.originating_address.address_str, "123456789");
 	test_sms_header.originating_address.length = 9;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 38;
+	test_sms_data.payload_len = 38;
 	/* ISO-8859-15 indicates that euro sign is 0xA4 */
-	strcpy(test_sms_data.data, "Special characters: ^ { } [ ] \\ ~ | \xA4.");
+	strcpy(test_sms_data.payload, "Special characters: ^ { } [ ] \\ ~ | \xA4.");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -807,7 +852,7 @@ void test_recv_special_characters(void)
 	sms_unreg_helper();
 }
 
-/** 
+/**
  * Test receiving of special character so that escape char is the last
  * character of the first concatenated message. This is an erroneous message
  * but let's prepare for network issues.
@@ -831,8 +876,8 @@ void test_recv_concat_escape_character_last(void)
 	test_sms_header.concatenated.ref_number = 81;
 
 	/* Part 1 */
-	test_sms_data.data_len = 152;
-	strcpy(test_sms_data.data, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
+	test_sms_data.payload_len = 152;
+	strcpy(test_sms_data.payload, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
 	test_sms_header.concatenated.seq_number = 1;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -842,8 +887,8 @@ void test_recv_concat_escape_character_last(void)
 	TEST_ASSERT_EQUAL(sms_callback_called_expected, sms_callback_called_occurred);
 
 	/* Part 2 */
-	test_sms_data.data_len = 11;
-	strcpy(test_sms_data.data, "\xA4""1234567890");
+	test_sms_data.payload_len = 11;
+	strcpy(test_sms_data.payload, "\xA4""1234567890");
 	test_sms_header.concatenated.seq_number = 2;
 
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CNMA=1", NULL, 0, NULL, 0);
@@ -867,8 +912,8 @@ void test_recv_dcs1111_gsm7bit(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345");
 	test_sms_header.originating_address.length = 5;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 8;
-	strcpy(test_sms_data.data, "12345678");
+	test_sms_data.payload_len = 8;
+	strcpy(test_sms_data.payload, "12345678");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -895,8 +940,8 @@ void test_recv_dcs1111_8bit(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345");
 	test_sms_header.originating_address.length = 5;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 15;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
+	test_sms_data.payload_len = 15;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -919,8 +964,8 @@ void test_recv_port_addr(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
 	test_sms_header.originating_address.type = 0x81;
-	test_sms_data.data_len = 15;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
+	test_sms_data.payload_len = 15;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
 	test_sms_header.time.day = 30;
@@ -977,8 +1022,8 @@ void test_recv_empty_sms_text(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 0;
-	strcpy(test_sms_data.data, "");
+	test_sms_data.payload_len = 0;
+	strcpy(test_sms_data.payload, "");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;
@@ -1086,8 +1131,8 @@ void test_recv_invalid_udl_shorter_than_ud_7bit(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 32;
-	strcpy(test_sms_data.data, "12345678901234567890123456789012");
+	test_sms_data.payload_len = 32;
+	strcpy(test_sms_data.payload, "12345678901234567890123456789012");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1114,8 +1159,8 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len41(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 41;
-	strcpy(test_sms_data.data, "12345678901234567890123456789012345678901");
+	test_sms_data.payload_len = 41;
+	strcpy(test_sms_data.payload, "12345678901234567890123456789012345678901");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1142,8 +1187,8 @@ void test_recv_invalid_udl_longer_than_ud_7bit_len40(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 40;
-	strcpy(test_sms_data.data, "1234567890123456789012345678901234567890");
+	test_sms_data.payload_len = 40;
+	strcpy(test_sms_data.payload, "1234567890123456789012345678901234567890");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1166,8 +1211,8 @@ void test_recv_invalid_udl_longer_than_ud_8bit(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 9;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09");
+	test_sms_data.payload_len = 9;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1190,8 +1235,8 @@ void test_recv_invalid_udl_shorter_than_ud_8bit(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 10;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A");
+	test_sms_data.payload_len = 10;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1236,8 +1281,8 @@ void test_recv_udh_with_datalen0(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 0;
-	strcpy(test_sms_data.data, "");
+	test_sms_data.payload_len = 0;
+	strcpy(test_sms_data.payload, "");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1268,8 +1313,8 @@ void test_recv_udh_with_datalen0_fill_byte(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 0;
-	strcpy(test_sms_data.data, "");
+	test_sms_data.payload_len = 0;
+	strcpy(test_sms_data.payload, "");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1297,8 +1342,8 @@ void test_recv_udh_with_datalen1(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 1;
-	strcpy(test_sms_data.data, "1");
+	test_sms_data.payload_len = 1;
+	strcpy(test_sms_data.payload, "1");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 21;
@@ -1331,8 +1376,8 @@ void test_recv_invalid_udh_too_long_ie(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
 	test_sms_header.originating_address.type = 0x81;
-	test_sms_data.data_len = 15;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
+	test_sms_data.payload_len = 15;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
 	test_sms_header.time.day = 30;
@@ -1358,7 +1403,7 @@ void test_recv_invalid_udh_too_long_ie(void)
  * - Concatenation IE (8-bit) sequence number is bigger than total number of messages (IE ignored)
  * - Valid Port Addressing IE (8-bit)
  * - Concatenation IE (16-bit) is too long with 5 vs. 4 bytes (IE ignored)
- * 
+ *
  * User Data Header for this test:
  *   2F 1E 00022A01 00032A0002 00032A0200 00032A0203 04021100
  *   08051111222222
@@ -1370,8 +1415,8 @@ void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
 	test_sms_header.originating_address.type = 0x81;
-	test_sms_data.data_len = 15;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
+	test_sms_data.payload_len = 15;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
 	test_sms_header.time.day = 30;
@@ -1391,14 +1436,14 @@ void test_recv_invalid_udh_concat_ignored_portaddr_valid(void)
 	sms_unreg_helper();
 }
 
-/** 
+/**
  * Tests the following:
  * - Unsupported UDH IE with zero length (IE ignored)
  * - Valid Concatenation IE (16-bit)
  * - Port Addressing IE (8-bit) is too short with 0 vs. 2 bytes (IE ignored)
  * - Port Addressing IE (16-bit) is too long with 7 vs. 4 bytes (IE ignored)
  * - Unsupported UDH IE (IE ignored)
- * 
+ *
  * User Data Header for this test:
  *   2C 1B 0100 080411110101 0400 050712345678901234 A106123456789012
  */
@@ -1409,8 +1454,8 @@ void test_recv_invalid_udh_portaddr_ignored_concat_valid(void)
 	strcpy(test_sms_header.originating_address.address_str, "12345678");
 	test_sms_header.originating_address.length = 8;
 	test_sms_header.originating_address.type = 0x81;
-	test_sms_data.data_len = 15;
-	strcpy(test_sms_data.data, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
+	test_sms_data.payload_len = 15;
+	strcpy(test_sms_data.payload, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 1;
 	test_sms_header.time.day = 30;
@@ -1443,11 +1488,12 @@ void send_basic(void)
 	helper_sms_data_clear();
 
 	enum at_cmd_state state = 0;
+
 	__wrap_at_cmd_write_ExpectAndReturn("AT+CMGS=15\r0021000A912143658709000003CD771A\x1A", NULL, 0, &state, 0);
 	__wrap_at_cmd_write_IgnoreArg_buf();
 	__wrap_at_cmd_write_IgnoreArg_buf_len();
+	int ret = sms_send_text("+1234567890", "Moi");
 
-	int ret = sms_send("+1234567890", "Moi");
 	TEST_ASSERT_EQUAL(0, ret);
 	TEST_ASSERT_EQUAL(AT_CMD_OK, state);
 
@@ -1472,8 +1518,8 @@ void recv_basic(void)
 	strcpy(test_sms_header.originating_address.address_str, "1234567890");
 	test_sms_header.originating_address.length = 10;
 	test_sms_header.originating_address.type = 0x91;
-	test_sms_data.data_len = 3;
-	strcpy(test_sms_data.data, "Moi");
+	test_sms_data.payload_len = 3;
+	strcpy(test_sms_data.payload, "Moi");
 	test_sms_header.time.year = 21;
 	test_sms_header.time.month = 2;
 	test_sms_header.time.day = 9;

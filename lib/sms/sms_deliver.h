@@ -15,7 +15,7 @@ struct sms_data;
  * in 3GPP TS 23.040 Section 9.2.2.1.
  *
  * @param[in] pdu SMS-DELIVER PDU.
- * @param[out] data SMS message decoded into a structure.
+ * @param[out] out SMS message decoded into a structure.
  *
  * @retval -EINVAL Invalid parameter.
  * @retval -ENOMEM No memory to register new observers.

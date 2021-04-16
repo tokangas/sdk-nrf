@@ -289,7 +289,7 @@ void sms_unregister_listener(int handle)
 	sms_uninit();
 }
 
-int sms_send(char *number, char *text)
+int sms_send_text(char *number, char *text)
 {
 	return sms_submit_send(number, text);
 }

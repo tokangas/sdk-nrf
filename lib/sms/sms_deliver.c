@@ -782,14 +782,14 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 
 	parser_get_header(&sms_deliver, header);
 
-	data->data_len = parser_get_payload(&sms_deliver,
-					  data->data,
-					  SMS_MAX_DATA_LEN_CHARS);
+	data->payload_len = parser_get_payload(&sms_deliver,
+					  data->payload,
+					  SMS_MAX_PAYLOAD_LEN_CHARS);
 
-	if (data->data_len < 0) {
+	if (data->payload_len < 0) {
 		LOG_ERR("Getting sms deliver payload failed: %d\n",
-			data->data_len);
-		return data->data_len;
+			data->payload_len);
+		return data->payload_len;
 	}
 
 	LOG_DBG("Time:   %02x-%02x-%02x %02x:%02x:%02x",
@@ -799,9 +799,9 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 		header->time.hour,
 		header->time.minute,
 		header->time.second);
-	LOG_DBG("Text:   '%s'", log_strdup(data->data));
+	LOG_DBG("Text:   '%s'", log_strdup(data->payload));
 
-	LOG_DBG("Length: %d", data->data_len);
+	LOG_DBG("Length: %d", data->payload_len);
 
 	parser_delete(&sms_deliver);
 	return 0;

@@ -123,9 +123,9 @@ void sms_submit_encode(
 	uint16_t *udh_start_index)
 {
 	/* Create hexadecimal string representation of GSM 7bit encoded text */
-	uint8_t encoded_data_hex_str[SMS_MAX_DATA_LEN_CHARS * 2 + 1];
+	uint8_t encoded_data_hex_str[SMS_MAX_PAYLOAD_LEN_CHARS * 2 + 1];
 
-	memset(encoded_data_hex_str, 0, SMS_MAX_DATA_LEN_CHARS * 2 + 1);
+	memset(encoded_data_hex_str, 0, SMS_MAX_PAYLOAD_LEN_CHARS * 2 + 1);
 	for (int i = 0; i < encoded_data_size_octets; i++) {
 		sprintf(encoded_data_hex_str + (2 * i), "%02X", encoded[i]);
 	}
@@ -141,10 +141,9 @@ void sms_submit_encode(
 		udh_size +
 		encoded_data_size_octets;
 
-	uint8_t sms_submit_header_byte = 0x21;
-	if (udh_start_index != NULL) {
-		sms_submit_header_byte = 0x61;
-	}
+	/* Set header byte. If User-Data-Header is added to SMS-SUBMIT, UDHI bit must be set */
+	uint8_t sms_submit_header_byte = (udh_start_index == NULL) ? 0x21 : 0x61;
+
 	/* First, compose SMS header without User-Data so that we get an index for
 	 * User-Data-Header to be added later
 	 */
@@ -204,13 +203,13 @@ static int sms_submit_send_concat(char *text, uint8_t *encoded_number,
 
 	uint8_t size = 0;
 	uint16_t text_size = strlen(text);
-	uint8_t encoded[SMS_MAX_DATA_LEN_CHARS];
+	uint8_t encoded[SMS_MAX_PAYLOAD_LEN_CHARS];
 	uint8_t encoded_data_size_octets = 0;
 	uint8_t encoded_data_size_septets = 0;
 	const uint8_t udh[] = {0x05, 0x00, 0x03, 0x01, 0x01, 0x01, 0x00};
-	char ud[SMS_MAX_DATA_LEN_CHARS];
+	char ud[SMS_MAX_PAYLOAD_LEN_CHARS];
 
-	memset(encoded, 0, SMS_MAX_DATA_LEN_CHARS);
+	memset(encoded, 0, SMS_MAX_PAYLOAD_LEN_CHARS);
 	memcpy(ud, udh, sizeof(udh));
 
 	uint16_t text_encoded_size = 0;
@@ -319,11 +318,11 @@ int sms_submit_send(char *number, char *text)
 	/* Encode text into GSM 7bit encoding */
 	uint8_t size = 0;
 	uint16_t text_size = strlen(text);
-	uint8_t encoded[SMS_MAX_DATA_LEN_CHARS];
+	uint8_t encoded[SMS_MAX_PAYLOAD_LEN_CHARS];
 	uint8_t encoded_data_size_octets = 0;
 	uint8_t encoded_data_size_septets = 0;
 
-	memset(encoded, 0, SMS_MAX_DATA_LEN_CHARS);
+	memset(encoded, 0, SMS_MAX_PAYLOAD_LEN_CHARS);
 
 	size = string_conversion_ascii_to_gsm7bit(
 		text, text_size, encoded,

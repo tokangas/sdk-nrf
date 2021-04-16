@@ -14,9 +14,8 @@ Overview
 ********
 
 The SMS sample registers for SMS service within the nRF9160 modem.
+The sample will send SMS when it starts if recipient phone number is set in configuration.
 Then, it will receive all SMS message and print out information about them including the text that is sent.
-The sample includes a code block that is commented which has sending of SMS message included.
-This can be modified with the desired recipient phone number to send the message when the sample starts.
 
 
 Requirements
@@ -27,6 +26,14 @@ The sample supports the following development kit:
 .. table-from-rows:: /includes/sample_board_rows.txt
    :header: heading
    :rows: nrf9160dk_nrf9160ns
+
+
+Configuration
+*************
+
+You can configure the following option:
+
+* :option:`CONFIG_SMS_SEND_PHONE_NUMBER` - Phone number where SMS message is sent.
 
 
 Building and running
@@ -90,4 +97,3 @@ It uses the following `sdk-nrfxlib`_ library:
 
 References
 **********
-

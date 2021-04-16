@@ -29,8 +29,8 @@ static void sms_callback(struct sms_data *const data, void *context)
 			header->time.minute,
 			header->time.second);
 
-		printk("\tText:   '%s'\n", data->data);
-		printk("\tLength: %d\n", data->data_len);
+		printk("\tText:   '%s'\n", data->payload);
+		printk("\tLength: %d\n", data->payload_len);
 
 		if (header->app_port.present) {
 			printk("\tApplication port addressing scheme: dest_port=%d, src_port=%d\n",
@@ -71,7 +71,7 @@ void main(void)
 	if (strcmp(CONFIG_SMS_SEND_PHONE_NUMBER, "")) {
 		printk("Sending SMS: number=%s, text=\"SMS sample: testing\"\n",
 			CONFIG_SMS_SEND_PHONE_NUMBER);
-		ret = sms_send(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
+		ret = sms_send_text(CONFIG_SMS_SEND_PHONE_NUMBER, "SMS sample: testing");
 		if (ret) {
 			printk("sms_send returned err: %d\n", ret);
 		}

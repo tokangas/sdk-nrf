@@ -45,8 +45,8 @@ static void sms_callback(struct sms_data *const data, void *context)
 			header->time.minute,
 			header->time.second);
 
-		shell_print(shell_global, "Text:   '%s'", data->data);
-		shell_print(shell_global, "Length: %d", data->data_len);
+		shell_print(shell_global, "Text:   '%s'", data->payload);
+		shell_print(shell_global, "Length: %d", data->payload_len);
 
 		if (header->app_port.present) {
 			shell_print(shell_global,
@@ -121,7 +121,7 @@ int sms_send_msg(char* number, char* text)
 		return ret;
 	}
 
-	ret = sms_send(number, text);
+	ret = sms_send_text(number, text);
 
 	return ret;
 }

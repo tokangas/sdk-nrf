@@ -34,8 +34,11 @@ enum sms_type {
 	SMS_TYPE_STATUS_REPORT
 };
 
-/** @brief Maximum length of SMS in number of characters. */
-#define SMS_MAX_DATA_LEN_CHARS 160
+/**
+ * @brief Maximum length of SMS in number of characters
+ * as specified in 3GPP TS 23.038 Section 4 and Section 6.1.2.1.1.
+ */
+#define SMS_MAX_PAYLOAD_LEN_CHARS 160
 
 /**
  * @brief Maximum length of SMS address, i.e., phone number, in characters
@@ -129,15 +132,25 @@ union sms_header {
 
 /** @brief SMS PDU data. */
 struct sms_data {
-	/** Received message type. */
+	/** @brief Received message type. */
 	enum sms_type type;
-	/** SMS header. */
+	/** @brief SMS header. */
 	union sms_header header;
 
-	/** Length of the data in data buffer. */
-	int data_len;
-	/** SMS message data. */
-	char data[SMS_MAX_DATA_LEN_CHARS + 1];
+	/** @brief Length of the payload buffer. */
+	int payload_len;
+	/**
+	 * @brief SMS message payload.
+	 * 
+	 * @details Reserving enough bytes for maximum number of characters
+	 * but the length of the received payload is in payload_len variable.
+	 * 
+	 * Generally the message is of text type in which case you can treat it as string.
+	 * However, header may contain information that determines it for specific purpose,
+	 * e.g., via application port information, in which case it should be treated as
+	 * specified for that purpose.
+	 */
+	uint8_t payload[SMS_MAX_PAYLOAD_LEN_CHARS + 1];
 };
 
 /** @brief SMS listener callback function. */
@@ -181,7 +194,7 @@ void sms_unregister_listener(int handle);
  * @details Sending is done with GSM 7bit encoding used to encode textual SMS messages.
  * SMS-SUBMIT message is specified in 3GPP TS 23.040 Section 9.2.2.2 and data encoding
  * in 3GPP TS 23.038 Section 4 and Section 6.2.
- * This function doesn't support sending of 8bit binary data messages.
+ * This function doesn't support sending of 8bit binary data messages or UCS2 encoded text.
  *
  * @param[in] number Recipient number.
  * @param[in] text Text to be sent.
@@ -189,7 +202,7 @@ void sms_unregister_listener(int handle);
  * @retval -EINVAL Invalid parameter.
  * @return 0 on success, otherwise error code.
  */
-int sms_send(char *number, char *text);
+int sms_send_text(char *number, char *text);
 
 /** @} */
 
