@@ -402,10 +402,16 @@ int Curl_poll(struct pollfd ufds[], unsigned int nfds, timediff_t timeout_ms)
   for(i = 0; i < nfds; i++) {
     if(ufds[i].fd == CURL_SOCKET_BAD)
       continue;
-    if(ufds[i].revents & POLLHUP)
-      ufds[i].revents |= POLLIN;
-    if(ufds[i].revents & POLLERR)
-      ufds[i].revents |= POLLIN|POLLOUT;
+    if (ufds[i].revents & POLLHUP) {
+	    /* MOSH_CURL_INTEGRATION_CHANGE: added print */
+	    printk("\npoll() returned: POLLHUP - connection closed\n");
+	    ufds[i].revents |= POLLIN;
+    }
+    if (ufds[i].revents & POLLERR) {
+	    /* MOSH_CURL_INTEGRATION_CHANGE: added print */
+	    printk("\npoll() returned: POLLERR\n");
+	    ufds[i].revents |= POLLIN | POLLOUT;
+    }
   }
 
 #else  /* HAVE_POLL_FINE */
