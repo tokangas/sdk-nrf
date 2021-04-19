@@ -130,6 +130,9 @@ const char sock_usage_str[] =
 	"\n"
 	"Options for 'recv' command:\n"
 	"  -r, --start, [bool]       Initialize variables for receive throughput calculation\n"
+	"  -l, --length, [int]       Length of expected data in bytes. After receiving\n"
+	"                            data with given length, summary of data throughput is\n"
+	"                            printed. Should be used with -r option.\n"
 	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
 	"                            This only accounts when -r is given. Default value is 0.\n"
 	"  -P, --print_format, [str] Set receive data print format: 'str' (default) or 'hex'\n"
@@ -167,7 +170,7 @@ const char sock_usage_example_str[] =
 	"\n"
 	"Calculate receive throughput:\n"
 	"  <do whatever is needed to make device receive data after some time>\n"
-	"  sock recv -i 0 -r\n"
+	"  sock recv -i 0 -r -l 1000000\n"
 	"  sock recv -i 0\n"
 	"  sock recv -i 0\n"
 	"\n"
@@ -451,7 +454,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		case 'x': /* Send data string is defined in hex format */
 			arg_data_format_hex = true;
 			break;
-		case 'l': /* Length of undefined data to be sent */
+		case 'l': /* Length of data */
 			arg_data_length = atoi(optarg);
 			break;
 		case 'e': /* Interval in which data will be sent */
@@ -560,6 +563,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			err = sock_recv(
 				arg_socket_id,
 				arg_receive_start,
+				arg_data_length,
 				arg_blocking_recv,
 				arg_recv_print_format);
 			break;

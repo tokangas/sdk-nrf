@@ -41,6 +41,7 @@
    This limits how quickly data can be received after socket creation. */
 #define SOCK_POLL_TIMEOUT_MS 1000
 #define SOCK_FD_NONE -1
+#define SOCK_DATA_LEN_NONE -1
 
 
 struct data_transfer_info {
@@ -69,6 +70,7 @@ typedef struct {
 	int64_t start_time_ms;
 	int64_t recv_end_time_ms;
 	uint32_t recv_data_len;
+	uint32_t recv_data_len_expected;
 	bool recv_start_throughput;
 	enum sock_recv_print_format recv_print_format;
 	struct addrinfo *addrinfo;
@@ -103,6 +105,7 @@ static void sock_info_clear(sock_info_t* socket_info) {
 	socket_info->id = SOCK_ID_NONE;
 	socket_info->fd = SOCK_FD_NONE;
 	socket_info->log_receive_data = true;
+	socket_info->recv_data_len_expected = SOCK_DATA_LEN_NONE;
 	socket_info->recv_print_format = SOCK_RECV_PRINT_FORMAT_STR;
 
 	k_mutex_unlock(&sock_info_mutex);
@@ -924,6 +927,14 @@ static void sock_receive_handler()
 						socket_info->recv_end_time_ms = k_uptime_get();
 						socket_info->recv_data_len += buffer_size;
 
+						if (socket_info->recv_data_len >= socket_info->recv_data_len_expected) {
+							print_throughput_summary(
+								socket_info->recv_data_len,
+								socket_info->recv_end_time_ms - socket_info->start_time_ms);
+							/* Do not print when more data is received. */
+							socket_info->recv_data_len_expected = SOCK_DATA_LEN_NONE;
+						}
+
 						if (socket_info->log_receive_data) {
 							shell_print(shell_global,
 								"Received data for socket socket_id=%d, buffer_size=%d:",
@@ -963,7 +974,8 @@ K_THREAD_DEFINE(sock_receive_thread, SOCK_RECEIVE_STACK_SIZE,
                 sock_receive_handler, NULL, NULL, NULL,
                 SOCK_RECEIVE_PRIORITY, 0, 0);
 
-int sock_recv(int socket_id, bool receive_start, bool blocking, enum sock_recv_print_format print_format)
+int sock_recv(int socket_id, bool receive_start, int data_length, bool blocking,
+	enum sock_recv_print_format print_format)
 {
 	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
@@ -999,6 +1011,13 @@ int sock_recv(int socket_id, bool receive_start, bool blocking, enum sock_recv_p
 		socket_info->start_time_ms = 0;
 		socket_info->recv_end_time_ms = 0;
 		set_sock_blocking_mode(socket_info->fd, blocking);
+
+		/* Set expected data length when summary is printed */
+		if (data_length > 0) {
+			socket_info->recv_data_len_expected = data_length;
+		} else {
+			socket_info->recv_data_len_expected = SOCK_DATA_LEN_NONE;
+		}
 	} else {
 		print_throughput_summary(
 			socket_info->recv_data_len,
