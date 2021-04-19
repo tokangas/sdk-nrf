@@ -979,7 +979,11 @@ static inline int nrf91_socket_offload_poll(struct pollfd *fds, int nfds,
 			fds[i].revents |= POLLNVAL;
 		}
 		if (tmp[i].revents & NRF_POLLHUP) {
-			fds[i].revents |= POLLHUP;
+			/* Apllications are expecting to fail
+			 * in next recv(), thus setting also POLLIN.
+			 * See: https://www.greenend.org.uk/rjk/tech/poll.html
+			 */
+			fds[i].revents |= (POLLHUP | POLLIN);
 		}
 	}
 
