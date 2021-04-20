@@ -286,8 +286,13 @@ static int z_to_nrf_flags(int z_flags)
 
 static int z_to_nrf_addrinfo_flags(int flags)
 {
-	/* Jani: no mapping -> let it flow through*/
-	return flags;
+	switch (flags) {
+	default:
+		/* no other flags supported */
+		return 0;
+	case AI_PDNSERV:
+		return NRF_AI_PDNSERV;
+	}
 }
 
 static int nrf_to_z_addrinfo_flags(int flags)
