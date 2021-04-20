@@ -33,6 +33,8 @@ manifest:
       url-base: https://github.com/alexa
     - name: nordicsemi
       url-base: https://github.com/NordicSemiconductor
+    - name: pelioniot
+      url-base: https://github.com/PelionIoT      
     - name: jhirsi
       url-base: https://github.com/jhirsi
 
@@ -101,8 +103,7 @@ manifest:
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: getaddrinfo_pdn_port_set
-      remote: jhirsi
+      revision: pull/459/head
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tfm

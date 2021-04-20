@@ -284,17 +284,16 @@ static int z_to_nrf_flags(int z_flags)
 	return nrf_flags;
 }
 
-static int z_to_nrf_addrinfo_flags(int z_flags)
+static int z_to_nrf_addrinfo_flags(int flags)
 {
-	/* Jani: added a mapping for a supported flags: */
 	int nrf_flags = 0;
 
-	if (z_flags & AI_PDNSERV) {
-		nrf_flags |= NRF_AI_PDNSERV;
+	if (flags & AI_NUMERICSERV) {
+		nrf_flags |= NRF_AI_NUMERICSERV;
 	}
 
-	if (z_flags & AI_NUMERICSERV) {
-		nrf_flags |= NRF_AI_NUMERICSERV;
+	if (flags & AI_PDNSERV) {
+		nrf_flags |= NRF_AI_PDNSERV;
 	}
 
 	return nrf_flags;
