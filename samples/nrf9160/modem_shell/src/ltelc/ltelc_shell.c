@@ -456,6 +456,45 @@ int ltelc_shell_get_and_print_current_system_modes(const struct shell *shell,
 	return ret;
 }
 
+void ltelc_shell_print_reg_status(const struct shell *shell,
+				  enum lte_lc_nw_reg_status reg_status)
+{
+	switch (reg_status) {
+	case LTE_LC_NW_REG_NOT_REGISTERED:
+		shell_print(shell,
+			    "Network registration status: not registered");
+		break;
+	case LTE_LC_NW_REG_SEARCHING:
+		shell_print(shell,
+			    "Network registration status: searching");
+		break;
+	case LTE_LC_NW_REG_REGISTRATION_DENIED:
+		shell_print(shell, "Network registration status: denied");
+		break;
+	case LTE_LC_NW_REG_UNKNOWN:
+		shell_print(shell, "Network registration status: unknown");
+		break;
+	case LTE_LC_NW_REG_UICC_FAIL:
+		shell_print(shell,
+			    "Network registration status: UICC fail");
+		break;
+	case LTE_LC_NW_REG_REGISTERED_EMERGENCY:
+		shell_print(
+			shell,
+			"Network registration status: Connected - emergency");
+		break;
+	case LTE_LC_NW_REG_REGISTERED_HOME:
+	case LTE_LC_NW_REG_REGISTERED_ROAMING:
+		shell_print(shell, "Network registration status: %s",
+			    reg_status ==
+					    LTE_LC_NW_REG_REGISTERED_HOME ?
+					  "Connected - home network" :
+					  "Connected - roaming");
+	default:
+		break;
+	}
+}
+
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	ltelc_shell_cmd_args_t ltelc_cmd_args;
@@ -811,14 +850,28 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			break;
 
-		case LTELC_CMD_STATUS:
+		case LTELC_CMD_STATUS: {
+			enum lte_lc_nw_reg_status current_reg_status;
 
 			ret = ltelc_func_mode_get();
 			if (ret >= 0)
-				shell_print(shell, "Modem functional mode: %s", ltelc_shell_funmode_to_string(ret, snum));
+				shell_print(shell, "Modem functional mode: %s",
+					    ltelc_shell_funmode_to_string(
+						    ret, snum));
 
+			ret = lte_lc_nw_reg_status_get(&current_reg_status);
+			if (ret >= 0) {
+				ltelc_shell_print_reg_status(
+					shell, current_reg_status);
+			} else {
+				shell_error(
+					shell,
+					"Cannot get current registration status (%d)",
+					ret);
+			}
 			ltelc_api_modem_info_get_for_shell(shell);
 			break;
+		}
 		case LTELC_CMD_SETTINGS:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
 				ltelc_sett_all_print(shell);

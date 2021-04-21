@@ -140,42 +140,15 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 				evt->lte_mode, snum));
 		break;	
 	case LTE_LC_EVT_NW_REG_STATUS:
-		switch (evt->nw_reg_status) {
-		case LTE_LC_NW_REG_NOT_REGISTERED:
-			shell_print(
-				uart_shell,
-				"Network registration status: not registered");
-			break;
-		case LTE_LC_NW_REG_SEARCHING:
-			shell_print(uart_shell,
-				   "Network registration status: searching");
-			break;
-		case LTE_LC_NW_REG_REGISTRATION_DENIED:
-			shell_print(uart_shell,
-				   "Network registration status: denied");
-			break;
-		case LTE_LC_NW_REG_UNKNOWN:
-			shell_print(uart_shell,
-				   "Network registration status: unknown");
-			break;
-		case LTE_LC_NW_REG_UICC_FAIL:
-			shell_print(uart_shell,
-				   "Network registration status: UICC fail");
-			break;
-		case LTE_LC_NW_REG_REGISTERED_HOME:
-		case LTE_LC_NW_REG_REGISTERED_ROAMING:
-			shell_print(
-				uart_shell, "Network registration status: %s",
-				evt->nw_reg_status ==
-						LTE_LC_NW_REG_REGISTERED_HOME ?
-					"Connected - home network" :
-					"Connected - roaming");
+		ltelc_shell_print_reg_status(uart_shell, evt->nw_reg_status);
+
 #if defined(CONFIG_MODEM_INFO)
+		if (evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_EMERGENCY ||
+			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ||
+			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
 			k_work_submit(&modem_info_work);
-#endif
-		default:
-			break;
 		}
+#endif
 		break;
 	case LTE_LC_EVT_CELL_UPDATE:
 		shell_print(uart_shell, "LTE cell changed: Cell ID: %d, Tracking area: %d",

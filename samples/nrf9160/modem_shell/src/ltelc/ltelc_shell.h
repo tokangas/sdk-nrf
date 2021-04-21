@@ -20,6 +20,7 @@ int ltelc_shell_get_and_print_current_system_modes(const struct shell *shell,
 	enum lte_lc_lte_mode *currently_active_mode);
 const char *ltelc_shell_sysmode_currently_active_to_string(
 	int actmode, char *out_str_buff);
-
+void ltelc_shell_print_reg_status(const struct shell *shell,
+				  enum lte_lc_nw_reg_status reg_status);
 
 #endif /* LTELC_SHELL_H */
