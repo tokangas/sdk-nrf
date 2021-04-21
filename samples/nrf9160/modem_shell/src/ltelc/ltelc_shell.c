@@ -749,7 +749,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 	char* apn_print;
 	char snum[64];
-	bool online = false;
 
 	switch (ltelc_cmd_args.command) {
 		case LTELC_CMD_DEFCONT:
@@ -813,14 +812,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 
 		case LTELC_CMD_STATUS:
+
 			ret = ltelc_func_mode_get();
 			if (ret >= 0)
 				shell_print(shell, "Modem functional mode: %s", ltelc_shell_funmode_to_string(ret, snum));
 
-			if (ret == LTELC_FUNMODE_NORMAL)
-				online = true;
-
-			ltelc_api_modem_info_get_for_shell(shell, online);
+			ltelc_api_modem_info_get_for_shell(shell);
 			break;
 		case LTELC_CMD_SETTINGS:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {

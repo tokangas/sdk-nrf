@@ -64,7 +64,7 @@ typedef struct {
 } lte_coneval_resp_t;
 
 #if defined(CONFIG_MODEM_INFO)
-void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online);
+void ltelc_api_modem_info_get_for_shell(const struct shell *shell);
 #endif
 #if defined(CONFIG_AT_CMD)
 void ltelc_api_coneval_read_for_shell(const struct shell *shell);

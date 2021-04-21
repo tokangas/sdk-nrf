@@ -629,7 +629,7 @@ clean_exit:
 #endif /* CONFIG_AT_CMD */
 /* *****************************************************************************/
 #if defined(CONFIG_MODEM_INFO)
-void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
+void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 {
 	pdp_context_info_array_t pdp_context_info_tbl;
 	enum lte_lc_system_mode sys_mode_current;
@@ -637,6 +637,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 	enum lte_lc_lte_mode currently_active_mode;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE + 1];
 	int ret;
+	bool lte_active;
 
 	(void)ltelc_shell_get_and_print_current_system_modes(
 		shell, &sys_mode_current, &sys_mode_preferred, &currently_active_mode);
@@ -649,8 +650,9 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell, bool online)
 		shell_error(shell,
 			    "Unable to obtain modem FW version (%d)", ret);
 	}
+	lte_active = ((currently_active_mode != LTE_LC_LTE_MODE_NONE) ? true : false);
 
-	if (online) {
+	if (lte_active) {
 		ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
 						sizeof(info_str));
 		if (ret >= 0) {
