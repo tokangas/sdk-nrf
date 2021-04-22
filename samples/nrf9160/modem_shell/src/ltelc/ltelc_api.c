@@ -46,6 +46,37 @@
 
 #define AT_CMD_PDP_CONTEXT_READ_RSP_DELIM "\r\n"
 
+static int ltelc_api_pdn_id_get(uint8_t cid)
+{
+	int ret;
+	char *p;
+	char resp[32];
+	static char at_buf[32];
+
+	errno = 0;
+
+	ret = snprintf(at_buf, sizeof(at_buf), "AT%%XGETPDNID=%u", cid);
+	if (ret < 0 || ret >= sizeof(at_buf)) {
+		return -ENOBUFS;
+	}
+
+	ret = at_cmd_write(at_buf, resp, sizeof(resp), NULL);
+	if (ret) {
+		return ret;
+	}
+
+	p = strchr(resp, ':');
+	if (!p) {
+		return -EBADMSG;
+	}
+	ret = strtoul(p + 1, NULL, 10);
+	if (errno) {
+		ret = -errno;
+	}
+	
+	return ret;
+}
+
 pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 {
 	int ret;
@@ -72,6 +103,7 @@ pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 	}
 	return pdp_context_info;
 }
+
 
 int ltelc_api_pdp_context_dynamic_params_get(pdp_context_info_t *populated_info)
 {
@@ -498,8 +530,15 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 					AT_CMD_PDP_CONTEXTS_READ_CID_INDEX,
 					&populated_info[iterator].cid);
 		if (ret) {
-			printf("Could not parse CID, err: %d\n", ret);
+			printk("Could not parse CID, err: %d\n", ret);
 			goto clean_exit;
+		}
+		ret = ltelc_api_pdn_id_get(populated_info[iterator].cid);
+		if (ret < 0) {
+			printk("Could not get PDN for CID %d, err: %d\n",
+				populated_info[iterator].cid, ret);
+		} else {
+			populated_info[iterator].pdn_id = ret;
 		}
 
 		//TODO: read len 1st and malloc??
@@ -508,7 +547,7 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 			&param_list, AT_CMD_PDP_CONTEXTS_READ_PDP_TYPE_INDEX,
 			populated_info[iterator].pdp_type_str, &param_str_len);
 		if (ret) {
-			printf("Could not parse pdp type, err: %d\n", ret);
+			printk("Could not parse pdp type, err: %d\n", ret);
 			goto clean_exit;
 		} else {
 			populated_info[iterator].pdp_type_str[param_str_len] =
@@ -702,6 +741,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 					shell,
 					"PDP context info %d:\n"
 					"  CID:                    %d\n"
+					"  PDN ID:                 %d\n"
 					"  PDP type:               %s\n"
 					"  APN:                    %s\n"
 					"  IPv4 MTU:               %d\n"
@@ -710,7 +750,9 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 					"  IPv4 DNS address:       %s, %s\n"
 					"  IPv6 DNS address:       %s, %s",
 					(i + 1),
-					info_tbl[i].cid, info_tbl[i].pdp_type_str,
+					info_tbl[i].cid,
+					info_tbl[i].pdn_id,
+					info_tbl[i].pdp_type_str,
 					info_tbl[i].apn_str,
 					info_tbl[i].mtu,
 					ipv4_addr, ipv6_addr, ipv4_dns_addr_primary, ipv4_dns_addr_secondary, ipv6_dns_addr_primary, ipv6_dns_addr_secondary);

@@ -25,6 +25,7 @@
 typedef struct {
 	uint32_t cid;
 	uint32_t mtu;
+	uint32_t pdn_id;
 	char pdp_type_str[AT_CMD_PDP_CONTEXT_READ_PDP_TYPE_STR_MAX_LEN];
 	char apn_str[MOSH_APN_STR_MAX_LEN];
 	char pdp_type;
