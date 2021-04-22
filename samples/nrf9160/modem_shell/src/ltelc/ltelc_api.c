@@ -538,6 +538,7 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 			printk("Could not get PDN for CID %d, err: %d\n",
 				populated_info[iterator].cid, ret);
 		} else {
+			populated_info[iterator].pdn_id_valid = true;
 			populated_info[iterator].pdn_id = ret;
 		}
 
@@ -717,6 +718,8 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 			char ipv4_dns_addr_secondary[NET_IPV4_ADDR_LEN];
 			char ipv6_dns_addr_primary[NET_IPV6_ADDR_LEN];
 			char ipv6_dns_addr_secondary[NET_IPV6_ADDR_LEN];
+			char tmp_str[12];
+
 			int i = 0;
 			pdp_context_info_t *info_tbl = pdp_context_info_tbl.array;
 
@@ -736,12 +739,16 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 				inet_ntop(AF_INET6, &(info_tbl[i].dns_addr6_secondary),
 					ipv6_dns_addr_secondary, sizeof(ipv6_dns_addr_secondary));
 
+				if (info_tbl[i].pdn_id_valid) {
+					sprintf(tmp_str, "%d", info_tbl[i].pdn_id);
+				}
+
 				/* Parsed PDP context info: */
 				shell_print(
 					shell,
 					"PDP context info %d:\n"
 					"  CID:                    %d\n"
-					"  PDN ID:                 %d\n"
+					"  PDN ID:                 %s\n"
 					"  PDP type:               %s\n"
 					"  APN:                    %s\n"
 					"  IPv4 MTU:               %d\n"
@@ -751,7 +758,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 					"  IPv6 DNS address:       %s, %s",
 					(i + 1),
 					info_tbl[i].cid,
-					info_tbl[i].pdn_id,
+					(info_tbl[i].pdn_id_valid) ? tmp_str: "Not known",
 					info_tbl[i].pdp_type_str,
 					info_tbl[i].apn_str,
 					info_tbl[i].mtu,
