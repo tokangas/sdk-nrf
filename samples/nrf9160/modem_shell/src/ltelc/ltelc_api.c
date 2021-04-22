@@ -77,6 +77,36 @@ static int ltelc_api_pdn_id_get(uint8_t cid)
 	return ret;
 }
 
+#define AT_CMD_PDP_CONTEXTS_ACT_READ "AT+CGACT?"
+
+static void ltelc_api_get_pdn_states(pdp_context_info_array_t *pdp_info)
+{
+	char buf[16] = { 0 };
+	const char *p;
+	char at_response_str[256];
+	int ret;
+	int ctx_cnt = pdp_info->size;
+	pdp_context_info_t *ctx_tbl = pdp_info->array;
+
+	ret = at_cmd_write(AT_CMD_PDP_CONTEXTS_ACT_READ, at_response_str,
+			   sizeof(at_response_str), NULL);
+	if (ret) {
+		printk("Cannot get PDP contexts activation states, err: %d", ret);
+		return;
+	}
+
+	/* For each contexts: */
+	for (int i = 0; i < ctx_cnt;i++) {
+		/* Search for string +CGACT: <cid>,<state> */
+		snprintf(buf, sizeof(buf), "+CGACT: %d,1",
+			ctx_tbl[i].cid);
+		p = strstr(at_response_str, buf);
+		if (p) {
+			ctx_tbl[i].ctx_active = true;
+		}
+	}
+}
+
 pdp_context_info_t* ltelc_api_get_pdp_context_info_by_pdn_cid(int pdn_cid)
 {
 	int ret;
@@ -659,6 +689,9 @@ int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
 		}
 	}
 
+	/* ...and finally, fill PDP context activation status for each: */
+	ltelc_api_get_pdn_states(pdp_info);
+
 clean_exit:
 	at_params_list_free(&param_list);
 	/* user need do free pdp_info->array also in case of error */ 
@@ -749,6 +782,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 					"PDP context info %d:\n"
 					"  CID:                    %d\n"
 					"  PDN ID:                 %s\n"
+					"  PDP context active:     %s\n"
 					"  PDP type:               %s\n"
 					"  APN:                    %s\n"
 					"  IPv4 MTU:               %d\n"
@@ -759,6 +793,7 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 					(i + 1),
 					info_tbl[i].cid,
 					(info_tbl[i].pdn_id_valid) ? tmp_str: "Not known",
+					(info_tbl[i].ctx_active) ? "yes" : "no",
 					info_tbl[i].pdp_type_str,
 					info_tbl[i].apn_str,
 					info_tbl[i].mtu,
