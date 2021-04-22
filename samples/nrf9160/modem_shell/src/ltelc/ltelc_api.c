@@ -204,7 +204,7 @@ int ltelc_api_pdp_context_dynamic_params_get(pdp_context_info_t *populated_info)
 			dns_addr_str,
 			&param_str_len);
 		if (ret) {
-			printk("Could not parse dns str for cid %d, err: %d", 
+			printk("Could not parse dns str for cid %d, err: %d\n", 
 				populated_info->cid, ret);
 			goto clean_exit;
 		}
@@ -702,7 +702,8 @@ clean_exit:
 #endif /* CONFIG_AT_CMD */
 /* *****************************************************************************/
 #if defined(CONFIG_MODEM_INFO)
-void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
+void ltelc_api_modem_info_get_for_shell(
+	const struct shell *shell, bool connected)
 {
 	pdp_context_info_array_t pdp_context_info_tbl;
 	enum lte_lc_system_mode sys_mode_current;
@@ -710,7 +711,6 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 	enum lte_lc_lte_mode currently_active_mode;
 	char info_str[MODEM_INFO_MAX_RESPONSE_SIZE + 1];
 	int ret;
-	bool lte_active;
 
 	(void)ltelc_shell_get_and_print_current_system_modes(
 		shell, &sys_mode_current, &sys_mode_preferred, &currently_active_mode);
@@ -723,9 +723,8 @@ void ltelc_api_modem_info_get_for_shell(const struct shell *shell)
 		shell_error(shell,
 			    "Unable to obtain modem FW version (%d)", ret);
 	}
-	lte_active = ((currently_active_mode != LTE_LC_LTE_MODE_NONE) ? true : false);
 
-	if (lte_active) {
+	if (connected) {
 		ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
 						sizeof(info_str));
 		if (ret >= 0) {

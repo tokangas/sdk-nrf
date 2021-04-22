@@ -852,6 +852,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 		case LTELC_CMD_STATUS: {
 			enum lte_lc_nw_reg_status current_reg_status;
+			bool connected = false;
 
 			ret = ltelc_func_mode_get();
 			if (ret >= 0)
@@ -869,7 +870,13 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					"Cannot get current registration status (%d)",
 					ret);
 			}
-			ltelc_api_modem_info_get_for_shell(shell);
+			if (current_reg_status == LTE_LC_NW_REG_REGISTERED_EMERGENCY ||
+				current_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ||
+				current_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
+				connected = true;
+			}
+
+			ltelc_api_modem_info_get_for_shell(shell, connected);
 			break;
 		}
 		case LTELC_CMD_SETTINGS:
