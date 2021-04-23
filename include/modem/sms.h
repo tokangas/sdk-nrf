@@ -141,10 +141,10 @@ struct sms_data {
 	int payload_len;
 	/**
 	 * @brief SMS message payload.
-	 * 
+	 *
 	 * @details Reserving enough bytes for maximum number of characters
 	 * but the length of the received payload is in payload_len variable.
-	 * 
+	 *
 	 * Generally the message is of text type in which case you can treat it as string.
 	 * However, header may contain information that determines it for specific purpose,
 	 * e.g., via application port information, in which case it should be treated as
@@ -202,7 +202,7 @@ void sms_unregister_listener(int handle);
  * @retval -EINVAL Invalid parameter.
  * @return 0 on success, otherwise error code.
  */
-int sms_send_text(char *number, char *text);
+int sms_send_text(const char *number, const char *text);
 
 /** @} */
 

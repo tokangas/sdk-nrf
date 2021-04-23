@@ -159,148 +159,102 @@ static const uint8_t gsm7bit_to_ascii_table[256] = {
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,  /* 248-255/ext 120-127  */
 };
 
-/**
- * @brief Convert ASCII characters into GSM 7 bit Default Alphabet character set.
- *
- * @details ascii_to_7bit_table conversion table is used. Optionally perform
- * also packing for the resulting 7 bit string. Note that the 7 bit string may
- * be longer than the original due to possible extension table usage. Each
- * extended character needs an escape code in addition to the character code in
- * extension table.
- *
- * References: 3GPP TS 23.038 chapter 6.2.1: GSM 7 bit Default Alphabet
- *
- * Input parameters:
- *
- * @param[in] p_data Pointer to array of characters to be converted. No null termination.
- * @param[in] data_len Number of characters to be converted, max 160.
- * @param[out] p_out_data Pointer to buffer for the converted string. Shall have allocation
- *                of 160 bytes, or in case of less than 80  input characters, at
- *                least 2*data_len to make sure that buffer overflow will not happen.
- * @param[out] p_out_bytes Pointer to a byte to return number of valid bytes in p_out_data.
- *                May be NULL if not needed.
- * @param[out] p_out_chars Pointer to a byte to return number of 7 bit characters, i.e. septets
- *                (including possible escape characters) in p_out_data. May be NULL if
- *                not needed. Same as p_out_bytes, when packing=false.
- * @param[in] packing True if the converted 7bit string has to be packed.
- *
- * @return Number of converted characters (same as data_len if all converted successfully).
- */
 uint8_t string_conversion_ascii_to_gsm7bit(
-	const uint8_t *p_data,
+	const uint8_t *data,
 	uint8_t  data_len,
-	uint8_t *p_out_data,
-	uint8_t *p_out_bytes,
-	uint8_t *p_out_chars,
+	uint8_t *out_data,
+	uint8_t *out_bytes,
+	uint8_t *out_chars,
 	bool     packing)
 {
-	uint8_t i_ascii = 0;
-	uint8_t i_7bit = 0;
-	uint8_t out_bytes = 0;
+	uint8_t index_ascii = 0;
+	uint8_t index_7bit = 0;
+	uint8_t out_bytes_tmp = 0;
 	uint8_t char_7bit;
 	uint8_t char_ascii;
 
-	if ((p_data != NULL) && (p_out_data != NULL)) {
-		for (i_ascii = 0; i_ascii < data_len; i_ascii++) {
-			char_ascii = p_data[i_ascii];
-			char_7bit = ascii_to_7bit_table[char_ascii];
+	if ((data == NULL) || (out_data == NULL)) {
+		return 0;
+	}
 
-			if ((char_7bit & STR_7BIT_ESCAPE_IND) == 0) {
-				/* Character is in default alphabet table */
-				if (i_7bit < STR_MAX_CHARACTERS) {
-					p_out_data[i_7bit++] = char_7bit;
-				} else {
-					break;
-				}
+	for (index_ascii = 0; index_ascii < data_len; index_ascii++) {
+		char_ascii = data[index_ascii];
+		char_7bit = ascii_to_7bit_table[char_ascii];
+
+		if ((char_7bit & STR_7BIT_ESCAPE_IND) == 0) {
+			/* Character is in default alphabet table */
+			if (index_7bit < STR_MAX_CHARACTERS) {
+				out_data[index_7bit++] = char_7bit;
 			} else {
-				/* Character is in default extension table */
-				if (i_7bit < STR_MAX_CHARACTERS - 1) {
-					p_out_data[i_7bit++] = STR_7BIT_ESCAPE_CODE;
-					p_out_data[i_7bit++] = (char_7bit & STR_7BIT_CODE_MASK);
-				} else {
-					break;
-				}
+				break;
+			}
+		} else {
+			/* Character is in default extension table */
+			if (index_7bit < STR_MAX_CHARACTERS - 1) {
+				out_data[index_7bit++] = STR_7BIT_ESCAPE_CODE;
+				out_data[index_7bit++] = (char_7bit & STR_7BIT_CODE_MASK);
+			} else {
+				break;
 			}
 		}
-
-		if (packing == true) {
-			out_bytes = string_conversion_7bit_sms_packing(p_out_data, i_7bit);
-		} else {
-			out_bytes = i_7bit;
-		}
 	}
 
-	if (p_out_bytes != NULL) {
-		*p_out_bytes = out_bytes;
+	if (packing == true) {
+		out_bytes_tmp = string_conversion_7bit_sms_packing(out_data, index_7bit);
+	} else {
+		out_bytes_tmp = index_7bit;
 	}
-	if (p_out_chars != NULL) {
-		*p_out_chars = i_7bit;
+
+	if (out_bytes != NULL) {
+		*out_bytes = out_bytes_tmp;
 	}
-	return i_ascii;
+	if (out_chars != NULL) {
+		*out_chars = index_7bit;
+	}
+	return index_ascii;
 }
 
-/**
- * @brief Convert GSM 7 bit Default Alphabet characters to ASCII characters.
- *
- * @details gsm7bit_to_ascii_table conversion table is used. Perform also unpacking of
- * the 7 bit string before conversion, if caller indicates that the string is packed.
- *
- * References: 3GPP TS 23.038 chapter 6.2.1: GSM 7 bit Default Alphabet
- *
- * @param[in] p_data Pointer to array of characters to be converted. No null termination.
- * @param[out] p_out_data Pointer to buffer for the converted string. Shall have allocation
- *             of at least "num_char" bytes. Note that this function does not add
- *             null termination at the end of the string. It should be done by caller,
- *             when needed. (In that case it could be useful to actually allocate
- *             num_char+1 bytes here.)
- * @param[in] num_char Number of 7-bit characters to be unpacked, including possible escape codes.
- *            Also indicates maximum allowed number of characters to be stored to output
- *            buffer by this function.
- * @param[in] packed True if the 7bit string is packed, i.e. has to be unpacked before conversion.
- *
- * @return Number of valid bytes/characters in "p_out_data". May be less than "num_char" in the
- *         case that the 7 bit string contains "escape/extended code" sequences, that are converted
- *         to single ASCII characters.
- *
- *********************************************************************************************/
 uint8_t string_conversion_gsm7bit_to_ascii(
-	const uint8_t *p_data,
-	uint8_t *p_out_data,
+	const uint8_t *data,
+	uint8_t *out_data,
 	uint8_t  num_char,
 	bool     packed)
 {
-	uint8_t *p_7bit;
-	uint8_t i_ascii = 0;
-	uint8_t i_7bit = 0;
+	uint8_t *buf_7bit;
+	uint8_t index_ascii = 0;
+	uint8_t index_7bit = 0;
 	uint8_t char_7bit;
 
 	if (packed == true) {
-		num_char = string_conversion_7bit_sms_unpacking(p_data, p_out_data, num_char);
-		p_7bit = p_out_data;
+		num_char = string_conversion_7bit_sms_unpacking(data, out_data, num_char);
+		buf_7bit = out_data;
 	} else {
-		p_7bit = (uint8_t *)p_data;
+		buf_7bit = (uint8_t *)data;
 	}
 
-	if ((p_data != NULL) && (p_out_data != NULL)) {
-		for (i_7bit = 0; i_7bit < num_char; i_7bit++) {
-			char_7bit = p_7bit[i_7bit];
+	if ((data == NULL) || (out_data == NULL)) {
+		return 0;
+	}
 
-			if (char_7bit == STR_7BIT_ESCAPE_CODE) {
-				i_7bit++;
-				if (i_7bit < num_char) {
-					char_7bit = p_7bit[i_7bit];
-					p_out_data[i_ascii] =
-						gsm7bit_to_ascii_table[128 + char_7bit];
-				} else {
-					break;
-				}
+	for (index_7bit = 0; index_7bit < num_char; index_7bit++) {
+		char_7bit = buf_7bit[index_7bit];
+
+		if (char_7bit == STR_7BIT_ESCAPE_CODE) {
+			index_7bit++;
+			if (index_7bit < num_char) {
+				char_7bit = buf_7bit[index_7bit];
+				out_data[index_ascii] =
+					gsm7bit_to_ascii_table[128 + char_7bit];
 			} else {
-				p_out_data[i_ascii] = gsm7bit_to_ascii_table[char_7bit];
+				break;
 			}
-			i_ascii++;
+		} else {
+			out_data[index_ascii] = gsm7bit_to_ascii_table[char_7bit];
 		}
+		index_ascii++;
 	}
-	return i_ascii;
+
+	return index_ascii;
 }
 
 /**
@@ -331,107 +285,70 @@ uint8_t string_conversion_gsm7bit_to_ascii(
  *
  * References: 3GPP TS 23.038 chapter 6.1.2.1: SMS Packing
  *
- * @param[in,out] p_data Pointer to array of characters to be packed (no null termination needed).
+ * @param[in,out] data Pointer to array of characters to be packed (no null termination needed).
  *                       Also the packed characters are stored into this buffer.
  * @param[in] data_len Number of characters to be packed
  *
  * @return Number of valid bytes in the packed character data.
  */
-uint8_t string_conversion_7bit_sms_packing(uint8_t *p_data, uint8_t data_len)
+uint8_t string_conversion_7bit_sms_packing(uint8_t *data, uint8_t data_len)
 {
-	uint8_t i_src = 0;
-	uint8_t i_dst = 0;
+	uint8_t src = 0;
+	uint8_t dst = 0;
 	uint8_t shift = 0;
 
-	if (p_data != NULL) {
-		while (i_src < data_len) {
-			p_data[i_dst] = p_data[i_src] >> shift;
-			i_src++;
-
-			if (i_src < data_len) {
-				p_data[i_dst] |= (p_data[i_src] << (7 - shift));
-				shift++;
-
-				if (shift == 7) {
-					shift = 0;
-					i_src++;
-				}
-			}
-			i_dst++;
-		}
+	if (data == NULL) {
+		return 0;
 	}
-	return i_dst;
+
+	while (src < data_len) {
+		data[dst] = data[src] >> shift;
+		src++;
+
+		if (src < data_len) {
+			data[dst] |= (data[src] << (7 - shift));
+			shift++;
+
+			if (shift == 7) {
+				shift = 0;
+				src++;
+			}
+		}
+		dst++;
+	}
+
+	return dst;
 }
 
-/**
- * @brief Performs unpacking of a packed GSM 7 bit string as described below.
- *
- *        Packed data bits:
- *        bit number:   7   6   5   4   3   2   1   0
- *        data byte 0: 2g  1a  1b  1c  1d  1e  1f  1g      p0
- *        data byte 1: 3f  3g  2a  2b  2c  2d  2e  2f      p1
- *        data byte 2: 4e  4f  4g  3a  3b  3c  3d  3e      p2
- *        data byte 3: 5d  5e  5f  5g  4a  4b  4c  4d      p3
- *        data byte 4: 6c  6d  6e  6f  6g  5a  5b  5c      p4
- *        data byte 5: 7b  7c  7d  7e  7f  7g  6a  6b      p5
- *        data byte 6: 8a  8b  8c  8d  8e  8f  8g  7a      p6
- *        data byte 7: Ag  9a  9b  9c  9d  9e  9f  9g      p7
- *        data byte 8: Bf  Bg  Aa  Ab  Ac  Ad  Ae  Af      p8
- *        and so on...
- *
- *        Unpacked data bits:
- *        bit number:   7   6   5   4   3   2   1   0
- *        data byte 0:  0  1a  1b  1c  1d  1e  1f  1g       p0 & 7F
- *        data byte 1:  0  2a  3b  2c  2d  2e  2f  2g      (p1 << 1 | p0 >> 7) & 7F
- *        data byte 2:  0  3a  3b  3c  3d  3e  3f  3g      (p2 << 2 | p1 >> 6) & 7F
- *        data byte 3:  0  4a  4b  4c  4d  4e  4f  4g      (p3 << 3 | p2 >> 5) & 7F
- *        data byte 4:  0  5a  5b  5c  5d  5e  5f  5g      (p4 << 4 | p3 >> 4) & 7F
- *        data byte 5:  0  6a  6b  6c  6d  6e  6f  6g      (p5 << 5 | p4 >> 3) & 7F
- *        data byte 6:  0  7a  7b  7c  7d  7e  7f  7g      (p6 << 6 | p5 >> 2) & 7F
- *        data byte 7:  0  8a  8b  8c  8d  8e  8f  8g      (p7 << 7 | p6 >> 1) & 7F
- *        data byte 8:  0  9a  9b  9c  9d  9e  9f  9g      (p7 << 0 | p6 >> 8) & 7F
- *        data byte 9:  0  Aa  Ab  Ac  Ad  Ae  Af  Ag      (p8 << 1 | p7 >> 7) & 7F
- *        data byte A:  0  Ba  Bb  Bc  Bd  Be  Bf  Bg      (p9 << 2 | p8 >> 6) & 7F
- *        and so on...
- *
- * References: 3GPP TS 23.038 chapter 6.1.2.1: SMS Packing
- *
- * @param[in] p_packed Pointer to buffer containing the packed string.
- * @param[in] num_char Number of 7-bit characters (i.e. septets) to be unpacked, including
- *                     possible escape codes. Also indicates maximum allowed number of
- *                     characters to be stored to output buffer by this function.
- * @param[out] p_unpacked Pointer to buffer to store the unpacked string. Allocated size shall be
- *                        at least "num_char" bytes.
- *
- * @return Number of valid bytes/characters in the unpacked string "p_unpacked".
- *
- *********************************************************************************************/
 uint8_t string_conversion_7bit_sms_unpacking(
-	const uint8_t *p_packed,
-	uint8_t *p_unpacked,
+	const uint8_t *packed,
+	uint8_t *unpacked,
 	uint8_t num_char)
 {
 	uint8_t shift = 1;
-	uint8_t i_pack = 1;
-	uint8_t i_char = 0;
+	uint8_t index_pack = 1;
+	uint8_t index_char = 0;
 
-	if ((p_packed != NULL) && (p_unpacked != NULL) && (num_char > 0)) {
-		p_unpacked[0] = p_packed[0] & STR_7BIT_CODE_MASK;
-		i_char++;
-
-		while (i_char < num_char) {
-			p_unpacked[i_char] =
-				(p_packed[i_pack] << shift) | (p_packed[i_pack - 1] >> (8 - shift));
-			p_unpacked[i_char] &= STR_7BIT_CODE_MASK;
-
-			shift++;
-			if (shift == 8) {
-				shift = 0;
-			} else {
-				i_pack++;
-			}
-			i_char++;
-		}
+	if ((packed == NULL) || (unpacked == NULL) || (num_char == 0)) {
+		return 0;
 	}
-	return i_char;
+
+	unpacked[0] = packed[0] & STR_7BIT_CODE_MASK;
+	index_char++;
+
+	while (index_char < num_char) {
+		unpacked[index_char] =
+			(packed[index_pack] << shift) | (packed[index_pack - 1] >> (8 - shift));
+		unpacked[index_char] &= STR_7BIT_CODE_MASK;
+
+		shift++;
+		if (shift == 8) {
+			shift = 0;
+		} else {
+			index_pack++;
+		}
+		index_char++;
+	}
+
+	return index_char;
 }

@@ -7,16 +7,21 @@ nRF9160: SMS
    :local:
    :depth: 2
 
-The SMS sample demonstrates how you can send and receive SMS messages with your nRF9160 device.
+The SMS sample demonstrates how you can send and receive SMS messages with your nRF9160-based device.
 
 
 Overview
 ********
 
-The SMS sample registers for SMS service within the nRF9160 modem.
-The sample will send SMS when it starts if recipient phone number is set in configuration.
-Then, it will receive all SMS message and print out information about them including the text that is sent.
+The SMS sample registers the nRF9160-based device for SMS service within the nRF9160 modem using the :ref:`sms_readme` library.
+The sample requires an LTE connection.
 
+When the sample starts, it sends SMS if a recipient phone number is set in the configuration.
+The sample then receives all the SMS messages and displays the information about the messages including the text that is sent.
+
+The maximum size of the AT command response defined by :option:`CONFIG_AT_CMD_RESPONSE_MAX_LEN` might limit the size of the SMS message that can be received.
+This parameter is defined in the :ref:`at_cmd_readme` module.
+Values over 512 bytes will not restrict the size of the received message as the maximum data length of the SMS is 140 bytes.
 
 Requirements
 ************
@@ -31,10 +36,36 @@ The sample supports the following development kit:
 Configuration
 *************
 
-You can configure the following option:
+|config|
 
-* :option:`CONFIG_SMS_SEND_PHONE_NUMBER` - Phone number where SMS message is sent.
+Configuration options
+=====================
 
+Check and configure the following mandatory configuration options for the sample:
+
+.. option:: CONFIG_SMS - Configuration for SMS subscriber library
+
+   The sample configuration enables the :ref:`sms_readme` library.
+
+.. option:: CONFIG_NRF_MODEM_LIB - Configuration for Modem library
+
+   The sample configuration enables the :ref:`nrf_modem`.
+
+.. option:: CONFIG_SMS_SEND_PHONE_NUMBER - Configuration for recipient phone number.
+
+   The sample configuration is used to set the recipient phone number to which SMS is sent.
+
+Additional Configuration
+========================
+
+Check and configure the following library options that are used by the sample:
+
+* :option:`CONFIG_SMS_SUBSCRIBERS_MAX_CNT`
+* :option:`CONFIG_AT_CMD_RESPONSE_MAX_LEN`
+* :option:`CONFIG_LTE_AUTO_INIT_AND_CONNECT`
+* :option:`CONFIG_LOG`
+* :option:`CONFIG_ASSERT`
+* :option:`CONFIG_ASSERT_VERBOSE`
 
 Building and running
 ********************
@@ -52,14 +83,12 @@ After programming the sample to your development kit, test the sample by perform
 1. |connect_kit|
 #. |connect_terminal|
 #. Observe that the sample shows the :ref:`UART output <sms_uart_output>` from the device.
-   Note that this is an example and the output need not be identical to your observed output.
-#. Send SMS message to the number of the SIM card that you have placed into nRF9160 device.
+   Note that this is an example, and the output need not be identical to your observed output.
+#. Send an SMS message to the number associated with the SIM card that you have placed into your nRF9160-based device.
 
-.. note::
-   Not all IOT SIM cards support SMS service so you need to check with your operator if SMS service doesn't seem to work.
+   .. note::
 
-.. note::
-   If more verbose logging of the SMS module processing is preferred, set the :option:`CONFIG_SMS_LOG_LEVEL_DBG` option in the ``prj.conf``.
+      Not all IoT SIM cards support SMS service. You must check with your operator if the SMS service does not work as expected.
 
 .. _sms_uart_output:
 
@@ -67,7 +96,7 @@ After programming the sample to your development kit, test the sample by perform
 Sample output
 =============
 
-The following is a sample output:
+The following output is logged in the terminal:
 
 .. code-block:: console
 
@@ -88,12 +117,8 @@ Dependencies
 
 This sample uses the following |NCS| libraries:
 
-* :ref:`sms_readme` which includes:
+* :ref:`sms_readme`
 
 It uses the following `sdk-nrfxlib`_ library:
 
 * :ref:`nrfxlib:nrf_modem`
-
-
-References
-**********

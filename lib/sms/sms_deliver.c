@@ -11,6 +11,7 @@
 #include <logging/log.h>
 
 #include "sms_deliver.h"
+#include "sms_internal.h"
 #include "parser.h"
 #include "string_conversion.h"
 
@@ -24,6 +25,7 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
 /** @brief Convenience macro to access parser data. */
 #define DELIVER_DATA(parser_data) ((struct pdu_deliver_data *)parser_data->data)
+
 
 /**
  * @brief First byte of SMS-DELIVER PDU in 3GPP TS 23.040 chapter 9.2.2.1.
@@ -112,8 +114,9 @@ static uint8_t semioctet_to_dec(uint8_t value)
  */
 static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *str_number)
 {
-	/* Copy and log address string */
 	uint8_t length = number_length / 2;
+	uint8_t number_value;
+	uint8_t hex_str_index = 0;
 	bool fill_bits = false;
 
 	if (number_length % 2 == 1) {
@@ -122,24 +125,24 @@ static void convert_number_to_str(uint8_t *number, uint8_t number_length, char *
 		fill_bits = true;
 	}
 
-	uint8_t hex_str_index = 0;
-
 	for (int i = 0; i < length; i++) {
 		/* Handle most significant 4 bits */
-		uint8_t number_value = (number[i] & 0xF0) >> 4;
+		number_value = (number[i] & 0xF0) >> 4;
 
 		if (number_value >= 10) {
-			LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
+			LOG_WRN("Single number in phone number is higher than 10: "
+				"index=%d, number_value=%d, lower semi-octet",
 				i, number_value);
 		}
 		sprintf(str_number + hex_str_index, "%d", number_value);
 
 		if (i < length - 1 || !fill_bits) {
 			/* Handle least significant 4 bits */
-			uint8_t number_value = number[i] & 0x0F;
+			number_value = number[i] & 0x0F;
 
 			if (number_value >= 10) {
-				LOG_WRN("Single number in phone number is higher than 10: index=%d, number_value=%d, lower semi-octet",
+				LOG_WRN("Single number in phone number is higher than 10: "
+					"index=%d, number_value=%d, lower semi-octet",
 					i, number_value);
 			}
 			sprintf(str_number + hex_str_index + 1,	"%d", number_value);
@@ -202,6 +205,7 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 {
 	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
+	uint8_t length;
 
 	DELIVER_DATA(parser)->field_oa.length = (uint8_t)*buf++;
 	DELIVER_DATA(parser)->field_oa.type = (uint8_t)*buf++;
@@ -216,7 +220,7 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 		return -EINVAL;
 	}
 
-	uint8_t length = DELIVER_DATA(parser)->field_oa.length / 2;
+	length = DELIVER_DATA(parser)->field_oa.length / 2;
 
 	if (DELIVER_DATA(parser)->field_oa.length % 2 == 1) {
 		/* There is an extra number in semi-octet and fill bits*/
@@ -266,6 +270,7 @@ static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
 static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 {
 	uint8_t value = *buf;
+	uint8_t temp;
 
 	if ((value & 0b11000000) == 0) {
 		/* If bits 7..6 of the Coding Group Bits are 00 */
@@ -276,7 +281,7 @@ static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 		 * only first 3 bits are meaningful and they match to
 		 * the first 3 bits when Coding Group Bits 7..6 are 00
 		 */
-		uint8_t temp = value & 0b00000111;
+		temp = value & 0b00000111;
 
 		DELIVER_DATA(parser)->field_dcs = *(struct pdu_dcs_field *)&temp;
 		/* Additionally, to convert Coding Group Bits 7..4=1111 to same
@@ -362,7 +367,8 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
 		DELIVER_DATA(parser)->field_udh_concatenated.seq_number);
 
 	if (DELIVER_DATA(parser)->field_udh_concatenated.total_msgs == 0) {
-		LOG_ERR("Total number of concatenated messages must be higher than 0, ignoring concatenated info");
+		LOG_ERR("Total number of concatenated messages must be higher than 0, "
+			"ignoring concatenated info");
 		DELIVER_DATA(parser)->field_udh_concatenated.present = false;
 		DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
 		DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
@@ -372,7 +378,9 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
 			(DELIVER_DATA(parser)->field_udh_concatenated.seq_number >
 			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs)) {
 
-		LOG_ERR("Sequence number of current concatenated message (%d) must be higher than 0 and smaller or equal than total number of messages (%d), ignoring concatenated info",
+		LOG_ERR("Sequence number of current concatenated message (%d) must be "
+			"higher than 0 and smaller or equal than total number of messages (%d), "
+			"ignoring concatenated info",
 			DELIVER_DATA(parser)->field_udh_concatenated.seq_number,
 			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
 		DELIVER_DATA(parser)->field_udh_concatenated.present = false;
@@ -393,12 +401,14 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
  */
 static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 {
+	int ie_id;
+	int ie_length;
 	/* Start from 1 as 0 index has UDHL */
 	uint8_t ofs = 1;
 
 	while (ofs < DELIVER_DATA(parser)->field_udhl) {
-		int ie_id     = buf[ofs++];
-		int ie_length = buf[ofs++];
+		ie_id     = buf[ofs++];
+		ie_length = buf[ofs++];
 
 		LOG_DBG("User Data Header id=0x%02X, length=%d", ie_id, ie_length);
 
@@ -408,7 +418,8 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 			 *   or too many octets in the final Information Element
 			 *   then the whole User Data Header shall be ignored."
 			 */
-			LOG_DBG("User Data Header Information Element too long (%d) for remaining length (%d)",
+			LOG_DBG("User Data Header Information Element too long (%d) for "
+				"remaining length (%d)",
 				ie_length, DELIVER_DATA(parser)->field_udhl - ofs);
 
 			/* Clean UDH information */
@@ -425,7 +436,8 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 		switch (ie_id) {
 		case 0x00: /* Concatenated short messages, 8-bit reference number */
 			if (ie_length != 3) {
-				LOG_ERR("Concatenated short messages, 8-bit reference number: IE length 3 required, %d received",
+				LOG_ERR("Concatenated short messages, 8-bit reference number: "
+					"IE length 3 required, %d received",
 					ie_length);
 				break;
 			}
@@ -439,7 +451,8 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 
 		case 0x04: /* Application port addressing scheme, 8 bit address */
 			if (ie_length != 2) {
-				LOG_ERR("Application port addressing scheme, 8 bit address: IE length 2 required, %d received",
+				LOG_ERR("Application port addressing scheme, 8 bit address: "
+					"IE length 2 required, %d received",
 					ie_length);
 				break;
 			}
@@ -455,7 +468,8 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 
 		case 0x05: /* Application port addressing scheme, 16 bit address */
 			if (ie_length != 4) {
-				LOG_ERR("Application port addressing scheme, 16 bit address: IE length 4 required, %d received",
+				LOG_ERR("Application port addressing scheme, 16 bit address: "
+					"IE length 4 required, %d received",
 					ie_length);
 				break;
 			}
@@ -474,7 +488,8 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 			break;
 		case 0x08: /* Concatenated short messages, 16-bit reference number */
 			if (ie_length != 4) {
-				LOG_ERR("Concatenated short messages, 16-bit reference number: IE length 4 required, %d received",
+				LOG_ERR("Concatenated short messages, 16-bit reference number: "
+					"IE length 4 required, %d received",
 					ie_length);
 				break;
 			}
@@ -488,7 +503,8 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 			break;
 
 		default:
-			LOG_WRN("Ignoring not supported User Data Header information element id=0x%02X, length=%d",
+			LOG_WRN("Ignoring not supported User Data Header information element "
+				"id=0x%02X, length=%d",
 				ie_id, ie_length);
 			break;
 		}
@@ -555,6 +571,12 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 {
+	uint16_t actual_data_length;
+	uint8_t length;
+	uint8_t skip_bits;
+	uint8_t skip_septets;
+	int length_udh_skipped;
+
 	if (DELIVER_DATA(parser)->field_udl > 160) {
 		LOG_ERR("User Data Length exceeds maximum number of characters (160) in SMS spec");
 		return -EMSGSIZE;
@@ -564,22 +586,21 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	 * length indicated by User-Data-Length. User-Data-Header-Length is taken into account
 	 * later because UDH is part of GSM 7bit encoding w.r.t. fill bits for the actual data.
 	 */
-	uint16_t actual_data_length = (parser->buf_size - parser->payload_pos) * 8 / 7;
+	actual_data_length = (parser->buf_size - parser->payload_pos) * 8 / 7;
 
 	actual_data_length = MIN(actual_data_length, DELIVER_DATA(parser)->field_udl);
 
 	/* Convert GSM 7bit data to ASCII characters */
-	uint8_t temp_buf[160];
-	uint8_t length = string_conversion_gsm7bit_to_ascii(
-		buf, temp_buf, actual_data_length, true);
+	length = string_conversion_gsm7bit_to_ascii(
+		buf, sms_payload_tmp, actual_data_length, true);
 
 	/* Check whether User Data Header is present.
-	 * If yes, we need to skip those septets in the temp_buf, which has all of the data
+	 * If yes, we need to skip those septets in the sms_payload_tmp, which has all of the data
 	 * decoded including User Data Header. This is done because the actual data/text is
 	 * aligned into septet (7bit) boundary after User Data Header.
 	 */
-	uint8_t skip_bits = DELIVER_DATA(parser)->field_udhl * 8;
-	uint8_t skip_septets = skip_bits / 7;
+	skip_bits = DELIVER_DATA(parser)->field_udhl * 8;
+	skip_septets = skip_bits / 7;
 
 	if (skip_bits % 7 > 0) {
 		skip_septets++;
@@ -589,15 +610,14 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	 * User Data Header but minimum is 0. In some corner cases this would
 	 * result in negative value causing crashes.
 	 */
-	int length_udh_skipped = (length >= skip_septets) ?
-		(int)(length - skip_septets) : 0;
+	length_udh_skipped = (length >= skip_septets) ? (int)(length - skip_septets) : 0;
 
 	/* Verify that payload buffer is not too short */
 	__ASSERT(length_udh_skipped <= parser->payload_buf_size,
 		"GSM 7bit User-Data-Length shorter than output buffer");
 
 	/* Copy decoded data/text into the output buffer */
-	memcpy(parser->payload, temp_buf + skip_septets, length_udh_skipped);
+	memcpy(parser->payload, sms_payload_tmp + skip_septets, length_udh_skipped);
 
 	return length_udh_skipped;
 }
@@ -758,13 +778,14 @@ void *sms_deliver_get_api(void)
 
 int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 {
-	struct parser sms_deliver;
+	static struct parser sms_deliver;
+	struct sms_deliver_header *header;
 	int err = 0;
 
 	__ASSERT(pdu != NULL, "Parameter 'pdu' cannot be NULL.");
 	__ASSERT(data != NULL, "Parameter 'data' cannot be NULL.");
 
-	struct sms_deliver_header *header = &data->header.deliver;
+	header = &data->header.deliver;
 
 	__ASSERT(header != NULL, "Parameter 'header' cannot be NULL.");
 	memset(header, 0, sizeof(struct sms_deliver_header));

@@ -17,6 +17,7 @@
 #include "sms_submit.h"
 #include "sms_deliver.h"
 #include "sms_at.h"
+#include "sms_internal.h"
 
 LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 
@@ -24,8 +25,7 @@ LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 #define AT_CNMI_PARAMS_COUNT 6
 /** @brief Maxmimum number of parameters for any AT command response. */
 #define AT_SMS_PARAMS_COUNT_MAX AT_CNMI_PARAMS_COUNT
-/** @brief Maximum length of an AT command response that we are expecting. */
-#define SMS_AT_RESPONSE_MAX_LEN 256
+
 
 /** @brief AT command to check if a client already exist. */
 #define AT_SMS_SUBSCRIBER_READ "AT+CNMI?"
@@ -36,14 +36,22 @@ LOG_MODULE_REGISTER(sms, CONFIG_SMS_LOG_LEVEL);
 /** @brief AT command to an ACK in PDU mode. */
 #define AT_SMS_PDU_ACK "AT+CNMA=1"
 
-/** Worker handling SMS acknowledgements */
+/** @brief SMS structure where received SMS is parsed. */
+static struct sms_data sms_data_info;
+
+/** @brief Worker handling SMS acknowledgements */
 static struct k_work sms_ack_work;
+
 /**
  * @brief Response list used for AT command parsing.
  * @details This is a global variable so that we can use the same structure requiring memory and
  * initialization in various places of the code.
  */
 static struct at_param_list resp_list;
+
+/* Reserving internal temporary buffers that are used for various functions requiring memory. */
+uint8_t sms_buf_tmp[SMS_BUF_TMP_LEN];
+uint8_t sms_payload_tmp[SMS_MAX_PAYLOAD_LEN_CHARS];
 
 /**
  * @brief Indicates that the module has been successfully initialized
@@ -84,6 +92,8 @@ static void sms_ack(struct k_work *work)
  */
 void sms_at_handler(void *context, const char *at_notif)
 {
+	int err;
+
 	ARG_UNUSED(context);
 
 	if (at_notif == NULL) {
@@ -91,9 +101,7 @@ void sms_at_handler(void *context, const char *at_notif)
 	}
 
 	/* Parse AT command and SMS PDU */
-	struct sms_data sms_data_info = {0};
-	int err = sms_at_parse(at_notif, &sms_data_info, &resp_list);
-
+	err = sms_at_parse(at_notif, &sms_data_info, &resp_list);
 	if (err) {
 		return;
 	}
@@ -121,18 +129,19 @@ void sms_at_handler(void *context, const char *at_notif)
  */
 static int sms_init(void)
 {
-	char resp[SMS_AT_RESPONSE_MAX_LEN];
+	char *resp = sms_buf_tmp;
+	int ret;
 
 	k_work_init(&sms_ack_work, &sms_ack);
 
-	int ret = at_params_list_init(&resp_list, AT_SMS_PARAMS_COUNT_MAX);
+	ret = at_params_list_init(&resp_list, AT_SMS_PARAMS_COUNT_MAX);
 	if (ret) {
 		LOG_ERR("AT params error, err: %d", ret);
 		return ret;
 	}
 
 	/* Check if one SMS client has already been registered. */
-	ret = at_cmd_write(AT_SMS_SUBSCRIBER_READ, resp, sizeof(resp), NULL);
+	ret = at_cmd_write(AT_SMS_SUBSCRIBER_READ, resp, SMS_BUF_TMP_LEN, NULL);
 	if (ret) {
 		LOG_ERR("Unable to check if an SMS client exists, err: %d",
 			ret);
@@ -205,13 +214,14 @@ static int sms_subscriber_count(void)
 
 int sms_register_listener(sms_callback_t listener, void *context)
 {
+	int err;
+
 	if (listener == NULL) {
 		return -EINVAL; /* Invalid parameter. */
 	}
 
 	if (!sms_client_registered) {
-		int err = sms_init();
-
+		err = sms_init();
 		if (err != 0) {
 			return err;
 		}
@@ -238,11 +248,12 @@ int sms_register_listener(sms_callback_t listener, void *context)
  */
 static void sms_uninit(void)
 {
-	char resp[SMS_AT_RESPONSE_MAX_LEN];
+	char *resp = sms_buf_tmp;
+	int ret;
+	int count;
 
 	/* Don't do anything if there are subscribers */
-	int count = sms_subscriber_count();
-
+	count = sms_subscriber_count();
 	if (count > 0) {
 		LOG_DBG("Unregistering skipped as there are %d subscriber(s)",
 			count);
@@ -250,8 +261,7 @@ static void sms_uninit(void)
 	}
 
 	if (sms_client_registered) {
-		int ret = at_cmd_write(AT_SMS_SUBSCRIBER_UNREGISTER, resp,
-				       sizeof(resp), NULL);
+		ret = at_cmd_write(AT_SMS_SUBSCRIBER_UNREGISTER, resp, SMS_BUF_TMP_LEN, NULL);
 		if (ret) {
 			LOG_ERR("Unable to unregister the SMS client, err: %d",
 				ret);
@@ -289,7 +299,7 @@ void sms_unregister_listener(int handle)
 	sms_uninit();
 }
 
-int sms_send_text(char *number, char *text)
+int sms_send_text(const char *number, const char *text)
 {
 	return sms_submit_send(number, text);
 }

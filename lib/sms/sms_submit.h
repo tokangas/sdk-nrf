@@ -18,6 +18,6 @@
  * @retval -EINVAL Invalid parameter.
  * @return Zero on success, otherwise error code.
  */
-int sms_submit_send(char *number, char *text);
+int sms_submit_send(const char *number, const char *text);
 
 #endif

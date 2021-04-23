@@ -20,15 +20,6 @@ config SMS_SUBSCRIBERS_MAX_CNT
 	help
 	  Maximum number of subscribers that can register to SMS library.
 
-config SMS_SEND_CONCATENATED_MSG_MAX_CNT
-	int "Maximum number of concatenated messages for sending"
-	range 2 100
-	default 2
-	help
-	  Maximum number of concatenated messages that the library is able to
-	  compose for sending. If there would be even more data to send,
-	  an error is returned.
-
 module=SMS
 module-dep=LOG
 module-str= SMS library

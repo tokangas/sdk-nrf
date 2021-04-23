@@ -18,6 +18,7 @@
 #include "parser.h"
 #include "sms_submit.h"
 #include "sms_deliver.h"
+#include "sms_internal.h"
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
@@ -79,25 +80,25 @@ static int sms_notif_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 	struct at_param_list *temp_resp_list)
 {
-	char pdu[AT_CMT_PDU_MAX_LEN];
-	size_t pdu_len = sizeof(pdu) - 1; /* -1 so there is space for NUL */
+	int err;
 
 	__ASSERT(at_notif != NULL, "at_notif is NULL");
 	__ASSERT(sms_data_info != NULL, "sms_data_info is NULL");
 	__ASSERT(temp_resp_list != NULL, "temp_resp_list is NULL");
+
+	memset(sms_data_info, 0, sizeof(struct sms_data));
 
 	if (strncmp(at_notif, AT_SMS_DELIVER, AT_SMS_DELIVER_LEN) == 0) {
 
 		sms_data_info->type = SMS_TYPE_DELIVER;
 
 		/* Extract and save the SMS notification parameters */
-		int err = sms_notif_at_parse(at_notif, pdu, pdu_len,
+		err = sms_notif_at_parse(at_notif, sms_buf_tmp, SMS_BUF_TMP_LEN,
 				AT_CMT_PARAMS_COUNT, AT_CMT_PDU_INDEX, temp_resp_list);
 		if (err) {
 			return err;
 		}
-
-		err = sms_deliver_pdu_parse(pdu, sms_data_info);
+		err = sms_deliver_pdu_parse(sms_buf_tmp, sms_data_info);
 		if (err) {
 			LOG_ERR("sms_deliver_pdu_parse error: %d\n", err);
 			return err;
@@ -110,7 +111,7 @@ int sms_at_parse(const char *at_notif, struct sms_data *sms_data_info,
 		LOG_DBG("SMS status report received");
 		sms_data_info->type = SMS_TYPE_STATUS_REPORT;
 
-		int err = sms_notif_at_parse(at_notif, pdu, pdu_len,
+		err = sms_notif_at_parse(at_notif, sms_buf_tmp, SMS_BUF_TMP_LEN,
 				AT_CDS_PARAMS_COUNT, AT_CDS_PDU_INDEX, temp_resp_list);
 		if (err != 0) {
 			LOG_ERR("sms_cds_at_parse error: %d", err);
