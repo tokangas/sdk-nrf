@@ -29,7 +29,27 @@ int net_utils_socket_apn_set(int fd, const char *apn)
 	memcpy(ifr.ifr_name, apn, len);
 	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
 	if (ret < 0) {
-		printf("Failed to bind socket, error: %d, %s\n",  ret, strerror(ret));
+		printk("Failed to bind socket to APN %s, error: %d, %s\n",
+            apn, ret, strerror(ret));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int net_utils_socket_pdn_id_set(int fd, uint32_t pdn_id)
+{
+	int ret;
+	size_t len;
+	struct ifreq ifr = {0};
+    
+    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pdn%d", pdn_id);
+	len = strlen(ifr.ifr_name);
+
+	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (ret < 0) {
+		printk("Failed to bind socket with PDN ID %d, error: %d, %s\n", 
+            pdn_id, ret, strerror(ret));
 		return -EINVAL;
 	}
 
