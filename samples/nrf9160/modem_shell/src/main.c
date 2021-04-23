@@ -118,9 +118,7 @@ static void mosh_print_version_info(void)
 #if defined(BUILD_VARIANT)
 	printk("\nMOSH build variant: %s\n\n", STRINGIFY(BUILD_VARIANT));
 #else
-	/* TODO: Uncomment next line when build system has changed to set BUILD_VARIANT */
-	/*printk("\nMOSH build variant: dev\n\n");*/
-	printk("\n\n");
+	printk("\nMOSH build variant: dev\n\n");
 #endif
 }
 
