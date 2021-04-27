@@ -15,65 +15,6 @@
 
 LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 
-/**
- * @brief Convert hexadecimal character to integer value.
- *
- * @param[in] input Hexadecimal character.
- *
- * @return Integer value of the hexadecimal character
- */
-static inline uint8_t char2int(char input)
-{
-	if (input >= '0' && input <= '9') {
-		return input - '0';
-	}
-	if (input >= 'A' && input <= 'F') {
-		return input - 'A' + 10;
-	}
-	if (input >= 'a' && input <= 'f') {
-		return input - 'a' + 10;
-	}
-
-	return 0;
-}
-
-/**
- * @brief Convert ASCII formatted hexadecimal string into byte sequence.
- *
- * @details Every two characters form a single byte. 3GPP TS 27.005 Section 3.1 says
- * the following in <pdu> definition:
- *   "ME/TA converts each octet of TP data unit into two IRA character long hexadecimal number
- *    (e.g. octet with integer value 42 is presented to TE as two characters 2A (IRA 50 and 65))"
- *
- * @param[in] str Hexadecimal string.
- * @param[in] str_length Hexadecimal string length.
- * @param[out] buf Output buffer.
- * @param[in] buf Output buffer length.
- */
-static void convert_to_bytes(char *str, uint32_t str_length, uint8_t *buf, uint16_t buf_length)
-{
-	for (int i = 0; i < str_length; i++) {
-		__ASSERT((i >> 1) <= buf_length, "Too small internal buffer");
-
-		/* Character in an even index will be filled into byte that should be
-		 * initialized to zero to make sure the memory area is clean.
-		 */
-		if (!(i % 2)) {
-			buf[i >> 1] = 0;
-		}
-
-		/* The integer value of each character is added into the output buffer into
-		 * index that's half of the characters index in the input buffer as each byte is
-		 * represented by two characters. Division by 2 is done with right shift.
-		 * The first character of the two character set forms the most significant
-		 * 4 bits of the integer and the second character forms the least significant
-		 * 4 bits. This is where the shifting by four comes from based on whether the
-		 * index is even or odd.
-		 */
-		buf[i >> 1] |= (char2int(str[i]) << (4 * !(i % 2)));
-	}
-}
-
 int parser_create(struct parser *parser, struct parser_api *api)
 {
 	memset(parser, 0, sizeof(struct parser));
@@ -135,20 +76,31 @@ static int parser_process(struct parser *parser)
 	return 0;
 }
 
-int parser_process_str(struct parser *parser, char *data)
+int parser_process_str(struct parser *parser, const char *data)
 {
 	uint16_t length = strlen(data);
-	uint16_t buf_size = length / 2;
+	uint16_t data_buf_size = length / 2;
+	size_t bin_buf_len;
 
-	if (buf_size > PARSER_BUF_SIZE) {
+	if (length % 2 != 0) {
+		LOG_ERR("Data length (%d) is not divisible by two: %s",
+			length, data);
+		return -EMSGSIZE;
+	}
+
+	if (data_buf_size > PARSER_BUF_SIZE) {
 		LOG_ERR("Data length (%d) is bigger than the internal buffer size (%d)",
-			buf_size,
+			data_buf_size,
 			PARSER_BUF_SIZE);
 		return -EMSGSIZE;
 	}
 
-	parser->buf_size = buf_size;
-	convert_to_bytes(data, length, parser->buf, PARSER_BUF_SIZE);
+	parser->buf_size = data_buf_size;
+	bin_buf_len = hex2bin(data, length, parser->buf, PARSER_BUF_SIZE);
+	if (bin_buf_len == 0) {
+		LOG_ERR("Invalid hex character found in buffer: %s", data);
+		return -EINVAL;
+	}
 
 	return parser_process(parser);
 }

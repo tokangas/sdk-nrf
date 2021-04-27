@@ -41,24 +41,21 @@ Configuration
 Configuration options
 =====================
 
-Check and configure the following mandatory configuration options for the sample:
-
-.. option:: CONFIG_SMS - Configuration for SMS subscriber library
-
-   The sample configuration enables the :ref:`sms_readme` library.
-
-.. option:: CONFIG_NRF_MODEM_LIB - Configuration for Modem library
-
-   The sample configuration enables the :ref:`nrf_modem`.
+Check and configure the following configuration option for the sample:
 
 .. option:: CONFIG_SMS_SEND_PHONE_NUMBER - Configuration for recipient phone number.
 
-   The sample configuration is used to set the recipient phone number to which SMS is sent.
+   The sample configuration is used to set the recipient phone number if you need to send SMS.
 
 Additional Configuration
 ========================
 
-Check and configure the following library options that are used by the sample:
+Check and configure the following mandatory library options that are used by the sample:
+
+* :option:`CONFIG_SMS`
+* :option:`CONFIG_NRF_MODEM_LIB`
+
+Check and configure the following optional library options that are used by the sample:
 
 * :option:`CONFIG_SMS_SUBSCRIBERS_MAX_CNT`
 * :option:`CONFIG_AT_CMD_RESPONSE_MAX_LEN`

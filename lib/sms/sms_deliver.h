@@ -21,6 +21,6 @@ struct sms_data;
  * @retval -ENOMEM No memory to register new observers.
  * @return Zero on success, otherwise error code.
  */
-int sms_deliver_pdu_parse(char *pdu, struct sms_data *out);
+int sms_deliver_pdu_parse(const char *pdu, struct sms_data *out);
 
 #endif

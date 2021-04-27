@@ -103,6 +103,13 @@ void test_sms_init_fail_register_too_many(void)
 	TEST_ASSERT_EQUAL(1, handle2);
 	TEST_ASSERT_EQUAL(-ENOSPC, handle3);
 
+	/* Unregistering test_handle to get branch coverage */
+	sms_unregister_listener(test_handle);
+	test_handle = -1;
+
+	/* Register test_handle again */
+	test_handle = sms_register_listener(sms_callback, NULL);
+
 	sms_unregister_listener(handle2);
 
 	sms_unreg_helper();
@@ -1176,6 +1183,18 @@ void test_recv_fail_invalid_dcs_ucs2(void)
 	sms_unreg_helper();
 }
 
+/** DCS not supported: 0x80 */
+void test_recv_fail_invalid_dcs_unsupported_format(void)
+{
+	sms_reg_helper();
+
+	sms_callback_called_expected = false;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n"
+		"004408812143658700801210032143652b1c0b05040b84000000037c0101010203040506070809\r\n");
+
+	sms_unreg_helper();
+}
+
 /** Receive too long message with 161 bytes in actual text. */
 void test_recv_fail_len161(void)
 {
@@ -1189,11 +1208,27 @@ void test_recv_fail_len161(void)
 }
 
 /**
- * Test large enough data not to fit into the internal input buffer.
+ * Test large enough data not to fit into the internal PDU buffer.
+ * Message size is still said to be maximum of 160 GSM 7bit decoded octets.
+ * But the actual SMS-DELIVER message is 264 bytes, or 528 characters.
+ */
+void test_recv_fail_internal_pdu_buffer_too_short(void)
+{
+	sms_reg_helper();
+
+	sms_callback_called_expected = false;
+	sms_at_handler(NULL, "+CMT: \"+1234567890\",22\r\n"
+		"00040A912143658709000012201232054480A031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E56031D98C56B3DD7039584C36A3D56C375C0E1693CD6835DB0D9783C564335ACD76C3E560\r\n");
+
+	sms_unreg_helper();
+}
+
+/**
+ * Test large enough data not to fit into the internal payload buffer.
  * Message size is still said to be maximum of 160 GSM 7bit decoded octets.
  * But the actual SMS-DELIVER message is 181 bytes, or 362 characters.
  */
-void test_recv_fail_internal_buffer_too_short(void)
+void test_recv_fail_internal_payload_buffer_too_short(void)
 {
 	sms_reg_helper();
 

@@ -14,6 +14,7 @@ static void sms_callback(struct sms_data *const data, void *context)
 {
 	if (data == NULL) {
 		printk("%s with NULL data\n", __func__);
+		return;
 	}
 
 	if (data->type == SMS_TYPE_DELIVER) {
