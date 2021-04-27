@@ -286,9 +286,8 @@ static int z_to_nrf_flags(int z_flags)
 
 static int z_to_nrf_addrinfo_flags(int flags)
 {
-	/* Flags not implemented.*/
-	ARG_UNUSED(flags);
-	return 0;
+	/* Jani: no mapping -> let it flow through*/
+	return flags;
 }
 
 static int nrf_to_z_addrinfo_flags(int flags)
