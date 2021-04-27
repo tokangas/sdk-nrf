@@ -20,7 +20,6 @@
 
 #include <posix/arpa/inet.h>
 
-#include <nrf_socket.h> /* For: DNS getaddrinfo() NRF_AI_PDNSERV, TODO use AI_PDNSERV when that's in net/socket.h */
 #include "utils/net_utils.h"
 #include "ltelc_api.h"
 
@@ -485,7 +484,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 			snprintf(portstr, 6, "pdn%d", ping_argv.pdn_id_for_cid);
 			set_flags = true;
 			service = portstr;
-			hints.ai_flags = NRF_AI_PDNSERV;
+			hints.ai_flags = AI_PDNSERV;
 		}
 	}
 
