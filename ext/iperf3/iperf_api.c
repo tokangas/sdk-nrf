@@ -997,6 +997,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 #endif
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)                           
 		{ "interface", required_argument, NULL, 'I' },
+		{ "pdn_id", required_argument, NULL, NRF_OPT_PDN_ID },
 #else
 		{ "pidfile", required_argument, NULL, 'I' },
 #endif
@@ -1403,10 +1404,25 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		case 'I':
 			test->apn_str = strdup(optarg);
 			if (test->apn_str == NULL) {
-				printf("strdup failed for setting the interface %s\n", optarg);
+				printk("strdup failed for setting the interface %s\n", optarg);
                 i_errno = IENOMEMORY;
 				return -1;
             }
+			break;
+		case NRF_OPT_PDN_ID: {
+				int tmp = strtol(optarg, &endptr, 0);
+				if (endptr == optarg || tmp < 0) {
+					printk("not valid PDN ID %s\n", optarg);
+					return -1;
+				}
+
+				test->pdn_id_str = strdup(optarg);
+				if (test->pdn_id_str == NULL) {
+					printk("strdup failed for setting the PDN ID %s\n", optarg);
+					i_errno = IENOMEMORY;
+					return -1;
+				}
+			}
 			break;
 #else
 		case 'I':
@@ -3255,6 +3271,7 @@ int iperf_defaults(struct iperf_test *testp)
 
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
 	testp->apn_str = NULL;
+	testp->pdn_id_str = NULL;
 #endif
 	testp->omit = OMIT;
 	testp->duration = DURATION;

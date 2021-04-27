@@ -87,6 +87,7 @@ typedef uint64_t iperf_size_t;
 #define OPT_SERVER_BITRATE_LIMIT 21
 #define OPT_TIMESTAMPS 22
 #define NRF_OPT_CURRENT_MDM_TRACES 23 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
+#define NRF_OPT_PDN_ID 24 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 
 /* states */
 #define TEST_START 1
@@ -443,7 +444,7 @@ enum {
     IENEWTIMER = 300,       // Unable to create new timer (check perror)
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
 #if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
-    IENOMEMORY = 302,       // no dynamic memory from heap
+    IENOMEMORY = 302,         // no dynamic memory from heap
     IETESTSTARTTIMEOUT = 303, // testing start timeout
 #endif
 };

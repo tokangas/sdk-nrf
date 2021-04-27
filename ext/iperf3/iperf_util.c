@@ -110,14 +110,33 @@ int iperf_util_socket_apn_set(int fd, const char *apn)
 
 	len = strlen(apn);
 	if (len >= sizeof(ifr.ifr_name)) {
-		printf("Access point name is too long\n");
+		printk("Access point name is too long\n");
 		return -EINVAL;
 	}
 
 	memcpy(ifr.ifr_name, apn, len);
 	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
 	if (ret < 0) {
-		printf("Failed to bind socket, error: %d, %s\n",  ret, strerror(ret));
+		printk("Failed to bind socket, error: %d, %s\n",  ret, strerror(ret));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int iperf_util_socket_pdn_id_set(int fd, const char *pdn_id_str)
+{
+	int ret;
+	size_t len;
+	struct ifreq ifr = {0};
+    
+    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pdn%s", pdn_id_str);
+	len = strlen(ifr.ifr_name);
+
+	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+	if (ret < 0) {
+		printk("Failed to bind socket with PDN ID %s, error: %d, %s\n", 
+            pdn_id_str, ret, strerror(ret));
 		return -EINVAL;
 	}
 

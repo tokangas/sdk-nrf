@@ -226,6 +226,7 @@ iperf_tcp_listen(struct iperf_test *test)
         memset(&hints, 0, sizeof(hints));
 
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
+    /* Note: PDN ID based set (AI_PDNSERV) cannot be done due to overlapping usage of port: */
     hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
@@ -261,8 +262,15 @@ iperf_tcp_listen(struct iperf_test *test)
         }
 
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
-        /* Set APN if requested */
-        if (test->apn_str != NULL) {
+        /* Set PDN based on PDN ID or APN if requested */
+        if (test->pdn_id_str != NULL) {
+            int ret = iperf_util_socket_pdn_id_set(s, test->pdn_id_str);
+            if (ret != 0) {
+                printf("iperf_tcp_listen: cannot bind socket with PDN ID %s\n", test->pdn_id_str);
+                i_errno = IESTREAMLISTEN;
+                return -1;
+            }				
+        } else if (test->apn_str != NULL) {
             int ret = iperf_util_socket_apn_set(s, test->apn_str);
             if (ret != 0) {
                 printf("iperf_tcp_listen: cannot bind socket to apn %s\n", test->apn_str);
@@ -480,6 +488,7 @@ iperf_tcp_connect(struct iperf_test *test)
     hints.ai_socktype = SOCK_STREAM;
 
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
+    /* Note: PDN ID based set (AI_PDNSERV) cannot be done due to overlapping usage of port: */
     hints.ai_next = test->apn_str ?
 			&(struct addrinfo) {
 				.ai_family    = AF_LTE,
@@ -509,8 +518,15 @@ iperf_tcp_connect(struct iperf_test *test)
     }
 
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
-	/* Set PDN if requested */
-    if (test->apn_str != NULL) {
+    /* Set PDN based on PDN ID or APN if requested */
+    if (test->pdn_id_str != NULL) {
+        int ret = iperf_util_socket_pdn_id_set(s, test->pdn_id_str);
+        if (ret != 0) {
+            printf("iperf_tcp_listen: cannot bind socket with PDN ID %s\n", test->pdn_id_str);
+            i_errno = IESTREAMLISTEN;
+            return -1;
+        }				
+    } else if (test->apn_str != NULL) {
 		int ret = iperf_util_socket_apn_set(s, test->apn_str);
 		if (ret != 0) {
 			printf("Cannot bind socket to apn %s\n", test->apn_str);
