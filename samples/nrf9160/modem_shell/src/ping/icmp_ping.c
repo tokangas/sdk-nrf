@@ -20,6 +20,7 @@
 
 #include <posix/arpa/inet.h>
 
+#include <nrf_socket.h> /* For: DNS getaddrinfo() NRF_AI_PDNSERV, TODO use AI_PDNSERV when that's in net/socket.h */
 #include "utils/net_utils.h"
 #include "ltelc_api.h"
 
@@ -252,13 +253,28 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 		return (uint32_t)delta_t;
 	}
 	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
-		/* Binding a data socket to an APN: */
-		ret = net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
-		if (ret != 0) {
-			shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
-			shell_error(shell, "probably due to https://projecttools.nordicsemi.no/jira/browse/NCSDK-6645");
-			goto close_end;
-		}			
+		/* Prefer PDN ID based binding: */
+		if (ping_argv.pdn_id_for_cid != MOSH_ARG_NOT_SET) {
+			/* Binding a data socket with PDN ID: */
+			ret = net_utils_socket_pdn_id_set(fd, ping_argv.pdn_id_for_cid);
+			if (ret != 0) {
+				shell_warn(shell, "Cannot bind socket to PDN ID %d, trying APN binding next", ping_argv.pdn_id_for_cid);
+
+				/* Binding a data socket to an APN: */
+				ret = net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
+				if (ret != 0) {
+					shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
+					goto close_end;
+				}
+			}
+		} else {
+			/* Binding a data socket to an APN: */
+			ret = net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
+			if (ret != 0) {
+				shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
+				goto close_end;
+			}
+		}
 	}
 
 #ifdef SO_RCVTIMEO
@@ -449,29 +465,30 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 	int st = -1;
 	struct addrinfo *res;
 	char src_ipv_addr[NET_IPV6_ADDR_LEN];
-	char *apn = NULL;
+	char portstr[6] = { 0 };
+	char *service = NULL;
+	bool set_flags = false;
 
 	/* Copy args in local storage here: */
 	memcpy(&ping_argv, ping_args, sizeof(icmp_ping_shell_cmd_argv_t));
 
 	shell_print(shell, "Initiating ping to: %s", ping_argv.target_name);
 
-	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
-		apn = ping_argv.current_apn_str;
-	}
 
     /* Sets getaddrinfo hints by using current host address(es): */
 	struct addrinfo hints = {
 		.ai_family = AF_INET,
-		.ai_next =  apn ?
-			&(struct addrinfo) {
-				.ai_family    = AF_LTE,
-				.ai_socktype  = SOCK_MGMT,
-				.ai_protocol  = NPROTO_PDN,
-				.ai_canonname = (char *)apn
-			} : NULL,
 	};
-	
+
+	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
+		if (ping_argv.pdn_id_for_cid != MOSH_ARG_NOT_SET) {
+			snprintf(portstr, 6, "pdn%d", ping_argv.pdn_id_for_cid);
+			set_flags = true;
+			service = portstr;
+			hints.ai_flags = NRF_AI_PDNSERV;
+		}
+	}
+
 	inet_ntop(AF_INET,  &(ping_argv.current_addr4), src_ipv_addr, sizeof(src_ipv_addr));
     if (ping_argv.current_pdp_type == PDP_TYPE_IP4V6) {
 		if (ping_argv.force_ipv6) {
@@ -482,8 +499,9 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
     if (ping_argv.current_pdp_type == PDP_TYPE_IPV6) {
 		hints.ai_family = AF_INET6;
 		inet_ntop(AF_INET6,  &(ping_argv.current_addr6), src_ipv_addr, sizeof(src_ipv_addr));
-	}	
-	st = getaddrinfo(src_ipv_addr, NULL, &hints, &res);
+	}
+
+	st = getaddrinfo(src_ipv_addr, service, &hints, &res);
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(src) error: %d", st);
 		return -st;
@@ -492,7 +510,9 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 
 	/* Get destination */
 	res = NULL;
-	st = getaddrinfo(ping_argv.target_name, NULL, &hints, &res);
+
+	st = getaddrinfo(ping_argv.target_name, service, &hints, &res);
+
 	if (st != 0) {
 		shell_error(shell, "getaddrinfo(dest) error: %d", st);
 		shell_error(shell, "Cannot resolve remote host\r\n");

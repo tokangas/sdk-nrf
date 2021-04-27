@@ -39,12 +39,14 @@ typedef struct {
 	struct addrinfo *dest;
 	struct in_addr current_addr4;
 	struct in6_addr current_addr6;
+
     char current_apn_str[MOSH_APN_STR_MAX_LEN];
     char current_pdp_type;
 	uint32_t mtu;
 	uint32_t len;
 	uint32_t timeout;
-	uint32_t cid;
+	int32_t cid;
+	int32_t pdn_id_for_cid;
 	uint32_t count;
 	uint32_t interval;
     bool force_ipv6;

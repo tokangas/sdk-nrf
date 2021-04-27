@@ -56,6 +56,7 @@ static void icmp_ping_shell_cmd_defaults_set(icmp_ping_shell_cmd_argv_t *ping_ar
     ping_args->timeout = ICMP_PARAM_TIMEOUT_DEFAULT;
     ping_args->len = ICMP_PARAM_LENGTH_DEFAULT;
     ping_args->cid = MOSH_ARG_NOT_SET;
+    ping_args->pdn_id_for_cid = MOSH_ARG_NOT_SET;
 }
 /*****************************************************************************/
 int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
@@ -179,6 +180,11 @@ int icmp_ping_shell(const struct shell *shell, size_t argc, char **argv)
                             ping_args.current_pdp_type = pdp_context_info_tbl.array[i].pdp_type;
                             ping_args.current_addr4 = pdp_context_info_tbl.array[i].ip_addr4;
                             ping_args.current_addr6 = pdp_context_info_tbl.array[i].ip_addr6;
+                            
+                            if (pdp_context_info_tbl.array[i].pdn_id_valid) {
+                                ping_args.pdn_id_for_cid = pdp_context_info_tbl.array[i].pdn_id;
+                            }
+                            
                             strcpy(ping_args.current_apn_str, pdp_context_info_tbl.array[i].apn_str);
                             
                             if (pdp_context_info_tbl.array[0].mtu != 0) {
