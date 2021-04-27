@@ -62,19 +62,17 @@
 .. _`Sphinx parser issue`: https://github.com/sphinx-doc/sphinx/issues/2683
 
 .. _`Leshan Demo Server`: https://github.com/eclipse/leshan/blob/master/README.md
-.. _`public Leshan Demo Server`: https://leshan.eclipseprojects.io
 
 .. _`wpantund`: https://github.com/openthread/wpantund/blob/master/README.md
 .. _`wpantund Installation Guide`: https://github.com/openthread/wpantund/blob/master/INSTALL.md
 .. _`wpantund Usage Overview`: https://github.com/openthread/wpantund#user-content-usage-overview
 .. _`CLI wpantund wrapper`: https://github.com/openthread/wpantund/blob/master/doc/wpanctl.1
 
-.. _`PySpinel`: https://github.com/openthread/pyspinel/blob/master/README.md
-.. _`PySpinel arguments`: https://github.com/openthread/pyspinel/blob/master/README.md#description
+.. _`Pyspinel`: https://github.com/openthread/pyspinel/blob/master/README.md
+.. _`Pyspinel arguments`: https://github.com/openthread/pyspinel/blob/master/README.md#description
 .. _`Spinel specification properties for Thread`: https://github.com/openthread/spinel-spec/blob/master/thread/detail-properties.md
 .. _`Spinel protocol`: https://github.com/openthread/spinel-spec
 
-.. _`OpenThread Daemon`: https://openthread.io/platforms/co-processor/ot-daemon
 .. _`OpenThread POSIX app`: https://github.com/zephyrproject-rtos/openthread/tree/zephyr/src/posix
 
 .. _`OpenThread THCI`: https://github.com/openthread/openthread/tree/master/tools/harness-thci
@@ -95,6 +93,18 @@
 .. _`Project CHIP Protocol Overview`: https://github.com/nrfconnect/sdk-connectedhomeip/blob/a008cb/README.md
 .. _`nRF Connect platform overview`: https://github.com/nrfconnect/sdk-connectedhomeip/blob/a008cb/docs/guides/nrfconnect_platform_overview.md
 
+.. _`Azure support for Asset Tracker v2`: https://github.com/nrfconnect/sdk-nrf/pull/3950
+
+.. ### Source: github.io
+
+.. _`TinyCBOR`: https://intel.github.io/tinycbor/current/
+
+.. _`Timestamping`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/device-cloud-protocol/FourKindsOfData.html#timestamping
+
+.. _`nRF Asset Tracker for AWS`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/aws/Index.html
+.. _`nRF Asset Tracker web application`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/app/Index.html
+.. _`Getting started guide for nRF Asset Tracker for AWS`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/aws/GettingStarted.html
+
 .. ### Source: developer.nordicsemi.com
 
 .. _`nRF Connect SDK v1.4.0 documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.4.0/nrf/index.html
@@ -108,14 +118,16 @@
 .. _`nRF Connect SDK latest documentation`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/index.html
 
 .. _`known issues page on the master branch`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html
+.. _`known issues for nRF Connect SDK v1.5.1`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html?v=v1-5-1
 .. _`known issues for nRF Connect SDK v1.5.0`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html?v=v1-5-0
 .. _`known issues for nRF Connect SDK v1.4.2`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html?v=v1-4-2
 .. _`known issues for nRF Connect SDK v1.4.1`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html?v=v1-4-1
 .. _`known issues for nRF Connect SDK v1.4.0`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/known_issues.html?v=v1-4-0
 
-.. _`Stack commissioning start sequence`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss_api_doc/using_zigbee__z_c_l.html#stack_start_initiation
-.. _`NCP Host for Zigbee`: https://developer.nordicsemi.com/Zigbee/ncp_sdk_for_host/ncp_sdk_v0.9.3.zip
-.. _`process the frame`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss/3.3.0.6/using_zigbee__z_c_l.html#process_zcl_cmd
+.. _`Stack commissioning start sequence`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss/3.3.0.7/using_zigbee__z_c_l.html#stack_start_initiation
+.. _`ZBOSS NCP Host`: https://developer.nordicsemi.com/Zigbee/ncp_sdk_for_host/ncp_host_v0.9.4.zip
+.. _`process the frame`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss/3.3.0.7/using_zigbee__z_c_l.html#process_zcl_cmd
+.. _`declaring custom cluster`: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/zboss/3.3.0.7/using_zigbee__z_c_l.html#cluster_declaration_custom
 
 .. ### Source: www.nordicsemi.com
 
@@ -230,7 +242,7 @@
 .. _`nRF Util`: https://infocenter.nordicsemi.com/index.jsp?topic=%2Fug_nrfutil%2FUG%2Fnrfutil%2Fnrfutil_intro.html
 .. _`DFU over Zigbee`: https://infocenter.nordicsemi.com/topic/ug_nrfutil/UG/nrfutil/nrfutil_dfu_zigbee.html
 
-.. _`nRF Thread Topology Monitor`: https://infocenter.nordicsemi.com/topic/sdk_tz_v4.1.0/thread_topology_monitor.html
+.. _`nRF Thread Topology Monitor`: https://infocenter.nordicsemi.com/topic/ug_nrf_ttm/UG/nrf_ttm/ttm_introduction.html
 .. _`nRF Sniffer for 802.15.4 based on nRF52840 with Wireshark`: https://infocenter.nordicsemi.com/topic/sdk_tz_v4.1.0/nrf802154_sniffer.html
 
 .. _`Power Profiler Kit II (PPK2)`: https://infocenter.nordicsemi.com/topic/ug_ppk2/UG/ppk/PPK_user_guide_Intro.html
@@ -239,6 +251,8 @@
 
 .. _`nRF5 SDK Bootloader`: https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.0.2/lib_bootloader.html
 .. _`nRF5 Bootloader DFU Mode`: https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.0.2/lib_bootloader.html#lib_bootloader_dfu_mode
+
+.. _`System Protection Unit`: https://infocenter.nordicsemi.com/topic/ps_nrf9160/spu.html
 
 .. ### Source: devzone.nordicsemi.com
 
@@ -285,8 +299,6 @@
 .. _`Bluetooth mesh study guide`: https://www.bluetooth.com/bluetooth-resources/bluetooth-mesh-developer-study-guide/
 .. _`Bluetooth mesh introduction blog`: https://www.bluetooth.com/blog/introducing-bluetooth-mesh-networking
 
-.. _`Bluetooth Secure Simple Pairing Using NFC`: https://nfc-forum.org/our-work/specification-releases/specifications/#010ea0b1006cf5b44
-
 .. ### Source: openmobilealliance.org
 
 .. _`SUPL context model`: https://www.openmobilealliance.org/release/SUPL/V1_0-20060127-C/OMA-AD-SUPL-V1_0-20060127-C.pdf#page=16
@@ -310,6 +322,8 @@
 .. _`Remote Procedure Calls (RPC)`: https://en.wikipedia.org/wiki/Remote_procedure_call
 
 .. _`Private addresses`: https://en.wikipedia.org/wiki/IP_address#Private_addresses
+
+.. _`MQTT`: https://en.wikipedia.org/wiki/MQTT
 
 .. ### Source: doc.microsoft.com
 
@@ -398,8 +412,6 @@
 
 .. ### Source: openthread.io
 
-.. _`OpenThread CoAP API`: https://openthread.io/reference/group/api-coap
-
 .. _`OpenThread.io`: https://openthread.io
 .. _`Device Types on OpenThread portal`: https://openthread.io/guides/thread-primer/node-roles-and-types#device_types
 .. _`Thread Commissioning on OpenThread portal`: https://openthread.io/guides/build/commissioning
@@ -410,15 +422,18 @@
 
 .. _`OpenThread system architecture`: https://openthread.io/platforms#system_architecture
 
+.. _`OpenThread Daemon`: https://openthread.io/platforms/co-processor/ot-daemon
+
+.. _`OpenThread CoAP API`: https://openthread.io/reference/group/api-coap
+
 .. ### Source: threadgroup.*
 
 .. _`Thread Group`: https://www.threadgroup.org
-.. _`Thread protocol specification`: https://www.threadgroup.org/ThreadSpec
+.. _`Thread Specification`: https://www.threadgroup.org/ThreadSpec
 .. _`Thread Group's Commissioning White Paper`: https://www.threadgroup.org/Portals/0/documents/support/CommissioningWhitePaper_658_2.pdf
-.. _`Thread Specification v1.2 Commercial White Paper`: https://www.threadgroup.org/Portals/0/documents/support/ThreadInCommercialWhitePaper_2542_1.pdf
-.. _`Thread Specification v1.2 Base Features`: https://www.threadgroup.org/Portals/0/documents/support/Thread%201.2%20Base%20Features.pdf
+.. _`Thread 1.2 in Commercial White Paper`: https://www.threadgroup.org/Portals/0/documents/support/ThreadInCommercialWhitePaper_2542_1.pdf
+.. _`Thread 1.2 Base Features`: https://www.threadgroup.org/Portals/0/documents/support/Thread%201.2%20Base%20Features.pdf
 .. _`Thread Group members`: https://www.threadgroup.org/thread-group
-.. _`Thread Group's Confluence wiki page`: https://threadgroup.atlassian.net/wiki/spaces/THREADTEST/pages/25900869/Supporting+Material
 .. _`Thread Group's certification information`: https://www.threadgroup.org/What-is-Thread/Certification
 
 .. ### Source: nist.gov
@@ -464,6 +479,8 @@
 
 .. ### Source: other
 
+.. _`ARM TrustZone`: https://developer.arm.com/documentation/100690/0200/ARM-TrustZone-technology?lang=en
+
 .. _`Ninja documentation`: https://ninja-build.org/manual.html
 
 .. _`GCC compiler`: https://gcc.gnu.org/
@@ -478,6 +495,7 @@
 .. _`nRF Connect for Cloud Device API`: https://api.nrfcloud.com/v1
 
 .. _`NFC Forum specification overview`: https://nfc-forum.org/our-work/specification-releases/specifications/
+.. _`Bluetooth Secure Simple Pairing Using NFC`: https://nfc-forum.org/our-work/specification-releases/specifications/#010ea0b1006cf5b44
 
 .. _`ISO/IEC 7816-4`: https://www.iso.org/standard/54550.html
 
@@ -540,8 +558,6 @@
 
 .. _`HID usage tables`: https://www.usb.org/hid
 
-.. _`TinyCBOR`: https://intel.github.io/tinycbor/current/
-
 .. _`BH1749NUC-E`: https://fscdn.rohm.com/en/products/databook/datasheet/ic/sensor/light/bh1749nuc-e.pdf
 
 .. _`GNU Arm Embedded Toolchain`: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
@@ -562,20 +578,10 @@
 .. _`GN`: https://gn.googlesource.com/gn/
 .. _`GN website`: https://gn.googlesource.com/gn/#getting-a-binary
 
-.. _`Timestamping`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/device-cloud-protocol/FourKindsOfData.html#timestamping
-
 .. _`Apple Notification Center Service Specification`: https://developer.apple.com/library/ios/documentation/CoreBluetooth/Reference/AppleNotificationCenterServiceSpecification/Introduction/Introduction.html
 
 .. _`Power Saving Mode (PSM)`: https://www.sharetechnote.com/html/Handbook_LTE_PSM.html
 
-.. _`MQTT`: https://en.wikipedia.org/wiki/MQTT
+.. _`public Leshan Demo Server`: https://leshan.eclipseprojects.io
 
-.. ### Source: nRF Asset Tracker
-
-.. _`nRF Asset Tracker for AWS`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/aws/Index.html
-
-.. _`nRF Asset Tracker web application`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/app/Index.html
-
-.. _`Getting started guide for nRF Asset Tracker for AWS`: https://nordicsemiconductor.github.io/asset-tracker-cloud-docs/v1.5.x/docs/aws/GettingStarted.html
-
-.. _`Azure support for Asset Tracker v2`: https://github.com/nrfconnect/sdk-nrf/pull/3950
+.. _`Thread Group's Confluence wiki page`: https://threadgroup.atlassian.net/wiki/spaces/THREADTEST/pages/25900869/Supporting+Material

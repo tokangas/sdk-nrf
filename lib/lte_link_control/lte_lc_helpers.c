@@ -146,7 +146,6 @@ int parse_edrx(const char *at_response, struct lte_lc_edrx_cfg *cfg)
 	char tmp_buf[5];
 	size_t len = sizeof(tmp_buf) - 1;
 	float ptw_multiplier;
-	enum lte_lc_lte_mode lte_mode = LTE_LC_LTE_MODE_NONE;
 
 	if ((at_response == NULL) || (cfg == NULL)) {
 		return -EINVAL;
@@ -193,21 +192,21 @@ int parse_edrx(const char *at_response, struct lte_lc_edrx_cfg *cfg)
 	/* The acces technology indicators 4 for LTE-M and 5 for NB-IoT are
 	 * specified in 3GPP 27.007 Ch. 7.41.
 	 */
-	lte_mode = tmp_int == 4 ? LTE_LC_LTE_MODE_LTEM :
-		   tmp_int == 5 ? LTE_LC_LTE_MODE_NBIOT :
-				  LTE_LC_LTE_MODE_NONE;
+	cfg->mode = tmp_int == 4 ? LTE_LC_LTE_MODE_LTEM :
+		    tmp_int == 5 ? LTE_LC_LTE_MODE_NBIOT :
+				   LTE_LC_LTE_MODE_NONE;
 
 	/* Confirm valid system mode and set Paging Time Window multiplier.
 	 * Multiplier is 1.28 s for LTE-M, and 2.56 s for NB-IoT, derived from
 	 * figure 10.5.5.32/3GPP TS 24.008.
 	 */
-	err = get_ptw_multiplier(lte_mode, &ptw_multiplier);
+	err = get_ptw_multiplier(cfg->mode, &ptw_multiplier);
 	if (err) {
 		LOG_WRN("Active LTE mode could not be determined");
 		goto clean_exit;
 	}
 
-	err = get_edrx_value(lte_mode, idx, &cfg->edrx);
+	err = get_edrx_value(cfg->mode, idx, &cfg->edrx);
 	if (err) {
 		LOG_ERR("Failed to get eDRX value, error; %d", err);
 		goto clean_exit;
@@ -241,7 +240,8 @@ int parse_edrx(const char *at_response, struct lte_lc_edrx_cfg *cfg)
 	idx += 1;
 	cfg->ptw = idx * ptw_multiplier;
 
-	LOG_DBG("eDRX value: %d.%02d, PTW: %d.%02d",
+	LOG_DBG("eDRX value for %s: %d.%02d, PTW: %d.%02d",
+		(cfg->mode == LTE_LC_LTE_MODE_LTEM) ? "LTE-M" : "NB-IoT",
 		(int)cfg->edrx,
 		(int)(100 * (cfg->edrx - (int)cfg->edrx)),
 		(int)cfg->ptw,
@@ -252,8 +252,6 @@ clean_exit:
 
 	return err;
 }
-
-
 
 int parse_psm(struct at_param_list *at_params,
 			 bool is_notif,
@@ -445,7 +443,8 @@ int parse_cereg(const char *at_response,
 
 	if (reg_status) {
 		*reg_status = status;
-	LOG_DBG("Network registration status: %d", *reg_status);
+
+		LOG_DBG("Network registration status: %d", *reg_status);
 	}
 
 
@@ -527,5 +526,44 @@ int parse_cereg(const char *at_response,
 clean_exit:
 	at_params_list_free(&resp_list);
 
+	return err;
+}
+
+int parse_xt3412(const char *at_response, uint64_t *time)
+{
+	int err;
+	struct at_param_list resp_list = {0};
+
+	if (time == NULL || at_response == NULL) {
+		return -EINVAL;
+	}
+
+	err = at_params_list_init(&resp_list, AT_XT3412_PARAMS_COUNT_MAX);
+	if (err) {
+		LOG_ERR("Could not init AT params list, error: %d", err);
+		return err;
+	}
+
+	/* Parse XT3412 response and populate AT parameter list */
+	err = at_parser_params_from_str(at_response, NULL, &resp_list);
+	if (err) {
+		LOG_ERR("Could not parse %%XT3412 response, error: %d", err);
+		goto clean_exit;
+	}
+
+	/* Get the remaining time of T3412 from the response */
+	err = at_params_int64_get(&resp_list, AT_XT3412_TIME_INDEX, time);
+	if (err) {
+		LOG_ERR("Could not get time until next TAU, error: %d", err);
+		goto clean_exit;
+	}
+
+	if ((*time > T3412_MAX) || *time < 0) {
+		LOG_WRN("Parsed time parameter not within valid range");
+		err = -EINVAL;
+	}
+
+clean_exit:
+	at_params_list_free(&resp_list);
 	return err;
 }

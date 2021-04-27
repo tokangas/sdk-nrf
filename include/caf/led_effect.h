@@ -20,11 +20,13 @@
 extern "C" {
 #endif
 
+#define _CAF_LED_COLOR_CHANNEL_COUNT 3
+
 /** @brief Color of LED.
  */
 struct led_color {
 	/** Values for color channels. */
-	uint8_t c[CONFIG_CAF_LEDS_COLOR_COUNT];
+	uint8_t c[_CAF_LED_COLOR_CHANNEL_COUNT];
 };
 
 /** @brief Single step of a LED effect.
@@ -57,37 +59,31 @@ struct led_effect {
 	bool loop_forever;
 };
 
+/** Transform color brightness from 8-bit space to percentage representation.
+ *
+ * @param _val Color brightness in 0-255 range
+ *
+ * @return Color brightness in 0-100 range
+ */
+#define COLOR_BRIGHTNESS_TO_PCT(_val) ((_val * 100) / UINT8_MAX)
+
 /** Create LED color initializer for LED turned on.
  *
  * @note As arguments, pass the brightness levels for every color channel.
- * The amount of the color channels is defined in the configuration (three
- * channels by default).
  */
-#if CONFIG_CAF_LEDS_COLOR_COUNT == 1
-	#define LED_COLOR(_brightness) {	\
-			.c = {_brightness}	\
-		}
-#elif CONFIG_CAF_LEDS_COLOR_COUNT == 3
-	#define LED_COLOR(_r, _g, _b) {		\
-			.c = {_r, _g, _b}	\
-	}
-#else
-	#error "Unsupported color count"
-#endif
+#define LED_COLOR(_r, _g, _b) {				\
+		.c = {					\
+			COLOR_BRIGHTNESS_TO_PCT(_r),	\
+			COLOR_BRIGHTNESS_TO_PCT(_g),	\
+			COLOR_BRIGHTNESS_TO_PCT(_b)	\
+		}					\
+}
 
 /** Create LED color initializer for LED turned off.
  */
-#if CONFIG_CAF_LEDS_COLOR_COUNT == 1
-	#define LED_NOCOLOR() {			\
-			.c = {0}		\
-		}
-#elif CONFIG_CAF_LEDS_COLOR_COUNT == 3
-	#define LED_NOCOLOR() {			\
-			.c = {0, 0, 0}		\
-	}
-#else
-	#error "Unsupported color count"
-#endif
+#define LED_NOCOLOR() {			\
+		.c = {0, 0, 0}		\
+}
 
 /** Create LED turned on effect initializer.
  *
@@ -233,12 +229,12 @@ struct led_effect {
  * A single clock tick is a single LED blink with the defined color.
  * This macro is used by UTIL_LISTIFY macro.
  *
- * @param i		Tick number (required by UTIL_LISTIFY).
- * @param _color	Selected LED color.
+ * @param i	Tick number (required by UTIL_LISTIFY).
+ * @param ...	Selected LED color.
  */
-#define LED_CLOCK_TIK(i, _color)					\
+#define _LED_CLOCK_TIK(i, ...)						\
 		{							\
-			.color = _color,				\
+			.color = __VA_ARGS__,				\
 			.substep_count = 1,				\
 			.substep_time = LED_CLOCK_BLINK_PERIOD,		\
 		},							\
@@ -267,7 +263,7 @@ struct led_effect {
 				.substep_count = 1,				\
 				.substep_time = LED_CLOCK_SLEEP_PERIOD,		\
 			},							\
-			UTIL_LISTIFY(_ticks, LED_CLOCK_TIK, _color)		\
+			UTIL_LISTIFY(_ticks, _LED_CLOCK_TIK, _color)		\
 		}),								\
 		.step_count = (2 * _ticks + 1),					\
 		.loop_forever = true,						\

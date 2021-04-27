@@ -36,8 +36,6 @@ extern "C" {
 enum at_param_type {
 	/** Invalid parameter, typically a parameter that does not exist. */
 	AT_PARAM_TYPE_INVALID,
-	/** Parameter of type short. */
-	AT_PARAM_TYPE_NUM_SHORT,
 	/** Parameter of type integer. */
 	AT_PARAM_TYPE_NUM_INT,
 	/** Parameter of type string. */
@@ -51,7 +49,7 @@ enum at_param_type {
 /** @brief Parameter value. */
 union at_param_value {
 	/** Integer value. */
-	int32_t int_val;
+	int64_t int_val;
 	/** String value. */
 	char *str_val;
 	/** Array of uint32_t */
@@ -111,22 +109,6 @@ void at_params_list_clear(struct at_param_list *list);
 void at_params_list_free(struct at_param_list *list);
 
 /**
- * @brief Add a parameter in the list at the specified index and assign it a
- * short value.
- *
- * If a parameter exists at this index, it is replaced.
- *
- * @param[in] list      Parameter list.
- * @param[in] index     Index in the list where to put the parameter.
- * @param[in] value     Parameter value.
- *
- * @retval 0 If the operation was successful.
- *           Otherwise, a (negative) error code is returned.
- */
-int at_params_short_put(const struct at_param_list *list, size_t index,
-			int16_t value);
-
-/**
  * @brief Add a parameter in the list at the specified index and assign it an
  * integer value.
  *
@@ -139,8 +121,7 @@ int at_params_short_put(const struct at_param_list *list, size_t index,
  * @retval 0 If the operation was successful.
  *           Otherwise, a (negative) error code is returned.
  */
-int at_params_int_put(const struct at_param_list *list, size_t index,
-		      int32_t value);
+int at_params_int_put(const struct at_param_list *list, size_t index, int64_t value);
 
 /**
  * @brief Add a parameter in the list at the specified index and assign it a
@@ -215,9 +196,6 @@ int at_params_size_get(const struct at_param_list *list, size_t index,
 /**
  * @brief Get a parameter value as a short number.
  *
- * Numeric values are stored as unsigned number. The parameter type must be a
- * short, or an error is returned.
- *
  * @param[in] list    Parameter list.
  * @param[in] index   Parameter index in the list.
  * @param[out] value  Parameter value.
@@ -229,10 +207,20 @@ int at_params_short_get(const struct at_param_list *list, size_t index,
 			int16_t *value);
 
 /**
- * @brief Get a parameter value as an integer number.
+ * @brief Get a parameter value as a unsigned short number.
  *
- * Numeric values are stored as unsigned number. The parameter type must be an
- * integer, or an error is returned.
+ * @param[in] list    Parameter list.
+ * @param[in] index   Parameter index in the list.
+ * @param[out] value  Parameter value.
+ *
+ * @retval 0 If the operation was successful.
+ *           Otherwise, a (negative) error code is returned.
+ */
+int at_params_unsigned_short_get(const struct at_param_list *list, size_t index,
+			uint16_t *value);
+
+/**
+ * @brief Get a parameter value as an integer number.
  *
  * @param[in] list    Parameter list.
  * @param[in] index   Parameter index in the list.
@@ -243,6 +231,30 @@ int at_params_short_get(const struct at_param_list *list, size_t index,
  */
 int at_params_int_get(const struct at_param_list *list, size_t index,
 		      int32_t *value);
+
+/**
+ * @brief Get a parameter value as an unsigned integer number.
+ *
+ * @param[in] list    Parameter list.
+ * @param[in] index   Parameter index in the list.
+ * @param[out] value  Parameter value.
+ *
+ * @retval 0 If the operation was successful.
+ *           Otherwise, a (negative) error code is returned.
+ */
+int at_params_unsigned_int_get(const struct at_param_list *list, size_t index, uint32_t *value);
+
+/**
+ * @brief Get a parameter value as an signed 64-bit integer number.
+ *
+ * @param[in] list    Parameter list.
+ * @param[in] index   Parameter index in the list.
+ * @param[out] value  Parameter value.
+ *
+ * @retval 0 If the operation was successful.
+ *           Otherwise, a (negative) error code is returned.
+ */
+int at_params_int64_get(const struct at_param_list *list, size_t index, int64_t *value);
 
 /**
  * @brief Get a parameter value as a string.

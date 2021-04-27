@@ -68,6 +68,14 @@ nRF9160
     * Added polling "226 Transfer complete" after data channel TX/RX, with a configurable timeout of 60 seconds.
     * Ignored the reply code of "UTF8 ON" command as some FTP server returns abnormal reply.
 
+  * :ref:`at_params_readme` library:
+
+    * Added function :c:func:`at_params_int64_get` that allows for getting of AT param list entries containing signed 64 bit integers.
+
+  * :ref:`lte_lc_readme` library:
+
+    * Add support for %XT3412 AT command notifications which allows the application to get pre-warnings prior to Tracking Area Updates.
+
   * :ref:`serial_lte_modem` application:
 
     * Fixed TCP/UDP port range issue (0~65535).
@@ -76,6 +84,14 @@ nRF9160
     * Added URC (unsolicited response code) to the FOTA service.
     * Enabled all SLM services by default.
     * Updated the HTTP client service code to handle chunked HTTP responses.
+
+  * :ref:`at_cmd_parser_readme`:
+
+    * Added support for parsing parameters of type unsigned int or unsigned short.
+
+  * :ref:`lib_spm` library:
+
+    * Added support for the nRF9160 pulse-density modulation (PDM) and inter-IC sound (I2S) peripherals in non-secure applications.
 
 Common
 ======
@@ -125,7 +141,68 @@ The current |NCS| release is based on Zephyr v2.5.99.
 
 The following list summarizes the most important changes inherited from upstream Zephyr:
 
-* No changes yet
+* Networking:
+
+  * General:
+
+    * Added UDP commands to the network shell.
+    * Added verification of the network interface status before sending a packet.
+    * Added missing translations for ``getaddrinfo()`` error codes.
+    * Added a separate work queue for TCP2.
+    * Added multiple bug fixes for IEEE 802.15.4 L2.
+    * Fixed memory management issues in TCP2 when running out of memory.
+    * Added connection establishment timer for TCP2.
+
+  * LwM2M:
+
+    * Fixed a bug where large LwM2M endpoint names were not encoded properly in the registration message.
+    * Added API functions to update minimum/maximum observe period of a resource.
+
+  * OpenThread:
+
+    * Updated the OpenThread version to commit ``8f7024c3e9beb47a48cfc1e3185f5fce82fffba9``.
+    * Added external heap implementation in OpenThread platform.
+    * Removed an obsolete ``CONFIG_OPENTHREAD_NCP_BUFFER_SIZE`` option.
+    * Added the following OpenThread options:
+
+      * :option:`CONFIG_OPENTHREAD_COAP_BLOCK`
+      * :option:`CONFIG_OPENTHREAD_MASTERKEY`
+      * :option:`CONFIG_OPENTHREAD_SRP_CLIENT`
+      * :option:`CONFIG_OPENTHREAD_SRP_SERVER`
+
+  * MQTT:
+
+    * Fixed logging of UTF-8 strings.
+
+  * Sockets:
+
+    * Fixed TLS sockets access from user space.
+
+  * CoAP:
+
+    * Added a symbol for the default COAP version.
+    * Fixed a discovery response formatting.
+    * Updated a few API functions to accept a const pointer when appropriate.
+
+
+* Libraries/subsystems:
+
+  * File systems:
+
+    * Added an :c:func:`fs_file_t_init` function for initializing :c:struct:`fs_file_t` objects.
+      All :c:struct:`fs_file_t` objects must now be initialized by calling this function before they can be used.
+    * Added an :c:func:`fs_dir_t_init` function for initializing :c:struct:`fs_dir_t` objects.
+      All :c:struct:`fs_dir_t` objects must now be initialized by calling this function before they can be used.
+    * Deprecated the :option:`CONFIG_FS_LITTLEFS_FC_MEM_POOL` option and replaced it with :option:`CONFIG_FS_LITTLEFS_FC_HEAP_SIZE`.
+
+
+  * Storage:
+
+    * :ref:`zephyr:stream_flash`:
+
+      * Fixed error handling for erase errors to not update the last erased page offset on failure.
+      * Fixed error handling to not update the stream flash contex on synchronization failure while flushing the stream.
+
 
 Project CHIP
 ============

@@ -51,6 +51,7 @@ Kconfig*                                  @tejlmand
 /include/caf/                             @pdunaj
 /include/debug/ppi_trace.h                @nordic-krch @anangl
 /include/drivers/                         @anangl
+/include/mpsl/                            @joerchan @carlopaparo
 /include/net/                             @rlubos
 /include/nfc/                             @anangl @grochu
 /include/shell/                           @nordic-krch
@@ -69,7 +70,7 @@ Kconfig*                                  @tejlmand
 /lib/modem_info/                          @rlubos
 /lib/modem_key_mgmt/                      @rlubos
 /lib/pdn_management/                      @rlubos
-/lib/multithreading_lock/                 @joerchan @hurricaneFromMoscow
+/lib/multithreading_lock/                 @joerchan @carlopaparo
 /lib/ram_pwrdn/                           @mariuszpos @MarekPorwisz
 /lib/fatal_error/                         @ioannisg
 /lib/sms/                                 @metc
@@ -89,7 +90,8 @@ Kconfig*                                  @tejlmand
 /samples/debug/ppi_trace/                 @nordic-krch @anangl
 /samples/edge_impulse/                    @pdunaj
 /samples/esb/                             @lemrey
-/samples/mpsl/                            @joerchan @hurricaneFromMoscow
+/samples/event_manager/                   @pdunaj @MarekPieta
+/samples/mpsl/                            @joerchan @carlopaparo
 /samples/nfc/                             @grochu
 /samples/nrf_rpc/                         @doki-nordic @KAGA164
 /samples/nrf5340/empty_app_core/          @doki-nordic
@@ -121,7 +123,7 @@ Kconfig*                                  @tejlmand
 /subsys/esb/                              @Raane @lemrey
 /subsys/event_manager/                    @pdunaj
 /subsys/fw_info/                          @hakonfam
-/subsys/mpsl/                             @joerchan @hurricaneFromMoscow
+/subsys/mpsl/                             @joerchan @carlopaparo
 /subsys/net/                              @rlubos
 /subsys/net/lib/azure_*                   @jtguggedal @simensrostad @coderbyheart
 /subsys/nfc/                              @grochu @anangl

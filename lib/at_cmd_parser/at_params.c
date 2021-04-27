@@ -56,10 +56,8 @@ static size_t at_param_size(const struct at_param *param)
 {
 	__ASSERT(param != NULL, "Parameter cannot be NULL.");
 
-	if (param->type == AT_PARAM_TYPE_NUM_SHORT) {
-		return sizeof(uint16_t);
-	} else if (param->type == AT_PARAM_TYPE_NUM_INT) {
-		return sizeof(uint32_t);
+	if (param->type == AT_PARAM_TYPE_NUM_INT) {
+		return sizeof(uint64_t);
 	} else if ((param->type == AT_PARAM_TYPE_STRING) ||
 		   (param->type == AT_PARAM_TYPE_ARRAY)) {
 		return param->size;
@@ -111,26 +109,6 @@ void at_params_list_free(struct at_param_list *list)
 	list->params = NULL;
 }
 
-int at_params_short_put(const struct at_param_list *list, size_t index,
-			int16_t value)
-{
-	if (list == NULL || list->params == NULL) {
-		return -EINVAL;
-	}
-
-	struct at_param *param = at_params_get(list, index);
-
-	if (param == NULL) {
-		return -EINVAL;
-	}
-
-	at_param_clear(param);
-
-	param->type = AT_PARAM_TYPE_NUM_SHORT;
-	param->value.int_val = value;
-	return 0;
-}
-
 int at_params_empty_put(const struct at_param_list *list, size_t index)
 {
 	if (list == NULL || list->params == NULL) {
@@ -151,8 +129,7 @@ int at_params_empty_put(const struct at_param_list *list, size_t index)
 	return 0;
 }
 
-int at_params_int_put(const struct at_param_list *list, size_t index,
-		      int32_t value)
+int at_params_int_put(const struct at_param_list *list, size_t index, int64_t value)
 {
 	if (list == NULL || list->params == NULL) {
 		return -EINVAL;
@@ -259,11 +236,40 @@ int at_params_short_get(const struct at_param_list *list, size_t index,
 		return -EINVAL;
 	}
 
-	if (param->type != AT_PARAM_TYPE_NUM_SHORT) {
+	if (param->type != AT_PARAM_TYPE_NUM_INT) {
+		return -EINVAL;
+	}
+
+	if ((param->value.int_val > INT16_MAX) || (param->value.int_val < INT16_MIN)) {
 		return -EINVAL;
 	}
 
 	*value = (int16_t)param->value.int_val;
+	return 0;
+}
+
+int at_params_unsigned_short_get(const struct at_param_list *list, size_t index,
+			uint16_t *value)
+{
+	if (list == NULL || list->params == NULL || value == NULL) {
+		return -EINVAL;
+	}
+
+	struct at_param *param = at_params_get(list, index);
+
+	if (param == NULL) {
+		return -EINVAL;
+	}
+
+	if (param->type != AT_PARAM_TYPE_NUM_INT) {
+		return -EINVAL;
+	}
+
+	if ((param->value.int_val > UINT16_MAX) || (param->value.int_val < 0)) {
+		return -EINVAL;
+	}
+
+	*value = (uint16_t)param->value.int_val;
 	return 0;
 }
 
@@ -280,8 +286,59 @@ int at_params_int_get(const struct at_param_list *list, size_t index,
 		return -EINVAL;
 	}
 
-	if ((param->type != AT_PARAM_TYPE_NUM_INT) &&
-	    (param->type != AT_PARAM_TYPE_NUM_SHORT)) {
+	if (param->type != AT_PARAM_TYPE_NUM_INT) {
+		return -EINVAL;
+	}
+
+	if ((param->value.int_val > INT32_MAX) || (param->value.int_val < INT32_MIN)) {
+		return -EINVAL;
+	}
+
+	*value = (int32_t)param->value.int_val;
+	return 0;
+}
+
+int at_params_unsigned_int_get(const struct at_param_list *list, size_t index, uint32_t *value)
+{
+	if (list == NULL || list->params == NULL || value == NULL) {
+		return -EINVAL;
+	}
+
+	struct at_param *param = at_params_get(list, index);
+
+	if (param == NULL) {
+		return -EINVAL;
+	}
+
+	if (param->type != AT_PARAM_TYPE_NUM_INT) {
+		return -EINVAL;
+	}
+
+	if ((param->value.int_val > UINT32_MAX) || (param->value.int_val < 0)) {
+		return -EINVAL;
+	}
+
+	*value = (uint32_t)param->value.int_val;
+	return 0;
+}
+
+int at_params_int64_get(const struct at_param_list *list, size_t index, int64_t *value)
+{
+	if (list == NULL || list->params == NULL || value == NULL) {
+		return -EINVAL;
+	}
+
+	struct at_param *param = at_params_get(list, index);
+
+	if (param == NULL) {
+		return -EINVAL;
+	}
+
+	if (param->type != AT_PARAM_TYPE_NUM_INT) {
+		return -EINVAL;
+	}
+
+	if ((param->value.int_val > INT64_MAX) || (param->value.int_val < INT64_MIN)) {
 		return -EINVAL;
 	}
 

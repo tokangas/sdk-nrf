@@ -28,21 +28,25 @@ static void test_parse_edrx(void)
 	zassert_equal(0, err, "parse_edrx failed, error: %d", err);
 	zassert_within(cfg.edrx, 81.92, 0.1, "Wrong eDRX value");
 	zassert_within(cfg.ptw, 15.36,  0.1, "Wrong PTW value");
+	zassert_equal(cfg.mode, LTE_LC_LTE_MODE_LTEM, "Wrong LTE mode");
 
 	err = parse_edrx(at_response_ltem_2, &cfg);
 	zassert_equal(0, err, "parse_edrx failed, error: %d", err);
 	zassert_within(cfg.edrx, 20.48, 0.1, "Wrong eDRX value");
 	zassert_within(cfg.ptw, 19.2, 0.1, "Wrong PTW value");
+	zassert_equal(cfg.mode, LTE_LC_LTE_MODE_LTEM, "Wrong LTE mode");
 
 	err = parse_edrx(at_response_nbiot, &cfg);
 	zassert_equal(0, err, "parse_edrx failed, error: %d", err);
 	zassert_within(cfg.edrx, 2621.44, 0.1, "Wrong eDRX value");
 	zassert_within(cfg.ptw, 20.48, 0.1, "Wrong PTW value");
+	zassert_equal(cfg.mode, LTE_LC_LTE_MODE_NBIOT, "Wrong LTE mode");
 
 	err = parse_edrx(at_response_nbiot_2, &cfg);
 	zassert_equal(0, err, "parse_edrx failed, error: %d", err);
 	zassert_within(cfg.edrx, 2621.44, 0.1, "Wrong eDRX value");
 	zassert_within(cfg.ptw, 15.36, 0.1, "Wrong PTW value");
+	zassert_equal(cfg.mode, LTE_LC_LTE_MODE_NBIOT, "Wrong LTE mode");
 }
 
 void test_parse_cereg(void)
@@ -192,6 +196,41 @@ void test_parse_cereg(void)
 	zassert_not_equal(0, err, "parse_cereg should have true, failed");
 }
 
+void test_parse_xt3412(void)
+{
+	int err;
+	uint64_t time;
+	char *at_response_short = "%XT3412: 360";
+	char *at_response_long = "%XT3412: 2147483647";
+	char *at_response_t3412_max = "%XT3412: 35712000000";
+	char *at_response_t3412_overflow = "%XT3412: 35712000001";
+	char *at_response_negative = "%XT3412: -100";
+
+	err = parse_xt3412(at_response_short, &time);
+	zassert_equal(0, err, "parse_xt3412 failed, error: %d", err);
+	zassert_equal(time, 360, "Wrong time parameter");
+
+	err = parse_xt3412(at_response_long, &time);
+	zassert_equal(0, err, "parse_xt3412 failed, error: %d", err);
+	zassert_equal(time, 2147483647, "Wrong time parameter");
+
+	err = parse_xt3412(at_response_t3412_max, &time);
+	zassert_equal(0, err, "parse_xt3412 failed, error: %d", err);
+	zassert_equal(time, 35712000000, "Wrong time parameter");
+
+	err = parse_xt3412(at_response_t3412_overflow, &time);
+	zassert_equal(-EINVAL, err, "parse_xt3412 failed, error: %d", err);
+
+	err = parse_xt3412(at_response_negative, &time);
+	zassert_equal(-EINVAL, err, "parse_xt3412 failed, error: %d", err);
+
+	err = parse_xt3412(NULL, &time);
+	zassert_equal(-EINVAL, err, "parse_xt3412 failed, error: %d", err);
+
+	err = parse_xt3412(at_response_negative, NULL);
+	zassert_equal(-EINVAL, err, "parse_xt3412 failed, error: %d", err);
+}
+
 static void test_parse_rrc_mode(void)
 {
 	int err;
@@ -229,6 +268,7 @@ void test_main(void)
 	ztest_test_suite(test_lte_lc,
 		ztest_unit_test(test_parse_edrx),
 		ztest_unit_test(test_parse_cereg),
+		ztest_unit_test(test_parse_xt3412),
 		ztest_unit_test(test_parse_rrc_mode),
 		ztest_unit_test(test_response_is_valid)
 	);
