@@ -51,10 +51,7 @@ static int sms_submit_encode_number(
 {
 	*encoded_number_size_octets = 0;
 
-	if (number == NULL) {
-		LOG_ERR("SMS number not given but NULL");
-		return -EINVAL;
-	}
+	__ASSERT_NO_MSG(number != NULL);
 
 	if (*number_size == 0) {
 		LOG_ERR("SMS number not given but zero length");
@@ -106,7 +103,7 @@ static int sms_submit_encode_number(
  * @param[in] encoded_data_size_octets Encoded User-Data size in octets.
  * @param[in] encoded_data_size_septets Encoded User-Data size in septets.
  * @param[in] message_ref TP-Message-Reference field in SMS-SUBMIT message.
- * @param[out] udh_str User Data Header. Can be set to NULL if not desired.
+ * @param[in] udh_str User Data Header. Can be set to NULL if not desired.
  */
 static int sms_submit_encode(
 	char *send_buf,
@@ -289,7 +286,7 @@ static int sms_submit_concat(
 
 int sms_submit_send(const char *number, const char *text)
 {
-	char empty_string[] = "";
+	const char empty_string[] = "";
 	int err;
 	uint8_t encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	uint8_t encoded_number_size;
@@ -301,7 +298,8 @@ int sms_submit_send(const char *number, const char *text)
 	uint8_t concat_msg_count = 0;
 
 	if (number == NULL) {
-		number = empty_string;
+		LOG_ERR("SMS number not given but NULL");
+		return -EINVAL;
 	}
 	if (text == NULL) {
 		text = empty_string;

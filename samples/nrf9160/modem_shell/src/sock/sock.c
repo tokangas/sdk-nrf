@@ -37,8 +37,9 @@
 #define SOCK_RECEIVE_STACK_SIZE 1280
 #define SOCK_RECEIVE_PRIORITY 5
 /* Timeout (in ms) for polling socket events such as receive data,
-   permission to send more, disconnected socket etc.
-   This limits how quickly data can be received after socket creation. */
+ * permission to send more, disconnected socket etc.
+ * This limits how quickly data can be received after socket creation.
+ */
 #define SOCK_POLL_TIMEOUT_MS 1000
 #define SOCK_FD_NONE -1
 #define SOCK_DATA_LEN_NONE -1
@@ -47,7 +48,7 @@
 struct data_transfer_info {
 	struct k_work work;
 	struct k_timer timer;
-	void* parent; /* Type is sock_info_t */
+	void *parent; /* Type is sock_info_t */
 	bool data_format_hex; /* Print data in hex format vs. normal string */
 };
 
@@ -60,7 +61,7 @@ typedef struct {
 	int bind_port;
 	int pdn_cid;
 	bool in_use;
-	char* send_buffer;
+	char *send_buffer;
 	uint32_t send_buffer_size;
 	bool send_poll;
 	uint32_t send_bytes_sent;
@@ -82,10 +83,10 @@ K_MUTEX_DEFINE(sock_info_mutex);
 K_SEM_DEFINE(sock_sem, 0, 1);
 
 sock_info_t sockets[MAX_SOCKETS] = {0};
-extern const struct shell* shell_global;
+extern const struct shell *shell_global;
 
 
-static void sock_info_clear(sock_info_t* socket_info) {
+static void sock_info_clear(sock_info_t *socket_info) {
 	k_mutex_lock(&sock_info_mutex, K_FOREVER);
 
 	if (k_timer_remaining_get(&socket_info->send_info.timer) > 0) {
@@ -122,7 +123,7 @@ static int get_socket_id_by_fd(int fd)
 	return -1;
 }
 
-static sock_info_t* get_socket_info_by_id(int socket_id)
+static sock_info_t *get_socket_info_by_id(int socket_id)
 {
 	sock_info_t *socket_info = NULL;
 	if (socket_id == SOCK_ID_NONE) {
@@ -142,9 +143,9 @@ static sock_info_t* get_socket_info_by_id(int socket_id)
 	return socket_info;
 }
 
-static sock_info_t* reserve_socket_id()
+static sock_info_t *reserve_socket_id()
 {
-	sock_info_t* socket_info = NULL;
+	sock_info_t *socket_info = NULL;
 	int socket_id = 0;
 	while (socket_id < MAX_SOCKETS) {
 		if (!sockets[socket_id].in_use) {
@@ -190,7 +191,7 @@ static void sock_all_set_nonblocking()
 	}
 }
 
-static bool sock_send_buffer_calloc(sock_info_t* socket_info, uint32_t size)
+static bool sock_send_buffer_calloc(sock_info_t *socket_info, uint32_t size)
 {
 	if (socket_info->send_buffer != NULL) {
 		if (socket_info->send_buffer_size == size) {
@@ -212,7 +213,7 @@ static bool sock_send_buffer_calloc(sock_info_t* socket_info, uint32_t size)
 	return true;
 }
 
-static void sock_send_buffer_free(sock_info_t* socket_info)
+static void sock_send_buffer_free(sock_info_t *socket_info)
 {
 	if (socket_info->send_buffer != NULL) {
 		free(socket_info->send_buffer);
@@ -223,7 +224,7 @@ static void sock_send_buffer_free(sock_info_t* socket_info)
 int sock_open_and_connect(
 	int family,
 	int type,
-	char* address,
+	char *address,
 	int port,
 	int bind_port,
 	int pdn_cid,
@@ -231,21 +232,23 @@ int sock_open_and_connect(
 	int sec_tag,
 	bool session_cache,
 	int peer_verify,
-	char* peer_hostname)
+	char *peer_hostname)
 {
 	int err = -EINVAL;
 
 	shell_print(shell_global,
-		"Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, pdn_cid=%d, address=%s",
+		"Socket open and connect family=%d, type=%d, port=%d, bind_port=%d, "
+		"pdn_cid=%d, address=%s",
 		family, type, port, bind_port, pdn_cid, address);
 	if (secure) {
 		shell_print(shell_global,
-		"                        secure=%d, sec_tag=%d, session_cache=%d, peer_verify=%d, peer_hostname=%s",
+		"                        secure=%d, sec_tag=%d, session_cache=%d, peer_verify=%d, "
+		"peer_hostname=%s",
 		secure, sec_tag, session_cache, peer_verify, peer_hostname);
 	}
 
 	/* Reserve socket ID and structure for a new connection */
-	sock_info_t* socket_info = reserve_socket_id();
+	sock_info_t *socket_info = reserve_socket_id();
 	if (socket_info == NULL) {
 		shell_error(
 			shell_global,
@@ -354,9 +357,10 @@ int sock_open_and_connect(
 		if (errno == ENFILE || errno == EMFILE) {
 			shell_error(
 				shell_global,
-				"Socket creation failed due to maximum number of sockets in the system exceeded (%d). "
-				"Notice that all file descriptors in the system are taken into account and "
-				"not just sockets created through this application.",
+				"Socket creation failed due to maximum number of sockets in the "
+				"system exceeded (%d). Notice that all file descriptors in the "
+				"system are taken into account and not just sockets created "
+				"through this application.",
 				CONFIG_POSIX_MAX_FDS);
 		} else {
 			shell_error(
@@ -398,7 +402,8 @@ int sock_open_and_connect(
 				}
 			}
 			if (!found) {
-				shell_error(shell_global, "PDN context with CID=%d doesn't exist", pdn_cid);
+				shell_error(shell_global, "PDN context with CID=%d doesn't exist",
+					pdn_cid);
 				goto connect_error;
 			}
 		}
@@ -406,7 +411,8 @@ int sock_open_and_connect(
 		/* Binding a data socket to an APN: */
 		err = net_utils_socket_apn_set(fd, apn_str);
 		if (err != 0) {
-			shell_error(shell_global, "Cannot bind socket id=%d to apn %s", socket_info->id, apn_str);
+			shell_error(shell_global, "Cannot bind socket id=%d to apn %s",
+				socket_info->id, apn_str);
 			shell_error(shell_global, "probably due to bug NCSDK-6645");
 
 			if (pdp_context_info_tbl.array != NULL)
@@ -530,7 +536,8 @@ int sock_open_and_connect(
 	}
 
 	/* Set socket to non-blocking mode to make sure receiving
-	   is not blocking polling of all sockets */
+	 * is not blocking polling of all sockets
+	 */
 	set_sock_blocking_mode(socket_info->fd, false);
 
 	/* Trigger socket receive handler if it's waiting for socket creation */
@@ -552,8 +559,9 @@ connect_error:
 static double calculate_throughput(uint32_t data_len, int64_t time_ms)
 {
 	/* 8 for bits in one byte, and 1000 for ms->s conversion.
-	   Parenthesis used to change order of multiplying so that
-	   intermediate values do not overflow from 32bit integer. */
+	 * Parenthesis used to change order of multiplying so that
+	 * intermediate values do not overflow from 32bit integer.
+	 */
 	double throughput = 8 * 1000 * ((double)data_len / time_ms);
 
 	return throughput;
@@ -580,8 +588,9 @@ static void print_throughput_summary(uint32_t data_len, int64_t time_ms)
 static void sock_print_data_hex(uint8_t *buffer, uint32_t buffer_size)
 {
 	/* Print received data in hexadecimal format having 8 bytes per line.
-		This is not made with single shell_print because we would need to
-		reserve a lot bigger buffer fro converting all data into hexadecimal string. */
+	 * This is not made with single shell_print because we would need to
+	 * reserve a lot bigger buffer for converting all data into hexadecimal string.
+	 */
 	char hex_data[81];
 	int data_printed = 0;
 	while (data_printed < buffer_size) {
@@ -595,7 +604,12 @@ static void sock_print_data_hex(uint8_t *buffer, uint32_t buffer_size)
 	}
 }
 
-static int sock_send(sock_info_t *socket_info, char* data, int length, bool log_data, bool data_hex_format)
+static int sock_send(
+	sock_info_t *socket_info,
+	char *data,
+	int length,
+	bool log_data,
+	bool data_hex_format)
 {
 	int bytes;
 
@@ -624,10 +638,11 @@ static int sock_send(sock_info_t *socket_info, char* data, int length, bool log_
 	}
 	if (bytes < 0) {
 		/* Ideally we'd like to log the failure here but non-blocking
-		   socket causes huge number of failures due to incorrectly
-		   set POLLOUT flag:
-		   https://devzone.nordicsemi.com/f/nordic-q-a/65392/bug-nrf9160-tcp-send-flow-control-seems-entirely-broken
-		   Hence, we'll log only if we have blocking socket */
+		 * socket causes huge number of failures due to incorrectly
+		 * set POLLOUT flag:
+		 * https://devzone.nordicsemi.com/f/nordic-q-a/65392/bug-nrf9160-tcp-send-flow-control-seems-entirely-broken
+		 * Hence, we'll log only if we have blocking socket
+		 */
 		if (sock_get_blocking_mode(socket_info->fd)) {
 			shell_print(
 				shell_global,
@@ -641,9 +656,9 @@ static int sock_send(sock_info_t *socket_info, char* data, int length, bool log_
 
 static void data_send_work_handler(struct k_work *item)
 {
-	struct data_transfer_info* data_send_info_ptr =
+	struct data_transfer_info *data_send_info_ptr =
 		CONTAINER_OF(item, struct data_transfer_info, work);
-	sock_info_t* socket_info = data_send_info_ptr->parent;
+	sock_info_t *socket_info = data_send_info_ptr->parent;
 
 	if (!socket_info->in_use) {
 		shell_print(
@@ -664,20 +679,21 @@ static void data_send_work_handler(struct k_work *item)
 
 static void data_send_timer_handler(struct k_timer *dummy)
 {
-	struct data_transfer_info* data_send_info_ptr =
+	struct data_transfer_info *data_send_info_ptr =
 		CONTAINER_OF(dummy, struct data_transfer_info, timer);
-	sock_info_t* socket_info = data_send_info_ptr->parent;
+	sock_info_t *socket_info = data_send_info_ptr->parent;
 
 	k_work_submit(&socket_info->send_info.work);
 }
 
-static void sock_send_random_data_length(sock_info_t* socket_info) {
+static void sock_send_random_data_length(sock_info_t *socket_info) {
 	while (socket_info->send_bytes_left > 0) {
 		if (socket_info->send_bytes_left < socket_info->send_buffer_size) {
 			memset(socket_info->send_buffer, 0, socket_info->send_buffer_size);
 			memset(socket_info->send_buffer, 'l', socket_info->send_bytes_left);
 		}
-		int bytes = sock_send(socket_info, socket_info->send_buffer, strlen(socket_info->send_buffer), false, false);
+		int bytes = sock_send(socket_info, socket_info->send_buffer,
+			strlen(socket_info->send_buffer), false, false);
 		if (bytes < 0) {
 			/* Wait for socket to allow sending again */
 			socket_info->send_poll = true;
@@ -714,7 +730,7 @@ static void sock_send_random_data_length(sock_info_t* socket_info) {
 
 int sock_send_data(
 	int socket_id,
-	char* data,
+	char *data,
 	int random_data_length,
 	int interval,
 	bool blocking,
@@ -722,7 +738,7 @@ int sock_send_data(
 	bool data_format_hex)
 {
 	sock_all_set_nonblocking();
-	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
+	sock_info_t *socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
 		return -EINVAL;
 	}
@@ -740,8 +756,7 @@ int sock_send_data(
 		data_out_length = data_out_hex_length;
 	}
 
-	/* Enable receive data logging as previous commands might
-	   have left it disabled */
+	/* Enable receive data logging as previous commands might have left it disabled */
 	socket_info->log_receive_data = true;
 	if (random_data_length > 0) {
 		/* Send given amount of data */
@@ -771,8 +786,10 @@ int sock_send_data(
 			send_buffer_size,
 			blocking);
 		
-		/* Warn about big buffer sizes as lower levels gets stuck when buffer size increases .
-		   Not necessarily right above these values you cannot use much bigger send buffer. */
+		/* Warn about big buffer sizes as lower levels gets stuck when buffer size
+		 * increases. Not necessarily right above these values you cannot use much bigger
+		 * send buffer.
+		 */
 		if ((socket_info->type == SOCK_STREAM &&
 					send_buffer_size > 4096) ||
 		    (socket_info->type == SOCK_DGRAM &&
@@ -809,7 +826,8 @@ int sock_send_data(
 				k_timer_stop(&socket_info->send_info.timer);
 				shell_print(shell_global, "Socket data send periodic stop");
 			} else {
-				shell_error(shell_global, "Socket data send stop: periodic data not started");
+				shell_error(shell_global,
+					"Socket data send stop: periodic data not started");
 				return -EINVAL;
 			}
 		} else if (interval > 0 ) {
@@ -817,7 +835,9 @@ int sock_send_data(
 
 			/* Data to be sent must also be specified */
 			if (data_out_length < 1) {
-				shell_error(shell_global, "Data sending interval is specified without data to be send");
+				shell_error(shell_global,
+					"Data sending interval is specified without "
+					"data to be sent");
 				return -EINVAL;
 			}
 
@@ -900,15 +920,19 @@ static void sock_receive_handler()
 					   there will be notification for it. */
 					continue;
 				}
-				sock_info_t* socket_info = &(sockets[socket_id]);
+				sock_info_t *socket_info = &(sockets[socket_id]);
 
 				if (fds[i].revents & POLLIN) {
 					int buffer_size;
 
 					if (receive_buffer == NULL) {
-						receive_buffer = k_calloc(SOCK_RECEIVE_BUFFER_SIZE + 1, 1);
+						receive_buffer =
+							k_calloc(SOCK_RECEIVE_BUFFER_SIZE + 1, 1);
 						if (receive_buffer == NULL) {
-							shell_error(shell_global, "Out of memory while reserving receive buffer of size %d bytes", SOCK_RECEIVE_BUFFER_SIZE);
+							shell_error(shell_global,
+								"Out of memory while reserving "
+								"receive buffer of size %d bytes",
+								SOCK_RECEIVE_BUFFER_SIZE);
 							break;
 						}
 					}
@@ -927,41 +951,57 @@ static void sock_receive_handler()
 						socket_info->recv_end_time_ms = k_uptime_get();
 						socket_info->recv_data_len += buffer_size;
 
-						if (socket_info->recv_data_len >= socket_info->recv_data_len_expected) {
+						if (socket_info->recv_data_len >=
+							socket_info->recv_data_len_expected) {
+
 							print_throughput_summary(
 								socket_info->recv_data_len,
-								socket_info->recv_end_time_ms - socket_info->start_time_ms);
-							/* Do not print when more data is received. */
-							socket_info->recv_data_len_expected = SOCK_DATA_LEN_NONE;
+								socket_info->recv_end_time_ms -
+								socket_info->start_time_ms);
+							/* Do not print when more data received. */
+							socket_info->recv_data_len_expected =
+								SOCK_DATA_LEN_NONE;
 						}
 
 						if (socket_info->log_receive_data) {
 							shell_print(shell_global,
-								"Received data for socket socket_id=%d, buffer_size=%d:",
+								"Received data for socket "
+								"socket_id=%d, buffer_size=%d:",
 								socket_id,
 								buffer_size);
-							if (socket_info->recv_print_format == SOCK_RECV_PRINT_FORMAT_HEX) {
-								sock_print_data_hex(receive_buffer, buffer_size);
+
+							if (socket_info->recv_print_format ==
+								SOCK_RECV_PRINT_FORMAT_HEX) {
+
+								sock_print_data_hex(receive_buffer,
+								buffer_size);
 							} else { /* SOCK_RECV_PRINT_FORMAT_STR */
-								shell_print(shell_global, "\t%s", receive_buffer);
+								shell_print(shell_global, "\t%s",
+									receive_buffer);
 							}
 						}
-						memset(receive_buffer, '\0', SOCK_RECEIVE_BUFFER_SIZE);
+						memset(receive_buffer, '\0',
+							SOCK_RECEIVE_BUFFER_SIZE);
 					}
 				}
 				if (fds[i].revents & POLLOUT) {
 					sock_send_random_data_length(socket_info);
 				}
 				if (fds[i].revents & POLLERR) {
-					shell_print(shell_global, "Error from socket id=%d (fd=%d), closing", socket_id, fds[i].fd);
+					shell_print(shell_global,
+						"Error from socket id=%d (fd=%d), closing",
+						socket_id, fds[i].fd);
 					sock_info_clear(socket_info);
 				}
 				if (fds[i].revents & POLLHUP) {
-					shell_print(shell_global, "Socket id=%d (fd=%d) disconnected so closing.", socket_id, fds[i].fd);
+					shell_print(shell_global,
+						"Socket id=%d (fd=%d) disconnected so closing.",
+						socket_id, fds[i].fd);
 					sock_info_clear(socket_info);
 				}
 				if (fds[i].revents & POLLNVAL) {
-					shell_print(shell_global, "Socket id=%d invalid", socket_id);
+					shell_print(shell_global,
+						"Socket id=%d invalid", socket_id);
 					sock_info_clear(socket_info);
 				}
 			}
@@ -977,7 +1017,7 @@ K_THREAD_DEFINE(sock_receive_thread, SOCK_RECEIVE_STACK_SIZE,
 int sock_recv(int socket_id, bool receive_start, int data_length, bool blocking,
 	enum sock_recv_print_format print_format)
 {
-	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
+	sock_info_t *socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
 		return -EINVAL;
 	}
@@ -1002,7 +1042,9 @@ int sock_recv(int socket_id, bool receive_start, int data_length, bool blocking,
 			return -EINVAL;
 		}
 	} else if (receive_start) {
-		shell_print(shell_global, "Receive data calculation start socket id=%d", socket_info->id);
+		shell_print(shell_global,
+			"Receive data calculation start socket id=%d",
+			socket_info->id);
 		/* Set any leftover blocking sockets to non-blocking */
 		sock_all_set_nonblocking();
 		socket_info->recv_start_throughput = true;
@@ -1028,7 +1070,7 @@ int sock_recv(int socket_id, bool receive_start, int data_length, bool blocking,
 
 int sock_close(int socket_id)
 {
-	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
+	sock_info_t *socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
 		return -EINVAL;
 	}
@@ -1073,7 +1115,7 @@ static int sock_get_nrf_fd_by_zephyr_fd(int zephyr_fd)
 	return nrf_fd;
 }
 
-static int sock_rai_option_set(int nrf_fd, int option, char* option_string)
+static int sock_rai_option_set(int nrf_fd, int option, char *option_string)
 {
 	int err = nrf_setsockopt(nrf_fd, NRF_SOL_SOCKET, option,
 		NULL, 0);
@@ -1092,7 +1134,7 @@ static int sock_rai_option_set(int nrf_fd, int option, char* option_string)
 int sock_rai(int socket_id, bool rai_last, bool rai_no_data,
 	bool rai_one_resp, bool rai_ongoing, bool rai_wait_more)
 {
-	sock_info_t* socket_info = get_socket_info_by_id(socket_id);
+	sock_info_t *socket_info = get_socket_info_by_id(socket_id);
 	if (socket_info == NULL) {
 		return -EINVAL;
 	}
@@ -1153,10 +1195,12 @@ int sock_rai(int socket_id, bool rai_last, bool rai_no_data,
 int sock_list() {
 	bool opened_sockets = false;
 	for (int i = 0; i < MAX_SOCKETS; i++) {
-		sock_info_t* socket_info = &(sockets[i]);
+		sock_info_t *socket_info = &(sockets[i]);
 		if (socket_info->in_use) {
 			opened_sockets = true;
-			shell_print(shell_global, "Socket id=%d, fd=%d, family=%d, type=%d, port=%d, bind_port=%d, pdn=%d", 
+			shell_print(shell_global,
+				"Socket id=%d, fd=%d, family=%d, type=%d, port=%d, "
+				"bind_port=%d, pdn=%d",
 				i,
 				socket_info->fd,
 				socket_info->family,

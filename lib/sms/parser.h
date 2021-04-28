@@ -108,7 +108,7 @@ int parser_delete(struct parser *parser);
  *
  * @return Zero if successful, negative value in error cases.
  */
-int parser_process_str(struct parser *parser, char *data);
+int parser_process_str(struct parser *parser, const char *data);
 
 /**
  * @brief Get the payload.

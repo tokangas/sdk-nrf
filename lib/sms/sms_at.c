@@ -65,11 +65,16 @@ static int sms_notif_at_parse(const char *const buf, char *pdu, size_t pdu_len,
 	int err = at_parser_max_params_from_str(buf, NULL, temp_resp_list, at_params_count);
 
 	if (err != 0) {
-		LOG_ERR("Unable to parse AT notification, err=%d", err);
+		LOG_ERR("Unable to parse AT notification, err=%d: %s", err, buf);
 		return err;
 	}
 
-	(void)at_params_string_get(temp_resp_list, pdu_index, pdu, &pdu_len);
+	err = at_params_string_get(temp_resp_list, pdu_index, pdu, &pdu_len);
+	if (err != 0) {
+		LOG_ERR("Unable to retrieve SMS PDU from AT notification, err=%d", err);
+		return err;
+	}
+
 	pdu[pdu_len] = '\0';
 
 	LOG_DBG("PDU: %s", log_strdup(pdu));

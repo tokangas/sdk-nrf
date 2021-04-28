@@ -23,6 +23,38 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
 /** @brief Length of TP-Service-Centre-Time-Stamp field. */
 #define SCTS_FIELD_SIZE 7
 
+/**
+ * @brief User Data Header Information Element:
+ *        Concatenated short messages, 8-bit reference number.
+ *
+ * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.1.
+ */
+#define SMS_UDH_IE_CONCATENATED_SHORT_MESSAGES_8BIT 0x00
+
+/**
+ * @brief User Data Header Information Element:
+ *        Application port addressing scheme, 8 bit address.
+ *
+ * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.3.
+ */
+#define SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_8BIT 0x04
+
+/**
+ * @brief User Data Header Information Element:
+ *        Application port addressing scheme, 16 bit address.
+ *
+ * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.4.
+ */
+
+#define SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_16BIT 0x05
+/**
+ * @brief User Data Header Information Element:
+ *        Concatenated short messages, 16-bit reference number
+ *
+ * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.8.
+ */
+#define SMS_UDH_IE_CONCATENATED_SHORT_MESSAGES_16BIT 0x08
+
 /** @brief Convenience macro to access parser data. */
 #define DELIVER_DATA(parser_data) ((struct pdu_deliver_data *)parser_data->data)
 
@@ -31,13 +63,13 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
  * @brief First byte of SMS-DELIVER PDU in 3GPP TS 23.040 chapter 9.2.2.1.
  */
 struct pdu_deliver_header {
-	uint8_t mti:2;  /** TP-Message-Type-Indicator */
-	uint8_t mms:1;  /** TP-More-Messages-to-Send */
-	uint8_t lp:1;   /** TP-Loop-Prevention */
-	uint8_t:1;      /** Empty bit */
-	uint8_t sri:1;  /** TP-Status-Report-Indication */
-	uint8_t udhi:1; /** TP-User-Data-Header-Indicator */
-	uint8_t rp:1;   /** TP-Reply-Path */
+	uint8_t mti : 2;  /** TP-Message-Type-Indicator */
+	uint8_t mms : 1;  /** TP-More-Messages-to-Send */
+	uint8_t lp : 1;   /** TP-Loop-Prevention */
+	uint8_t : 1;      /** Empty bit */
+	uint8_t sri : 1;  /** TP-Status-Report-Indication */
+	uint8_t udhi : 1; /** TP-User-Data-Header-Indicator */
+	uint8_t rp : 1;   /** TP-Reply-Path */
 };
 
 /**
@@ -79,7 +111,7 @@ struct pdu_deliver_data {
  */
 static uint8_t swap_nibbles(uint8_t value)
 {
-	return ((value&0x0f)<<4) | ((value&0xf0)>>4);
+	return ((value & 0x0f) << 4) | ((value & 0xf0) >> 4);
 }
 
 /**
@@ -207,7 +239,7 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
 	uint8_t length;
 
-	DELIVER_DATA(parser)->field_oa.length = (uint8_t)*buf++;
+	DELIVER_DATA(parser)->field_oa.length = *buf++;
 	DELIVER_DATA(parser)->field_oa.type = (uint8_t)*buf++;
 
 	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_oa.length);
@@ -215,7 +247,7 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 
 	if (DELIVER_DATA(parser)->field_oa.length > SMS_MAX_ADDRESS_LEN_CHARS) {
 		LOG_ERR("Maximum address length (%d) exceeded %d. Aborting decoding.",
-			SMS_MAX_ADDRESS_LEN_OCTETS,
+			SMS_MAX_ADDRESS_LEN_CHARS,
 			DELIVER_DATA(parser)->field_oa.length);
 		return -EINVAL;
 	}
@@ -288,9 +320,12 @@ static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 		 * meaning as 7..6=00, message class presence bit should be set.
 		 */
 		DELIVER_DATA(parser)->field_dcs.presence_of_class = 1;
+	} else {
+		LOG_ERR("Unsupported data coding scheme (0x%02X)", value);
+		return -EINVAL;
 	}
 
-	LOG_DBG("TP-Data-Coding-Scheme: 0x%02X", *buf);
+	LOG_DBG("TP-Data-Coding-Scheme: 0x%02X", value);
 
 	return 1;
 }
@@ -434,7 +469,7 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 		}
 
 		switch (ie_id) {
-		case 0x00: /* Concatenated short messages, 8-bit reference number */
+		case SMS_UDH_IE_CONCATENATED_SHORT_MESSAGES_8BIT:
 			if (ie_length != 3) {
 				LOG_ERR("Concatenated short messages, 8-bit reference number: "
 					"IE length 3 required, %d received",
@@ -449,7 +484,7 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 			concatenated_udh_ie_validity_check(parser);
 			break;
 
-		case 0x04: /* Application port addressing scheme, 8 bit address */
+		case SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_8BIT:
 			if (ie_length != 2) {
 				LOG_ERR("Application port addressing scheme, 8 bit address: "
 					"IE length 2 required, %d received",
@@ -466,7 +501,7 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 				DELIVER_DATA(parser)->field_udh_app_port.src_port);
 			break;
 
-		case 0x05: /* Application port addressing scheme, 16 bit address */
+		case SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_16BIT:
 			if (ie_length != 4) {
 				LOG_ERR("Application port addressing scheme, 16 bit address: "
 					"IE length 4 required, %d received",
@@ -484,9 +519,9 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 				DELIVER_DATA(parser)->field_udh_app_port.dest_port);
 			LOG_DBG("UDH port scheme, source port: %d",
 				DELIVER_DATA(parser)->field_udh_app_port.src_port);
-
 			break;
-		case 0x08: /* Concatenated short messages, 16-bit reference number */
+
+		case SMS_UDH_IE_CONCATENATED_SHORT_MESSAGES_16BIT:
 			if (ie_length != 4) {
 				LOG_ERR("Concatenated short messages, 16-bit reference number: "
 					"IE length 4 required, %d received",
@@ -577,8 +612,9 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	uint8_t skip_septets;
 	int length_udh_skipped;
 
-	if (DELIVER_DATA(parser)->field_udl > 160) {
-		LOG_ERR("User Data Length exceeds maximum number of characters (160) in SMS spec");
+	if (DELIVER_DATA(parser)->field_udl > SMS_MAX_PAYLOAD_LEN_CHARS) {
+		LOG_ERR("User Data Length exceeds maximum number of characters (%d) in SMS spec",
+			SMS_MAX_PAYLOAD_LEN_CHARS);
 		return -EMSGSIZE;
 	}
 
@@ -718,8 +754,7 @@ static void *sms_deliver_get_decoder(void)
  */
 static int sms_deliver_get_parser_count(void)
 {
-	return sizeof(sms_pdu_deliver_parsers) /
-			sizeof(sms_pdu_deliver_parsers[0]);
+	return ARRAY_SIZE(sms_pdu_deliver_parsers);
 }
 
 /**
@@ -776,7 +811,7 @@ void *sms_deliver_get_api(void)
 	return (struct parser_api *)&sms_deliver_api;
 }
 
-int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
+int sms_deliver_pdu_parse(const char *pdu, struct sms_data *data)
 {
 	static struct parser sms_deliver;
 	struct sms_deliver_header *header;
@@ -797,7 +832,7 @@ int sms_deliver_pdu_parse(char *pdu, struct sms_data *data)
 
 	err = parser_process_str(&sms_deliver, pdu);
 	if (err) {
-		LOG_ERR("Parsing error (%d) in decoding SMS-DELIVER message due to no memory", err);
+		LOG_ERR("Parsing error (%d) in decoding SMS-DELIVER message", err);
 		return err;
 	}
 
