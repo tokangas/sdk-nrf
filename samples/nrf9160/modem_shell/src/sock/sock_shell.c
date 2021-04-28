@@ -59,37 +59,44 @@ const char sock_usage_str[] =
 	"  help:    Show this usage. No mandatory options.\n"
 	"\n"
 	"General options:\n"
-	"  -i, --id, [int]           Socket id. Use 'list' command to see open sockets.\n"
+	"  -i, --id, [int]           Socket id. Use 'sock list' command to see open\n"
+	"                            sockets.\n"
 	"\n"
 	"Options for 'connect' command:\n"
 	"  -a, --address, [str]      Address as ip address or hostname\n"
 	"  -p, --port,  [int]        Port\n"
-	"  -f, --family, [str]       Address family: 'inet' (ipv4, default), 'inet6' (ipv6) or 'packet'\n"
-	"  -t, --type, [str]         Address type: 'stream' (tcp, default), 'dgram' (udp) or 'raw'\n"
+	"  -f, --family, [str]       Address family: 'inet' (ipv4, default), \n"
+	"                            'inet6' (ipv6) or 'packet'\n"
+	"  -t, --type, [str]         Address type: 'stream' (tcp, default), \n"
+	"                            'dgram' (udp) or 'raw'\n"
 	"  -b, --bind_port, [int]    Local port to bind the socket to\n"
-	"  -I, --cid, [int]          Use this option to bind socket to specific PDN CID.\n"
-	"                            See ltelc command for available interfaces.\n"
+	"  -I, --cid, [int]          Use this option to bind socket to specific\n"
+	"                            PDN CID. See ltelc command for available CIDs.\n"
 	"  -S, --secure, [bool]      Enable secure connection (TLS 1.2/DTLS 1.2).\n"
 	"  -T, --sec_tag, [int]      Security tag for TLS certificate(s).\n"
 	"  -c, --cache, [bool]       Enable TLS session cache.\n"
-	"  -V, --peer_verify, [int]  TLS peer verification level. None (0), optional (1) or\n"
-	"                            required (2). Default value is 1.\n"
+	"  -V, --peer_verify, [int]  TLS peer verification level. None (0),\n"
+	"                            optional (1) or required (2). Default value is 1.\n"
 	"  -H, --hostname, [str]     Hostname for TLS peer verification.\n"
 	"\n"
 	"Options for 'send' command:\n"
 	"  -d, --data [str]          Data to be sent. Cannot be used with -l option.\n"
-	"  -l, --length, [int]       Length of undefined data in bytes. This can be used when testing\n"
-	"                            with bigger data amounts. Cannot be used with -d or -e option.\n"
-	"  -e, --period, [int]       Data sending interval in seconds. You must also specify -d.\n"
-	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
-	"                            This is only valid when -l is given. Default value is 1.\n"
-	"  -s, --buffer_size, [int]  Send buffer size. This is only valid when -l is given.\n"
-	"                            Default value for 'stream' socket is 3540 and for 'dgram' socket 1200.\n"
-	"  -x, --hex, [bool]         Indicates that given data (-d) is in hexadecimal format.\n"
-	"                            By default, the format is string.\n"
-	"                            When this flag is set, given data (-d) is a string of\n"
-	"                            hexadecimal characters and each pair of two characters\n"
-	"                            form a single byte. Any spaces will be removed before processing.\n"
+	"  -l, --length, [int]       Length of undefined data in bytes. This can be used\n"
+	"                            when testing with bigger data amounts. Cannot be\n"
+	"                            used with -d or -e option.\n"
+	"  -e, --period, [int]       Data sending interval in seconds. You must also\n"
+	"                            specify -d.\n"
+	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode. This is only\n"
+	"                            valid when -l is given. Default value is 1.\n"
+	"  -s, --buffer_size, [int]  Send buffer size. This is only valid when -l is\n"
+	"                            given. Default value for 'stream' socket is 3540\n"
+	"                            and for 'dgram' socket 1200.\n"
+	"  -x, --hex, [bool]         Indicates that given data (-d) is in hexadecimal\n"
+	"                            format. By default, the format is string.\n"
+	"                            When this flag is set, given data (-d) is a string\n"
+	"                            of hexadecimal characters and each pair of two\n"
+	"                            characters form a single byte. Any spaces will be\n"
+	"                            removed before processing.\n"
 	"                            Examples of hexadecimal data strings: \n"
 	"                                010203040506070809101112\n"
 	"                                01 02 03 04 05 06 07 08 09 10 11 12\n"
@@ -129,13 +136,15 @@ const char sock_usage_str[] =
 	"                            option before the next send call.\n"
 	"\n"
 	"Options for 'recv' command:\n"
-	"  -r, --start, [bool]       Initialize variables for receive throughput calculation\n"
+	"  -r, --start, [bool]       Initialize variables for receive throughput\n"
+	"                            calculation\n"
 	"  -l, --length, [int]       Length of expected data in bytes. After receiving\n"
-	"                            data with given length, summary of data throughput is\n"
-	"                            printed. Should be used with -r option.\n"
-	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode.\n"
-	"                            This only accounts when -r is given. Default value is 0.\n"
-	"  -P, --print_format, [str] Set receive data print format: 'str' (default) or 'hex'\n"
+	"                            data with given length, summary of data throughput\n"
+	"                            is printed. Should be used with -r option.\n"
+	"  -B, --blocking, [int]     Blocking (1) or non-blocking (0) mode. This only\n"
+	"                            accounts when -r is given. Default value is 0.\n"
+	"  -P, --print_format, [str] Set receive data print format: 'str' (default) or\n"
+	"                            'hex'\n"
 	"\n"
 	"Options for 'help' command:\n"
 	"  -v, --verbose, [bool]     Show examples\n"
@@ -256,7 +265,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 		return 0;
 	}
 
-	char* command_str = argv[1];
+	char *command_str = argv[1];
 	sock_command command;
 	if (!strcmp(command_str, "connect")) {
 		command = SOCK_CMD_CONNECT;
@@ -301,8 +310,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_receive_start = false;
 	bool arg_blocking_send = true;
 	bool arg_blocking_recv = false;
-	enum sock_recv_print_format arg_recv_print_format =
-		SOCK_RECV_PRINT_FORMAT_NONE;
+	enum sock_recv_print_format arg_recv_print_format = SOCK_RECV_PRINT_FORMAT_NONE;
 	int arg_rai_enable = SOCK_RAI_NONE;
 	bool arg_rai_last = false;
 	bool arg_rai_no_data = false;
@@ -371,7 +379,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else {
 				shell_error(
 					shell,
-					"Unsupported address family=%s. Supported values are: 'inet' (ipv4, default), 'inet6' (ipv6) or 'packet'",
+					"Unsupported address family=%s. Supported values are: "
+					"'inet' (ipv4, default), 'inet6' (ipv6) or 'packet'",
 					optarg);
 				return -EINVAL;
 			}
@@ -386,7 +395,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			} else {
 				shell_error(
 					shell,
-					"Unsupported address type=%s. Supported values are: 'stream' (tcp, default), 'dgram' (udp) or 'raw'",
+					"Unsupported address type=%s. Supported values are: "
+					"'stream' (tcp, default), 'dgram' (udp) or 'raw'",
 					optarg);
 				return -EINVAL;
 			}
@@ -396,7 +406,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 			if (arg_bind_port <= 0 || arg_bind_port > 65535) {
 				shell_error(
 					shell,
-					"Bind port (%d) must be bigger than 0 and smaller than 65536.",
+					"Bind port (%d) must be bigger than 0 and "
+					"smaller than 65536.",
 					arg_bind_port);
 				return -EINVAL;
 			}
