@@ -57,8 +57,8 @@ typedef enum {
 typedef struct {
 	ltelc_shell_command command;
 	ltelc_shell_rsrp_options rsrp_option;
-	ltelc_shell_funmode_options funmode_option;
 	ltelc_shell_common_options common_option;
+	enum lte_lc_func_mode funmode_option;
 	enum lte_lc_system_mode sysmode_option;
 	enum lte_lc_system_mode_preference sysmode_lte_pref_option;
 	enum lte_lc_lte_mode lte_mode;
@@ -147,10 +147,17 @@ const char ltelc_sysmode_usage_str[] =
 
 const char ltelc_funmode_usage_str[] =
 	"Options for 'ltelc funmode' command:\n"
-	"  -r, --read,       [bool] Read modem functional mode\n"
-	"  -0, --pwroff,     [bool] Set modem power off\n"
-	"  -1, --normal,     [bool] Set modem normal mode\n"
-	"  -4, --flightmode, [bool] Set modem offline\n"
+	"  -r, --read,              [bool] Read modem functional mode\n"
+	"  -0, --pwroff,            [bool] Set modem power off\n"
+	"  -1, --normal,            [bool] Set modem normal mode\n"
+	"  -4, --flightmode,        [bool] Set modem offline.\n"
+	"      --lteoff,            [bool] Deactivates LTE without shutting down GNSS services.\n"
+	"      --lteon,             [bool] Activates LTE without changing GNSS.\n"
+	"      --gnssoff,           [bool] Deactivates GNSS without shutting down LTE services.\n"
+	"      --gnsson,            [bool] Activates GNSS without changing LTE.\n"
+	"      --uiccoff,           [bool] Deactivates UICC.\n"
+	"      --uiccon,            [bool] Activates UICC.\n"
+	"      --flightmode_uiccon, [bool] Sets the device to flight mode without shutting down UICC.\n"
 	"\n";
 
 const char ltelc_normal_mode_at_usage_str[] =
@@ -205,7 +212,14 @@ enum {
 	LTELC_SHELL_OPT_SYSMODE_PREF_LTEM,
 	LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT,
 	LTELC_SHELL_OPT_SYSMODE_PREF_LTEM_PLMN_PRIO,
-	LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT_PLMN_PRIO
+	LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT_PLMN_PRIO,
+	LTELC_SHELL_OPT_FUNMODE_LTEOFF,
+	LTELC_SHELL_OPT_FUNMODE_LTEON,
+	LTELC_SHELL_OPT_FUNMODE_GNSSOFF,
+	LTELC_SHELL_OPT_FUNMODE_GNSSON,
+	LTELC_SHELL_OPT_FUNMODE_UICCOFF,
+	LTELC_SHELL_OPT_FUNMODE_UICCON,
+	LTELC_SHELL_OPT_FUNMODE_FLIGHTMODE_UICCON,
 };
 
  /* Specifying the expected options (both long and short): */
@@ -219,6 +233,13 @@ static struct option long_options[] = {
     {"pwroff",                  no_argument,       0,  '0' },
     {"normal",                  no_argument,       0,  '1' },
     {"flightmode",              no_argument,       0,  '4' },
+    {"lteoff",                  no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_LTEOFF },
+    {"lteon",                   no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_LTEON },
+    {"gnssoff",                 no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_GNSSOFF },
+    {"gnsson",                  no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_GNSSON },
+    {"uiccoff",                 no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_UICCOFF },
+    {"uiccon",                  no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_UICCON },
+    {"flightmode_uiccon",       no_argument,       0,  LTELC_SHELL_OPT_FUNMODE_FLIGHTMODE_UICCON },
     {"ltem",                    no_argument,       0,  'm' },
     {"nbiot",                   no_argument,       0,  'n' },
     {"gps",                     no_argument,       0,  'g' },
@@ -332,10 +353,17 @@ static const char *ltelc_shell_map_to_string(struct mapping_tbl_item const *mapp
 static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff) 
 {
 	struct mapping_tbl_item const mapping_table[] = {
-		{LTELC_FUNMODE_PWROFF,     "power off"},
-		{LTELC_FUNMODE_NORMAL,     "normal"},
-		{LTELC_FUNMODE_FLIGHTMODE, "flightmode"},
-		{LTELC_FUNMODE_NONE,       "unknown"},
+		{LTE_LC_FUNC_MODE_POWER_OFF,        "power off"},
+		{LTE_LC_FUNC_MODE_NORMAL,           "normal"},
+		{LTE_LC_FUNC_MODE_OFFLINE,          "flightmode"},
+		{LTE_LC_FUNC_MODE_DEACTIVATE_LTE,   "LTE off"},
+		{LTE_LC_FUNC_MODE_ACTIVATE_LTE,     "LTE on"},
+		{LTE_LC_FUNC_MODE_DEACTIVATE_GNSS,  "GNSS off"},
+		{LTE_LC_FUNC_MODE_ACTIVATE_GNSS,    "GNSS on"},
+		{LTE_LC_FUNC_MODE_DEACTIVATE_UICC,  "UICC off"},
+		{LTE_LC_FUNC_MODE_ACTIVATE_UICC,    "UICC on"},
+		{LTE_LC_FUNC_MODE_OFFLINE_UICC_ON,  "flightmode but UICC on"},
+		{LTELC_FUNMODE_NONE,             	"unknown"},
 		{-1, NULL}
 	};
 	return ltelc_shell_map_to_string(mapping_table, funmode, out_str_buff);
@@ -360,13 +388,14 @@ static const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff
 
 static void ltelc_shell_sysmode_set(const struct shell *shell, int sysmode, int lte_pref)
 {
+	enum lte_lc_func_mode functional_mode;
 	char snum[64];
 	int ret = lte_lc_system_mode_set(sysmode, lte_pref);
 
 	if (ret < 0) {
 		shell_error(shell, "Cannot set system mode to modem: %d", ret);
-		ret = ltelc_func_mode_get();
-		if (ret != LTELC_FUNMODE_FLIGHTMODE || ret != LTELC_FUNMODE_PWROFF) {
+		ret = lte_lc_func_mode_get(&functional_mode);
+		if (functional_mode != LTE_LC_FUNC_MODE_OFFLINE || functional_mode != LTE_LC_FUNC_MODE_POWER_OFF) {
 			shell_warn(
 				shell,
 				"Not in flighmode nor in pwroff, but no worries;\nrequested system mode will be set next time when going to normal mode by 'ltelc funmode'");
@@ -596,13 +625,34 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 		/* Modem functional modes: */
 		case '0':
-			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_PWROFF;
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_POWER_OFF;
 			break;
 		case '1':
-			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_NORMAL;
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_NORMAL;
 			break;
 		case '4':
-			ltelc_cmd_args.funmode_option = LTELC_FUNMODE_FLIGHTMODE;
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_OFFLINE;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_LTEOFF:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_DEACTIVATE_LTE;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_LTEON:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_ACTIVATE_LTE;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_GNSSOFF:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_DEACTIVATE_GNSS;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_GNSSON:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_ACTIVATE_GNSS;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_UICCOFF:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_DEACTIVATE_UICC;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_UICCON:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_ACTIVATE_UICC;
+			break;
+		case LTELC_SHELL_OPT_FUNMODE_FLIGHTMODE_UICCON:
+			ltelc_cmd_args.funmode_option = LTE_LC_FUNC_MODE_OFFLINE_UICC_ON;
 			break;
 
 		/* eDRX specifics: */
@@ -796,7 +846,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			}
 			else if (ltelc_cmd_args.common_option == LTELC_COMMON_ENABLE) {
 				ltelc_sett_save_defcont_enabled(true);
-				}
+			}
 			else if (ltelc_cmd_args.common_option == LTELC_COMMON_DISABLE) {
 				static char cgdcont[] = "AT+CGDCONT=0";
 				if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
@@ -852,14 +902,18 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 
 		case LTELC_CMD_STATUS: {
 			enum lte_lc_nw_reg_status current_reg_status;
+			enum lte_lc_func_mode functional_mode;
 			bool connected = false;
 
-			ret = ltelc_func_mode_get();
-			if (ret >= 0)
+			ret = lte_lc_func_mode_get(&functional_mode);
+			if (ret) {
+				shell_warn(shell, "Cannot get functional mode from modem: %d", ret);
+			} else {
 				shell_print(shell, "Modem functional mode: %s",
 					    ltelc_shell_funmode_to_string(
-						    ret, snum));
+						    functional_mode, snum));
 
+			}
 			ret = lte_lc_nw_reg_status_get(&current_reg_status);
 			if (ret >= 0) {
 				ltelc_shell_print_reg_status(
@@ -946,11 +1000,13 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case LTELC_CMD_FUNMODE:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
-				ret = ltelc_func_mode_get();
-				if (ret < 0) {
+				enum lte_lc_func_mode functional_mode;
+
+				ret = lte_lc_func_mode_get(&functional_mode);
+				if (ret) {
 					shell_error(shell, "Cannot get functional mode: %d", ret);
 				} else {
-					shell_print(shell, "Functional mode read successfully: %s", ltelc_shell_funmode_to_string(ret, snum));
+					shell_print(shell, "Functional mode read successfully: %s", ltelc_shell_funmode_to_string(functional_mode, snum));
 				}
 			} else if (ltelc_cmd_args.funmode_option != LTELC_FUNMODE_NONE) {
 				ret = ltelc_func_mode_set(ltelc_cmd_args.funmode_option);

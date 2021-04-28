@@ -118,7 +118,7 @@ void ltelc_init(void)
    because LwM2M carrier lib handles that. */
 #if !defined(CONFIG_LWM2M_CARRIER)
 	if (ltelc_sett_is_normal_mode_autoconn_enabled() == true) {
-		ltelc_func_mode_set(LTELC_FUNMODE_NORMAL);
+		ltelc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
 	}
 #endif
 }
@@ -319,24 +319,23 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 	}
 }
 
-int ltelc_func_mode_set(int fun)
+int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 {
 	int return_value = 0;
 	int sysmode;
 	int lte_pref;
 
 	switch (fun) {
-	case LTELC_FUNMODE_PWROFF:
+	case LTE_LC_FUNC_MODE_POWER_OFF:
 #if defined (CONFIG_MOSH_SMS)	
 		sms_unregister();
 #endif
 		return_value = lte_lc_power_off();
 		break;
-	case LTELC_FUNMODE_FLIGHTMODE:
+	case LTE_LC_FUNC_MODE_OFFLINE:
 		return_value = lte_lc_offline();
 		break;
-	case LTELC_FUNMODE_NORMAL:
-	default:
+	case LTE_LC_FUNC_MODE_NORMAL:
 	    /* Run custom at cmds from settings (ltelc nmodeat -mosh command): */
 	    ltelc_normal_mode_at_cmds_run();
 
@@ -368,35 +367,24 @@ int ltelc_func_mode_set(int fun)
 			}
 		}
 		break;
-	}
-	return return_value;
-}
-
-int ltelc_func_mode_get(void)
-{
-    enum lte_lc_func_mode functional_mode;	
-	int err = lte_lc_func_mode_get(&functional_mode);
-	int lte_lc_shell_fun_mode = 0;
-    
-	if (err >= 0) {
-		switch (functional_mode) {
-		case LTE_LC_FUNC_MODE_POWER_OFF:
-			lte_lc_shell_fun_mode = LTELC_FUNMODE_PWROFF;
-			break;
-		case LTE_LC_FUNC_MODE_NORMAL:
-			lte_lc_shell_fun_mode = LTELC_FUNMODE_NORMAL;
-			break;
-		case LTE_LC_FUNC_MODE_OFFLINE:
-			lte_lc_shell_fun_mode = LTELC_FUNMODE_FLIGHTMODE;
-			break;
-		default:
-			lte_lc_shell_fun_mode = functional_mode;
-			break;
+	case LTE_LC_FUNC_MODE_DEACTIVATE_LTE:
+	case LTE_LC_FUNC_MODE_ACTIVATE_LTE:
+	case LTE_LC_FUNC_MODE_DEACTIVATE_GNSS:
+	case LTE_LC_FUNC_MODE_ACTIVATE_GNSS:
+	case LTE_LC_FUNC_MODE_DEACTIVATE_UICC:
+	case LTE_LC_FUNC_MODE_ACTIVATE_UICC:
+	case LTE_LC_FUNC_MODE_OFFLINE_UICC_ON:
+	default:
+		return_value = lte_lc_func_mode_set(fun);
+		if (return_value) {
+			shell_error(
+				uart_shell, "lte_lc_func_mode_set returned, error %d",
+					return_value);
 		}
-		return lte_lc_shell_fun_mode;
-	} else {
-		return err;
+		break;
 	}
+
+	return return_value;
 }
 
 static int ltelc_family_set(int pdn_fd, const char *family)
