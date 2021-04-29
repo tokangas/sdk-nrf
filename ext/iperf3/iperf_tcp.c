@@ -217,8 +217,11 @@ iperf_tcp_listen(struct iperf_test *test)
      */
     if (test->no_delay || test->settings->mss || test->settings->socket_bufsize) {
 	struct addrinfo hints, *res;
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
+	char portstr[12];
+#else
 	char portstr[6];
-
+#endif
         FD_CLR(s, &test->read_set);
         close(s);
 
@@ -226,14 +229,19 @@ iperf_tcp_listen(struct iperf_test *test)
         memset(&hints, 0, sizeof(hints));
 
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
-    /* Note: PDN ID based set (AI_PDNSERV) cannot be done due to overlapping usage of port: */
-    hints.ai_next = test->apn_str ?
-			&(struct addrinfo) {
-				.ai_family    = AF_LTE,
-				.ai_socktype  = SOCK_MGMT,
-				.ai_protocol  = NPROTO_PDN,
-				.ai_canonname = (char *)test->apn_str
-			} : NULL;
+    if (test->pdn_id_str != NULL) {
+        hints.ai_flags = (AI_PDNSERV | AI_NUMERICSERV);
+        snprintf(portstr, 12, "%d:%s", test->server_port, test->pdn_id_str);
+    }
+    else if (test->apn_str != NULL) {
+        hints.ai_next = test->apn_str ?
+                &(struct addrinfo) {
+                    .ai_family    = AF_LTE,
+                    .ai_socktype  = SOCK_MGMT,
+                    .ai_protocol  = NPROTO_PDN,
+                    .ai_canonname = (char *)test->apn_str
+                } : NULL;
+    }
 #endif
 
 	/*
@@ -464,7 +472,11 @@ int
 iperf_tcp_connect(struct iperf_test *test)
 {
     struct addrinfo hints, *local_res, *server_res;
+#if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
+	char portstr[12];
+#else
     char portstr[6];
+#endif
     int s, opt;
 #ifdef NOT_IN_NRF_IPERF3_INTEGRATION
     socklen_t optlen;
@@ -487,18 +499,24 @@ iperf_tcp_connect(struct iperf_test *test)
     hints.ai_family = test->settings->domain;
     hints.ai_socktype = SOCK_STREAM;
 
+    snprintf(portstr, sizeof(portstr), "%d", test->server_port);
+
 #if defined (CONFIG_NRF_IPERF3_MULTICONTEXT_SUPPORT)
-    /* Note: PDN ID based set (AI_PDNSERV) cannot be done due to overlapping usage of port: */
-    hints.ai_next = test->apn_str ?
-			&(struct addrinfo) {
-				.ai_family    = AF_LTE,
-				.ai_socktype  = SOCK_MGMT,
-				.ai_protocol  = NPROTO_PDN,
-				.ai_canonname = (char *)test->apn_str
-			} : NULL;
+    if (test->pdn_id_str != NULL) {
+        hints.ai_flags = (AI_PDNSERV | AI_NUMERICSERV);
+        snprintf(portstr, 12, "%d:%s", test->server_port, test->pdn_id_str);
+    }
+    else if (test->apn_str != NULL) {
+        hints.ai_next = test->apn_str ?
+                &(struct addrinfo) {
+                    .ai_family    = AF_LTE,
+                    .ai_socktype  = SOCK_MGMT,
+                    .ai_protocol  = NPROTO_PDN,
+                    .ai_canonname = (char *)test->apn_str
+                } : NULL;
+    }
 #endif
 
-    snprintf(portstr, sizeof(portstr), "%d", test->server_port);
     if ((gerror = getaddrinfo(test->server_hostname, portstr, &hints, &server_res)) != 0) {
 	if (test->bind_address)
 	    freeaddrinfo(local_res);
