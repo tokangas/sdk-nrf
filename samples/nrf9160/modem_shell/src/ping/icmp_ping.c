@@ -481,7 +481,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 
 	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
 		if (ping_argv.pdn_id_for_cid != MOSH_ARG_NOT_SET) {
-			snprintf(portstr, 6, "pdn%d", ping_argv.pdn_id_for_cid);
+			snprintf(portstr, 6, "%d", ping_argv.pdn_id_for_cid);
 			set_flags = true;
 			service = portstr;
 			hints.ai_flags = AI_PDNSERV;
