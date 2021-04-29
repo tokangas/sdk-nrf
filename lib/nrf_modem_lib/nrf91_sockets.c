@@ -284,15 +284,20 @@ static int z_to_nrf_flags(int z_flags)
 	return nrf_flags;
 }
 
-static int z_to_nrf_addrinfo_flags(int flags)
+static int z_to_nrf_addrinfo_flags(int z_flags)
 {
-	switch (flags) {
-	default:
-		/* no other flags supported */
-		return 0;
-	case AI_PDNSERV:
-		return NRF_AI_PDNSERV;
+	/* Jani: added a mapping for a supported flags: */
+	int nrf_flags = 0;
+
+	if (z_flags & AI_PDNSERV) {
+		nrf_flags |= NRF_AI_PDNSERV;
 	}
+
+	if (z_flags & AI_NUMERICSERV) {
+		nrf_flags |= NRF_AI_NUMERICSERV;
+	}
+
+	return nrf_flags;
 }
 
 static int nrf_to_z_addrinfo_flags(int flags)
