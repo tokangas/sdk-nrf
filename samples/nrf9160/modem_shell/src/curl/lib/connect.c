@@ -324,10 +324,17 @@ static CURLcode bindlocal(struct connectdata *conn,
         if (cid > 0) {
           pdp_context_info_t* pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(cid);
           if (pdp_context_info != NULL) {
-            len = strlen(pdp_context_info->apn_str);
-            memcpy(ifr.ifr_name, pdp_context_info->apn_str, len);
-            printf("Binding PDN CID '%d' to APN %s\n", cid, pdp_context_info->apn_str);
-            opt_retvalue = setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
+            if (pdp_context_info->pdn_id_valid) {
+              printf("Binding PDN CID '%d' to PDN ID %d\n", cid, pdp_context_info->pdn_id);
+        			opt_retvalue = net_utils_socket_pdn_id_set(sockfd, pdp_context_info->pdn_id);
+              if (opt_retvalue) {
+                printf("Cannot bind with PDN ID\n");
+                return CURLE_INTERFACE_FAILED;
+              }
+            } else {
+              printf("Binding PDN CID '%d' to APN %s\n", cid, pdp_context_info->apn_str);
+              opt_retvalue = net_utils_socket_apn_set(sockfd, pdp_context_info->apn_str);
+            }            
             free(pdp_context_info);
           } else {
             failf(data, "Couldn't find interface with CID '%s'\n", dev_cid);
@@ -346,7 +353,7 @@ static CURLcode bindlocal(struct connectdata *conn,
         opt_retvalue = setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
       }
 
-      printf("bindlocal: %s, opt_retvalue : %d\n", dev, opt_retvalue);
+      printf("bindlocal: dev if %s, opt_retvalue : %d\n", ((dev_cid != NULL) ? dev_cid : dev), opt_retvalue);
       if(opt_retvalue == 0) {
         return CURLE_OK;
       }
