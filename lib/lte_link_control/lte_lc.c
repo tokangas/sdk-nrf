@@ -42,6 +42,8 @@ enum lte_lc_notif_type {
 	LTE_LC_NOTIF_CSCON,
 	LTE_LC_NOTIF_CEDRXP,
 	LTE_LC_NOTIF_XT3412,
+	LTE_LC_NOTIF_NCELLMEAS,
+	LTE_LC_NOTIF_XMODEMSLEEP,
 
 	LTE_LC_NOTIF_COUNT,
 };
@@ -159,22 +161,13 @@ static const char thingy91_magpio[] = {
 
 static struct k_sem link;
 
-#if defined(CONFIG_LTE_PDP_CMD)
-static char cgdcont[144] = "AT+CGDCONT="CONFIG_LTE_PDP_CONTEXT;
-#endif
-#if defined(CONFIG_LTE_PDN_AUTH_CMD)
-static char cgauth[19 + CONFIG_LTE_PDN_AUTH_LEN] =
-				"AT+CGAUTH="CONFIG_LTE_PDN_AUTH;
-#endif
-#if defined(CONFIG_LTE_LEGACY_PCO_MODE)
-static const char legacy_pco[] = "AT%XEPCO=0";
-#endif
-
 static const char *const at_notifs[] = {
-	[LTE_LC_NOTIF_CEREG]	= "+CEREG",
-	[LTE_LC_NOTIF_CSCON]	= "+CSCON",
-	[LTE_LC_NOTIF_CEDRXP]	= "+CEDRXP",
-	[LTE_LC_NOTIF_XT3412]	= "%XT3412",
+	[LTE_LC_NOTIF_CEREG]	   = "+CEREG",
+	[LTE_LC_NOTIF_CSCON]	   = "+CSCON",
+	[LTE_LC_NOTIF_CEDRXP]	   = "+CEDRXP",
+	[LTE_LC_NOTIF_XT3412]	   = "%XT3412",
+	[LTE_LC_NOTIF_NCELLMEAS]   = "%NCELLMEAS",
+	[LTE_LC_NOTIF_XMODEMSLEEP] = "%XMODEMSLEEP",
 };
 
 BUILD_ASSERT(ARRAY_SIZE(at_notifs) == LTE_LC_NOTIF_COUNT);
@@ -201,7 +194,7 @@ static void at_handler(void *context, const char *response)
 	int err;
 	bool notify = false;
 	enum lte_lc_notif_type notif_type;
-	struct lte_lc_evt evt;
+	struct lte_lc_evt evt = {0};
 
 	if (response == NULL) {
 		LOG_ERR("Response buffer is NULL-pointer");
@@ -326,13 +319,93 @@ static void at_handler(void *context, const char *response)
 		}
 
 		if (evt.time != CONFIG_LTE_LC_TAU_PRE_WARNING_TIME_MS) {
-			/* Only propagate TAU pre-warning notifications when the received <time>
+			/* Only propagate TAU pre-warning notifications when the received time
 			 * parameter is the duration of the set pre-warning time.
 			 */
 			return;
 		}
 
 		evt.type = LTE_LC_EVT_TAU_PRE_WARNING;
+		notify = true;
+
+		break;
+	case LTE_LC_NOTIF_NCELLMEAS: {
+		int ncell_count = neighborcell_count_get(response);
+		struct lte_lc_ncell *neighbor_cells;
+
+		LOG_DBG("%%NCELLMEAS notification");
+		LOG_DBG("Neighbor cell count: %d", ncell_count);
+
+		if (!evt_handler) {
+			/* No need to parse the response if there is no handler
+			 * to receive the parsed data.
+			 */
+			return;
+		}
+
+		if (ncell_count == 0) {
+			evt.type = LTE_LC_EVT_NEIGHBOR_CELL_MEAS;
+			evt_handler(&evt);
+			return;
+		}
+
+		neighbor_cells = k_calloc(sizeof(struct lte_lc_ncell), ncell_count);
+		if (neighbor_cells == NULL) {
+			LOG_ERR("Failed to allocate memory for neighbor cells");
+			return;
+		}
+
+		evt.cells_info.neighbor_cells = neighbor_cells;
+
+		err = parse_ncellmeas(response, &evt.cells_info);
+
+		switch (err) {
+		case -E2BIG:
+			LOG_WRN("Not all neighbor cells could be parsed");
+			LOG_WRN("More cells than the configured max count of %d were found",
+				CONFIG_LTE_NEIGHBOR_CELLS_MAX);
+			/* Fall through */
+		case 0: /* Fall through */
+		case 1:
+			evt.type = LTE_LC_EVT_NEIGHBOR_CELL_MEAS;
+			evt_handler(&evt);
+			break;
+		default:
+			LOG_ERR("Parsing of neighbour cells failed, err: %d", err);
+			break;
+		}
+
+		k_free(neighbor_cells);
+
+		return;
+	}
+	case LTE_LC_NOTIF_XMODEMSLEEP:
+		LOG_DBG("%%XMODEMSLEEP notification");
+
+		err = parse_xmodemsleep(response, &evt.modem_sleep);
+		if (err) {
+			LOG_ERR("Can't parse modem sleep pre-warning notification, error: %d", err);
+			return;
+		}
+
+		/* Link controller only supports PSM, RF inactivity and flight mode
+		 * modem sleep types.
+		 */
+		if ((evt.modem_sleep.type != LTE_LC_MODEM_SLEEP_PSM) &&
+		    (evt.modem_sleep.type != LTE_LC_MODEM_SLEEP_RF_INACTIVITY) &&
+		    (evt.modem_sleep.type != LTE_LC_MODEM_SLEEP_FLIGHT_MODE)) {
+			return;
+		}
+
+		/* Propagate the appropriate event depending on the parsed time parameter. */
+		if (evt.modem_sleep.time == CONFIG_LTE_LC_MODEM_SLEEP_PRE_WARNING_TIME_MS) {
+			evt.type = LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING;
+		} else if (evt.modem_sleep.time == 0) {
+			evt.type = LTE_LC_EVT_MODEM_SLEEP_EXIT;
+		} else {
+			evt.type = LTE_LC_EVT_MODEM_SLEEP_ENTER;
+		}
+
 		notify = true;
 
 		break;
@@ -349,7 +422,7 @@ static void at_handler(void *context, const char *response)
 static int enable_notifications(void)
 {
 	int err;
-	char xt3412_sub[35];
+	char buf_sub[35];
 
 	/* +CEREG notifications, level 5 */
 	err = at_cmd_write(cereg_5_subscribe, NULL, 0, NULL);
@@ -359,16 +432,31 @@ static int enable_notifications(void)
 	}
 
 	if (IS_ENABLED(CONFIG_LTE_LC_TAU_PRE_WARNING_NOTIFICATIONS)) {
-		snprintk(xt3412_sub,
-			 sizeof(xt3412_sub),
+		snprintk(buf_sub,
+			 sizeof(buf_sub),
 			 AT_XT3412_SUB,
 			 CONFIG_LTE_LC_TAU_PRE_WARNING_TIME_MS,
 			 CONFIG_LTE_LC_TAU_PRE_WARNING_THRESHOLD_MS);
 
 		/* %XT3412 notifications subscribe */
-		err = at_cmd_write(xt3412_sub, NULL, 0, NULL);
+		err = at_cmd_write(buf_sub, NULL, 0, NULL);
 		if (err) {
 			LOG_ERR("Failed to subscribe to XT3412 notifications");
+			return err;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_LTE_LC_MODEM_SLEEP_NOTIFICATIONS)) {
+		snprintk(buf_sub,
+			 sizeof(buf_sub),
+			 AT_XMODEMSLEEP_SUB,
+			 CONFIG_LTE_LC_MODEM_SLEEP_PRE_WARNING_TIME_MS,
+			 CONFIG_LTE_LC_MODEM_SLEEP_NOTIFICATIONS_THRESHOLD_MS);
+
+		/* %XMODEMSLEEP notifications subscribe */
+		err = at_cmd_write(buf_sub, NULL, 0, NULL);
+		if (err) {
+			LOG_ERR("Failed to subscribe to XMODEMSLEEP notifications");
 			return err;
 		}
 	}
@@ -483,24 +571,6 @@ static int init_and_config(void)
 	if (at_cmd_write(unlock_plmn, NULL, 0, NULL) != 0) {
 		return -EIO;
 	}
-#endif
-#if defined(CONFIG_LTE_LEGACY_PCO_MODE)
-	if (at_cmd_write(legacy_pco, NULL, 0, NULL) != 0) {
-		return -EIO;
-	}
-	LOG_INF("Using legacy LTE PCO mode...");
-#endif
-#if defined(CONFIG_LTE_PDP_CMD)
-	if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
-		return -EIO;
-	}
-	LOG_INF("PDP Context: %s", log_strdup(cgdcont));
-#endif
-#if defined(CONFIG_LTE_PDN_AUTH_CMD)
-	if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
-		return -EIO;
-	}
-	LOG_INF("PDN Auth: %s", log_strdup(cgauth));
 #endif
 
 	/* Listen for RRC connection mode notifications */
@@ -949,46 +1019,6 @@ int lte_lc_rai_param_set(const char *value)
 	return 0;
 }
 
-int lte_lc_pdp_context_set(enum lte_lc_pdp_type type, const char *apn,
-			   bool ip4_addr_alloc, bool nslpi, bool secure_pco)
-{
-#if defined(CONFIG_LTE_PDP_CMD)
-	static const char * const pdp_type_lut[] = {
-		"IP", "IPV6", "IPV4V6"
-	};
-
-	if (apn == NULL || type > LTE_LC_PDP_TYPE_IPV4V6) {
-		return -EINVAL;
-	}
-
-	snprintf(cgdcont, sizeof(cgdcont),
-		"AT+CGDCONT=0,\"%s\",\"%s\",0,0,0,%d,0,0,0,%d,%d",
-		pdp_type_lut[type], apn, ip4_addr_alloc, nslpi, secure_pco);
-
-	return 0;
-#else
-	return -ENOTSUP;
-#endif
-}
-
-int lte_lc_pdn_auth_set(enum lte_lc_pdn_auth_type auth_prot,
-			const char *username, const char *password)
-{
-#if defined(CONFIG_LTE_PDN_AUTH_CMD)
-	if (username == NULL || password == NULL ||
-	    auth_prot > LTE_LC_PDN_AUTH_TYPE_CHAP) {
-		return -EINVAL;
-	}
-
-	snprintf(cgauth, sizeof(cgauth), "AT+CGAUTH=0,%d,\"%s\",\"%s\"",
-		 auth_prot, username, password);
-
-	return 0;
-#else
-	return -ENOTSUP;
-#endif
-}
-
 int lte_lc_nw_reg_status_get(enum lte_lc_nw_reg_status *status)
 {
 	int err;
@@ -1345,6 +1375,16 @@ int lte_lc_lte_mode_get(enum lte_lc_lte_mode *mode)
 	}
 
 	return 0;
+}
+
+int lte_lc_neighbor_cell_measurement(void)
+{
+	return at_cmd_write(AT_NCELLMEAS_START, NULL, 0, NULL);
+}
+
+int lte_lc_neighbor_cell_measurement_cancel(void)
+{
+	return at_cmd_write(AT_NCELLMEAS_STOP, NULL, 0, NULL);
 }
 
 #if defined(CONFIG_LTE_AUTO_INIT_AND_CONNECT)

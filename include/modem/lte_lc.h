@@ -163,6 +163,24 @@ enum lte_lc_evt_type {
 	 *  the TAU happens, thus saving power by avoiding sending data and the TAU separately.
 	 */
 	LTE_LC_EVT_TAU_PRE_WARNING,
+
+	/** Event containing results from neighbor cell measurements. */
+	LTE_LC_EVT_NEIGHBOR_CELL_MEAS,
+
+	/** Modem sleep pre-warning
+	 *  This event will be received a configurable amount of time before the modem exits sleep.
+	 *  The time parameter associated with this event signifies the time until modem exits
+	 *  sleep.
+	 */
+	LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING,
+
+	/** This event will be received when the modem exits sleep. */
+	LTE_LC_EVT_MODEM_SLEEP_EXIT,
+
+	/** This event will be received when the modem enters sleep.
+	 *  The time parameter associated with this event signifies the duration of the sleep.
+	 */
+	LTE_LC_EVT_MODEM_SLEEP_ENTER,
 };
 
 enum lte_lc_rrc_mode {
@@ -185,8 +203,120 @@ struct lte_lc_edrx_cfg {
 };
 
 struct lte_lc_cell {
-	uint32_t id;	/* E-UTRAN cell ID */
-	uint32_t tac;	/* Tracking Area Code */
+	/** Mobile Country Code. */
+	int mcc;
+
+	/** Mobile Network Code. */
+	int mnc;
+
+	/** E-UTRAN cell ID. */
+	uint32_t id;
+
+	/** Tracking area code. */
+	uint32_t tac;
+
+	/** EARFCN of the neighbour cell, per 3GPP TS 36.101. */
+	uint32_t earfcn;
+
+	/** Timing advance decimal value.
+	 *  Range [0..20512, TIMING_ADVANCE_NOT_VALID = 65535].
+	 */
+	uint16_t timing_advance;
+
+	/** Measurement time of serving cell in milliseconds.
+	 *  Range 0 - 18 446 744 073 709 551 614 ms.
+	 */
+	uint64_t measurement_time;
+
+	/** Physical cell ID. */
+	uint16_t phys_cell_id;
+
+	/** RSRP of the neighbor celll.
+	 *  -17: RSRP < -156 dBm
+	 *  -16: -156 ≤ RSRP < -155 dBm
+	 *  ...
+	 *  -3: -143 ≤ RSRP < -142 dBm
+	 *  -2: -142 ≤ RSRP < -141 dBm
+	 *  -1: -141 ≤ RSRP < -140 dBm
+	 *  0: RSRP < -140 dBm
+	 *  1: -140 ≤ RSRP < -139 dBm
+	 *  2: -139 ≤ RSRP < -138 dBm
+	 *  ...
+	 *  95: -46 ≤ RSRP < -45 dBm
+	 *  96: -45 ≤ RSRP < -44 dBm
+	 *  97: -44 ≤ RSRP dBm
+	 *  255: not known or not detectable
+	 */
+	int16_t rsrp;
+
+	/** RSRQ of the neighbor cell.
+	 *  -30: RSRQ < -34 dB
+	 *  -29:	-34 ≤ RSRQ < -33.5 dB
+	 *  ...
+	 *  -2: -20.5 ≤ RSRQ < -20 dB
+	 *  -1:	-20 ≤ RSRQ < -19.5 dB
+	 *  0: RSRQ < -19.5 dB
+	 *  1: -19.5 ≤ RSRQ < -19 dB
+	 *  2: -19 ≤ RSRQ < -18.5 dB
+	 *  ...
+	 *  32: -4 ≤ RSRQ < -3.5 dB
+	 *  33: -3.5 ≤ RSRQ < -3 dB
+	 *  34: -3 ≤ RSRQ dB
+	 *  35: -3 ≤ RSRQ < -2.5 dB
+	 *  36: -2.5 ≤ RSRQ < -2 dB
+	 *  ...
+	 *  45: 2 ≤ RSRQ < 2.5 dB
+	 *  46: 2.5 ≤ RSRQ dB
+	 *  255: not known or not detectable.
+	 */
+	int16_t rsrq;
+};
+
+struct lte_lc_ncell {
+	/** EARFCN of the neighbour cell, per 3GPP TS 36.101. */
+	uint32_t earfcn;
+
+	/** Difference in milliseconds of serving cell and neighbor cell
+	 *  measurement, in the range -99999 ms < time_diff < 99999 ms.
+	 */
+	int time_diff;
+
+	/** Physical cell ID. */
+	uint16_t phys_cell_id;
+
+	/** RSRP of the neighbor celll. Format is the same as for RSRP member
+	 *  of struct lte_lc_cell.
+	 */
+	int16_t rsrp;
+
+	/** RSRQ of the neighbor cell. Format is the same as for RSRQ member
+	 *  of struct lte_lc_cell.
+	 */
+	int16_t rsrq;
+};
+
+/** @brief Structure containing results of neighbor cell measurements.
+ *	   The ncells_count member indicates whether or not the structure contains
+ *	   any valid cell information. If it is zero, no cells were found, and
+ *	   the information in the rest of structure members do not contain valid data.
+ */
+struct lte_lc_cells_info {
+	struct lte_lc_cell current_cell;
+	uint8_t ncells_count;
+	struct lte_lc_ncell *neighbor_cells;
+};
+
+enum lte_lc_modem_sleep_type {
+	LTE_LC_MODEM_SLEEP_PSM			= 1,
+	LTE_LC_MODEM_SLEEP_RF_INACTIVITY	= 2,	/* For example eDRX */
+	LTE_LC_MODEM_SLEEP_FLIGHT_MODE		= 4,
+};
+
+struct lte_lc_modem_sleep {
+	enum lte_lc_modem_sleep_type type;
+
+	/* If this value is set to -1. Sleep is considered infinite. */
+	int64_t time;
 };
 
 struct lte_lc_evt {
@@ -198,26 +328,16 @@ struct lte_lc_evt {
 		struct lte_lc_edrx_cfg edrx_cfg;
 		struct lte_lc_cell cell;
 		enum lte_lc_lte_mode lte_mode;
+		struct lte_lc_modem_sleep modem_sleep;
 
 		/* Time until next Tracking Area Update in milliseconds. */
 		uint64_t time;
+
+		struct lte_lc_cells_info cells_info;
 	};
 };
 
 typedef void(*lte_lc_evt_handler_t)(const struct lte_lc_evt *const evt);
-
-/* NOTE: enum order is important and should be preserved. */
-enum lte_lc_pdp_type {
-	LTE_LC_PDP_TYPE_IP = 0,
-	LTE_LC_PDP_TYPE_IPV6,
-	LTE_LC_PDP_TYPE_IPV4V6
-};
-
-enum lte_lc_pdn_auth_type {
-	LTE_LC_PDN_AUTH_TYPE_NONE = 0,
-	LTE_LC_PDN_AUTH_TYPE_PAP = 1,
-	LTE_LC_PDN_AUTH_TYPE_CHAP = 2,
-};
 
 /** @brief Register event handler for LTE events.
  *
@@ -406,37 +526,6 @@ int lte_lc_rai_param_set(const char *value);
  */
 int lte_lc_rai_req(bool enable);
 
-/**
- * @brief Set the parameters for the default PDP context.
- * Must be called prior to `lte_lc_init` or `lte_lc_init_and_connect`.
- *
- * @param[in]  type            One of enum lte_pdp_type
- * @param[in]  apn             null terminated APN string
- * @param[in]  ip4_addr_alloc  0 - Allocate IPV4 address via NAS signaling
- *	(default), 1 - Allocate IPV4 address via DHCP.
- * @param[in]  nslpi           0 - NSLPI value from configuration is used
- *	(default), 1 - Value "Not configured".
- * @param[in]  secure_pco      0 - Protected PCO transmission is not requested
- *	(default), 1 - Protected PCO transmission is requested
- *
- * @return Zero on success or (negative) error code otherwise.
- */
-int lte_lc_pdp_context_set(enum lte_lc_pdp_type type, const char *apn,
-			   bool ip4_addr_alloc, bool nslpi, bool secure_pco);
-
-/**
- * @brief Set PDN authentication parameters for the default context.
- * Must be called prior to `lte_lc_init` or `lte_lc_init_and_connect`.
- *
- * @param[in]  auth_prot  One of enum lte_lc_pdn_auth_type
- * @param[in]  username   Null terminated username string
- * @param[in]  password   Null terminated password string
- *
- * @return Zero on success or (negative) error code otherwise.
- */
-int lte_lc_pdn_auth_set(enum lte_lc_pdn_auth_type auth_prot,
-			const char *username, const char *password);
-
 /**@brief Get the current network registration status.
  *
  * @param status Pointer for network registation status.
@@ -488,6 +577,25 @@ int lte_lc_func_mode_get(enum lte_lc_func_mode *mode);
  * @return Zero on success or (negative) error code otherwise.
  */
 int lte_lc_lte_mode_get(enum lte_lc_lte_mode *mode);
+
+/**@brief Initiate a neighbor cell measurement.
+ *	  The result of the measurement is reported back as an event of the type
+ *	  LTE_LC_EVT_NEIGHBOR_CELL_MEAS, meaning that an event handler must be
+ *	  registered to receive the information.
+ *	  Depending on the network conditions and LTE connection state, it may
+ *	  take a while before the measurement result is ready and reported back.
+ *	  After the event is received, the neighbor cell measurements
+ *	  are automatically stopped.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_neighbor_cell_measurement(void);
+
+/**@brief Cancel an ongoing neighbor cell measurement.
+ *
+ * @return Zero on success or (negative) error code otherwise.
+ */
+int lte_lc_neighbor_cell_measurement_cancel(void);
 
 /** @} */
 
