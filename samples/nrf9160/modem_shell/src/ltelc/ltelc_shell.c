@@ -16,6 +16,7 @@
 #include "ltelc.h"
 #include "ltelc_api.h"
 #include "ltelc_shell.h"
+#include "ltelc_shell_pdn.h"
 #include "ltelc_settings.h"
 
 #define LTELC_SHELL_EDRX_VALUE_STR_LENGTH 4
@@ -117,12 +118,11 @@ const char ltelc_defcontauth_usage_str[] =
 	"\n";
 
 const char ltelc_connect_usage_str[] =
-	"Options for 'ltelc connect' command:\n"
+	"Options for 'ltelc connect' command for creating and activating a new PDP context:\n"
 	"  -a, --apn,        [str]  Access Point Name\n"
-	"  -f, --family,     [str]  Address family: 'ipv4v6', 'ipv4', 'ipv6', 'packet'\n"
+	"  -f, --family,     [str]  Address family: 'ipv4v6', 'ipv4', 'ipv6', 'non-ip'\n"
 	"\n"
-	"Options for 'ltelc disconnect' command:\n"
-	"  -a, --apn,        [str]  Access Point Name\n"
+	"Options for 'ltelc disconnect' command for deactivating and destroying a PDP context:\n"
 	"  -I, --cid,        [int]  Use this option to disconnect specific PDN CID\n"
 	"\n";
 
@@ -529,7 +529,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	ltelc_shell_cmd_args_t ltelc_cmd_args;
 	int ret = 0;	
 	bool require_apn = false;
-	bool require_apn_or_pdn_cid = false;
+	bool require_pdn_cid = false;
 	bool require_rsrp_subscribe = false;
 	bool require_option = false;
 	char *apn = NULL;
@@ -561,7 +561,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		require_apn = true;
 		ltelc_cmd_args.command = LTELC_CMD_CONNECT;
 	} else if (strcmp(argv[1], "disconnect") == 0) {
-		require_apn_or_pdn_cid = true;
+		require_pdn_cid = true;
 		ltelc_cmd_args.command = LTELC_CMD_DISCONNECT;
 	} else if (strcmp(argv[1], "defcont") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_DEFCONT;
@@ -822,8 +822,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	if (require_apn && apn == NULL) {
 		shell_error(shell, "Option -a | -apn MUST be given. See usage:");
 		goto show_usage;
-	} else if (require_apn_or_pdn_cid && apn == NULL && pdn_cid == 0) {
-		shell_error(shell, "Either -a or -I MUST be given. See usage:");
+	} else if (require_pdn_cid && pdn_cid == 0) {
+		shell_error(shell, "-I / --cid MUST be given. See usage:");
 		goto show_usage;
 	} else if (require_rsrp_subscribe && 
 		ltelc_cmd_args.rsrp_option == LTELC_RSRP_NONE) {
@@ -836,7 +836,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		goto show_usage;
 	}
 
-	char* apn_print;
 	char snum[64];
 
 	switch (ltelc_cmd_args.command) {
@@ -1151,21 +1150,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			(ltelc_cmd_args.rsrp_option == LTELC_RSRP_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false); 
 			break;
 		case LTELC_CMD_CONNECT:
-			ret = ltelc_pdn_init_and_connect(apn, family);
-			if (ret < 0) {
-				shell_error(shell, "Cannot connect pdn socket: %d", ret);
-			} else {
-				shell_print(shell, "pdn socket = %d created and connected", ret);
-			}
+			ret = ltelc_shell_pdn_connect(shell, apn, family);
 			break;
 		case LTELC_CMD_DISCONNECT:
-			ret = ltelc_pdn_disconnect(apn, pdn_cid);
-			apn_print = MOSH_STRING_NULL_CHECK(apn);
-			if (ret < 0) {
-				shell_error(shell, "Cannot disconnect with given apn='%s', pdn_cid=%d", apn_print, pdn_cid);
-			} else {
-				shell_print(shell, "Disconnected with given apn='%s', pdn_cid=%d", apn_print, pdn_cid);
-			}
+			ret = ltelc_shell_pdn_disconnect(shell, pdn_cid);
 			break;
 		default:
 			shell_error(shell, "Internal error. Unknown ltelc command=%d", ltelc_cmd_args.command);

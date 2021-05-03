@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include <sys/types.h>
-#include <sys/dlist.h>
 
 #include <nrf9160.h>
 #include <hal/nrf_gpio.h>
@@ -25,6 +24,7 @@
 
 #include "ltelc_settings.h"
 #include "ltelc_shell.h"
+#include "ltelc_shell_pdn.h"
 #include "ltelc_api.h"
 #include "ltelc.h"
 
@@ -41,7 +41,6 @@
 static bool ltelc_subscribe_for_rsrp = false;
 
 static const struct shell *uart_shell = NULL;
-static sys_dlist_t pdn_socket_list;
 
 typedef struct {
 	sys_dnode_t dnode;
@@ -108,11 +107,11 @@ void ltelc_init(void)
 	modem_info_rsrp_register(ltelc_rsrp_signal_handler);
 #endif
 	lte_lc_register_handler(ltelc_ind_handler);
-
-	sys_dlist_init(&pdn_socket_list);
-
+	
 	uart_shell = shell_backend_uart_get_ptr();
 	ltelc_sett_init(uart_shell);
+
+	ltelc_shell_pdn_init(uart_shell);
 
 /* With CONFIG_LWM2M_CARRIER, MoSH auto connect must be disabled 
    because LwM2M carrier lib handles that. */
@@ -182,60 +181,6 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 
 //**************************************************************************
 
-static int ltelc_pdn_socket_info_clear(ltelc_pdn_socket_info_t* pdn_socket_info)
-{
-	int ret_val = nrf_close(pdn_socket_info->fd);
-
-	if (sys_dnode_is_linked(&pdn_socket_info->dnode))
-		sys_dlist_remove(&pdn_socket_info->dnode);
-
-	free(pdn_socket_info);
-	return ret_val;
-}
-
-static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_create(const char* apn_str, int fd)
-{
-	ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
-	ltelc_pdn_socket_info_t* iterator = NULL;
-
-	/* TODO: check if already in list, then return existing one? */
-	
-	new_pdn_socket_info = calloc(1, sizeof(ltelc_pdn_socket_info_t));
-	new_pdn_socket_info->fd = fd;
-	strcpy(new_pdn_socket_info->apn, apn_str);
-	
-	SYS_DLIST_FOR_EACH_CONTAINER(&pdn_socket_list, iterator, dnode) {
-		if (new_pdn_socket_info->fd < iterator->fd) {
-		   sys_dlist_insert(&iterator->dnode, &new_pdn_socket_info->dnode);
-		   return new_pdn_socket_info;
-		}
-	}
-
-	sys_dlist_append(&pdn_socket_list, &new_pdn_socket_info->dnode);
-	return new_pdn_socket_info;
-}
-
-static ltelc_pdn_socket_info_t* ltelc_pdn_socket_info_get_by_apn(const char* apn)
-{
-	ltelc_pdn_socket_info_t* iterator = NULL;
-	ltelc_pdn_socket_info_t* found_pdn_socket_info = NULL;
-
-	SYS_DLIST_FOR_EACH_CONTAINER(&pdn_socket_list, iterator, dnode) {
-		if (strcmp(apn, iterator->apn) == 0) {
-			found_pdn_socket_info = iterator;
-			break;
-		}
-	}
-
-	// SYS_DLIST_FOR_EACH_NODE(&pdn_socket_list, node) {
-	// 	fd_in_list = CONTAINER_OF(node, struct ltelc_pdn_socket_info_t, node)->fd;
-	// 	if (fd == fd_in_list) {
-	// 		found = true;
-	// 		break;
-	// 		}
-	// }
-	return found_pdn_socket_info;
-}
 static int ltelc_default_pdp_context_set()
 {
 	static char cgdcont[128];
@@ -387,101 +332,3 @@ int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 	return return_value;
 }
 
-static int ltelc_family_set(int pdn_fd, const char *family)
-{
-	nrf_sa_family_t families[2];
-	int families_len = sizeof(nrf_sa_family_t);
-
-	if (strcmp(family, "ipv4v6") == 0) {
-		families[0] = NRF_AF_INET;
-		families[1] = NRF_AF_INET6;
-		families_len *= 2;
-	} else if (strcmp(family, "ipv4") == 0) {
-		families[0] = NRF_AF_INET;
-	} else if (strcmp(family, "ipv6") == 0) {
-		families[0] = NRF_AF_INET6;
-	} else if (strcmp(family, "packet") == 0) {
-		families[0] = NRF_AF_PACKET;
-	} else {
-		printk("ltelc_pdn_init_and_connect: could not decode PDN address family (%s)\n", family);
-		return -EINVAL;
-	}
-
-	int err = nrf_setsockopt(pdn_fd, NRF_SOL_PDN, NRF_SO_PDN_AF, families, families_len);
-	if (err) {
-		printk("ltelc_pdn_init_and_connect: could not set address family (%s) for PDN: %d\n", family, err);
-	}
-	return err;
-}
-
-int ltelc_pdn_init_and_connect(const char *apn_name, const char *family)
-{
-	int pdn_fd = -1;
-	if (apn_name != NULL) {
-		ltelc_pdn_socket_info_t* pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn_name);
-		if (pdn_socket_info == NULL) {
-			ltelc_pdn_socket_info_t* new_pdn_socket_info = NULL;
-			pdn_fd = nrf_socket(NRF_AF_LTE, NRF_SOCK_MGMT, NRF_PROTO_PDN);
-
-			if (pdn_fd >= 0) {
-				/* Set address family of the PDN context */
-				if (family != NULL) {
-					int err = ltelc_family_set(pdn_fd, family);
-					if (err) {
-						goto error;
-					}
-				}
-
-				/* Connect to the APN */
-				int err = nrf_connect(pdn_fd, apn_name, strlen(apn_name));
-				if (err) {
-					printk("ltelc_pdn_init_and_connect: could not connect pdn socket: %d\n", err);
-					goto error;
-				}
-
-				/* Add to PDN socket list: */
-				new_pdn_socket_info = ltelc_pdn_socket_info_create(apn_name, pdn_fd);
-				if (new_pdn_socket_info == NULL) {
-					printk("ltelc_pdn_init_and_connect: could not add new PDN socket to list\n");
-					goto error;
-				}
-				return pdn_fd;
-			}
-		} else {
-			/* PDN socket already created to requested AAPN, let's return that: */
-			return pdn_socket_info->fd;
-		}
-	}
-	return -EINVAL;
-
-error:
-	(void)nrf_close(pdn_fd);
-	return -EINVAL;
-}
-
-int ltelc_pdn_disconnect(const char* apn, int pdn_cid)
-{
-	ltelc_pdn_socket_info_t* pdn_socket_info = NULL;
-	if (apn != NULL) {
-		pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(apn);
-	} else if (pdn_cid >= 0) {
-		pdp_context_info_t* pdp_context_info = ltelc_api_get_pdp_context_info_by_pdn_cid(pdn_cid);
-		if (pdp_context_info == NULL) {
-			printk("No APN found for PDN CID %d\n", pdn_cid);
-		} else {
-			pdn_socket_info = ltelc_pdn_socket_info_get_by_apn(pdp_context_info->apn_str);
-		}
-		free(pdp_context_info);
-	} else {
-		shell_error(uart_shell, "Either APN or PDN CID must be given\n");
-		return -EINVAL;
-	}
-
-	if (pdn_socket_info != NULL) {
-		return ltelc_pdn_socket_info_clear(pdn_socket_info);
-	} else {
-		/* Not existing connection by using ltelc */
-		printk("No existing connection created by using ltelc to apn %s\n", MOSH_STRING_NULL_CHECK(apn));
-		return -EINVAL;
-	}
-}
