@@ -112,7 +112,7 @@ The following output is logged in the terminal:
 Dependencies
 ************
 
-This sample uses the following |NCS| libraries:
+This sample uses the following |NCS| library:
 
 * :ref:`sms_readme`
 

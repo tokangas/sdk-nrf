@@ -45,8 +45,8 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
  *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.4.
  */
-
 #define SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_16BIT 0x05
+
 /**
  * @brief User Data Header Information Element:
  *        Concatenated short messages, 16-bit reference number
@@ -55,10 +55,6 @@ LOG_MODULE_DECLARE(sms, CONFIG_SMS_LOG_LEVEL);
  */
 #define SMS_UDH_IE_CONCATENATED_SHORT_MESSAGES_16BIT 0x08
 
-/** @brief Convenience macro to access parser data. */
-#define DELIVER_DATA(parser_data) ((struct pdu_deliver_data *)parser_data->data)
-
-
 /**
  * @brief First byte of SMS-DELIVER PDU in 3GPP TS 23.040 chapter 9.2.2.1.
  */
@@ -66,7 +62,7 @@ struct pdu_deliver_header {
 	uint8_t mti : 2;  /** TP-Message-Type-Indicator */
 	uint8_t mms : 1;  /** TP-More-Messages-to-Send */
 	uint8_t lp : 1;   /** TP-Loop-Prevention */
-	uint8_t : 1;      /** Empty bit */
+	uint8_t:1;        /** Empty bit */
 	uint8_t sri : 1;  /** TP-Status-Report-Indication */
 	uint8_t udhi : 1; /** TP-User-Data-Header-Indicator */
 	uint8_t rp : 1;   /** TP-Reply-Path */
@@ -94,16 +90,15 @@ struct pdu_dcs_field {
  * @brief SMS-DELIVER PDU fields specified in 3GPP TS 23.040 chapter 9.2.2.1
  */
 struct pdu_deliver_data {
-	struct pdu_deliver_header   field_header; /** First byte of header */
-	struct sms_address          field_oa;  /** TP-Originating-Address */
-	uint8_t                     field_pid; /** TP-Protocol-Identifier */
-	struct pdu_dcs_field        field_dcs; /** TP-Data-Coding-Scheme */
-	struct sms_time             timestamp; /** TP-Service-Centre-Time-Stamp */
-	uint8_t                     field_udl; /** TP-User-Data-Length */
-	uint8_t                     field_udhl; /** User Data Header Length */
-	struct sms_udh_app_port     field_udh_app_port; /** Port addressing */
-	struct sms_udh_concatenated field_udh_concatenated; /** Concatenation */
-	uint8_t                     field_ud[140]; /** TP-User-Data */
+	struct pdu_deliver_header header; /** First byte of header */
+	struct sms_address        oa;  /** TP-Originating-Address */
+	uint8_t                   pid; /** TP-Protocol-Identifier */
+	struct pdu_dcs_field      dcs; /** TP-Data-Coding-Scheme */
+	struct sms_time           timestamp; /** TP-Service-Centre-Time-Stamp */
+	uint8_t                   udl; /** TP-User-Data-Length */
+	uint8_t                   udhl; /** User Data Header Length */
+	struct sms_udh_app_port   udh_app_port; /** Port addressing */
+	struct sms_udh_concat     udh_concat; /** Concatenation */
 };
 
 /**
@@ -213,15 +208,17 @@ static int decode_pdu_deliver_smsc(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
 {
-	DELIVER_DATA(parser)->field_header = *((struct pdu_deliver_header *)buf);
+	struct pdu_deliver_data * const pdata = parser->data;
+
+	pdata->header = *((struct pdu_deliver_header *)buf);
 
 	LOG_DBG("SMS header 1st byte: 0x%02X", *buf);
 
-	LOG_DBG("TP-Message-Type-Indicator: %d", DELIVER_DATA(parser)->field_header.mti);
-	LOG_DBG("TP-More-Messages-to-Send: %d", DELIVER_DATA(parser)->field_header.mms);
-	LOG_DBG("TP-Status-Report-Indication: %d", DELIVER_DATA(parser)->field_header.sri);
-	LOG_DBG("TP-User-Data-Header-Indicator: %d", DELIVER_DATA(parser)->field_header.udhi);
-	LOG_DBG("TP-Reply-Path: %d", DELIVER_DATA(parser)->field_header.rp);
+	LOG_DBG("TP-Message-Type-Indicator: %d", pdata->header.mti);
+	LOG_DBG("TP-More-Messages-to-Send: %d", pdata->header.mms);
+	LOG_DBG("TP-Status-Report-Indication: %d", pdata->header.sri);
+	LOG_DBG("TP-User-Data-Header-Indicator: %d", pdata->header.udhi);
+	LOG_DBG("TP-Reply-Path: %d", pdata->header.rp);
 
 	return 1;
 }
@@ -236,25 +233,26 @@ static int decode_pdu_deliver_header(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
 	uint8_t address[SMS_MAX_ADDRESS_LEN_OCTETS];
 	uint8_t length;
 
-	DELIVER_DATA(parser)->field_oa.length = *buf++;
-	DELIVER_DATA(parser)->field_oa.type = (uint8_t)*buf++;
+	pdata->oa.length = *buf++;
+	pdata->oa.type = (uint8_t)*buf++;
 
-	LOG_DBG("Address-Length: %d", DELIVER_DATA(parser)->field_oa.length);
-	LOG_DBG("Type-of-Address: 0x%02X", DELIVER_DATA(parser)->field_oa.type);
+	LOG_DBG("Address-Length: %d", pdata->oa.length);
+	LOG_DBG("Type-of-Address: 0x%02X", pdata->oa.type);
 
-	if (DELIVER_DATA(parser)->field_oa.length > SMS_MAX_ADDRESS_LEN_CHARS) {
+	if (pdata->oa.length > SMS_MAX_ADDRESS_LEN_CHARS) {
 		LOG_ERR("Maximum address length (%d) exceeded %d. Aborting decoding.",
 			SMS_MAX_ADDRESS_LEN_CHARS,
-			DELIVER_DATA(parser)->field_oa.length);
+			pdata->oa.length);
 		return -EINVAL;
 	}
 
-	length = DELIVER_DATA(parser)->field_oa.length / 2;
+	length = pdata->oa.length / 2;
 
-	if (DELIVER_DATA(parser)->field_oa.length % 2 == 1) {
+	if (pdata->oa.length % 2 == 1) {
 		/* There is an extra number in semi-octet and fill bits*/
 		length++;
 	}
@@ -265,10 +263,7 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
 		address[i] = swap_nibbles(address[i]);
 	}
 
-	convert_number_to_str(
-		address,
-		DELIVER_DATA(parser)->field_oa.length,
-		DELIVER_DATA(parser)->field_oa.address_str);
+	convert_number_to_str(address, pdata->oa.length, pdata->oa.address_str);
 
 	/* 2 for length and type fields */
 	return 2 + length;
@@ -284,9 +279,11 @@ static int decode_pdu_oa_field(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
 {
-	DELIVER_DATA(parser)->field_pid = (uint8_t)*buf;
+	struct pdu_deliver_data * const pdata = parser->data;
 
-	LOG_DBG("TP-Protocol-Identifier: %d", DELIVER_DATA(parser)->field_pid);
+	pdata->pid = (uint8_t)*buf;
+
+	LOG_DBG("TP-Protocol-Identifier: %d", pdata->pid);
 
 	return 1;
 }
@@ -301,12 +298,13 @@ static int decode_pdu_pid_field(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
 	uint8_t value = *buf;
 	uint8_t temp;
 
 	if ((value & 0b11000000) == 0) {
 		/* If bits 7..6 of the Coding Group Bits are 00 */
-		DELIVER_DATA(parser)->field_dcs = *((struct pdu_dcs_field *)&value);
+		pdata->dcs = *((struct pdu_dcs_field *)&value);
 
 	} else if (((value & 0b11110000) >> 4) == 0b1111) {
 		/* If bits 7..4 of the Coding Group Bits are 1111,
@@ -315,11 +313,11 @@ static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
 		 */
 		temp = value & 0b00000111;
 
-		DELIVER_DATA(parser)->field_dcs = *(struct pdu_dcs_field *)&temp;
+		pdata->dcs = *(struct pdu_dcs_field *)&temp;
 		/* Additionally, to convert Coding Group Bits 7..4=1111 to same
 		 * meaning as 7..6=00, message class presence bit should be set.
 		 */
-		DELIVER_DATA(parser)->field_dcs.presence_of_class = 1;
+		pdata->dcs.presence_of_class = 1;
 	} else {
 		LOG_ERR("Unsupported data coding scheme (0x%02X)", value);
 		return -EINVAL;
@@ -340,14 +338,15 @@ static int decode_pdu_dcs_field(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
 	int tmp_tz;
 
-	DELIVER_DATA(parser)->timestamp.year   = semioctet_to_dec(*(buf++));
-	DELIVER_DATA(parser)->timestamp.month  = semioctet_to_dec(*(buf++));
-	DELIVER_DATA(parser)->timestamp.day    = semioctet_to_dec(*(buf++));
-	DELIVER_DATA(parser)->timestamp.hour   = semioctet_to_dec(*(buf++));
-	DELIVER_DATA(parser)->timestamp.minute = semioctet_to_dec(*(buf++));
-	DELIVER_DATA(parser)->timestamp.second = semioctet_to_dec(*(buf++));
+	pdata->timestamp.year   = semioctet_to_dec(*(buf++));
+	pdata->timestamp.month  = semioctet_to_dec(*(buf++));
+	pdata->timestamp.day    = semioctet_to_dec(*(buf++));
+	pdata->timestamp.hour   = semioctet_to_dec(*(buf++));
+	pdata->timestamp.minute = semioctet_to_dec(*(buf++));
+	pdata->timestamp.second = semioctet_to_dec(*(buf++));
 
 	/* 3GPP TS 23.040 Section 9.2.3.11:
 	 *  "The Time Zone indicates the difference, expressed in quarters of an hour,
@@ -361,7 +360,7 @@ static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
 		tmp_tz = -(tmp_tz);
 	}
 
-	DELIVER_DATA(parser)->timestamp.timezone = tmp_tz;
+	pdata->timestamp.timezone = tmp_tz;
 
 	return SCTS_FIELD_SIZE;
 }
@@ -376,9 +375,11 @@ static int decode_pdu_scts_field(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
 {
-	DELIVER_DATA(parser)->field_udl = (uint8_t)*buf;
+	struct pdu_deliver_data * const pdata = parser->data;
 
-	LOG_DBG("TP-User-Data-Length: %d", DELIVER_DATA(parser)->field_udl);
+	pdata->udl = (uint8_t)*buf;
+
+	LOG_DBG("TP-User-Data-Length: %d", pdata->udl);
 
 	return 1;
 }
@@ -392,36 +393,33 @@ static int decode_pdu_udl_field(struct parser *parser, uint8_t *buf)
  *                       detected, all concatenation fields are reset and whole information
  *                       element is ignored.
  */
-static void concatenated_udh_ie_validity_check(struct parser *parser)
+static void udh_ie_concat_validity_check(struct pdu_deliver_data * const pdata)
 {
-	LOG_DBG("UDH concatenated, reference number: %d",
-		DELIVER_DATA(parser)->field_udh_concatenated.ref_number);
-	LOG_DBG("UDH concatenated, total number of messages: %d",
-		DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
-	LOG_DBG("UDH concatenated, sequence number: %d",
-		DELIVER_DATA(parser)->field_udh_concatenated.seq_number);
 
-	if (DELIVER_DATA(parser)->field_udh_concatenated.total_msgs == 0) {
+	LOG_DBG("UDH concatenated, reference number: %d", pdata->udh_concat.ref_number);
+	LOG_DBG("UDH concatenated, total number of messages: %d", pdata->udh_concat.total_msgs);
+	LOG_DBG("UDH concatenated, sequence number: %d", pdata->udh_concat.seq_number);
+
+	if (pdata->udh_concat.total_msgs == 0) {
 		LOG_ERR("Total number of concatenated messages must be higher than 0, "
 			"ignoring concatenated info");
-		DELIVER_DATA(parser)->field_udh_concatenated.present = false;
-		DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
-		DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
-		DELIVER_DATA(parser)->field_udh_concatenated.seq_number = 0;
+		pdata->udh_concat.present = false;
+		pdata->udh_concat.ref_number = 0;
+		pdata->udh_concat.total_msgs = 0;
+		pdata->udh_concat.seq_number = 0;
 
-	} else if (DELIVER_DATA(parser)->field_udh_concatenated.seq_number == 0 ||
-			(DELIVER_DATA(parser)->field_udh_concatenated.seq_number >
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs)) {
+	} else if ((pdata->udh_concat.seq_number == 0) ||
+		   (pdata->udh_concat.seq_number > pdata->udh_concat.total_msgs)) {
 
 		LOG_ERR("Sequence number of current concatenated message (%d) must be "
 			"higher than 0 and smaller or equal than total number of messages (%d), "
 			"ignoring concatenated info",
-			DELIVER_DATA(parser)->field_udh_concatenated.seq_number,
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs);
-		DELIVER_DATA(parser)->field_udh_concatenated.present = false;
-		DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
-		DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
-		DELIVER_DATA(parser)->field_udh_concatenated.seq_number = 0;
+			pdata->udh_concat.seq_number,
+			pdata->udh_concat.total_msgs);
+		pdata->udh_concat.present = false;
+		pdata->udh_concat.ref_number = 0;
+		pdata->udh_concat.total_msgs = 0;
+		pdata->udh_concat.seq_number = 0;
 	}
 }
 
@@ -436,18 +434,19 @@ static void concatenated_udh_ie_validity_check(struct parser *parser)
  */
 static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
 	int ie_id;
 	int ie_length;
 	/* Start from 1 as 0 index has UDHL */
 	uint8_t ofs = 1;
 
-	while (ofs < DELIVER_DATA(parser)->field_udhl) {
+	while (ofs < pdata->udhl) {
 		ie_id     = buf[ofs++];
 		ie_length = buf[ofs++];
 
 		LOG_DBG("User Data Header id=0x%02X, length=%d", ie_id, ie_length);
 
-		if (ie_length > DELIVER_DATA(parser)->field_udhl - ofs) {
+		if (ie_length > pdata->udhl - ofs) {
 			/* 3GPP TS 23.040 Section 9.2.3.24:
 			 *  "If the length of the User Data Header is such that there are too few
 			 *   or too many octets in the final Information Element
@@ -455,16 +454,16 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 			 */
 			LOG_DBG("User Data Header Information Element too long (%d) for "
 				"remaining length (%d)",
-				ie_length, DELIVER_DATA(parser)->field_udhl - ofs);
+				ie_length, pdata->udhl - ofs);
 
 			/* Clean UDH information */
-			DELIVER_DATA(parser)->field_udh_concatenated.present = false;
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = 0;
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = 0;
-			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = 0;
-			DELIVER_DATA(parser)->field_udh_app_port.present = false;
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port = 0;
-			DELIVER_DATA(parser)->field_udh_app_port.src_port = 0;
+			pdata->udh_concat.present = false;
+			pdata->udh_concat.ref_number = 0;
+			pdata->udh_concat.total_msgs = 0;
+			pdata->udh_concat.seq_number = 0;
+			pdata->udh_app_port.present = false;
+			pdata->udh_app_port.dest_port = 0;
+			pdata->udh_app_port.src_port = 0;
 			break;
 		}
 
@@ -476,12 +475,12 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = buf[ofs];
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = buf[ofs+1];
-			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = buf[ofs+2];
-			DELIVER_DATA(parser)->field_udh_concatenated.present = true;
+			pdata->udh_concat.ref_number = buf[ofs];
+			pdata->udh_concat.total_msgs = buf[ofs+1];
+			pdata->udh_concat.seq_number = buf[ofs+2];
+			pdata->udh_concat.present = true;
 
-			concatenated_udh_ie_validity_check(parser);
+			udh_ie_concat_validity_check(pdata);
 			break;
 
 		case SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_8BIT:
@@ -491,14 +490,14 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port = buf[ofs];
-			DELIVER_DATA(parser)->field_udh_app_port.src_port = buf[ofs+1];
-			DELIVER_DATA(parser)->field_udh_app_port.present = true;
+			pdata->udh_app_port.dest_port = buf[ofs];
+			pdata->udh_app_port.src_port = buf[ofs+1];
+			pdata->udh_app_port.present = true;
 
 			LOG_DBG("UDH port scheme, destination port: %d",
-				DELIVER_DATA(parser)->field_udh_app_port.dest_port);
+				pdata->udh_app_port.dest_port);
 			LOG_DBG("UDH port scheme, source port: %d",
-				DELIVER_DATA(parser)->field_udh_app_port.src_port);
+				pdata->udh_app_port.src_port);
 			break;
 
 		case SMS_UDH_IE_APPLICATION_PORT_ADDRESSING_SCHEME_16BIT:
@@ -508,17 +507,17 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port = buf[ofs]<<8;
-			DELIVER_DATA(parser)->field_udh_app_port.dest_port |= buf[ofs+1];
+			pdata->udh_app_port.dest_port = buf[ofs]<<8;
+			pdata->udh_app_port.dest_port |= buf[ofs+1];
 
-			DELIVER_DATA(parser)->field_udh_app_port.src_port = buf[ofs+2]<<8;
-			DELIVER_DATA(parser)->field_udh_app_port.src_port |= buf[ofs+3];
-			DELIVER_DATA(parser)->field_udh_app_port.present = true;
+			pdata->udh_app_port.src_port = buf[ofs+2]<<8;
+			pdata->udh_app_port.src_port |= buf[ofs+3];
+			pdata->udh_app_port.present = true;
 
 			LOG_DBG("UDH port scheme, destination port: %d",
-				DELIVER_DATA(parser)->field_udh_app_port.dest_port);
+				pdata->udh_app_port.dest_port);
 			LOG_DBG("UDH port scheme, source port: %d",
-				DELIVER_DATA(parser)->field_udh_app_port.src_port);
+				pdata->udh_app_port.src_port);
 			break;
 
 		case SMS_UDH_IE_CONCATENATED_SHORT_MESSAGES_16BIT:
@@ -528,13 +527,13 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
 					ie_length);
 				break;
 			}
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number = buf[ofs]<<8;
-			DELIVER_DATA(parser)->field_udh_concatenated.ref_number |= buf[ofs+1];
-			DELIVER_DATA(parser)->field_udh_concatenated.total_msgs = buf[ofs+2];
-			DELIVER_DATA(parser)->field_udh_concatenated.seq_number = buf[ofs+3];
-			DELIVER_DATA(parser)->field_udh_concatenated.present = true;
+			pdata->udh_concat.ref_number = buf[ofs]<<8;
+			pdata->udh_concat.ref_number |= buf[ofs+1];
+			pdata->udh_concat.total_msgs = buf[ofs+2];
+			pdata->udh_concat.seq_number = buf[ofs+3];
+			pdata->udh_concat.present = true;
 
-			concatenated_udh_ie_validity_check(parser);
+			udh_ie_concat_validity_check(pdata);
 			break;
 
 		default:
@@ -557,24 +556,26 @@ static void decode_pdu_udh_ie(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
+
 	/* Check if TP-User-Data-Header-Indicator is not set */
-	if (!DELIVER_DATA(parser)->field_header.udhi) {
+	if (!pdata->header.udhi) {
 		return 0;
 	}
 
-	DELIVER_DATA(parser)->field_udhl = buf[0];
-	LOG_DBG("User Data Header Length: %d", DELIVER_DATA(parser)->field_udhl);
-	DELIVER_DATA(parser)->field_udhl += 1;  /* +1 for length field itself */
+	pdata->udhl = buf[0];
+	LOG_DBG("User Data Header Length: %d", pdata->udhl);
+	pdata->udhl += 1;  /* +1 for length field itself */
 
-	if (DELIVER_DATA(parser)->field_udhl > DELIVER_DATA(parser)->field_udl) {
+	if (pdata->udhl > pdata->udl) {
 		LOG_ERR("User Data Header Length %d is bigger than User-Data-Length %d",
-			DELIVER_DATA(parser)->field_udhl,
-			DELIVER_DATA(parser)->field_udl);
+			pdata->udhl,
+			pdata->udl);
 		return -EMSGSIZE;
 	}
-	if (DELIVER_DATA(parser)->field_udhl > parser->buf_size - parser->buf_pos) {
+	if (pdata->udhl > parser->buf_size - parser->buf_pos) {
 		LOG_ERR("User Data Header Length %d is bigger than remaining input data length %d",
-			DELIVER_DATA(parser)->field_udhl,
+			pdata->udhl,
 			parser->buf_size - parser->buf_pos);
 		return -EMSGSIZE;
 	}
@@ -585,8 +586,8 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
 	 * further as SMS 7bit encoding is done for UDH also to get the fill bits correctly
 	 * for the actual user data. For any other encoding, we'll return User Data Header Length.
 	 */
-	if (DELIVER_DATA(parser)->field_dcs.alphabet != 0) {
-		return DELIVER_DATA(parser)->field_udhl;
+	if (pdata->dcs.alphabet != 0) {
+		return pdata->udhl;
 	} else {
 		return 0;
 	}
@@ -604,15 +605,16 @@ static int decode_pdu_udh(struct parser *parser, uint8_t *buf)
  *
  * @return Number of parsed bytes.
  */
-static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
+static int decode_pdu_ud_7bit(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
 	uint16_t actual_data_length;
 	uint8_t length;
 	uint8_t skip_bits;
 	uint8_t skip_septets;
 	int length_udh_skipped;
 
-	if (DELIVER_DATA(parser)->field_udl > SMS_MAX_PAYLOAD_LEN_CHARS) {
+	if (pdata->udl > SMS_MAX_PAYLOAD_LEN_CHARS) {
 		LOG_ERR("User Data Length exceeds maximum number of characters (%d) in SMS spec",
 			SMS_MAX_PAYLOAD_LEN_CHARS);
 		return -EMSGSIZE;
@@ -624,7 +626,7 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	 */
 	actual_data_length = (parser->buf_size - parser->payload_pos) * 8 / 7;
 
-	actual_data_length = MIN(actual_data_length, DELIVER_DATA(parser)->field_udl);
+	actual_data_length = MIN(actual_data_length, pdata->udl);
 
 	/* Convert GSM 7bit data to ASCII characters */
 	length = string_conversion_gsm7bit_to_ascii(
@@ -635,7 +637,7 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
 	 * decoded including User Data Header. This is done because the actual data/text is
 	 * aligned into septet (7bit) boundary after User Data Header.
 	 */
-	skip_bits = DELIVER_DATA(parser)->field_udhl * 8;
+	skip_bits = pdata->udhl * 8;
 	skip_septets = skip_bits / 7;
 
 	if (skip_bits % 7 > 0) {
@@ -671,14 +673,14 @@ static int decode_pdu_ud_field_7bit(struct parser *parser, uint8_t *buf)
  *
  * @return Number of parsed bytes.
  */
-static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
+static int decode_pdu_ud_8bit(struct parser *parser, uint8_t *buf)
 {
+	struct pdu_deliver_data * const pdata = parser->data;
 	/* Data length to be used is the minimum from the remaining bytes in the input buffer and
 	 * length indicated by User-Data-Length taking into account User-Data-Header-Length.
 	 */
 	uint32_t actual_data_length =
-		MIN(parser->buf_size - parser->payload_pos,
-		    DELIVER_DATA(parser)->field_udl - DELIVER_DATA(parser)->field_udhl);
+		MIN(parser->buf_size - parser->payload_pos, pdata->udl - pdata->udhl);
 
 	__ASSERT(parser->buf_size >= parser->payload_pos,
 		"Data length smaller than data iterator");
@@ -703,11 +705,13 @@ static int decode_pdu_ud_field_8bit(struct parser *parser, uint8_t *buf)
  */
 static int decode_pdu_deliver_message(struct parser *parser, uint8_t *buf)
 {
-	switch (DELIVER_DATA(parser)->field_dcs.alphabet) {
+	struct pdu_deliver_data * const pdata = parser->data;
+
+	switch (pdata->dcs.alphabet) {
 	case 0:
-		return decode_pdu_ud_field_7bit(parser, buf);
+		return decode_pdu_ud_7bit(parser, buf);
 	case 1:
-		return decode_pdu_ud_field_8bit(parser, buf);
+		return decode_pdu_ud_8bit(parser, buf);
 	default:
 		return -ENOTSUP;
 	};
@@ -778,14 +782,14 @@ static uint32_t sms_deliver_get_data_size(void)
 static int sms_deliver_get_header(struct parser *parser, void *header)
 {
 	struct sms_deliver_header *sms_header = header;
+	struct pdu_deliver_data * const pdata = parser->data;
 
-	memcpy(&sms_header->time, &DELIVER_DATA(parser)->timestamp, sizeof(struct sms_time));
+	memcpy(&sms_header->time, &pdata->timestamp, sizeof(struct sms_time));
 
-	memcpy(&sms_header->originating_address, &DELIVER_DATA(parser)->field_oa,
-		sizeof(struct sms_address));
+	memcpy(&sms_header->originating_address, &pdata->oa, sizeof(struct sms_address));
 
-	sms_header->app_port = DELIVER_DATA(parser)->field_udh_app_port;
-	sms_header->concatenated = DELIVER_DATA(parser)->field_udh_concatenated;
+	sms_header->app_port = pdata->udh_app_port;
+	sms_header->concatenated = pdata->udh_concat;
 
 	return 0;
 }

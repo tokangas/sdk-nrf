@@ -208,7 +208,7 @@ static int sms_submit_concat(
 	uint8_t encoded_number_size,
 	uint8_t encoded_number_size_octets,
 	bool send_at_cmds,
-	uint8_t* concat_msg_count)
+	uint8_t *concat_msg_count)
 {
 	int err = 0;
 	char user_data[SMS_MAX_PAYLOAD_LEN_CHARS];
@@ -269,10 +269,10 @@ static int sms_submit_concat(
 
 			message_ref++;
 
-			/* Just looping without threading seems to work fine and we don't need to wait
-			* for CDS response. Otherwise we would need to send 2nd message from work queue
-			* and store a lot of state information.
-			*/
+			/* Just looping without threading seems to work fine and we don't
+			 * need to wait for CDS response. Otherwise we would need to send
+			 * 2nd message from work queue and store a lot of state information.
+			 */
 		}
 	}
 
@@ -286,7 +286,7 @@ static int sms_submit_concat(
 
 int sms_submit_send(const char *number, const char *text)
 {
-	const char empty_string[] = "";
+	static const char empty_string[] = "";
 	int err;
 	uint8_t encoded_number[SMS_MAX_ADDRESS_LEN_CHARS + 1];
 	uint8_t encoded_number_size;

@@ -6,7 +6,7 @@
 
 menuconfig AT_NOTIF
 	bool "AT-command notification manager"
-	imply AT_CMD
+	depends on AT_CMD
 	help
 	  A library for managing AT-command notifications.
 

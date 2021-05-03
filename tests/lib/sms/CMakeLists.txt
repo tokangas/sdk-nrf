@@ -15,7 +15,6 @@ test_runner_generate(src/sms_test.c)
 target_include_directories(app PRIVATE src)
 
 cmock_handle(../../../include/modem/at_cmd.h)
-zephyr_compile_definitions(CONFIG_AT_CMD_RESPONSE_MAX_LEN=2700)
 
 # add test file
 target_sources(app PRIVATE src/sms_test.c)

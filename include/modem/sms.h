@@ -79,7 +79,7 @@ struct sms_address {
  *
  * @details This is specified in 3GPP TS 23.040 Section 9.2.3.24.1 and 9.2.3.24.8.
  */
-struct sms_udh_concatenated {
+struct sms_udh_concat {
 	/** @brief Indicates whether this field is present in the SMS message. */
 	bool present;
 	/** @brief Concatenated short message reference number. */
@@ -118,7 +118,7 @@ struct sms_deliver_header {
 	/** @brief Application port addressing information. */
 	struct sms_udh_app_port app_port;
 	/** @brief Concatenated short message information. */
-	struct sms_udh_concatenated concatenated;
+	struct sms_udh_concat concatenated;
 };
 
 /**
