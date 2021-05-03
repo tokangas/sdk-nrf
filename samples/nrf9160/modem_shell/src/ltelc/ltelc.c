@@ -76,7 +76,6 @@ static void ltelc_rsrp_signal_handler(char rsrp_value)
 {
 
 	modem_rsrp = (int8_t)rsrp_value - MODEM_INFO_RSRP_OFFSET_VAL;
-	//shell_print(uart_shell, "rsrp:%d", modem_rsrp);
 	k_work_submit(&modem_info_signal_work);
 }
 
@@ -127,6 +126,55 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 	char snum[64];
 
 	switch (evt->type) {
+	case LTE_LC_EVT_TAU_PRE_WARNING:
+		/** Tracking Area Update pre-warning.
+		 *  This event will be received a configurable amount of time before TAU is scheduled to
+		 *  occur. This gives the application the opportunity to send data over the network before
+		 *  the TAU happens, thus saving power by avoiding sending data and the TAU separately.
+		 */
+		//TODO
+		break;
+	case LTE_LC_EVT_NEIGHBOR_CELL_MEAS: {
+		int i;
+		struct lte_lc_cells_info cells = evt->cells_info;
+		struct lte_lc_cell cur_cell = cells.current_cell;
+
+		/* Current cell: */
+		shell_print(uart_shell, "Current cell:");
+		shell_print(
+			uart_shell,
+			"    ID %d, phy ID %d, MCC %d MNC %d, RSRP %d, RSRQ %d, TAC %d, earfcn %d, meas time %lld, TA %d",
+				cur_cell.id,
+				cur_cell.phys_cell_id,
+				cur_cell.mcc,
+				cur_cell.mnc,
+				cur_cell.rsrp,
+				cur_cell.rsrq,
+				cur_cell.tac,
+				cur_cell.earfcn,
+				cur_cell.measurement_time,
+				cur_cell.timing_advance);
+
+		for (i = 0; i < cells.ncells_count; i++) {
+			/* Neighbor cells: */
+			shell_print(uart_shell, "Neighbor cell %d", i + 1);
+			shell_print(
+				uart_shell,
+				"    phy ID %d, RSRP %d, RSRQ %d, earfcn %d, timediff %d",
+				cells.neighbor_cells[i].phys_cell_id,
+				cells.neighbor_cells[i].rsrp,
+				cells.neighbor_cells[i].rsrq,
+				cells.neighbor_cells[i].earfcn,
+				cells.neighbor_cells[i].time_diff);
+		}
+	}
+	break;
+	case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING:
+		//TODO
+		break;
+	case LTE_LC_EVT_MODEM_SLEEP_EXIT:
+		//TODO
+		break;
 	case LTE_LC_EVT_LTE_MODE_UPDATE:
 		/** The currently active LTE mode is updated. If a system mode that
 		 *  enables both LTE-M and NB-IoT is configured, the modem may change
@@ -260,6 +308,30 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 		}
 		else {
 			shell_print(uart_shell, "RSRP unsubscribed");
+		}
+	}
+}
+
+void ltelc_ncellmeas_subscribe(bool subscribe) {
+	int ret;
+	
+	if (subscribe) {
+		ret = lte_lc_neighbor_cell_measurement();
+		if (uart_shell != NULL) {
+			if (ret) {
+				shell_error(uart_shell, "lte_lc_neighbor_cell_measurement() returned err %d", ret);
+			} else {
+				shell_print(uart_shell, "Neighbor cell measurements and reporting subscribed");
+			}
+		}
+	} else {
+		ret = lte_lc_neighbor_cell_measurement_cancel();
+		if (uart_shell != NULL) {
+			if (ret) {
+				shell_error(uart_shell, "lte_lc_neighbor_cell_measurement_cancel() returned err %d", ret);
+			} else {
+				shell_print(uart_shell, "Neighbor cell measurements and reporting unsubscribed");
+			}
 		}
 	}
 }

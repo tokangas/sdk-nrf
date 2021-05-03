@@ -15,7 +15,8 @@
 
 void ltelc_init(void);
 void ltelc_ind_handler(const struct lte_lc_evt *const evt);
-void ltelc_rsrp_subscribe(bool subscribe) ;
+void ltelc_rsrp_subscribe(bool subscribe);
+void ltelc_ncellmeas_subscribe(bool subscribe);
 int ltelc_func_mode_set(enum lte_lc_func_mode fun);
 int ltelc_func_mode_get(void);
 

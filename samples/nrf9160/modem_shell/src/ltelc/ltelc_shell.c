@@ -30,6 +30,7 @@ typedef enum {
 	LTELC_CMD_DEFCONT,
 	LTELC_CMD_DEFCONTAUTH,
 	LTELC_CMD_RSRP,
+	LTELC_CMD_NCELLMEAS,
 	LTELC_CMD_CONNECT,
 	LTELC_CMD_DISCONNECT,
 	LTELC_CMD_FUNMODE,
@@ -46,18 +47,13 @@ typedef enum {
 	LTELC_COMMON_READ,
 	LTELC_COMMON_ENABLE,
 	LTELC_COMMON_DISABLE,
+	LTELC_COMMON_SUBSCRIBE,
+	LTELC_COMMON_UNSUBSCRIBE,
 	LTELC_COMMON_RESET
 } ltelc_shell_common_options;
 
-typedef enum {
-	LTELC_RSRP_NONE = 0,
-	LTELC_RSRP_SUBSCRIBE, //TODO: replace with common enable
-	LTELC_RSRP_UNSUBSCRIBE  //TODO: replace with common disable
-} ltelc_shell_rsrp_options;
-
 typedef struct {
 	ltelc_shell_command command;
-	ltelc_shell_rsrp_options rsrp_option;
 	ltelc_shell_common_options common_option;
 	enum lte_lc_func_mode funmode_option;
 	enum lte_lc_system_mode sysmode_option;
@@ -82,6 +78,7 @@ const char ltelc_usage_str[] =
 	"  connect:                 Connect to given apn\n"
 	"  disconnect:              Disconnect from given apn\n"
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
+	"  ncellmeas:               Subscribe/unsubscribe for neighbor cell measurements and reporting\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
     "                           When set: persistent between the sessions. Effective when going to normal mode.\n"
@@ -198,6 +195,12 @@ const char ltelc_rsrp_usage_str[] =
 	"  -u, --unsubscribe,[bool] Unsubscribe for RSRP info\n"
 	"\n";
 
+const char ltelc_ncellmeas_usage_str[] =
+	"Options for 'ltelc ncellmeas' command:\n"
+	"  -s, --subscribe,   [bool] Subscribe for neighbor cell info\n"
+	"  -u, --unsubscribe, [bool] Unsubscribe for neighbor cell info\n"
+	"\n";
+
 /******************************************************************************/
 
 /* Following are not having short options: */
@@ -307,7 +310,9 @@ static void ltelc_shell_print_usage(const struct shell *shell, ltelc_shell_cmd_a
 		case LTELC_CMD_RSRP:
 			shell_print(shell, "%s", ltelc_rsrp_usage_str);
 			break;
-
+		case LTELC_CMD_NCELLMEAS:
+			shell_print(shell, "%s", ltelc_ncellmeas_usage_str);
+			break;
 		default:
 			shell_print(shell, "%s", ltelc_usage_str);
 			break;
@@ -530,7 +535,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	int ret = 0;	
 	bool require_apn = false;
 	bool require_pdn_cid = false;
-	bool require_rsrp_subscribe = false;
+	bool require_subscribe = false;
 	bool require_option = false;
 	char *apn = NULL;
 	char *family = NULL;
@@ -555,8 +560,11 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "coneval") == 0) {
 		ltelc_cmd_args.command = LTELC_CMD_CONEVAL;
 	} else if (strcmp(argv[1], "rsrp") == 0) {
-		require_rsrp_subscribe = true;
+		require_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_RSRP;
+	} else if (strcmp(argv[1], "ncellmeas") == 0) {
+		require_subscribe = true;
+		ltelc_cmd_args.command = LTELC_CMD_NCELLMEAS;
 	} else if (strcmp(argv[1], "connect") == 0) {
 		require_apn = true;
 		ltelc_cmd_args.command = LTELC_CMD_CONNECT;
@@ -617,10 +625,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		switch (opt) {
 		/* RSRP: */
 		case 's':
-			ltelc_cmd_args.rsrp_option = LTELC_RSRP_SUBSCRIBE;
+			ltelc_cmd_args.common_option = LTELC_COMMON_SUBSCRIBE;
 			break;
 		case 'u':
-			ltelc_cmd_args.rsrp_option = LTELC_RSRP_UNSUBSCRIBE;
+			ltelc_cmd_args.common_option = LTELC_COMMON_UNSUBSCRIBE;
 			break;
 
 		/* Modem functional modes: */
@@ -825,8 +833,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (require_pdn_cid && pdn_cid == 0) {
 		shell_error(shell, "-I / --cid MUST be given. See usage:");
 		goto show_usage;
-	} else if (require_rsrp_subscribe && 
-		ltelc_cmd_args.rsrp_option == LTELC_RSRP_NONE) {
+	} else if (require_subscribe && 
+		ltelc_cmd_args.common_option == LTELC_COMMON_NONE) {
 		shell_error(shell, "Either -s or -u MUST be given. See usage:");
 		goto show_usage;
 	} else if (require_option && ltelc_cmd_args.funmode_option == LTELC_FUNMODE_NONE && 
@@ -1147,7 +1155,10 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 
 		case LTELC_CMD_RSRP:
-			(ltelc_cmd_args.rsrp_option == LTELC_RSRP_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false); 
+			(ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false);
+			break;
+		case LTELC_CMD_NCELLMEAS:
+			(ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) ? ltelc_ncellmeas_subscribe(true) : ltelc_ncellmeas_subscribe(false);
 			break;
 		case LTELC_CMD_CONNECT:
 			ret = ltelc_shell_pdn_connect(shell, apn, family);
