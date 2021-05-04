@@ -9,7 +9,6 @@
 #include <modem/lte_lc.h>
 
 #define LTELC_APN_STR_MAX_LENGTH 100
-#define LTELC_MAX_PDN_SOCKETS 5 //TODO: what is the actual max in modem?
 
 #define LTELC_FUNMODE_NONE 99
 

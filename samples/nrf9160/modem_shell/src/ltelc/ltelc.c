@@ -24,6 +24,8 @@
 
 #include "ltelc_settings.h"
 #include "ltelc_shell.h"
+#include "ltelc_shell_print.h"
+
 #include "ltelc_shell_pdn.h"
 #include "ltelc_api.h"
 #include "ltelc.h"
@@ -169,11 +171,10 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		}
 	}
 	break;
-	case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING:
-		//TODO
-		break;
+	case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING: 
+	case LTE_LC_EVT_MODEM_SLEEP_ENTER:
 	case LTE_LC_EVT_MODEM_SLEEP_EXIT:
-		//TODO
+		ltelc_shell_print_modem_sleep_notif(uart_shell, evt);
 		break;
 	case LTE_LC_EVT_LTE_MODE_UPDATE:
 		/** The currently active LTE mode is updated. If a system mode that
