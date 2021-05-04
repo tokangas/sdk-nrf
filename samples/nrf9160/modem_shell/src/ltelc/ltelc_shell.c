@@ -32,6 +32,7 @@ typedef enum {
 	LTELC_CMD_DEFCONTAUTH,
 	LTELC_CMD_RSRP,
 	LTELC_CMD_NCELLMEAS,
+	LTELC_CMD_MDMSLEEP,
 	LTELC_CMD_CONNECT,
 	LTELC_CMD_DISCONNECT,
 	LTELC_CMD_FUNMODE,
@@ -80,6 +81,7 @@ const char ltelc_usage_str[] =
 	"  disconnect:              Disconnect from given apn\n"
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
 	"  ncellmeas:               Subscribe/unsubscribe for neighbor cell measurements and reporting\n"
+	"  msleep:                  Subscribe/unsubscribe for modem sleep notifications\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
     "                           When set: persistent between the sessions. Effective when going to normal mode.\n"
@@ -202,6 +204,15 @@ const char ltelc_ncellmeas_usage_str[] =
 	"  -u, --unsubscribe, [bool] Unsubscribe for neighbor cell info\n"
 	"\n";
 
+const char ltelc_msleep_usage_str[] =
+	"Options for 'ltelc msleep' command:\n"
+	"  -s, --subscribe,   [bool] Subscribe for modem sleep notifications (default)\n"
+	"  -u, --unsubscribe, [bool] Unsubscribe for modem sleep notifications\n"
+	"      --warn_time,   [int]  Advance warning time in milliseconds. \n"
+	"                            Notification is sent as a pre-warning for modem notifications.\n"
+	"      --threshold,   [int]  Shortest sleep time indicated to application in milliseconds.\n"
+	"\n";
+
 /******************************************************************************/
 
 /* Following are not having short options: */
@@ -224,6 +235,8 @@ enum {
 	LTELC_SHELL_OPT_FUNMODE_UICCOFF,
 	LTELC_SHELL_OPT_FUNMODE_UICCON,
 	LTELC_SHELL_OPT_FUNMODE_FLIGHTMODE_UICCON,
+	LTELC_SHELL_OPT_WARN_TIME,
+	LTELC_SHELL_OPT_THRESHOLD_TIME,
 };
 
  /* Specifying the expected options (both long and short): */
@@ -269,6 +282,8 @@ static struct option long_options[] = {
     {"pref_nbiot",              no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT },
     {"pref_ltem_plmn_prio",     no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_LTEM_PLMN_PRIO },
     {"pref_nbiot_plmn_prio",    no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT_PLMN_PRIO },
+    {"warn_time",               required_argument, 0,   LTELC_SHELL_OPT_WARN_TIME },
+    {"threshold",               required_argument, 0,   LTELC_SHELL_OPT_THRESHOLD_TIME },
     {0,                         0,                 0,   0  }
 };
 
@@ -313,6 +328,9 @@ static void ltelc_shell_print_usage(const struct shell *shell, ltelc_shell_cmd_a
 			break;
 		case LTELC_CMD_NCELLMEAS:
 			shell_print(shell, "%s", ltelc_ncellmeas_usage_str);
+			break;
+		case LTELC_CMD_MDMSLEEP:
+			shell_print(shell, "%s", ltelc_msleep_usage_str);
 			break;
 		default:
 			shell_print(shell, "%s", ltelc_usage_str);
@@ -413,6 +431,8 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	char *username = NULL;
 	char *password = NULL;
 	int pdn_cid = 0;
+	int warn_time = 0;
+	int threshold_time = 0;
 
 	ltelc_shell_cmd_defaults_set(&ltelc_cmd_args);
 	
@@ -434,6 +454,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "ncellmeas") == 0) {
 		require_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_NCELLMEAS;
+	} else if (strcmp(argv[1], "msleep") == 0) {
+		require_subscribe = true;
+		ltelc_cmd_args.command = LTELC_CMD_MDMSLEEP;
 	} else if (strcmp(argv[1], "connect") == 0) {
 		require_apn = true;
 		ltelc_cmd_args.command = LTELC_CMD_CONNECT;
@@ -684,7 +707,24 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT_PLMN_PRIO:
 			ltelc_cmd_args.sysmode_lte_pref_option = LTE_LC_SYSTEM_MODE_PREFER_NBIOT_PLMN_PRIO;
 			break;
-
+		case LTELC_SHELL_OPT_WARN_TIME:
+			warn_time = atoi(optarg);
+			if (warn_time == 0) {
+				shell_error(
+					shell,
+					"Not a valid number for --warn_time (milliseconds).");
+				return -EINVAL;
+			}
+			break;
+		case LTELC_SHELL_OPT_THRESHOLD_TIME:
+			threshold_time = atoi(optarg);
+			if (threshold_time == 0) {
+				shell_error(
+					shell,
+					"Not a valid number for --threshold_time (milliseconds).");
+				return -EINVAL;
+			}
+			break;
 		case '?':
 			goto show_usage;
 			break;
@@ -1028,6 +1068,15 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			break;
 		case LTELC_CMD_NCELLMEAS:
 			(ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) ? ltelc_ncellmeas_subscribe(true) : ltelc_ncellmeas_subscribe(false);
+			break;
+		case LTELC_CMD_MDMSLEEP:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) {
+			ltelc_modem_sleep_notifications_subscribe(
+				((warn_time) ? warn_time : CONFIG_LTE_LC_TAU_PRE_WARNING_TIME_MS),
+				((threshold_time) ? threshold_time : CONFIG_LTE_LC_TAU_PRE_WARNING_THRESHOLD_MS));
+			} else {
+				ltelc_modem_sleep_notifications_unsubscribe();
+			}
 			break;
 		case LTELC_CMD_CONNECT:
 			ret = ltelc_shell_pdn_connect(shell, apn, family);

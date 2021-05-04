@@ -210,7 +210,7 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 			"Connected" : "Idle");
 		break;
 	case LTE_LC_EVT_PSM_UPDATE:
-		shell_print(uart_shell, "PSM parameter update: TAU: %d, Active time: %d",
+		shell_print(uart_shell, "PSM parameter update: TAU: %d, Active time: %d seconds",
 			evt->psm_cfg.tau, evt->psm_cfg.active_time);
 		break;
 	case LTE_LC_EVT_EDRX_UPDATE: {
@@ -336,6 +336,41 @@ void ltelc_ncellmeas_subscribe(bool subscribe) {
 				shell_print(uart_shell, "Neighbor cell measurements and reporting unsubscribed");
 			}
 		}
+	}
+}
+
+#define AT_MDM_SLEEP_NOTIF_START "AT%%XMODEMSLEEP=1,%d,%d"
+#define AT_MDM_SLEEP_NOTIF_STOP "AT%XMODEMSLEEP=0"
+
+void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms)
+{
+	char buf_sub[48];
+	int err;
+
+	snprintk(buf_sub, sizeof(buf_sub), AT_MDM_SLEEP_NOTIF_START,
+		 warn_time_ms, threshold_ms);
+
+	err = at_cmd_write(buf_sub, NULL, 0, NULL);
+	if (err) {
+		shell_error(uart_shell,
+			    "Cannot subscribe to modem sleep notifications, err %d",
+			    err);
+	} else {
+		shell_print(uart_shell, "Subscribed to modem sleep notifications");
+	}
+}
+
+void ltelc_modem_sleep_notifications_unsubscribe()
+{
+	int err;
+
+	err = at_cmd_write(AT_MDM_SLEEP_NOTIF_STOP, NULL, 0, NULL);
+	if (err) {
+		shell_error(uart_shell,
+			    "Cannot stop modem sleep notifications, err %d",
+			    err);
+	} else {
+		shell_print(uart_shell, "Unsubscribed from modem sleep notifications");
 	}
 }
 

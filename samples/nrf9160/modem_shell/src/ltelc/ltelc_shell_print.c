@@ -54,6 +54,7 @@ void ltelc_shell_print_modem_sleep_notif(const struct shell *shell, const struct
 {
 		struct lte_lc_modem_sleep modem_sleep = evt->modem_sleep;
 		char snum[64] = { 0 };
+		float time_in_secs = modem_sleep.time / 1000;
 
 		switch (evt->type) {
 		case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING:
@@ -62,20 +63,20 @@ void ltelc_shell_print_modem_sleep_notif(const struct shell *shell, const struct
 			 *  The time parameter associated with this event signifies the time until modem exits
 			 *  sleep.
 			 */
-			shell_print(shell, "Modem sleep exit pre-warning: time: %lld, type: %s",
-				modem_sleep.time, ltelc_shell_print_sleep_type_to_string(modem_sleep.type, snum));
+			shell_print(shell, "Modem sleep exit pre-warning: time: %.2f seconds, type: %s",
+				time_in_secs, ltelc_shell_print_sleep_type_to_string(modem_sleep.type, snum));
 		break;
 		case LTE_LC_EVT_MODEM_SLEEP_EXIT:
 			/** This event will be received when the modem exits sleep. */
-			shell_print(shell, "Modem sleep exit: time: %lld, type: %s",
-				modem_sleep.time, ltelc_shell_print_sleep_type_to_string(modem_sleep.type, snum));
+			shell_print(shell, "Modem sleep exit: time: %.2f seconds, type: %s",
+				time_in_secs, ltelc_shell_print_sleep_type_to_string(modem_sleep.type, snum));
 		break;
 		case LTE_LC_EVT_MODEM_SLEEP_ENTER:
 			/** This event will be received when the modem enters sleep.
 			 *  The time parameter associated with this event signifies the duration of the sleep.
 			 */
-			shell_print(shell, "Modem sleep enter: time: %lld, type: %s",
-				modem_sleep.time, ltelc_shell_print_sleep_type_to_string(modem_sleep.type, snum));
+			shell_print(shell, "Modem sleep enter: time: %.2f seconds, type: %s",
+				time_in_secs, ltelc_shell_print_sleep_type_to_string(modem_sleep.type, snum));
 		break;
 		default:
 			shell_print(shell, "Unknown type of modem sleep event %d", evt->type);
