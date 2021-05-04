@@ -136,7 +136,7 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		 *  occur. This gives the application the opportunity to send data over the network before
 		 *  the TAU happens, thus saving power by avoiding sending data and the TAU separately.
 		 */
-		//TODO
+		shell_print(uart_shell, "TAU pre warning: time %lld", evt->time);
 		break;
 	case LTE_LC_EVT_NEIGHBOR_CELL_MEAS: {
 		int i;
