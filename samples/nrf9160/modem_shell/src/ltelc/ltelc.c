@@ -107,12 +107,14 @@ void ltelc_init(void)
 	k_work_init(&modem_info_signal_work, ltelc_rsrp_signal_update);
 	modem_info_rsrp_register(ltelc_rsrp_signal_handler);
 #endif
-	lte_lc_register_handler(ltelc_ind_handler);
 	
 	uart_shell = shell_backend_uart_get_ptr();
+
 	ltelc_sett_init(uart_shell);
 
 	ltelc_shell_pdn_init(uart_shell);
+
+	lte_lc_register_handler(ltelc_ind_handler);
 
 /* With CONFIG_LWM2M_CARRIER, MoSH auto connect must be disabled 
    because LwM2M carrier lib handles that. */
