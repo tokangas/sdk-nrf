@@ -69,7 +69,7 @@ if (CONFIG_BUILD_S1_VARIANT AND
       DEPENDS ${${link_variant}prebuilt}
       )
 
-    set(${link_variant}generated_kernel_files ${link_variant}isr_tables.c)
+    list(APPEND ${link_variant}generated_kernel_files ${link_variant}isr_tables.c)
   endif()
 
   add_custom_command(
@@ -82,11 +82,11 @@ if (CONFIG_BUILD_S1_VARIANT AND
     --zephyr-base ${ZEPHYR_BASE}
     DEPENDS $<TARGET_FILE:${${link_variant}prebuilt}>
     )
-  set(${link_variant}generated_kernel_files ${link_variant}dev_handles.c)
+  list(APPEND ${link_variant}generated_kernel_files ${link_variant}dev_handles.c)
 
   configure_linker_script(
     ${link_variant}linker.cmd
-    "-DLINK_INTO_${link_variant_name};-DLINKER_PASS2"
+    "-DLINK_INTO_${link_variant_name};-DLINKER_ZEPHYR_FINAL;-DLINKER_PASS2"
     ${PRIV_STACK_DEP}
     ${CODE_RELOCATION_DEP}
     ${${link_variant}prebuilt}
