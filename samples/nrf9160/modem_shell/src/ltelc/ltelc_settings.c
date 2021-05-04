@@ -17,7 +17,7 @@
 
 #include "mosh_defines.h"
 
-#include "ltelc_shell.h"
+#include "ltelc_shell_print.h"
 #include "ltelc_settings.h"
 
 #define LTELC_SETT_KEY			                  "mosh_ltelc_settings"
