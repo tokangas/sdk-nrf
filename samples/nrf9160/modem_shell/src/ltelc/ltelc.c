@@ -145,14 +145,16 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 
 		/* Current cell: */
 		shell_print(uart_shell, "Current cell:");
+
 		shell_print(
 			uart_shell,
-			"    ID %d, phy ID %d, MCC %d MNC %d, RSRP %d, RSRQ %d, TAC %d, earfcn %d, meas time %lld, TA %d",
+			"    ID %d, phy ID %d, MCC %d MNC %d, RSRP %d : %ddBm, RSRQ %d, TAC %d, earfcn %d, meas time %lld, TA %d",
 				cur_cell.id,
 				cur_cell.phys_cell_id,
 				cur_cell.mcc,
 				cur_cell.mnc,
 				cur_cell.rsrp,
+				cur_cell.rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
 				cur_cell.rsrq,
 				cur_cell.tac,
 				cur_cell.earfcn,
@@ -164,9 +166,10 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 			shell_print(uart_shell, "Neighbor cell %d", i + 1);
 			shell_print(
 				uart_shell,
-				"    phy ID %d, RSRP %d, RSRQ %d, earfcn %d, timediff %d",
+				"    phy ID %d, RSRP %d : %ddBm, RSRQ %d, earfcn %d, timediff %d",
 				cells.neighbor_cells[i].phys_cell_id,
 				cells.neighbor_cells[i].rsrp,
+				cells.neighbor_cells[i].rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
 				cells.neighbor_cells[i].rsrq,
 				cells.neighbor_cells[i].earfcn,
 				cells.neighbor_cells[i].time_diff);
@@ -315,16 +318,16 @@ void ltelc_rsrp_subscribe(bool subscribe) {
 	}
 }
 
-void ltelc_ncellmeas_subscribe(bool subscribe) {
+void ltelc_ncellmeas_start(bool start) {
 	int ret;
 	
-	if (subscribe) {
+	if (start) {
+		shell_print(uart_shell, "Neighbor cell measurements and reporting starting");
 		ret = lte_lc_neighbor_cell_measurement();
 		if (uart_shell != NULL) {
 			if (ret) {
 				shell_error(uart_shell, "lte_lc_neighbor_cell_measurement() returned err %d", ret);
-			} else {
-				shell_print(uart_shell, "Neighbor cell measurements and reporting subscribed");
+				shell_error(uart_shell, "Cannot start neigbor measurements");
 			}
 		}
 	} else {
@@ -333,7 +336,7 @@ void ltelc_ncellmeas_subscribe(bool subscribe) {
 			if (ret) {
 				shell_error(uart_shell, "lte_lc_neighbor_cell_measurement_cancel() returned err %d", ret);
 			} else {
-				shell_print(uart_shell, "Neighbor cell measurements and reporting unsubscribed");
+				shell_print(uart_shell, "Neighbor cell measurements and reporting stopped");
 			}
 		}
 	}

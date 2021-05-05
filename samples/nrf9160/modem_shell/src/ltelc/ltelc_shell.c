@@ -52,6 +52,8 @@ typedef enum {
 	LTELC_COMMON_DISABLE,
 	LTELC_COMMON_SUBSCRIBE,
 	LTELC_COMMON_UNSUBSCRIBE,
+	LTELC_COMMON_START,
+	LTELC_COMMON_STOP,
 	LTELC_COMMON_RESET
 } ltelc_shell_common_options;
 
@@ -81,7 +83,7 @@ const char ltelc_usage_str[] =
 	"  connect:                 Connect to given apn\n"
 	"  disconnect:              Disconnect from given apn\n"
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
-	"  ncellmeas:               Subscribe/unsubscribe for neighbor cell measurements and reporting\n"
+	"  ncellmeas:               Start/stop neighbor cell measurements\n"
 	"  msleep:                  Subscribe/unsubscribe for modem sleep notifications\n"
 	"  tau:                     Subscribe/unsubscribe for periodic TAU notifications from modem\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
@@ -202,8 +204,8 @@ const char ltelc_rsrp_usage_str[] =
 
 const char ltelc_ncellmeas_usage_str[] =
 	"Options for 'ltelc ncellmeas' command:\n"
-	"  -s, --subscribe,   [bool] Subscribe for neighbor cell info\n"
-	"  -u, --unsubscribe, [bool] Unsubscribe for neighbor cell info\n"
+	"      --start,   [bool] Start neighbor cell measurements and report result\n"
+	"      --stop,    [bool] Stop started neighbor cell measurements if still on going\n"
 	"\n";
 
 const char ltelc_msleep_usage_str[] =
@@ -247,6 +249,8 @@ enum {
 	LTELC_SHELL_OPT_FUNMODE_FLIGHTMODE_UICCON,
 	LTELC_SHELL_OPT_WARN_TIME,
 	LTELC_SHELL_OPT_THRESHOLD_TIME,
+	LTELC_SHELL_OPT_START,
+	LTELC_SHELL_OPT_STOP,
 };
 
  /* Specifying the expected options (both long and short): */
@@ -292,6 +296,8 @@ static struct option long_options[] = {
     {"pref_nbiot",              no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT },
     {"pref_ltem_plmn_prio",     no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_LTEM_PLMN_PRIO },
     {"pref_nbiot_plmn_prio",    no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT_PLMN_PRIO },
+    {"start",                   no_argument,       0,   LTELC_SHELL_OPT_START },
+    {"stop",                    no_argument,       0,   LTELC_SHELL_OPT_STOP },
     {"warn_time",               required_argument, 0,   LTELC_SHELL_OPT_WARN_TIME },
     {"threshold",               required_argument, 0,   LTELC_SHELL_OPT_THRESHOLD_TIME },
     {0,                         0,                 0,   0  }
@@ -468,7 +474,7 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		require_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_NCELLMEAS;
 	} else if (strcmp(argv[1], "msleep") == 0) {
-		require_subscribe = true;
+		require_option = true;
 		ltelc_cmd_args.command = LTELC_CMD_MDMSLEEP;
 	} else if (strcmp(argv[1], "tau") == 0) {
 		require_subscribe = true;
@@ -687,6 +693,12 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_SHELL_OPT_RESET:
 			ltelc_cmd_args.common_option = LTELC_COMMON_RESET;
 			break;
+		case LTELC_SHELL_OPT_START:
+			ltelc_cmd_args.common_option = LTELC_COMMON_START;
+			break;
+		case LTELC_SHELL_OPT_STOP:
+			ltelc_cmd_args.common_option = LTELC_COMMON_STOP;
+			break;
 		
 		case LTELC_SHELL_OPT_MEM_SLOT_1:
 			normal_mode_at_str = optarg;
@@ -844,7 +856,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_print(shell, "Modem functional mode: %s",
 					    ltelc_shell_funmode_to_string(
 						    functional_mode, snum));
-
 			}
 			ret = lte_lc_nw_reg_status_get(&current_reg_status);
 			if (ret >= 0) {
@@ -1083,7 +1094,11 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			(ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false);
 			break;
 		case LTELC_CMD_NCELLMEAS:
-			(ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) ? ltelc_ncellmeas_subscribe(true) : ltelc_ncellmeas_subscribe(false);
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_START) {
+				ltelc_ncellmeas_start(true);
+			} else {
+				ltelc_ncellmeas_start(false);
+			}
 			break;
 		case LTELC_CMD_MDMSLEEP:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) {

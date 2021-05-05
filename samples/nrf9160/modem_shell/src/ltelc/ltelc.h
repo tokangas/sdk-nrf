@@ -15,7 +15,7 @@
 void ltelc_init(void);
 void ltelc_ind_handler(const struct lte_lc_evt *const evt);
 void ltelc_rsrp_subscribe(bool subscribe);
-void ltelc_ncellmeas_subscribe(bool subscribe);
+void ltelc_ncellmeas_start(bool start);
 void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms);
 void ltelc_modem_sleep_notifications_unsubscribe();
 void ltelc_modem_tau_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms);
