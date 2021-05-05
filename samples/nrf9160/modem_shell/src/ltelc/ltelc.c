@@ -341,7 +341,6 @@ void ltelc_ncellmeas_subscribe(bool subscribe) {
 
 #define AT_MDM_SLEEP_NOTIF_START "AT%%XMODEMSLEEP=1,%d,%d"
 #define AT_MDM_SLEEP_NOTIF_STOP "AT%XMODEMSLEEP=0"
-
 void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms)
 {
 	char buf_sub[48];
@@ -374,7 +373,6 @@ void ltelc_modem_sleep_notifications_unsubscribe()
 
 #define AT_TAU_NOTIF_START      "AT%%XT3412=1,%d,%d"
 #define AT_TAU_NOTIF_STOP       "AT%%T3412=0"
-
 void ltelc_modem_tau_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms)
 {
 	char buf_sub[48];

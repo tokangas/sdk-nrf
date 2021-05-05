@@ -308,7 +308,6 @@ static int ltelc_api_coneval_read(lte_coneval_resp_t *coneval)
 	char str_buf[AT_CMD_CONEVAL_RESP_MAX_STR_LEN + 1];
 	int len = sizeof(str_buf);
 
-
 	memset(coneval, 0, sizeof(lte_coneval_resp_t));
 	coneval->result = 7; /* unknown */
 
@@ -337,6 +336,7 @@ static int ltelc_api_coneval_read(lte_coneval_resp_t *coneval)
 
 	for (i = 1;i < AT_CMD_CONEVAL_RESP_PARAM_COUNT;i++) {
 		if (i == AT_CMD_CONEVAL_RESP_CELL_ID_STR_INDEX || i == AT_CMD_CONEVAL_RESP_PLMN_STR_INDEX) {
+			len = sizeof(str_buf);
 			ret = at_params_string_get(&param_list, i, str_buf, &len);
 			if (ret) {
 				printk("ltelc_api_coneval_read: Invalid AT string resp parameter at index %d, err: %d\n", 
@@ -494,6 +494,155 @@ void ltelc_api_coneval_read_for_shell(const struct shell *shell)
 	shell_print(shell, "  rx_repetitions:  %d", coneval_resp.rx_repetitions);
 	shell_print(shell, "  dl_pathloss:     %d", coneval_resp.dl_pathloss);
 }
+
+/* ****************************************************************************/
+#define OPERATOR_FULL_NAME_STR_MAX_LEN 124
+#define OPERATOR_SHORT_NAME_STR_MAX_LEN 64
+#define OPERATOR_CELL_ID_STR_MAX_LEN    32
+#define OPERATOR_PLMN_STR_MAX_LEN       32
+
+/* Note: not all stored / parsed */
+typedef struct {
+	uint8_t reg_status;
+	uint8_t band;
+	int16_t rsrp;
+	int8_t snr;	
+	char full_name_str[OPERATOR_FULL_NAME_STR_MAX_LEN + 1];
+	char short_name_str[OPERATOR_SHORT_NAME_STR_MAX_LEN + 1];
+	char plmn_str[OPERATOR_PLMN_STR_MAX_LEN + 1];
+	char cell_id_str[OPERATOR_CELL_ID_STR_MAX_LEN + 1];
+} lte_xmonitor_resp_t;
+
+#define AT_CMD_XMONITOR "AT%XMONITOR"
+#define AT_CMD_XMONITOR_RESP_PARAM_COUNT        17
+
+#define AT_CMD_XMONITOR_RESP_REG_STATUS_INDEX   1
+#define AT_CMD_XMONITOR_RESP_FULL_NAME_INDEX    2
+#define AT_CMD_XMONITOR_RESP_SHORT_NAME_INDEX   3
+#define AT_CMD_XMONITOR_RESP_PLMN_INDEX         4
+#define AT_CMD_XMONITOR_RESP_BAND_INDEX         7
+#define AT_CMD_XMONITOR_RESP_CELL_ID_INDEX      8
+#define AT_CMD_XMONITOR_RESP_RSRP_INDEX         11
+#define AT_CMD_XMONITOR_RESP_SNR_INDEX          12
+
+#define AT_CMD_X_MONITOR_MAX_HANDLED_INDEX AT_CMD_XMONITOR_RESP_CELL_ID_INDEX
+#define AT_CMD_XMONITOR_RESP_MAX_STR_LEN OPERATOR_FULL_NAME_STR_MAX_LEN
+
+static int ltelc_api_xmonitor_read(lte_xmonitor_resp_t *resp)
+{
+	int ret = 0;
+	int i;
+	int value;
+	struct at_param_list param_list = { 0 };
+	char at_response_str[512] = { 0 };
+	char str_buf[OPERATOR_FULL_NAME_STR_MAX_LEN + 1];
+	int len = sizeof(str_buf);
+
+	memset(resp, 0, sizeof(lte_xmonitor_resp_t));
+
+	ret = at_cmd_write(AT_CMD_XMONITOR, at_response_str, sizeof(at_response_str), NULL);
+	if (ret) {
+		printk("at_cmd_write for \"%s\" returned err: %d\n", AT_CMD_XMONITOR, ret);
+		return ret;
+	}
+/*
+	else {
+		printk("%s", at_response_str);
+	}
+*/
+
+	ret = at_params_list_init(&param_list, AT_CMD_XMONITOR_RESP_PARAM_COUNT);
+	if (ret) {
+		printk("Could not init AT params list for \"%s\", error: %d\n", AT_CMD_XMONITOR, ret);
+		return ret;
+	}
+
+	ret = at_parser_params_from_str(at_response_str, NULL, &param_list);
+	if (ret) {
+		printk("Could not parse %s response, error: %d\n", AT_CMD_XMONITOR, ret);
+		return ret;
+	}
+
+	for (i = 1; i < AT_CMD_XMONITOR_RESP_PARAM_COUNT; i++) {
+		if (i == AT_CMD_XMONITOR_RESP_FULL_NAME_INDEX || i == AT_CMD_XMONITOR_RESP_SHORT_NAME_INDEX ||
+		    i == AT_CMD_XMONITOR_RESP_PLMN_INDEX || i == AT_CMD_XMONITOR_RESP_CELL_ID_INDEX) {
+			len = sizeof(str_buf);
+			ret = at_params_string_get(&param_list, i, str_buf, &len);
+			if (ret) {
+				printk("ltelc_api_xmonitor_read: Invalid AT string resp parameter at index %d, err: %d\n", 
+					i, ret);
+				return ret;
+			}
+			assert(len <= AT_CMD_XMONITOR_RESP_MAX_STR_LEN);
+			str_buf[len] = '\0';
+
+			if (i == AT_CMD_XMONITOR_RESP_CELL_ID_INDEX) {
+				strcpy(resp->cell_id_str, str_buf);
+			}
+			else if (i == AT_CMD_XMONITOR_RESP_PLMN_INDEX) {
+				strcpy(resp->plmn_str, str_buf);
+			}
+			else if (i == AT_CMD_XMONITOR_RESP_FULL_NAME_INDEX) {
+				strcpy(resp->full_name_str, str_buf);
+			}
+			else {
+				assert(i == AT_CMD_XMONITOR_RESP_SHORT_NAME_INDEX);
+				strcpy(resp->short_name_str, str_buf);
+			}
+		}
+		else if (i == AT_CMD_XMONITOR_RESP_REG_STATUS_INDEX ||
+				 i == AT_CMD_XMONITOR_RESP_BAND_INDEX ||
+				 i == AT_CMD_XMONITOR_RESP_RSRP_INDEX ||
+				 i == AT_CMD_XMONITOR_RESP_SNR_INDEX) {
+			ret = at_params_int_get(&param_list, i, &value);
+			if (ret) {
+				printk("ltelc_api_xmonitor_read: Invalid AT int resp parameter at index %d, err: %d\n", 
+					i, ret);
+				return ret;
+			}
+
+			switch (i) {
+				case AT_CMD_XMONITOR_RESP_REG_STATUS_INDEX:
+					resp->reg_status = value;
+					break;
+				case AT_CMD_XMONITOR_RESP_BAND_INDEX:
+					resp->band = value;
+					break;
+				case AT_CMD_XMONITOR_RESP_RSRP_INDEX:
+					resp->rsrp = value;
+					break;
+				case AT_CMD_XMONITOR_RESP_SNR_INDEX:
+					resp->snr = value;
+					break;
+			}
+		}
+	}
+	return 0;
+}
+
+static void ltelc_api_modem_operator_info_read_for_shell(const struct shell *shell)
+{
+	lte_xmonitor_resp_t xmonitor_resp;
+	int ret = ltelc_api_xmonitor_read(&xmonitor_resp);
+	int cell_id;
+
+	if (ret) {
+		shell_error(shell, "Operation failed, result: ret %d", ret);
+		return;
+	}
+	cell_id = strtol(xmonitor_resp.cell_id_str, NULL, 16);
+
+	shell_print(shell, "Operator full name:   \"%s\"", xmonitor_resp.full_name_str);
+	shell_print(shell, "Operator short name:  \"%s\"", xmonitor_resp.short_name_str);
+	shell_print(shell, "Operator PLMN:        \"%s\"", xmonitor_resp.plmn_str);
+	shell_print(shell, "Current cell id:       %d (0x%s)", cell_id, xmonitor_resp.cell_id_str);
+	shell_print(shell, "Current band:          %d", xmonitor_resp.band);
+	shell_print(shell, "Current rsrp:          %d: %ddBm", 
+		xmonitor_resp.rsrp, (xmonitor_resp.rsrp - MODEM_INFO_RSRP_OFFSET_VAL));
+	shell_print(shell, "Current snr:           %d: %ddB",
+		xmonitor_resp.snr, (xmonitor_resp.snr - LTELC_API_SNR_OFFSET_VALUE));
+}
+
 /* ****************************************************************************/
 
 int ltelc_api_pdp_contexts_read(pdp_context_info_array_t *pdp_info)
@@ -725,16 +874,8 @@ void ltelc_api_modem_info_get_for_shell(
 	}
 
 	if (connected) {
-		ret = modem_info_string_get(MODEM_INFO_OPERATOR, info_str,
-						sizeof(info_str));
-		if (ret >= 0) {
-			shell_print(shell, "Operator: %s", info_str);
-		} else {
-			shell_error(shell,
-					"Unable to obtain modem operator parameters (%d)",
-					ret);
-		}
-		
+		ltelc_api_modem_operator_info_read_for_shell(shell);
+
 		ret = modem_info_string_get(MODEM_INFO_DATE_TIME, info_str,
 						sizeof(info_str));
 		if (ret >= 0) {
