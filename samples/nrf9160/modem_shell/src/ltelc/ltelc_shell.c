@@ -208,7 +208,7 @@ const char ltelc_ncellmeas_usage_str[] =
 
 const char ltelc_msleep_usage_str[] =
 	"Options for 'ltelc msleep' command:\n"
-	"  -s, --subscribe,   [bool] Subscribe for modem sleep notifications (default)\n"
+	"  -s, --subscribe,   [bool] Subscribe for modem sleep notifications\n"
 	"  -u, --unsubscribe, [bool] Unsubscribe for modem sleep notifications\n"
 	"      --warn_time,   [int]  Advance warning time in milliseconds. \n"
 	"                            Notification is sent as a pre-warning for modem wakeup.\n"
@@ -217,7 +217,7 @@ const char ltelc_msleep_usage_str[] =
 
 const char ltelc_tau_usage_str[] =
 	"Options for 'ltelc tau' command:\n"
-	"  -s, --subscribe,   [bool] Subscribe for TAU notifications (default)\n"
+	"  -s, --subscribe,   [bool] Subscribe for TAU notifications\n"
 	"  -u, --unsubscribe, [bool] Unsubscribe for TAU notifications\n"
 	"      --warn_time,   [int]  Advance warning time in milliseconds. \n"
 	"                            Notification is sent as a pre-warning for periodic TAU.\n"
