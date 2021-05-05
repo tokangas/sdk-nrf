@@ -18,6 +18,8 @@ void ltelc_rsrp_subscribe(bool subscribe);
 void ltelc_ncellmeas_subscribe(bool subscribe);
 void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms);
 void ltelc_modem_sleep_notifications_unsubscribe();
+void ltelc_modem_tau_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms);
+void ltelc_modem_tau_notifications_unsubscribe(void);
 int ltelc_func_mode_set(enum lte_lc_func_mode fun);
 int ltelc_func_mode_get(void);
 

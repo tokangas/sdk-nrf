@@ -353,8 +353,7 @@ void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t t
 	err = at_cmd_write(buf_sub, NULL, 0, NULL);
 	if (err) {
 		shell_error(uart_shell,
-			    "Cannot subscribe to modem sleep notifications, err %d",
-			    err);
+			"Cannot subscribe to modem sleep notifications, err %d", err);
 	} else {
 		shell_print(uart_shell, "Subscribed to modem sleep notifications");
 	}
@@ -367,8 +366,40 @@ void ltelc_modem_sleep_notifications_unsubscribe()
 	err = at_cmd_write(AT_MDM_SLEEP_NOTIF_STOP, NULL, 0, NULL);
 	if (err) {
 		shell_error(uart_shell,
-			    "Cannot stop modem sleep notifications, err %d",
-			    err);
+			"Cannot stop modem sleep notifications, err %d", err);
+	} else {
+		shell_print(uart_shell, "Unsubscribed from modem sleep notifications");
+	}
+}
+
+#define AT_TAU_NOTIF_START      "AT%%XT3412=1,%d,%d"
+#define AT_TAU_NOTIF_STOP       "AT%%T3412=0"
+
+void ltelc_modem_tau_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms)
+{
+	char buf_sub[48];
+	int err;
+
+	snprintk(buf_sub, sizeof(buf_sub), AT_TAU_NOTIF_START,
+		 warn_time_ms, threshold_ms);
+
+	err = at_cmd_write(buf_sub, NULL, 0, NULL);
+	if (err) {
+		shell_error(uart_shell,
+			"Cannot subscribe to TAU notifications, err %d", err);
+	} else {
+		shell_print(uart_shell, "Subscribed to TAU notifications");
+	}
+}
+
+void ltelc_modem_tau_notifications_unsubscribe(void)
+{
+	int err;
+
+	err = at_cmd_write(AT_MDM_SLEEP_NOTIF_STOP, NULL, 0, NULL);
+	if (err) {
+		shell_error(uart_shell,
+			"Cannot stop modem sleep notifications, err %d", err);
 	} else {
 		shell_print(uart_shell, "Unsubscribed from modem sleep notifications");
 	}
@@ -416,6 +447,7 @@ int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 			return_value = lte_lc_normal();
 		}
 		else {
+			/* TODO: why not just do lte_lc_normal() as notifications are subscribed there also nowadays? */ 
 			return_value = lte_lc_init_and_connect_async(ltelc_ind_handler);
 			if (return_value == -EALREADY) {
 				return_value = lte_lc_connect_async(ltelc_ind_handler);

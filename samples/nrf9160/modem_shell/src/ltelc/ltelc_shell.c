@@ -33,6 +33,7 @@ typedef enum {
 	LTELC_CMD_RSRP,
 	LTELC_CMD_NCELLMEAS,
 	LTELC_CMD_MDMSLEEP,
+	LTELC_CMD_TAU,
 	LTELC_CMD_CONNECT,
 	LTELC_CMD_DISCONNECT,
 	LTELC_CMD_FUNMODE,
@@ -82,6 +83,7 @@ const char ltelc_usage_str[] =
 	"  rsrp:                    Subscribe/unsubscribe for RSRP signal info\n"
 	"  ncellmeas:               Subscribe/unsubscribe for neighbor cell measurements and reporting\n"
 	"  msleep:                  Subscribe/unsubscribe for modem sleep notifications\n"
+	"  tau:                     Subscribe/unsubscribe for periodic TAU notifications from modem\n"
 	"  funmode:                 Set/read functional modes of the modem\n"
 	"  sysmode:                 Set/read system modes of the modem\n"
     "                           When set: persistent between the sessions. Effective when going to normal mode.\n"
@@ -209,10 +211,18 @@ const char ltelc_msleep_usage_str[] =
 	"  -s, --subscribe,   [bool] Subscribe for modem sleep notifications (default)\n"
 	"  -u, --unsubscribe, [bool] Unsubscribe for modem sleep notifications\n"
 	"      --warn_time,   [int]  Advance warning time in milliseconds. \n"
-	"                            Notification is sent as a pre-warning for modem notifications.\n"
+	"                            Notification is sent as a pre-warning for modem wakeup.\n"
 	"      --threshold,   [int]  Shortest sleep time indicated to application in milliseconds.\n"
 	"\n";
 
+const char ltelc_tau_usage_str[] =
+	"Options for 'ltelc tau' command:\n"
+	"  -s, --subscribe,   [bool] Subscribe for TAU notifications (default)\n"
+	"  -u, --unsubscribe, [bool] Unsubscribe for TAU notifications\n"
+	"      --warn_time,   [int]  Advance warning time in milliseconds. \n"
+	"                            Notification is sent as a pre-warning for periodic TAU.\n"
+	"      --threshold,   [int]  Shortest periodic TAU time indicated to application in milliseconds.\n"
+	"\n";
 /******************************************************************************/
 
 /* Following are not having short options: */
@@ -331,6 +341,9 @@ static void ltelc_shell_print_usage(const struct shell *shell, ltelc_shell_cmd_a
 			break;
 		case LTELC_CMD_MDMSLEEP:
 			shell_print(shell, "%s", ltelc_msleep_usage_str);
+			break;
+		case LTELC_CMD_TAU:
+			shell_print(shell, "%s", ltelc_tau_usage_str);
 			break;
 		default:
 			shell_print(shell, "%s", ltelc_usage_str);
@@ -457,6 +470,9 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 	} else if (strcmp(argv[1], "msleep") == 0) {
 		require_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_MDMSLEEP;
+	} else if (strcmp(argv[1], "tau") == 0) {
+		require_subscribe = true;
+		ltelc_cmd_args.command = LTELC_CMD_TAU;
 	} else if (strcmp(argv[1], "connect") == 0) {
 		require_apn = true;
 		ltelc_cmd_args.command = LTELC_CMD_CONNECT;
@@ -1072,10 +1088,19 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		case LTELC_CMD_MDMSLEEP:
 			if (ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) {
 			ltelc_modem_sleep_notifications_subscribe(
+				((warn_time) ? warn_time : CONFIG_LTE_LC_MODEM_SLEEP_PRE_WARNING_TIME_MS),
+				((threshold_time) ? threshold_time : CONFIG_LTE_LC_MODEM_SLEEP_NOTIFICATIONS_THRESHOLD_MS));
+			} else {
+				ltelc_modem_sleep_notifications_unsubscribe();
+			}
+			break;
+		case LTELC_CMD_TAU:
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) {
+			ltelc_modem_tau_notifications_subscribe(
 				((warn_time) ? warn_time : CONFIG_LTE_LC_TAU_PRE_WARNING_TIME_MS),
 				((threshold_time) ? threshold_time : CONFIG_LTE_LC_TAU_PRE_WARNING_THRESHOLD_MS));
 			} else {
-				ltelc_modem_sleep_notifications_unsubscribe();
+				ltelc_modem_tau_notifications_unsubscribe();
 			}
 			break;
 		case LTELC_CMD_CONNECT:
