@@ -205,8 +205,8 @@ const char ltelc_rsrp_usage_str[] =
 
 const char ltelc_ncellmeas_usage_str[] =
 	"Options for 'ltelc ncellmeas' command:\n"
-	"      --start,   [bool] Start neighbor cell measurements and report result\n"
-	"      --stop,    [bool] Stop started neighbor cell measurements if still on going\n"
+	"                          Start neighbor cell measurements and report result\n"
+	"      --cancel,    [bool] Cancel/Stop started neighbor cell measurements if still on going\n"
 	"\n";
 
 const char ltelc_msleep_usage_str[] =
@@ -299,6 +299,7 @@ static struct option long_options[] = {
     {"pref_nbiot_plmn_prio",    no_argument,       0,   LTELC_SHELL_OPT_SYSMODE_PREF_NBIOT_PLMN_PRIO },
     {"start",                   no_argument,       0,   LTELC_SHELL_OPT_START },
     {"stop",                    no_argument,       0,   LTELC_SHELL_OPT_STOP },
+    {"cancel",                  no_argument,       0,   LTELC_SHELL_OPT_STOP },
     {"warn_time",               required_argument, 0,   LTELC_SHELL_OPT_WARN_TIME },
     {"threshold",               required_argument, 0,   LTELC_SHELL_OPT_THRESHOLD_TIME },
     {0,                         0,                 0,   0  }
@@ -472,7 +473,6 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 		require_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_RSRP;
 	} else if (strcmp(argv[1], "ncellmeas") == 0) {
-		require_subscribe = true;
 		ltelc_cmd_args.command = LTELC_CMD_NCELLMEAS;
 	} else if (strcmp(argv[1], "msleep") == 0) {
 		require_option = true;
@@ -1110,10 +1110,11 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 			(ltelc_cmd_args.common_option == LTELC_COMMON_SUBSCRIBE) ? ltelc_rsrp_subscribe(true) : ltelc_rsrp_subscribe(false);
 			break;
 		case LTELC_CMD_NCELLMEAS:
-			if (ltelc_cmd_args.common_option == LTELC_COMMON_START) {
-				ltelc_ncellmeas_start(true);
-			} else {
+			if (ltelc_cmd_args.common_option == LTELC_COMMON_STOP) {
 				ltelc_ncellmeas_start(false);
+
+			} else {
+				ltelc_ncellmeas_start(true);
 			}
 			break;
 		case LTELC_CMD_MDMSLEEP:
