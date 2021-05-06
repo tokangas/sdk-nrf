@@ -144,22 +144,30 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		struct lte_lc_cell cur_cell = cells.current_cell;
 
 		/* Current cell: */
-		shell_print(uart_shell, "Current cell:");
+		if (cur_cell.id) {
+			shell_print(uart_shell, "Current cell:");
 
-		shell_print(
-			uart_shell,
-			"    ID %d, phy ID %d, MCC %d MNC %d, RSRP %d : %ddBm, RSRQ %d, TAC %d, earfcn %d, meas time %lld, TA %d",
-				cur_cell.id,
-				cur_cell.phys_cell_id,
-				cur_cell.mcc,
-				cur_cell.mnc,
-				cur_cell.rsrp,
-				cur_cell.rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
-				cur_cell.rsrq,
-				cur_cell.tac,
-				cur_cell.earfcn,
-				cur_cell.measurement_time,
-				cur_cell.timing_advance);
+			shell_print(
+				uart_shell,
+				"    ID %d, phy ID %d, MCC %d MNC %d, RSRP %d : %ddBm, RSRQ %d, TAC %d, earfcn %d, meas time %lld, TA %d",
+					cur_cell.id,
+					cur_cell.phys_cell_id,
+					cur_cell.mcc,
+					cur_cell.mnc,
+					cur_cell.rsrp,
+					cur_cell.rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
+					cur_cell.rsrq,
+					cur_cell.tac,
+					cur_cell.earfcn,
+					cur_cell.measurement_time,
+					cur_cell.timing_advance);
+		} else {
+			shell_print(uart_shell, "No current cell information from modem.");
+		}
+
+		if (!cells.ncells_count) {
+			shell_print(uart_shell, "No neighbor cell information from modem.");
+		}
 
 		for (i = 0; i < cells.ncells_count; i++) {
 			/* Neighbor cells: */
