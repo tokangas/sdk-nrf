@@ -194,6 +194,7 @@ const char ltelc_psm_usage_str[] =
 	"  -d, --disable,    [bool] Disable PSM\n"
 	"  -p, --rptau,      [str]  Sets custom requested periodic TAU value to be requested when enabling PSM -e option.\n"
 	"  -t, --rat,        [str]  Sets custom requested active time (RAT) value to be requested when enabling PSM -e option.\n"
+	"  -r, --read,       [bool] Read PSM config\n"
 	"\n";
 
 const char ltelc_rsrp_usage_str[] =
@@ -1082,6 +1083,21 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 					shell_error(shell, "Cannot disable PSM: %d", ret);
 				} else {
 					shell_print(shell, "PSM disabled");
+				}
+			}
+			else if (ltelc_cmd_args.common_option == LTELC_COMMON_READ) {
+				int tau, active_time;
+				ret = lte_lc_psm_get(&tau, &active_time);
+				if (ret < 0) {
+					shell_error(shell, "Cannot get PSM configs: %d", ret);
+				} else {
+					shell_print(
+						shell,
+						"PSM config: TAU %d %s, active time %d %s",
+							tau,
+							(tau == -1) ? "(timer deactivated)" : "seconds",
+							active_time,
+							(active_time == -1) ? "(timer deactivated)" : "seconds");
 				}
 			}
 			else {
