@@ -66,16 +66,16 @@ struct bt_mesh_scheduler_srv {
 	/** Model state related structure of the Scheduler Server instance. */
 	struct {
 		/* Scheduled work. */
-		struct k_delayed_work delayed_work;
+		struct k_work_delayable delayed_work;
 		/* Calculated TAI-time for action items. */
 		struct bt_mesh_time_tai
 		sched_tai[BT_MESH_SCHEDULER_ACTION_ENTRY_COUNT];
 		/* Index of the ongoing action. */
 		uint8_t idx;
-		/* Bit field indicating defined Actions
+		/* Bit field indicating active entries
 		 * in the Schedule Register.
 		 */
-		uint16_t status_bitmap;
+		uint16_t active_bitmap;
 		/* The Schedule Register state is a 16-entry,
 		 * zero-based, indexed array
 		 */

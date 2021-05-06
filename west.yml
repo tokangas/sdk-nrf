@@ -35,15 +35,13 @@ manifest:
       url-base: https://github.com/NordicSemiconductor
     - name: pelioniot
       url-base: https://github.com/PelionIoT
-    - name: jhirsi
-      url-base: https://github.com/jhirsi
 
   # If not otherwise specified, the projects below should be obtained
   # from the ncs remote.
   defaults:
     remote: ncs
 
-  group-filter: [-homekit, -nrf-802154]
+  group-filter: [-homekit, -nrf-802154, -find-my]
 
   # "projects" is a list of git repositories which make up the NCS
   # source code.
@@ -56,8 +54,7 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
       repo-path: sdk-zephyr
-      revision: ai_pdn_serv
-      remote: jhirsi
+      revision: f725ac7a6dfb9d329c1e9f97e88ecfcd1a020acd
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
@@ -104,12 +101,11 @@ manifest:
     - name: nrfxlib
       repo-path: sdk-nrfxlib
       path: nrfxlib
-      revision: libmodem1.1.0
-      remote: jhirsi
+      revision: c9cf6f74c618581794cda73063f93e77123dadbc
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tfm
-      revision: 52f51e81c9c83fc84d66fae802bd00c6b8624c74
+      revision: 7b935d15868e4d4dd443fe04f103fef25bb34d2d
     - name: tfm-mcuboot # This is used by the trusted-firmware-m module.
       repo-path: sdk-mcuboot
       path: modules/tee/tfm-mcuboot
@@ -128,7 +124,7 @@ manifest:
     - name: nrf-802154
       repo-path: sdk-nrf-802154
       path: nrf-802154
-      revision: b8ad3b317626d1500f281276de40f9c6870fd5a4
+      revision: 76308d43844018ab0734adc441464d221408cf90
       groups:
       - nrf-802154
     # Other third-party repositories.
@@ -163,9 +159,14 @@ manifest:
       path: modules/lib/cddl-gen
     - name: homekit
       repo-path: sdk-homekit
-      revision: e669fb9f329df4bef92782968c8495b0a9de1170
+      revision: 40ae4b9225f051a3e02b8d73ce80389b462fee01
       groups:
       - homekit
+    - name: find-my
+      repo-path: sdk-find-my
+      revision: c170f1f889d2abe9fcf826152c72681382e2eb35
+      groups:
+      - find-my
 
   # West-related configuration for the nrf repository.
   self:

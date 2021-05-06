@@ -183,6 +183,10 @@ nRF5
 nRF5340
 =======
 
+.. rst-class:: v1-5-1 v1-5-0 v1-4-2 v1-4-1 v1-4-0
+
+No UART output is received from the network core if the application core is programmed and running with a non-secure image (using the ``nrf5340dk_nrf5340_cpuappns`` build target).
+
 .. rst-class:: v1-5-1 v1-5-0
 
 KRKNWK-6756: 802.15.4 Service Layer (SL) library support for the nRF53

@@ -9,7 +9,8 @@
 #include "ei_data_forwarder_event.h"
 
 /* This configuration file is included only once from led_state module and holds
- * information about LED effect associated with each state.
+ * information about LED effects associated with data forwarder states and machine
+ * learning results.
  */
 
 /* This structure enforces the header file is included only once in the build.
