@@ -10,6 +10,11 @@
 #include <shell/shell.h>
 #include <modem/lte_lc.h>
 
+struct mapping_tbl_item {
+	int key;
+	char *value_str;
+};
+
 void ltelc_shell_print_reg_status(const struct shell *shell,
 				  enum lte_lc_nw_reg_status reg_status);
 
@@ -18,5 +23,6 @@ const char *ltelc_shell_funmode_to_string(int funmode, char *out_str_buff);
 const char *ltelc_shell_sysmode_to_string(int sysmode, char *out_str_buff);
 const char *ltelc_shell_sysmode_preferred_to_string(int sysmode_preference, char *out_str_buff);
 const char *ltelc_shell_sysmode_currently_active_to_string(int actmode, char *out_str_buff);
+const char *ltelc_shell_map_to_string(struct mapping_tbl_item const *mapping_table, int mode, char *out_str_buff);
 
 #endif /* LTELC_SHELL_PRINT_H */

@@ -13,30 +13,6 @@
 #include "ltelc.h"
 #include "ltelc_shell_print.h"
 
-struct mapping_tbl_item {
-	int key;
-	char *value_str;
-};
-
-static const char *ltelc_shell_map_to_string(struct mapping_tbl_item const *mapping_table, int mode, char *out_str_buff)
-{
-	bool found = false;
-	int i;
-	
-	for (i = 0; mapping_table[i].key != -1; i++) {
-		if (mapping_table[i].key == mode) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
-		sprintf(out_str_buff, "%d (unknown value, not converted to string)", mode);
-	} else {
-		strcpy(out_str_buff, mapping_table[i].value_str);
-	}
-	return out_str_buff;
-}
 
 const char *ltelc_shell_print_sleep_type_to_string(enum lte_lc_modem_sleep_type sleep_type, char *out_str_buff)
 {
@@ -188,3 +164,24 @@ void ltelc_shell_print_reg_status(const struct shell *shell,
 		break;
 	}
 }
+
+const char *ltelc_shell_map_to_string(struct mapping_tbl_item const *mapping_table, int mode, char *out_str_buff)
+{
+	bool found = false;
+	int i;
+	
+	for (i = 0; mapping_table[i].key != -1; i++) {
+		if (mapping_table[i].key == mode) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		sprintf(out_str_buff, "%d (unknown value, not converted to string)", mode);
+	} else {
+		strcpy(out_str_buff, mapping_table[i].value_str);
+	}
+	return out_str_buff;
+}
+

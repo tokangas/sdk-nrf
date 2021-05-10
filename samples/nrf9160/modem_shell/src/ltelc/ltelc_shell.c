@@ -75,7 +75,7 @@ const char ltelc_usage_str[] =
 	"  help:                    Show this message (no options)\n"
 	"  status:                  Show status of the current connection (no options)\n"
 	"  settings:                Option to print or reset all persistent ltelc subcmd settings.\n"
-	"  coneval:                 Evaluate connection parameters (no options)\n"
+	"  coneval:                 Get connection evaluation parameters (no options)\n"
 	"  defcont:                 Set custom default PDP context config. Persistent between the sessions.\n"
 	"                           Effective when going to normal mode.\n"
 	"  defcontauth:             Set custom authentication parameters for the default PDP context.\n"
