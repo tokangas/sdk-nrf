@@ -11,6 +11,7 @@
 #include <modem/pdn.h>
 #include <modem/at_cmd.h>
 
+#include "ltelc_shell_print.h"
 #include "ltelc_shell_pdn.h"
 
 static const struct shell *uart_shell = NULL;
@@ -106,7 +107,7 @@ void ltelc_pdn_event_handler(uint8_t cid, enum pdn_event event, int reason)
 	}
 }
 
-static int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam, const char *family)
+int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam, const char *family)
 {
 	if (family != NULL) {
 		if (strcmp(family, "ipv4v6") == 0) {
@@ -128,6 +129,19 @@ static int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam, const char 
 	}
 
 	return 0;
+}
+
+const char *ltelc_pdn_lib_family_to_string(enum pdn_fam pdn_family, char *out_fam_str)
+{
+	struct mapping_tbl_item const mapping_table[] = {
+		{PDN_FAM_IPV4,        "ipv4"},
+		{PDN_FAM_IPV6,        "ipv6"},
+		{PDN_FAM_IPV4V6,      "ipv4v6"},
+		{PDN_FAM_NONIP,       "non-ip"},
+		{-1, NULL}
+	};
+	
+	return ltelc_shell_map_to_string(mapping_table, pdn_family, out_fam_str);
 }
 
 int ltelc_shell_pdn_connect(const struct shell *shell, const char *apn_name, const char *family_str)
@@ -158,6 +172,8 @@ int ltelc_shell_pdn_connect(const struct shell *shell, const char *apn_name, con
 		shell_error(shell, "pdn_ctx_configure() failed, err %d\n", ret);
 		goto cleanup_and_fail;
 	}
+	
+	/* TODO: Set authentication params if requested by using pdn_ctx_auth_set() */
 
 	/* Activate a PDN connection */
 	ret = pdn_activate(cid, &esm);

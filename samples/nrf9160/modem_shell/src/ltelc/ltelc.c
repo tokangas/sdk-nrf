@@ -19,6 +19,7 @@
 #include <modem/at_cmd.h>
 #include <modem/modem_info.h>
 #include <modem/lte_lc.h>
+#include <modem/pdn.h>
 
 #include <nrf_socket.h>
 
@@ -245,33 +246,35 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 
 static int ltelc_default_pdp_context_set()
 {
-	static char cgdcont[128];
+	int ret;
 
 	if (ltelc_sett_is_defcont_enabled() == true) {
-		snprintf(cgdcont, sizeof(cgdcont),
-			"AT+CGDCONT=0,\"%s\",\"%s\"",
-				ltelc_sett_defcont_ip_family_get(),
-				ltelc_sett_defcont_apn_get());
-		if (at_cmd_write(cgdcont, NULL, 0, NULL) != 0) {
-			printf("ltelc_default_pdp_context_set: ERROR received for %s", cgdcont);
-			return -EIO;
+		ret = pdn_ctx_configure(
+			0,
+			ltelc_sett_defcont_apn_get(),
+			ltelc_sett_defcont_pdn_family_get(),
+			NULL);
+		if (ret) {
+			printf("pdn_ctx_configure returned err %d", ret);
+			return ret;
 		}
 	}
 	return 0;
 }
 static int ltelc_default_pdp_context_auth_set()
 {
-	static char cgauth[128];
+	int ret;
 
 	if (ltelc_sett_is_defcontauth_enabled() == true) {
-		snprintf(cgauth, sizeof(cgauth),
-			"AT+CGAUTH=0,%d,\"%s\",\"%s\"",
-				ltelc_sett_defcontauth_prot_get(),
-				ltelc_sett_defcontauth_username_get(),
-				ltelc_sett_defcontauth_password_get());
-		if (at_cmd_write(cgauth, NULL, 0, NULL) != 0) {
-			shell_error(uart_shell, "ltelc_default_pdp_context_auth_set: ERROR received for %s", cgauth);
-			return -EIO;
+		ret = pdn_ctx_auth_set(
+			0,
+			ltelc_sett_defcontauth_prot_get(),
+			ltelc_sett_defcontauth_username_get(),
+			ltelc_sett_defcontauth_password_get());
+
+		if (ret) {
+			shell_error(uart_shell, "pdn_ctx_auth_set returned err  %d", ret);
+			return ret;
 		}
 	}
 	return 0;

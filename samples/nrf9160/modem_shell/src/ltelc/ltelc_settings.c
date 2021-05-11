@@ -14,10 +14,12 @@
 #include <settings/settings.h>
 
 #include <modem/lte_lc.h>
+#include <modem/pdn.h>
 
 #include "mosh_defines.h"
 
 #include "ltelc_shell_print.h"
+#include "ltelc_shell_pdn.h"
 #include "ltelc_settings.h"
 
 #define LTELC_SETT_KEY			                  "mosh_ltelc_settings"
@@ -30,7 +32,6 @@
 
 #define LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN 6
 #define LTELC_SETT_DEFCONT_DEFAULT_APN       "internet"
-#define LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY "IPV4V6"
 
 /* ****************************************************************************/
 
@@ -61,28 +62,20 @@
 #define LTELC_SETT_NORMAL_MODE_AUTOCONN_ENABLED	  "normal_mode_autoconn_enabled"
 
 /* ****************************************************************************/
-
-enum ltelc_sett_defcontauth_prot {
-	LTELC_SETT_DEFCONTAUTH_PROT_NONE = 0,
-	LTELC_SETT_DEFCONTAUTH_PROT_PAP  = 1,
-	LTELC_SETT_DEFCONTAUTH_PROT_CHAP = 2
-};
-
-/* ****************************************************************************/
 static const struct shell *uart_shell = NULL;
 
 struct ltelc_sett_t {
 	char defcont_apn_str[MOSH_APN_STR_MAX_LEN + 1];
-	char defcont_ip_family_str[LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN + 1]; //TODO: store as enum
 	bool defcont_enabled;
 
 	char defcontauth_uname_str[LTELC_SETT_DEFCONTAUTH_MAX_UNAME_STR_LEN + 1];
 	char defcontauth_pword_str[LTELC_SETT_DEFCONTAUTH_MAX_PWORD_STR_LEN + 1];
-	enum ltelc_sett_defcontauth_prot defcontauth_prot;
 	bool defcontauth_enabled;
 
 	enum lte_lc_system_mode sysmode;
 	enum lte_lc_system_mode_preference sysmode_lte_preference;
+	enum pdn_fam pdn_family;
+	enum pdn_auth defcontauth_prot;
 
 	/* note: if adding more memory slots, remember also update 
 	   LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START/END accordingly. */
@@ -122,10 +115,10 @@ static int ltelc_sett_handler(const char *key, size_t len,
 		return 0;
 	}
 	else if (strcmp(key, LTELC_SETT_DEFCONT_IP_FAMILY_KEY) == 0) {
-		err = read_cb(cb_arg, &ltelc_settings.defcont_ip_family_str,
-			      sizeof(ltelc_settings.defcont_ip_family_str));
+		err = read_cb(cb_arg, &ltelc_settings.pdn_family,
+			      sizeof(ltelc_settings.pdn_family));
 		if (err < 0) {
-			shell_error(uart_shell, "Failed to read defcont IP family, error: %d",
+			shell_error(uart_shell, "Failed to read defcont PDN family, error: %d",
 				err);
 			return err;
 		}
@@ -255,52 +248,35 @@ bool ltelc_sett_is_defcont_enabled()
 	return ltelc_settings.defcont_enabled;
 }
 
-char *ltelc_sett_defcont_ip_family_get()
+enum pdn_fam ltelc_sett_defcont_pdn_family_get()
 {
-	return ltelc_settings.defcont_ip_family_str;
+	return ltelc_settings.pdn_family;
 }
 
-int ltelc_sett_save_defcont_ip_family(const char *ip_family_str)
+int ltelc_sett_save_defcont_pdn_family(enum pdn_fam family)
 {
 	int err;
 	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_DEFCONT_IP_FAMILY_KEY;
-	int len = strlen(ip_family_str);
-	char tmp_family_str[LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN + 1];
+	char tmp_str[8];
 
-	if (len <= LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN) {
-		/* Mapping to AT command PDP types: */
-		if (strcasecmp(ip_family_str, "ipv4v6") == 0) {
-			strcpy(tmp_family_str, "IPV4V6");
-		}
-		else if ((strcasecmp(ip_family_str, "ipv4") == 0) ||
-		        (strcasecmp(ip_family_str, "ip") == 0)) {
-			strcpy(tmp_family_str, "IP");
-		}
-		else if (strcasecmp(ip_family_str, "ipv6") == 0) {
-			strcpy(tmp_family_str, "IPV6");
-		}
-		else if (strcasecmp(ip_family_str, "packet") == 0) {
-			strcpy(tmp_family_str, "Non-IP");
-		}
-		else {
-			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: could not decode PDN address family (%s)", 
-				ip_family_str);			
-			return -EINVAL;			
-		}
-		err = settings_save_one(
-			key,
-			tmp_family_str, len + 1);
-		if (err) {
-			shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: err %d from settings_save_one()", err);
-			return err;
-		}
-		strcpy(ltelc_settings.defcont_ip_family_str, tmp_family_str);
+	err = settings_save_one(
+		key,
+		&family, 
+		sizeof(enum pdn_fam));
+
+	if (err) {
+		shell_error(uart_shell, "Saving of family failed with err %d", err);
+		return err;
 	}
-	else {
-		shell_error(uart_shell, "ltelc_sett_save_defcont_ip_family: family len exceed the max (%d)", 
-			LTELC_SETT_DEFCONT_MAX_IP_FAMILY_STR_LEN);
-		return -EINVAL;
-	}
+
+	ltelc_settings.pdn_family = family;
+
+	shell_print(
+		uart_shell,
+			"Key \"%s\" with value \"%d\" / \"%s\" saved",
+				key,
+				family,
+				ltelc_pdn_lib_family_to_string(family, tmp_str));
 
 	return 0;
 }
@@ -334,10 +310,14 @@ int ltelc_sett_save_defcont_apn(const char *defcont_apn_str)
 
 void ltelc_sett_defcont_conf_shell_print(const struct shell *shell)
 {
+	char tmp_str[16];
+	
 	shell_print(shell, "ltelc defcont config:");
 	shell_print(shell, "  Enabled: %s", ltelc_settings.defcont_enabled ? "true" : "false" );
 	shell_print(shell, "  APN: %s", ltelc_settings.defcont_apn_str);
-	shell_print(shell, "  IP family / PDP type: %s", ltelc_settings.defcont_ip_family_str);
+	shell_print(shell, "  PDN family: %d (\"%s\")", 
+		ltelc_settings.pdn_family,
+		ltelc_pdn_lib_family_to_string(ltelc_settings.pdn_family, tmp_str));
 }
 /* ****************************************************************************/
 
@@ -417,16 +397,16 @@ int ltelc_sett_save_defcontauth_prot(int auth_prot)
 {
 	int err;
 	const char *key = LTELC_SETT_KEY "/" LTELC_SETT_DEFCONTAUTH_PROTOCOL_KEY;
-	enum ltelc_sett_defcontauth_prot prot;
+	enum pdn_auth prot;
 
 	if (auth_prot == 0) {
-		prot = LTELC_SETT_DEFCONTAUTH_PROT_NONE;
+		prot = PDN_AUTH_NONE;
 	}
 	else if (auth_prot == 1) {
-		prot = LTELC_SETT_DEFCONTAUTH_PROT_PAP;
+		prot = PDN_AUTH_PAP;
 	}
 	else if (auth_prot == 2) {
-		prot = LTELC_SETT_DEFCONTAUTH_PROT_CHAP;
+		prot = PDN_AUTH_CHAP;
 	}
 	else {
 		shell_error(uart_shell, "Uknown auth protocol %d", auth_prot);
@@ -436,7 +416,7 @@ int ltelc_sett_save_defcontauth_prot(int auth_prot)
 	err = settings_save_one(
 		key,
 		&prot, 
-		sizeof(enum ltelc_sett_defcontauth_prot));
+		sizeof(enum pdn_auth));
 	if (err) {
 		shell_error(uart_shell, "Saving of authentication protocol failed with err %d", err);
 		return err;
@@ -447,19 +427,23 @@ int ltelc_sett_save_defcontauth_prot(int auth_prot)
 
 	return 0;
 }
-int ltelc_sett_defcontauth_prot_get()
+
+enum pdn_auth ltelc_sett_defcontauth_prot_get()
 {
 	int prot = ltelc_settings.defcontauth_prot;
 	return prot;
 }
+
 char *ltelc_sett_defcontauth_username_get()
 {
 	return ltelc_settings.defcontauth_uname_str;
 }
+
 char *ltelc_sett_defcontauth_password_get()
 {
 	return ltelc_settings.defcontauth_pword_str;
 }
+
 void ltelc_sett_defcontauth_conf_shell_print(const struct shell *shell)
 {
 	static const char * const prot_type_str[] = {
@@ -689,9 +673,9 @@ static void ltelc_sett_ram_data_init()
 	
 	ltelc_settings.normal_mode_autoconn_enabled = true;
 	ltelc_settings.sysmode = LTE_LC_SYSTEM_MODE_NONE;
+	ltelc_settings.pdn_family = PDN_FAM_IPV4V6;
 
 	strcpy(ltelc_settings.defcont_apn_str, LTELC_SETT_DEFCONT_DEFAULT_APN);
-	strcpy(ltelc_settings.defcont_ip_family_str, LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY);
 	strcpy(ltelc_settings.defcontauth_uname_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME);
 	strcpy(ltelc_settings.defcontauth_pword_str, LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD);
 }
@@ -711,7 +695,7 @@ void ltelc_sett_defaults_set(const struct shell *shell)
 	ltelc_sett_ram_data_init();
 
 	ltelc_sett_save_defcont_enabled(false);
-	ltelc_sett_save_defcont_ip_family(LTELC_SETT_DEFCONT_DEFAULT_IP_FAMILY);
+	ltelc_sett_save_defcont_pdn_family(PDN_FAM_IPV4V6);
 	ltelc_sett_save_defcont_apn(LTELC_SETT_DEFCONT_DEFAULT_APN);
 	
 	ltelc_sett_save_defcontauth_enabled(false);
@@ -719,7 +703,7 @@ void ltelc_sett_defaults_set(const struct shell *shell)
 		LTELC_SETT_DEFCONTAUTH_DEFAULT_USERNAME);
 	ltelc_sett_save_defcontauth_password(
 		LTELC_SETT_DEFCONTAUTH_DEFAULT_PASSWORD);
-	ltelc_sett_save_defcontauth_prot(LTELC_SETT_DEFCONTAUTH_PROT_NONE);
+	ltelc_sett_save_defcontauth_prot(PDN_AUTH_NONE);
 
 	ltelc_sett_sysmode_default_set();
 

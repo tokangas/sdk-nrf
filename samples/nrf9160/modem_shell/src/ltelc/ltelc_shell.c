@@ -108,7 +108,7 @@ const char ltelc_defcont_usage_str[] =
 	"  -e, --enable,     [bool] Enable custom config for default PDP context\n"
 	"  -d, --disable,    [bool] Disable custom config for default PDP context\n"
 	"  -a, --apn,        [str]  Set default Access Point Name\n"
-	"  -f, --family,     [str]  Address family: 'ipv4v6' (default), 'ipv4', 'ipv6', 'packet'\n"
+	"  -f, --family,     [str]  Address family: 'ipv4v6' (default), 'ipv4', 'ipv6', 'non-ip'\n"
 	"\n";
 
 const char ltelc_defcontauth_usage_str[] =
@@ -810,7 +810,15 @@ int ltelc_shell(const struct shell *shell, size_t argc, char **argv)
 				(void)ltelc_sett_save_defcont_apn(apn);
 			}
 			if (family != NULL) {
-				(void)ltelc_sett_save_defcont_ip_family(family);
+				enum pdn_fam pdn_lib_fam;
+
+				ret = ltelc_family_str_to_pdn_lib_family(&pdn_lib_fam, family);
+				if (ret) {
+					shell_error(shell, "Unknown PDN family %s", family);
+					goto show_usage;
+				} else {
+					(void)ltelc_sett_save_defcont_pdn_family(pdn_lib_fam);
+				}
 			}
 			break;
 		case LTELC_CMD_DEFCONTAUTH:
