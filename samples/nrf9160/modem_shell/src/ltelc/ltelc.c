@@ -31,7 +31,7 @@
 #include "ltelc_api.h"
 #include "ltelc.h"
 
-#if defined (CONFIG_MOSH_SMS)
+#if defined(CONFIG_MOSH_SMS)
 #include "sms.h"
 #endif
 
@@ -52,10 +52,7 @@ typedef struct {
 } ltelc_pdn_socket_info_t;
 
 #if defined(CONFIG_MODEM_INFO)
-/* System work queue for getting the modem info that ain't in lte connection ind.
-   TODO: things like these might be good to be in lte connection ind, 
-   i.e. merge certain stuff from modem info to there? */
-
+/* System work queue for getting the modem info that ain't in lte connection ind: */
 static struct k_work modem_info_work;
 
 /* Work queue for signal info: */
@@ -63,26 +60,27 @@ static struct k_work modem_info_signal_work;
 #define LTELC_RSRP_VALUE_NOT_KNOWN -999
 static int32_t modem_rsrp = LTELC_RSRP_VALUE_NOT_KNOWN;
 
-//**************************************************************************
+/******************************************************************************/
 
 static void ltelc_modem_info_work(struct k_work *unused)
 {
 	ARG_UNUSED(unused);
 
-    k_sleep(K_MSEC(1500)); /* Seems that 1st info read fails without this. Thus, let modem have some time */
+	/* Seems that 1st info read fails without this. Thus, let modem have some time: */
+	k_sleep(K_MSEC(1500));
 
 	ltelc_api_modem_info_get_for_shell(uart_shell, true);
 }
-//**************************************************************************
+
+/******************************************************************************/
 
 static void ltelc_rsrp_signal_handler(char rsrp_value)
 {
-
 	modem_rsrp = (int8_t)rsrp_value - MODEM_INFO_RSRP_OFFSET_VAL;
 	k_work_submit(&modem_info_signal_work);
 }
 
-//**************************************************************************
+/******************************************************************************/
 
 #define MOSH_RSRP_UPDATE_INTERVAL_IN_SECS 5
 static void ltelc_rsrp_signal_update(struct k_work *work)
@@ -95,12 +93,15 @@ static void ltelc_rsrp_signal_update(struct k_work *work)
 		return;
 	}
 
-	if (ltelc_subscribe_for_rsrp && uart_shell != NULL)
+	if (ltelc_subscribe_for_rsrp && uart_shell != NULL) {
 		shell_print(uart_shell, "RSRP: %d", modem_rsrp);
+	}
 	timestamp_prev = k_uptime_get_32();
 }
 #endif
-//**************************************************************************
+
+/******************************************************************************/
+
 void ltelc_init(void)
 {
 #if defined(CONFIG_MODEM_INFO)
@@ -108,7 +109,7 @@ void ltelc_init(void)
 	k_work_init(&modem_info_signal_work, ltelc_rsrp_signal_update);
 	modem_info_rsrp_register(ltelc_rsrp_signal_handler);
 #endif
-	
+
 	uart_shell = shell_backend_uart_get_ptr();
 
 	ltelc_sett_init(uart_shell);
@@ -117,8 +118,9 @@ void ltelc_init(void)
 
 	lte_lc_register_handler(ltelc_ind_handler);
 
-/* With CONFIG_LWM2M_CARRIER, MoSH auto connect must be disabled 
-   because LwM2M carrier lib handles that. */
+/* With CONFIG_LWM2M_CARRIER, MoSH auto connect must be disabled
+ * because LwM2M carrier lib handles that.
+ */
 #if !defined(CONFIG_LWM2M_CARRIER)
 	if (ltelc_sett_is_normal_mode_autoconn_enabled() == true) {
 		ltelc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
@@ -137,7 +139,8 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		 *  occur. This gives the application the opportunity to send data over the network before
 		 *  the TAU happens, thus saving power by avoiding sending data and the TAU separately.
 		 */
-		shell_print(uart_shell, "TAU pre warning: time %lld", evt->time);
+		shell_print(uart_shell, "TAU pre warning: time %lld",
+			    evt->time);
 		break;
 	case LTE_LC_EVT_NEIGHBOR_CELL_MEAS: {
 		int i;
@@ -151,23 +154,20 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 			shell_print(
 				uart_shell,
 				"    ID %d, phy ID %d, MCC %d MNC %d, RSRP %d : %ddBm, RSRQ %d, TAC %d, earfcn %d, meas time %lld, TA %d",
-					cur_cell.id,
-					cur_cell.phys_cell_id,
-					cur_cell.mcc,
-					cur_cell.mnc,
-					cur_cell.rsrp,
-					cur_cell.rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
-					cur_cell.rsrq,
-					cur_cell.tac,
-					cur_cell.earfcn,
-					cur_cell.measurement_time,
-					cur_cell.timing_advance);
+				cur_cell.id, cur_cell.phys_cell_id,
+				cur_cell.mcc, cur_cell.mnc, cur_cell.rsrp,
+				cur_cell.rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
+				cur_cell.rsrq, cur_cell.tac, cur_cell.earfcn,
+				cur_cell.measurement_time,
+				cur_cell.timing_advance);
 		} else {
-			shell_print(uart_shell, "No current cell information from modem.");
+			shell_print(uart_shell,
+				    "No current cell information from modem.");
 		}
 
 		if (!cells.ncells_count) {
-			shell_print(uart_shell, "No neighbor cell information from modem.");
+			shell_print(uart_shell,
+				    "No neighbor cell information from modem.");
 		}
 
 		for (i = 0; i < cells.ncells_count; i++) {
@@ -178,14 +178,14 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 				"    phy ID %d, RSRP %d : %ddBm, RSRQ %d, earfcn %d, timediff %d",
 				cells.neighbor_cells[i].phys_cell_id,
 				cells.neighbor_cells[i].rsrp,
-				cells.neighbor_cells[i].rsrp - MODEM_INFO_RSRP_OFFSET_VAL,
+				cells.neighbor_cells[i].rsrp -
+				MODEM_INFO_RSRP_OFFSET_VAL,
 				cells.neighbor_cells[i].rsrq,
 				cells.neighbor_cells[i].earfcn,
 				cells.neighbor_cells[i].time_diff);
 		}
-	}
-	break;
-	case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING: 
+	} break;
+	case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING:
 	case LTE_LC_EVT_MODEM_SLEEP_ENTER:
 	case LTE_LC_EVT_MODEM_SLEEP_EXIT:
 		ltelc_shell_print_modem_sleep_notif(uart_shell, evt);
@@ -197,32 +197,36 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 		 *  and network availability. This event will then indicate which
 		 *  LTE mode is currently used by the modem.
 		 */
-		shell_print(uart_shell, "Currently active system mode: %s", 
-			ltelc_shell_sysmode_currently_active_to_string(
-				evt->lte_mode, snum));
-		break;	
+		shell_print(uart_shell, "Currently active system mode: %s",
+			    ltelc_shell_sysmode_currently_active_to_string(
+				    evt->lte_mode, snum));
+		break;
 	case LTE_LC_EVT_NW_REG_STATUS:
 		ltelc_shell_print_reg_status(uart_shell, evt->nw_reg_status);
 
 #if defined(CONFIG_MODEM_INFO)
 		if (evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_EMERGENCY ||
-			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ||
-			evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
+		    evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ||
+		    evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
 			k_work_submit(&modem_info_work);
 		}
 #endif
 		break;
 	case LTE_LC_EVT_CELL_UPDATE:
-		shell_print(uart_shell, "LTE cell changed: Cell ID: %d, Tracking area: %d",
-		       evt->cell.id, evt->cell.tac);
+		shell_print(uart_shell,
+			    "LTE cell changed: Cell ID: %d, Tracking area: %d",
+			    evt->cell.id, evt->cell.tac);
 		break;
 	case LTE_LC_EVT_RRC_UPDATE:
 		shell_print(uart_shell, "RRC mode: %s",
-			evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ?
-			"Connected" : "Idle");
+			    evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ?
+			    "Connected" :
+			    "Idle");
 		break;
 	case LTE_LC_EVT_PSM_UPDATE:
-		shell_print(uart_shell, "PSM parameter update: TAU: %d, Active time: %d seconds",
+		shell_print(
+			uart_shell,
+			"PSM parameter update: TAU: %d, Active time: %d seconds",
 			evt->psm_cfg.tau, evt->psm_cfg.active_time);
 		break;
 	case LTE_LC_EVT_EDRX_UPDATE: {
@@ -236,24 +240,22 @@ void ltelc_ind_handler(const struct lte_lc_evt *const evt)
 			shell_print(uart_shell, "%s", log_buf);
 		}
 		break;
-	}			
+	}
 	default:
 		break;
 	}
 }
 
-//**************************************************************************
+/******************************************************************************/
 
 static int ltelc_default_pdp_context_set()
 {
 	int ret;
 
 	if (ltelc_sett_is_defcont_enabled() == true) {
-		ret = pdn_ctx_configure(
-			0,
-			ltelc_sett_defcont_apn_get(),
-			ltelc_sett_defcont_pdn_family_get(),
-			NULL);
+		ret = pdn_ctx_configure(0, ltelc_sett_defcont_apn_get(),
+					ltelc_sett_defcont_pdn_family_get(),
+					NULL);
 		if (ret) {
 			printf("pdn_ctx_configure returned err %d", ret);
 			return ret;
@@ -266,20 +268,18 @@ static int ltelc_default_pdp_context_auth_set()
 	int ret;
 
 	if (ltelc_sett_is_defcontauth_enabled() == true) {
-		ret = pdn_ctx_auth_set(
-			0,
-			ltelc_sett_defcontauth_prot_get(),
-			ltelc_sett_defcontauth_username_get(),
-			ltelc_sett_defcontauth_password_get());
+		ret = pdn_ctx_auth_set(0, ltelc_sett_defcontauth_prot_get(),
+				       ltelc_sett_defcontauth_username_get(),
+				       ltelc_sett_defcontauth_password_get());
 
 		if (ret) {
-			shell_error(uart_shell, "pdn_ctx_auth_set returned err  %d", ret);
+			shell_error(uart_shell,
+				    "pdn_ctx_auth_set returned err  %d", ret);
 			return ret;
 		}
 	}
 	return 0;
 }
-
 
 static int ltelc_normal_mode_at_cmds_run()
 {
@@ -288,25 +288,24 @@ static int ltelc_normal_mode_at_cmds_run()
 	int mem_slot_index = LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START;
 	int len;
 
-	for (;mem_slot_index <= LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_END; mem_slot_index++) {
-		normal_mode_at_cmd = ltelc_sett_normal_mode_at_cmd_str_get(mem_slot_index);
+	for (; mem_slot_index <= LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_END;
+	     mem_slot_index++) {
+		normal_mode_at_cmd =
+			ltelc_sett_normal_mode_at_cmd_str_get(mem_slot_index);
 		len = strlen(normal_mode_at_cmd);
 		if (len) {
-			if (at_cmd_write(
-				normal_mode_at_cmd, response, sizeof(response), NULL) != 0) {
+			if (at_cmd_write(normal_mode_at_cmd, response,
+					 sizeof(response), NULL) != 0) {
 				shell_error(
-					uart_shell, 
+					uart_shell,
 					"Normal mode AT-command from memory slot %d \"%s\" returned: ERROR",
-						mem_slot_index,
-						normal_mode_at_cmd);
-			} 
-			else {
+					mem_slot_index, normal_mode_at_cmd);
+			} else {
 				shell_print(
-					uart_shell, 
+					uart_shell,
 					"Normal mode AT-command from memory slot %d \"%s\" returned:\n\r %s OK",
-						mem_slot_index,
-						normal_mode_at_cmd,
-						response);
+					mem_slot_index, normal_mode_at_cmd,
+					response);
 			}
 		}
 	}
@@ -314,40 +313,54 @@ static int ltelc_normal_mode_at_cmds_run()
 	return 0;
 }
 
-void ltelc_rsrp_subscribe(bool subscribe) {
+void ltelc_rsrp_subscribe(bool subscribe)
+{
 	ltelc_subscribe_for_rsrp = subscribe;
 	if (uart_shell != NULL) {
 		if (ltelc_subscribe_for_rsrp) {
 			/* print current value right away: */
 			shell_print(uart_shell, "RSRP subscribed");
-			if (modem_rsrp != LTELC_RSRP_VALUE_NOT_KNOWN)
+			if (modem_rsrp != LTELC_RSRP_VALUE_NOT_KNOWN) {
 				shell_print(uart_shell, "RSRP: %d", modem_rsrp);
-		}
-		else {
+			}
+		} else {
 			shell_print(uart_shell, "RSRP unsubscribed");
 		}
 	}
 }
 
-void ltelc_ncellmeas_start(bool start) {
+void ltelc_ncellmeas_start(bool start)
+{
 	int ret;
-	
+
 	if (start) {
-		shell_print(uart_shell, "Neighbor cell measurements and reporting starting");
+		shell_print(
+			uart_shell,
+			"Neighbor cell measurements and reporting starting");
 		ret = lte_lc_neighbor_cell_measurement();
 		if (uart_shell != NULL) {
 			if (ret) {
-				shell_error(uart_shell, "lte_lc_neighbor_cell_measurement() returned err %d", ret);
-				shell_error(uart_shell, "Cannot start neigbor measurements");
+				shell_error(
+					uart_shell,
+					"lte_lc_neighbor_cell_measurement() returned err %d",
+					ret);
+				shell_error(
+					uart_shell,
+					"Cannot start neigbor measurements");
 			}
 		}
 	} else {
 		ret = lte_lc_neighbor_cell_measurement_cancel();
 		if (uart_shell != NULL) {
 			if (ret) {
-				shell_error(uart_shell, "lte_lc_neighbor_cell_measurement_cancel() returned err %d", ret);
+				shell_error(
+					uart_shell,
+					"lte_lc_neighbor_cell_measurement_cancel() returned err %d",
+					ret);
 			} else {
-				shell_print(uart_shell, "Neighbor cell measurements and reporting stopped");
+				shell_print(
+					uart_shell,
+					"Neighbor cell measurements and reporting stopped");
 			}
 		}
 	}
@@ -355,7 +368,8 @@ void ltelc_ncellmeas_start(bool start) {
 
 #define AT_MDM_SLEEP_NOTIF_START "AT%%XMODEMSLEEP=1,%d,%d"
 #define AT_MDM_SLEEP_NOTIF_STOP "AT%XMODEMSLEEP=0"
-void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms)
+void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms,
+					       uint32_t threshold_ms)
 {
 	char buf_sub[48];
 	int err;
@@ -365,10 +379,13 @@ void ltelc_modem_sleep_notifications_subscribe(uint32_t warn_time_ms, uint32_t t
 
 	err = at_cmd_write(buf_sub, NULL, 0, NULL);
 	if (err) {
-		shell_error(uart_shell,
-			"Cannot subscribe to modem sleep notifications, err %d", err);
+		shell_error(
+			uart_shell,
+			"Cannot subscribe to modem sleep notifications, err %d",
+			err);
 	} else {
-		shell_print(uart_shell, "Subscribed to modem sleep notifications");
+		shell_print(uart_shell,
+			    "Subscribed to modem sleep notifications");
 	}
 }
 
@@ -379,26 +396,30 @@ void ltelc_modem_sleep_notifications_unsubscribe()
 	err = at_cmd_write(AT_MDM_SLEEP_NOTIF_STOP, NULL, 0, NULL);
 	if (err) {
 		shell_error(uart_shell,
-			"Cannot stop modem sleep notifications, err %d", err);
+			    "Cannot stop modem sleep notifications, err %d",
+			    err);
 	} else {
-		shell_print(uart_shell, "Unsubscribed from modem sleep notifications");
+		shell_print(uart_shell,
+			    "Unsubscribed from modem sleep notifications");
 	}
 }
 
-#define AT_TAU_NOTIF_START      "AT%%XT3412=1,%d,%d"
-#define AT_TAU_NOTIF_STOP       "AT%%T3412=0"
-void ltelc_modem_tau_notifications_subscribe(uint32_t warn_time_ms, uint32_t threshold_ms)
+#define AT_TAU_NOTIF_START "AT%%XT3412=1,%d,%d"
+#define AT_TAU_NOTIF_STOP "AT%%T3412=0"
+void ltelc_modem_tau_notifications_subscribe(uint32_t warn_time_ms,
+					     uint32_t threshold_ms)
 {
 	char buf_sub[48];
 	int err;
 
-	snprintk(buf_sub, sizeof(buf_sub), AT_TAU_NOTIF_START,
-		 warn_time_ms, threshold_ms);
+	snprintk(buf_sub, sizeof(buf_sub), AT_TAU_NOTIF_START, warn_time_ms,
+		 threshold_ms);
 
 	err = at_cmd_write(buf_sub, NULL, 0, NULL);
 	if (err) {
 		shell_error(uart_shell,
-			"Cannot subscribe to TAU notifications, err %d", err);
+			    "Cannot subscribe to TAU notifications, err %d",
+			    err);
 	} else {
 		shell_print(uart_shell, "Subscribed to TAU notifications");
 	}
@@ -411,9 +432,11 @@ void ltelc_modem_tau_notifications_unsubscribe(void)
 	err = at_cmd_write(AT_MDM_SLEEP_NOTIF_STOP, NULL, 0, NULL);
 	if (err) {
 		shell_error(uart_shell,
-			"Cannot stop modem sleep notifications, err %d", err);
+			    "Cannot stop modem sleep notifications, err %d",
+			    err);
 	} else {
-		shell_print(uart_shell, "Unsubscribed from modem sleep notifications");
+		shell_print(uart_shell,
+			    "Unsubscribed from modem sleep notifications");
 	}
 }
 
@@ -425,7 +448,7 @@ int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 
 	switch (fun) {
 	case LTE_LC_FUNC_MODE_POWER_OFF:
-#if defined (CONFIG_MOSH_SMS)	
+#if defined(CONFIG_MOSH_SMS)
 		sms_unregister();
 #endif
 		return_value = lte_lc_power_off();
@@ -434,10 +457,10 @@ int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 		return_value = lte_lc_offline();
 		break;
 	case LTE_LC_FUNC_MODE_NORMAL:
-	    /* Run custom at cmds from settings (ltelc nmodeat -mosh command): */
-	    ltelc_normal_mode_at_cmds_run();
+		/* Run custom at cmds from settings (ltelc nmodeat -mosh command): */
+		ltelc_normal_mode_at_cmds_run();
 
-	    /* Set default context from settings 
+		/* Set default context from settings
 		   (ltelc defcont/defcontauth -mosh commands): */
 		ltelc_default_pdp_context_set();
 		ltelc_default_pdp_context_auth_set();
@@ -447,22 +470,27 @@ int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 		sysmode = ltelc_sett_sysmode_get();
 		lte_pref = ltelc_sett_sysmode_lte_preference_get();
 		if (sysmode != LTE_LC_SYSTEM_MODE_NONE) {
-			return_value = lte_lc_system_mode_set(sysmode, lte_pref);
+			return_value =
+				lte_lc_system_mode_set(sysmode, lte_pref);
 			if (uart_shell != NULL && return_value < 0) {
 				shell_warn(
-					uart_shell, "lte_lc_system_mode_set returned error %d",
-						return_value);
+					uart_shell,
+					"lte_lc_system_mode_set returned error %d",
+					return_value);
 			}
 		}
 
 		if (IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT)) {
 			return_value = lte_lc_normal();
-		}
-		else {
-			/* TODO: why not just do lte_lc_normal() as notifications are subscribed there also nowadays? */ 
-			return_value = lte_lc_init_and_connect_async(ltelc_ind_handler);
+		} else {
+			/* TODO: why not just do lte_lc_normal() as notifications are
+			 * subscribed there also nowadays?
+			 */
+			return_value = lte_lc_init_and_connect_async(
+				ltelc_ind_handler);
 			if (return_value == -EALREADY) {
-				return_value = lte_lc_connect_async(ltelc_ind_handler);
+				return_value =
+					lte_lc_connect_async(ltelc_ind_handler);
 			}
 		}
 		break;
@@ -476,13 +504,12 @@ int ltelc_func_mode_set(enum lte_lc_func_mode fun)
 	default:
 		return_value = lte_lc_func_mode_set(fun);
 		if (return_value) {
-			shell_error(
-				uart_shell, "lte_lc_func_mode_set returned, error %d",
-					return_value);
+			shell_error(uart_shell,
+				    "lte_lc_func_mode_set returned, error %d",
+				    return_value);
 		}
 		break;
 	}
 
 	return return_value;
 }
-

@@ -11,21 +11,21 @@
 #include <init.h>
 #include <shell/shell.h>
 #include <nrf_socket.h>
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 #include <supl_session.h>
 #include <supl_os_client.h>
 #endif
 
 #include "gnss.h"
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 #include "gnss_supl_support.h"
 #endif
 
 #define GNSS_SOCKET_THREAD_STACK_SIZE 768
-#define GNSS_SOCKET_THREAD_PRIORITY   5
+#define GNSS_SOCKET_THREAD_PRIORITY 5
 
 #define GNSS_WORKQ_THREAD_STACK_SIZE 2048
-#define GNSS_WORKQ_THREAD_PRIORITY   5
+#define GNSS_WORKQ_THREAD_PRIORITY 5
 
 K_THREAD_STACK_DEFINE(gnss_workq_stack_area, GNSS_WORKQ_THREAD_STACK_SIZE);
 
@@ -33,7 +33,7 @@ static struct k_work_q gnss_work_q;
 static struct k_delayed_work gnss_start_work;
 static struct k_delayed_work gnss_timeout_work;
 
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 static struct k_work get_agps_data_work;
 
 static nrf_gnss_agps_data_frame_t agps_data;
@@ -58,22 +58,22 @@ static uint32_t fix_retry;
 static gnss_data_delete data_delete = GNSS_DATA_DELETE_NONE;
 static int8_t elevation_threshold = -1;
 static bool low_accuracy = false;
-static nrf_gnss_nmea_mask_t nmea_mask = NRF_GNSS_NMEA_GGA_MASK | \
-					NRF_GNSS_NMEA_GLL_MASK | \
-					NRF_GNSS_NMEA_GSA_MASK | \
-					NRF_GNSS_NMEA_GSV_MASK | \
-					NRF_GNSS_NMEA_RMC_MASK;
-static gnss_duty_cycling_policy duty_cycling_policy = GNSS_DUTY_CYCLING_DISABLED;
-#if defined (CONFIG_SUPL_CLIENT_LIB)
-static bool agps_automatic    = false;
+static nrf_gnss_nmea_mask_t nmea_mask =
+	NRF_GNSS_NMEA_GGA_MASK | NRF_GNSS_NMEA_GLL_MASK |
+	NRF_GNSS_NMEA_GSA_MASK | NRF_GNSS_NMEA_GSV_MASK |
+	NRF_GNSS_NMEA_RMC_MASK;
+static gnss_duty_cycling_policy duty_cycling_policy =
+	GNSS_DUTY_CYCLING_DISABLED;
+#if defined(CONFIG_SUPL_CLIENT_LIB)
+static bool agps_automatic = false;
 static bool agps_inject_ephe = true;
-static bool agps_inject_alm  = true;
-static bool agps_inject_utc  = true;
+static bool agps_inject_alm = true;
+static bool agps_inject_utc = true;
 static bool agps_inject_klob = true;
-static bool agps_inject_neq  = true;
+static bool agps_inject_neq = true;
 static bool agps_inject_time = true;
-static bool agps_inject_pos  = true;
-static bool agps_inject_int  = true;
+static bool agps_inject_pos = true;
+static bool agps_inject_int = true;
 #endif
 
 /* Output configuration */
@@ -98,63 +98,69 @@ static void create_timestamp_string(uint32_t timestamp, char *timestamp_str)
 	secs = secs % 60;
 	mins = mins % 60;
 
-	sprintf(timestamp_str, "%02d:%02d:%02d.%03d",
-		hours, mins, secs, timestamp % 1000);
+	sprintf(timestamp_str, "%02d:%02d:%02d.%03d", hours, mins, secs,
+		timestamp % 1000);
 }
 
 static void print_pvt_flags(nrf_gnss_pvt_data_frame_t *pvt)
 {
 	shell_print(gnss_shell_global, "\nFix valid:          %s",
-		(pvt->flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) == NRF_GNSS_PVT_FLAG_FIX_VALID_BIT ? "true" : "false");
+		    (pvt->flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) ==
+		    NRF_GNSS_PVT_FLAG_FIX_VALID_BIT ?
+		    "true" :
+		    "false");
 	shell_print(gnss_shell_global, "Leap second valid:  %s",
-		(pvt->flags & NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID) == NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID ? "true" : "false");
+		    (pvt->flags & NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID) ==
+		    NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID ?
+		    "true" :
+		    "false");
 	shell_print(gnss_shell_global, "Sleep between PVT:  %s",
-		(pvt->flags & NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) == NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT ? "true" : "false");
+		    (pvt->flags & NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) ==
+		    NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT ?
+		    "true" :
+		    "false");
 	shell_print(gnss_shell_global, "Deadline missed:    %s",
-		(pvt->flags & NRF_GNSS_PVT_FLAG_DEADLINE_MISSED) == NRF_GNSS_PVT_FLAG_DEADLINE_MISSED ? "true" : "false");
+		    (pvt->flags & NRF_GNSS_PVT_FLAG_DEADLINE_MISSED) ==
+		    NRF_GNSS_PVT_FLAG_DEADLINE_MISSED ?
+		    "true" :
+		    "false");
 	shell_print(gnss_shell_global, "Insuf. time window: %s",
-		(pvt->flags & NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) == NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME ? "true" : "false");
-
+		    (pvt->flags & NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) ==
+		    NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME ?
+		    "true" :
+		    "false");
 }
 
 static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 {
-        if (pvt_output_level == 0) {
-                return;
-        }
+	if (pvt_output_level == 0) {
+		return;
+	}
 
-        print_pvt_flags(pvt);
+	print_pvt_flags(pvt);
 
-	if ((pvt->flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) == NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) {
-		shell_print(gnss_shell_global, "Time:      %02d.%02d.%04d %02d:%02d:%02d.%03d",
-			    pvt->datetime.day,
-			    pvt->datetime.month,
-			    pvt->datetime.year,
-			    pvt->datetime.hour,
-			    pvt->datetime.minute,
-			    pvt->datetime.seconds,
+	if ((pvt->flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) ==
+	    NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) {
+		shell_print(gnss_shell_global,
+			    "Time:      %02d.%02d.%04d %02d:%02d:%02d.%03d",
+			    pvt->datetime.day, pvt->datetime.month,
+			    pvt->datetime.year, pvt->datetime.hour,
+			    pvt->datetime.minute, pvt->datetime.seconds,
 			    pvt->datetime.ms);
 		shell_print(gnss_shell_global,
-			"Latitude:  %f\n"
-			"Longitude: %f\n"
-			"Altitude:  %.1f m\n"
-			"Accuracy:  %.1f m\n"
-			"Speed:     %.1f m/s\n"
-			"Heading:   %.1f deg\n"
-			"PDOP:      %.1f\n"
-			"HDOP:      %.1f\n"
-			"VDOP:      %.1f\n"
-			"TDOP:      %.1f",
-			pvt->latitude,
-			pvt->longitude,
-			pvt->altitude,
-			pvt->accuracy,
-			pvt->speed,
-			pvt->heading,
-			pvt->pdop,
-			pvt->hdop,
-			pvt->vdop,
-			pvt->tdop);
+			    "Latitude:  %f\n"
+			    "Longitude: %f\n"
+			    "Altitude:  %.1f m\n"
+			    "Accuracy:  %.1f m\n"
+			    "Speed:     %.1f m/s\n"
+			    "Heading:   %.1f deg\n"
+			    "PDOP:      %.1f\n"
+			    "HDOP:      %.1f\n"
+			    "VDOP:      %.1f\n"
+			    "TDOP:      %.1f",
+			    pvt->latitude, pvt->longitude, pvt->altitude,
+			    pvt->accuracy, pvt->speed, pvt->heading, pvt->pdop,
+			    pvt->hdop, pvt->vdop, pvt->tdop);
 	}
 
 	if (pvt_output_level < 2) {
@@ -168,22 +174,28 @@ static void print_pvt(nrf_gnss_pvt_data_frame_t *pvt)
 			continue;
 		}
 
-		shell_print(gnss_shell_global, "SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
-			pvt->sv[i].sv,
-			pvt->sv[i].cn0 * 0.1,
-			pvt->sv[i].elevation,
-			pvt->sv[i].azimuth,
+		shell_print(
+			gnss_shell_global,
+			"SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
+			pvt->sv[i].sv, pvt->sv[i].cn0 * 0.1,
+			pvt->sv[i].elevation, pvt->sv[i].azimuth,
 			pvt->sv[i].signal,
-			(pvt->sv[i].flags & NRF_GNSS_SV_FLAG_USED_IN_FIX) == NRF_GNSS_SV_FLAG_USED_IN_FIX ? 1 : 0,
-			(pvt->sv[i].flags & NRF_GNSS_SV_FLAG_UNHEALTHY) == NRF_GNSS_SV_FLAG_UNHEALTHY ? 1 : 0);
+			(pvt->sv[i].flags & NRF_GNSS_SV_FLAG_USED_IN_FIX) ==
+			NRF_GNSS_SV_FLAG_USED_IN_FIX ?
+			1 :
+			0,
+			(pvt->sv[i].flags & NRF_GNSS_SV_FLAG_UNHEALTHY) ==
+			NRF_GNSS_SV_FLAG_UNHEALTHY ?
+			1 :
+			0);
 	}
 }
 
 static void print_nmea(nrf_gnss_nmea_data_frame_t *nmea)
 {
-        if (nmea_output_level == 0) {
-                return;
-        }
+	if (nmea_output_level == 0) {
+		return;
+	}
 
 	for (int i = 0; i < NRF_GNSS_NMEA_MAX_LEN; i++) {
 		if ((*nmea)[i] == '\r' || (*nmea)[i] == '\n') {
@@ -240,7 +252,8 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 		if (operation_mode == GNSS_OP_MODE_PERIODIC_FIX &&
 		    fix_timestamp != 0) {
 			if (event_output_level > 0) {
-				create_timestamp_string(fix_timestamp, timestamp_str);
+				create_timestamp_string(fix_timestamp,
+							timestamp_str);
 
 				shell_print(gnss_shell_global,
 					    "[%s] GNSS: Fix, going to sleep",
@@ -267,55 +280,64 @@ static void process_gnss_data(nrf_gnss_data_frame_t *gnss_data)
 		print_nmea(&gnss_data->nmea);
 		break;
 	case NRF_GNSS_AGPS_DATA_ID:
-                if (event_output_level > 0) {
+		if (event_output_level > 0) {
 			char flags_string[48];
 
-			create_timestamp_string(k_uptime_get_32(), timestamp_str);
-			get_agps_data_flags_string(flags_string, gnss_data->agps.data_flags);
+			create_timestamp_string(k_uptime_get_32(),
+						timestamp_str);
+			get_agps_data_flags_string(flags_string,
+						   gnss_data->agps.data_flags);
 
 			shell_print(
 				gnss_shell_global,
 				"[%s] GNSS: AGPS data needed (ephe: 0x%08x, alm: 0x%08x, flags: %s)",
-				timestamp_str,
-				gnss_data->agps.sv_mask_ephe,
-				gnss_data->agps.sv_mask_alm,
-				flags_string);
-                }
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+				timestamp_str, gnss_data->agps.sv_mask_ephe,
+				gnss_data->agps.sv_mask_alm, flags_string);
+		}
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 		if (agps_automatic) {
 			(void)memset(&agps_data, 0, sizeof(agps_data));
 			if (agps_inject_ephe) {
-				agps_data.sv_mask_ephe = gnss_data->agps.sv_mask_ephe;
+				agps_data.sv_mask_ephe =
+					gnss_data->agps.sv_mask_ephe;
 			}
 			if (agps_inject_alm) {
-				agps_data.sv_mask_alm = gnss_data->agps.sv_mask_alm;
+				agps_data.sv_mask_alm =
+					gnss_data->agps.sv_mask_alm;
 			}
 			if (agps_inject_utc) {
 				agps_data.data_flags |=
-					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST);
+					gnss_data->agps.data_flags &
+					BIT(NRF_GNSS_AGPS_GPS_UTC_REQUEST);
 			}
 			if (agps_inject_klob) {
 				agps_data.data_flags |=
-					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST);
+					gnss_data->agps.data_flags &
+					BIT(NRF_GNSS_AGPS_KLOBUCHAR_REQUEST);
 			}
 			if (agps_inject_neq) {
 				agps_data.data_flags |=
-					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST);
+					gnss_data->agps.data_flags &
+					BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST);
 			}
 			if (agps_inject_time) {
 				agps_data.data_flags |=
-					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST);
+					gnss_data->agps.data_flags &
+					BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST);
 			}
 			if (agps_inject_pos) {
 				agps_data.data_flags |=
-					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_POSITION_REQUEST);
+					gnss_data->agps.data_flags &
+					BIT(NRF_GNSS_AGPS_POSITION_REQUEST);
 			}
 			if (agps_inject_int) {
 				agps_data.data_flags |=
-					gnss_data->agps.data_flags & BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
+					gnss_data->agps.data_flags &
+					BIT(NRF_GNSS_AGPS_INTEGRITY_REQUEST);
 			}
-			k_work_submit_to_queue(&gnss_work_q, &get_agps_data_work);
-                }
+			k_work_submit_to_queue(&gnss_work_q,
+					       &get_agps_data_work);
+		}
 #endif
 		break;
 	}
@@ -333,7 +355,7 @@ static void gnss_socket_thread_fn(void)
 
 	while (true) {
 		while ((len = nrf_recv(fd, raw_gnss_data,
-			               sizeof(nrf_gnss_data_frame_t), 0)) > 0) {
+				       sizeof(nrf_gnss_data_frame_t), 0)) > 0) {
 			process_gnss_data(raw_gnss_data);
 		}
 
@@ -342,10 +364,10 @@ static void gnss_socket_thread_fn(void)
 }
 
 K_THREAD_DEFINE(gnss_socket_thread, GNSS_SOCKET_THREAD_STACK_SIZE,
-                gnss_socket_thread_fn, NULL, NULL, NULL,
-                K_PRIO_PREEMPT(GNSS_SOCKET_THREAD_PRIORITY), 0, 0);
+		gnss_socket_thread_fn, NULL, NULL, NULL,
+		K_PRIO_PREEMPT(GNSS_SOCKET_THREAD_PRIORITY), 0, 0);
 
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 static void get_agps_data(struct k_work *item)
 {
 	ARG_UNUSED(item);
@@ -357,9 +379,7 @@ static void get_agps_data(struct k_work *item)
 	shell_print(
 		gnss_shell_global,
 		"GNSS: Getting AGPS data (ephe: 0x%08x, alm: 0x%08x, flags: %s)...",
-		agps_data.sv_mask_ephe,
-		agps_data.sv_mask_alm,
-		flags_string);
+		agps_data.sv_mask_ephe, agps_data.sv_mask_alm, flags_string);
 
 	if (open_supl_socket() == 0) {
 		supl_session(&agps_data);
@@ -367,7 +387,8 @@ static void get_agps_data(struct k_work *item)
 	}
 }
 
-static void get_agps_data_type_string(char *type_string, nrf_gnss_agps_data_type_t type)
+static void get_agps_data_type_string(char *type_string,
+				      nrf_gnss_agps_data_type_t type)
 {
 	switch (type) {
 	case NRF_GNSS_AGPS_UTC_PARAMETERS:
@@ -400,10 +421,8 @@ static void get_agps_data_type_string(char *type_string, nrf_gnss_agps_data_type
 	}
 }
 
-static int inject_agps_data(void *agps,
-		     size_t agps_size,
-		     nrf_gnss_agps_data_type_t type,
-		     void *user_data)
+static int inject_agps_data(void *agps, size_t agps_size,
+			    nrf_gnss_agps_data_type_t type, void *user_data)
 {
 	ARG_UNUSED(user_data);
 
@@ -415,16 +434,15 @@ static int inject_agps_data(void *agps,
 	get_agps_data_type_string(type_string, type);
 
 	if (err) {
-		shell_error(gnss_shell_global,
-			    "GNSS: Failed to send AGPS data, type: %s (err: %d)",
-			    type_string,
-			    errno);
+		shell_error(
+			gnss_shell_global,
+			"GNSS: Failed to send AGPS data, type: %s (err: %d)",
+			type_string, errno);
 		return err;
 	}
 
 	shell_print(gnss_shell_global,
-		    "GNSS: Injected AGPS data, type: %s, size: %d",
-		    type_string,
+		    "GNSS: Injected AGPS data, type: %s, size: %d", type_string,
 		    agps_size);
 
 	return 0;
@@ -440,33 +458,31 @@ void start_gnss(struct k_work *item)
 	char timestamp_str[16];
 
 	if (!gnss_running) {
-		err = nrf_setsockopt(fd,
-				     NRF_SOL_GNSS,
-				     NRF_SO_GNSS_START,
-				     &delete_mask,
-				     sizeof(delete_mask));
+		err = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_START,
+				     &delete_mask, sizeof(delete_mask));
 
 		if (err) {
-			shell_error(gnss_shell_global, "GNSS: Failed to start GNSS");
+			shell_error(gnss_shell_global,
+				    "GNSS: Failed to start GNSS");
 		} else {
 			gnss_running = true;
 
 			if (event_output_level > 0) {
-				create_timestamp_string(k_uptime_get_32(), timestamp_str);
+				create_timestamp_string(k_uptime_get_32(),
+							timestamp_str);
 
-				shell_print(gnss_shell_global, "[%s] GNSS: Search started",
+				shell_print(gnss_shell_global,
+					    "[%s] GNSS: Search started",
 					    timestamp_str);
 			}
-		} 
+		}
 	}
 
-	k_delayed_work_submit_to_queue(&gnss_work_q,
-				       &gnss_start_work,
+	k_delayed_work_submit_to_queue(&gnss_work_q, &gnss_start_work,
 				       K_SECONDS(fix_interval));
 
 	if (fix_retry > 0 && fix_retry < fix_interval) {
-		k_delayed_work_submit_to_queue(&gnss_work_q,
-					       &gnss_timeout_work,
+		k_delayed_work_submit_to_queue(&gnss_work_q, &gnss_timeout_work,
 					       K_SECONDS(fix_retry));
 	}
 }
@@ -520,7 +536,8 @@ int gnss_start(void)
 			ps_mode = NRF_GNSS_PSM_DUTY_CYCLING_POWER;
 			break;
 		default:
-			shell_error(gnss_shell_global, "GNSS: Invalid duty cycling policy");
+			shell_error(gnss_shell_global,
+				    "GNSS: Invalid duty cycling policy");
 			return -EINVAL;
 		}
 		break;
@@ -549,33 +566,26 @@ int gnss_start(void)
 		return -EINVAL;
 	}
 
-	ret = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     NRF_SO_GNSS_FIX_INTERVAL,
-			     &interval,
-			     sizeof(interval));
+	ret = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_FIX_INTERVAL,
+			     &interval, sizeof(interval));
 	if (ret != 0) {
-		shell_error(gnss_shell_global, "GNSS: Failed to set fix interval");
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to set fix interval");
 		return -EINVAL;
 	}
 
-	ret = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     NRF_SO_GNSS_FIX_RETRY,
-			     &retry,
+	ret = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_FIX_RETRY, &retry,
 			     sizeof(retry));
 	if (ret != 0) {
 		shell_error(gnss_shell_global, "GNSS: Failed to set fix retry");
 		return -EINVAL;
 	}
 
-	ret = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     NRF_SO_GNSS_POWER_SAVE_MODE,
-			     &ps_mode,
-			     sizeof(ps_mode));
+	ret = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_POWER_SAVE_MODE,
+			     &ps_mode, sizeof(ps_mode));
 	if (ret != 0) {
-		shell_error(gnss_shell_global, "GNSS: Failed to set power saving mode");
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to set power saving mode");
 		return -EINVAL;
 	}
 
@@ -586,11 +596,8 @@ int gnss_start(void)
 	if (low_accuracy) {
 		use_case |= NRF_GNSS_USE_CASE_LOW_ACCURACY;
 	}
-	ret = nrf_setsockopt(fd,
-		NRF_SOL_GNSS,
-		NRF_SO_GNSS_USE_CASE,
-		&use_case,
-		sizeof(use_case));
+	ret = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_USE_CASE, &use_case,
+			     sizeof(use_case));
 	if (ret != 0) {
 		shell_error(gnss_shell_global, "GNSS: Failed to set use case");
 		return -EINVAL;
@@ -598,22 +605,18 @@ int gnss_start(void)
 
 	if (elevation_threshold > -1) {
 		elevation_mask = elevation_threshold;
-		ret = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     NRF_SO_GNSS_ELEVATION_MASK,
-			     &elevation_mask,
-			     sizeof(elevation_mask));
+		ret = nrf_setsockopt(fd, NRF_SOL_GNSS,
+				     NRF_SO_GNSS_ELEVATION_MASK,
+				     &elevation_mask, sizeof(elevation_mask));
 		if (ret != 0) {
-			shell_error(gnss_shell_global, "GNSS: Failed to set elevation mask");
+			shell_error(gnss_shell_global,
+				    "GNSS: Failed to set elevation mask");
 			return -EINVAL;
 		}
 	}
 
-	ret = nrf_setsockopt(fd,
-		NRF_SOL_GNSS,
-		NRF_SO_GNSS_NMEA_MASK,
-		&nmea_mask,
-		sizeof(nmea_mask));
+	ret = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_NMEA_MASK,
+			     &nmea_mask, sizeof(nmea_mask));
 	if (ret != 0) {
 		shell_error(gnss_shell_global, "GNSS: Failed to set NMEA mask");
 		return -EINVAL;
@@ -633,20 +636,18 @@ int gnss_start(void)
 		delete_mask = 0x0;
 		break;
 	}
-	ret = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     NRF_SO_GNSS_START,
-			     &delete_mask,
+	ret = nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_START, &delete_mask,
 			     sizeof(delete_mask));
 	if (ret == 0) {
 		gnss_running = true;
 
-                if (event_output_level > 0) {
-			create_timestamp_string(k_uptime_get_32(), timestamp_str);
+		if (event_output_level > 0) {
+			create_timestamp_string(k_uptime_get_32(),
+						timestamp_str);
 
-                        shell_print(gnss_shell_global, "[%s] GNSS: Search started",
-				    timestamp_str);
-                }
+			shell_print(gnss_shell_global,
+				    "[%s] GNSS: Search started", timestamp_str);
+		}
 	} else {
 		shell_error(gnss_shell_global, "GNSS: Failed to start GNSS");
 	}
@@ -656,10 +657,8 @@ int gnss_start(void)
 		 * the first start is done here to apply the delete mask, but
 		 * everything else is handled by the work.
 		 */
-		k_delayed_work_submit_to_queue(&gnss_work_q,
-					       &gnss_start_work,
+		k_delayed_work_submit_to_queue(&gnss_work_q, &gnss_start_work,
 					       K_NO_WAIT);
-
 	}
 
 	k_sem_give(&gnss_sem);
@@ -677,10 +676,7 @@ static int stop_gnss(void)
 
 	gnss_running = false;
 
-	return nrf_setsockopt(fd,
-			      NRF_SOL_GNSS,
-			      NRF_SO_GNSS_STOP,
-			      &delete_mask,
+	return nrf_setsockopt(fd, NRF_SOL_GNSS, NRF_SO_GNSS_STOP, &delete_mask,
 			      sizeof(delete_mask));
 }
 
@@ -696,13 +692,14 @@ int gnss_stop(void)
 
 	ret = stop_gnss();
 	if (ret == 0) {
-                if (event_output_level > 0) {
-			create_timestamp_string(k_uptime_get_32(), timestamp_str);
+		if (event_output_level > 0) {
+			create_timestamp_string(k_uptime_get_32(),
+						timestamp_str);
 
-                        shell_print(gnss_shell_global, "[%s] GNSS: Search stopped",
-				    timestamp_str);
-                }
-        } else {
+			shell_print(gnss_shell_global,
+				    "[%s] GNSS: Search stopped", timestamp_str);
+		}
+	} else {
 		shell_error(gnss_shell_global, "GNSS: Failed to stop GNSS");
 	}
 
@@ -763,7 +760,8 @@ int gnss_set_data_delete(gnss_data_delete value)
 int gnss_set_elevation_threshold(uint8_t elevation)
 {
 	if (elevation < 0 || elevation > 90) {
-		shell_error(gnss_shell_global, "GNSS: Invalid elevation value %d", elevation);
+		shell_error(gnss_shell_global,
+			    "GNSS: Invalid elevation value %d", elevation);
 		return -EINVAL;
 	}
 
@@ -783,7 +781,8 @@ int gnss_set_nmea_mask(uint16_t mask)
 {
 	if (mask & 0xffe0) {
 		/* More than five lowest bits set, invalid bitmask */
-		shell_error(gnss_shell_global, "GNSS: Invalid NMEA bitmask 0x%x", mask);
+		shell_error(gnss_shell_global,
+			    "GNSS: Invalid NMEA bitmask 0x%x", mask);
 		return -EINVAL;
 	}
 
@@ -803,13 +802,10 @@ int gnss_set_priority_time_windows(bool value)
 		opt = NRF_SO_GNSS_DISABLE_PRIORITY;
 	}
 
-	err = nrf_setsockopt(fd,
-			     NRF_SOL_GNSS,
-			     opt,
-			     NULL,
-			     0);
+	err = nrf_setsockopt(fd, NRF_SOL_GNSS, opt, NULL, 0);
 	if (err) {
-		shell_error(gnss_shell_global, "GNSS: Failed to set priority time windows");
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to set priority time windows");
 	}
 
 	return err;
@@ -818,7 +814,7 @@ int gnss_set_priority_time_windows(bool value)
 int gnss_set_agps_data_enabled(bool ephe, bool alm, bool utc, bool klob,
 			       bool neq, bool time, bool pos, bool integrity)
 {
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 	agps_inject_ephe = ephe;
 	agps_inject_alm = alm;
 	agps_inject_utc = utc;
@@ -830,26 +826,28 @@ int gnss_set_agps_data_enabled(bool ephe, bool alm, bool utc, bool klob,
 
 	return 0;
 #else
-	shell_error(gnss_shell_global, "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
+	shell_error(gnss_shell_global,
+		    "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
 	return -EOPNOTSUPP;
 #endif
 }
 
 int gnss_set_agps_automatic(bool value)
 {
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 	agps_automatic = value;
 
 	return 0;
 #else
-	shell_error(gnss_shell_global, "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
+	shell_error(gnss_shell_global,
+		    "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
 	return -EOPNOTSUPP;
 #endif
 }
 
 int gnss_inject_agps_data()
 {
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 	gnss_init();
 
 	(void)memset(&agps_data, 0, sizeof(agps_data));
@@ -869,7 +867,8 @@ int gnss_inject_agps_data()
 		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_NEQUICK_REQUEST);
 	}
 	if (agps_inject_time) {
-		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST);
+		agps_data.data_flags |=
+			BIT(NRF_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST);
 	}
 	if (agps_inject_pos) {
 		agps_data.data_flags |= BIT(NRF_GNSS_AGPS_POSITION_REQUEST);
@@ -882,7 +881,8 @@ int gnss_inject_agps_data()
 
 	return 0;
 #else
-	shell_error(gnss_shell_global, "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
+	shell_error(gnss_shell_global,
+		    "GNSS: Enable CONFIG_SUPL_CLIENT_LIB for AGPS support");
 	return -EOPNOTSUPP;
 #endif
 }
@@ -926,23 +926,21 @@ static void gnss_init(void)
 		return;
 	}
 
-	k_work_q_start(
-		&gnss_work_q,
-		gnss_workq_stack_area,
-		K_THREAD_STACK_SIZEOF(gnss_workq_stack_area),
-		GNSS_WORKQ_THREAD_PRIORITY);
+	k_work_q_start(&gnss_work_q, gnss_workq_stack_area,
+		       K_THREAD_STACK_SIZEOF(gnss_workq_stack_area),
+		       GNSS_WORKQ_THREAD_PRIORITY);
 
 	k_delayed_work_init(&gnss_start_work, start_gnss);
 	k_delayed_work_init(&gnss_timeout_work, handle_timeout);
 
-#if defined (CONFIG_SUPL_CLIENT_LIB)
+#if defined(CONFIG_SUPL_CLIENT_LIB)
 	k_work_init(&get_agps_data_work, get_agps_data);
 
 	static struct supl_api supl_api = {
-		.read       = supl_read,
-		.write      = supl_write,
-		.handler    = inject_agps_data,
-		.logger     = NULL, /* set to "supl_logger" to enable logging */
+		.read = supl_read,
+		.write = supl_write,
+		.handler = inject_agps_data,
+		.logger = NULL, /* set to "supl_logger" to enable logging */
 		.counter_ms = k_uptime_get
 	};
 

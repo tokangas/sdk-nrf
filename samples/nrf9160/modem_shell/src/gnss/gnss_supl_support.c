@@ -19,11 +19,11 @@
 #endif
 #include <supl_session.h>
 
-#define SUPL_SERVER        "supl.google.com"
-#define SUPL_SERVER_PORT   7276
+#define SUPL_SERVER "supl.google.com"
+#define SUPL_SERVER_PORT 7276
 
 /* Number of getaddrinfo attempts */
-#define GAI_ATTEMPT_COUNT  3
+#define GAI_ATTEMPT_COUNT 3
 
 static int supl_fd;
 
@@ -75,7 +75,8 @@ int open_supl_socket(void)
 	/* Create socket */
 	supl_fd = socket(AF_INET, SOCK_STREAM, proto);
 	if (supl_fd < 0) {
-		shell_error(gnss_shell_global, "GNSS: Failed to create socket, errno %d", errno);
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to create socket, errno %d", errno);
 		goto cleanup;
 	}
 
@@ -84,13 +85,12 @@ int open_supl_socket(void)
 		.tv_usec = 0,
 	};
 
-	err = setsockopt(supl_fd,
-			 NRF_SOL_SOCKET,
-			 NRF_SO_RCVTIMEO,
-			 &timeout,
+	err = setsockopt(supl_fd, NRF_SOL_SOCKET, NRF_SO_RCVTIMEO, &timeout,
 			 sizeof(timeout));
 	if (err) {
-		shell_error(gnss_shell_global, "GNSS: Failed to set socket timeout, errno %d", errno);
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to set socket timeout, errno %d",
+			    errno);
 		return -1;
 	}
 
@@ -112,7 +112,8 @@ int open_supl_socket(void)
 		err = connect(supl_fd, sa, addr->ai_addrlen);
 		if (err) {
 			/* Try next address */
-			shell_error(gnss_shell_global, "GNSS: Unable to connect, errno %d", errno);
+			shell_error(gnss_shell_global,
+				    "GNSS: Unable to connect, errno %d", errno);
 		} else {
 			/* Connected */
 			break;
@@ -134,7 +135,8 @@ cleanup:
 void close_supl_socket(void)
 {
 	if (close(supl_fd) < 0) {
-		shell_error(gnss_shell_global, "GNSS: Failed to close SUPL socket");
+		shell_error(gnss_shell_global,
+			    "GNSS: Failed to close SUPL socket");
 	}
 }
 
@@ -156,10 +158,13 @@ int supl_logger(int level, const char *fmt, ...)
 	va_end(args);
 
 	if (ret < 0) {
-		shell_error(gnss_shell_global, "GNSS: %s: encoding error", __func__);
+		shell_error(gnss_shell_global, "GNSS: %s: encoding error",
+			    __func__);
 		return ret;
 	} else if ((size_t)ret >= sizeof(buffer)) {
-		shell_error(gnss_shell_global, "GNSS: %s: too long message, it will be cut short", __func__);
+		shell_error(gnss_shell_global,
+			    "GNSS: %s: too long message, it will be cut short",
+			    __func__);
 	}
 
 	shell_print(gnss_shell_global, "GNSS: %s", buffer);

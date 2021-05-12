@@ -13,24 +13,25 @@
 
 static inline uint8_t char2int(char input)
 {
-        if (input >= '0' && input <= '9') {
-                return input - '0';
-        }
-        if (input >= 'A' && input <= 'F') {
-                return input - 'A' + 10;
-        }
-        if(input >= 'a' && input <= 'f') {
-                return input - 'a' + 10;
-        }
+	if (input >= '0' && input <= '9') {
+		return input - '0';
+	}
+	if (input >= 'A' && input <= 'F') {
+		return input - 'A' + 10;
+	}
+	if (input >= 'a' && input <= 'f') {
+		return input - 'a' + 10;
+	}
 
-        return 0;
+	return 0;
 }
 
-int str_hex_to_bytes(char *str, uint32_t str_length,
-        uint8_t* buf, uint16_t *buf_length)
+int str_hex_to_bytes(char *str, uint32_t str_length, uint8_t *buf,
+		     uint16_t *buf_length)
 {
 	/* Remove any spaces from the input string */
 	uint32_t index = 0;
+
 	for (int i = 0; i < str_length; i++) {
 		if (str[i] != ' ') {
 			str[index] = str[i];
@@ -41,13 +42,13 @@ int str_hex_to_bytes(char *str, uint32_t str_length,
 	/* Convert each character into half byte.
 	   Two characters form a byte. */
 	for (int i = 0; i < index; ++i) {
-		__ASSERT((i>>1) <= *buf_length, "Too small internal buffer");
+		__ASSERT((i >> 1) <= *buf_length, "Too small internal buffer");
 
-		if(!(i%2)) {
-			buf[i>>1] = 0;
+		if (!(i % 2)) {
+			buf[i >> 1] = 0;
 		}
 
-		buf[i>>1] |= (char2int(str[i]) << (4*!(i%2)));
+		buf[i >> 1] |= (char2int(str[i]) << (4 * !(i % 2)));
 	}
 
 	/* Length calculation will drop signle character

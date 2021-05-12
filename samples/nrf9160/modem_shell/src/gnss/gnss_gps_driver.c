@@ -23,10 +23,10 @@ static bool gnss_initialized = false;
 struct gps_config gnss_conf = {
 	GPS_NAV_MODE_CONTINUOUS,
 	GPS_POWER_MODE_DISABLED,
-	0, /* interval */
-	0, /* timeout */
-	false, /* delete_agps_data */
-	false /* priority */
+	0,      /* interval */
+	0,      /* timeout */
+	false,  /* delete_agps_data */
+	false   /* priority */
 };
 
 /* Default output configuration */
@@ -44,13 +44,11 @@ static void print_pvt(const struct gps_pvt *pvt, bool is_fix)
 
 	if (is_fix) {
 		shell_print(gnss_shell_global, "\nFix valid: true");
-		shell_print(gnss_shell_global, "Time:      %02d.%02d.%04d %02d:%02d:%02d.%03d",
-			    pvt->datetime.day,
-			    pvt->datetime.month,
-			    pvt->datetime.year,
-			    pvt->datetime.hour,
-			    pvt->datetime.minute,
-			    pvt->datetime.seconds,
+		shell_print(gnss_shell_global,
+			    "Time:      %02d.%02d.%04d %02d:%02d:%02d.%03d",
+			    pvt->datetime.day, pvt->datetime.month,
+			    pvt->datetime.year, pvt->datetime.hour,
+			    pvt->datetime.minute, pvt->datetime.seconds,
 			    pvt->datetime.ms);
 		sprintf(output_buffer,
 			"Latitude:  %f\n"
@@ -63,16 +61,9 @@ static void print_pvt(const struct gps_pvt *pvt, bool is_fix)
 			"HDOP:      %.1f\n"
 			"VDOP:      %.1f\n"
 			"TDOP:      %.1f",
-			pvt->latitude,
-			pvt->longitude,
-			pvt->altitude,
-			pvt->accuracy,
-			pvt->speed,
-			pvt->heading,
-			pvt->pdop,
-			pvt->hdop,
-			pvt->vdop,
-			pvt->tdop);
+			pvt->latitude, pvt->longitude, pvt->altitude,
+			pvt->accuracy, pvt->speed, pvt->heading, pvt->pdop,
+			pvt->hdop, pvt->vdop, pvt->tdop);
 		/* GDOP is not printed, because it's not supported by nRF91 GPS */
 		shell_print(gnss_shell_global, "%s", output_buffer);
 	} else {
@@ -90,13 +81,11 @@ static void print_pvt(const struct gps_pvt *pvt, bool is_fix)
 			continue;
 		}
 
-		sprintf(output_buffer, "SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
-			pvt->sv[i].sv,
-			pvt->sv[i].cn0 * 0.1,
-			pvt->sv[i].elevation,
-			pvt->sv[i].azimuth,
-			pvt->sv[i].signal,
-			pvt->sv[i].in_fix,
+		sprintf(output_buffer,
+			"SV: %3d C/N0: %4.1f el: %2d az: %3d signal: %d in fix: %d unhealthy: %d",
+			pvt->sv[i].sv, pvt->sv[i].cn0 * 0.1,
+			pvt->sv[i].elevation, pvt->sv[i].azimuth,
+			pvt->sv[i].signal, pvt->sv[i].in_fix,
 			pvt->sv[i].unhealthy);
 		shell_print(gnss_shell_global, "%s", output_buffer);
 	}
@@ -123,9 +112,7 @@ static void print_nmea(const struct gps_nmea *nmea)
 	shell_print(gnss_shell_global, "%s", print_buf);
 }
 
-static void gps_event_handler(
-		const struct device *dev,
-		struct gps_event *evt)
+static void gps_event_handler(const struct device *dev, struct gps_event *evt)
 {
 	switch (evt->type) {
 	case GPS_EVT_SEARCH_STARTED:
@@ -157,17 +144,20 @@ static void gps_event_handler(
 		break;
 	case GPS_EVT_OPERATION_BLOCKED:
 		if (event_output_level > 0) {
-			shell_print(gnss_shell_global, "GNSS: Operation blocked by LTE");
+			shell_print(gnss_shell_global,
+				    "GNSS: Operation blocked by LTE");
 		}
 		break;
 	case GPS_EVT_OPERATION_UNBLOCKED:
 		if (event_output_level > 0) {
-			shell_print(gnss_shell_global, "GNSS: Operation unblocked");
+			shell_print(gnss_shell_global,
+				    "GNSS: Operation unblocked");
 		}
 		break;
 	case GPS_EVT_AGPS_DATA_NEEDED:
 		if (event_output_level > 0) {
-			shell_print(gnss_shell_global, "GNSS: AGPS data needed");
+			shell_print(gnss_shell_global,
+				    "GNSS: AGPS data needed");
 		}
 		break;
 	case GPS_EVT_ERROR:
@@ -175,8 +165,8 @@ static void gps_event_handler(
 			    evt->error);
 		break;
 	default:
-		shell_error(gnss_shell_global, "GNSS: Unknown GPS event type: %d",
-			    evt->type);
+		shell_error(gnss_shell_global,
+			    "GNSS: Unknown GPS event type: %d", evt->type);
 		break;
 	}
 }
@@ -239,7 +229,8 @@ int gnss_set_single_fix_mode(uint16_t fix_retry)
 
 int gnss_set_periodic_fix_mode(uint32_t fix_interval, uint16_t fix_retry)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
@@ -285,7 +276,8 @@ int gnss_set_data_delete(gnss_data_delete value)
 		gnss_conf.delete_agps_data = false;
 		break;
 	case GNSS_DATA_DELETE_EPHEMERIDES:
-		shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+		shell_error(gnss_shell_global,
+			    "GNSS: Operation not supported in GPS driver mode");
 		return -EOPNOTSUPP;
 		break;
 	case GNSS_DATA_DELETE_ALL:
@@ -301,44 +293,51 @@ int gnss_set_data_delete(gnss_data_delete value)
 
 int gnss_set_elevation_threshold(uint8_t elevation)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_low_accuracy(bool value)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_nmea_mask(uint16_t mask)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_priority_time_windows(bool value)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_agps_data_enabled(bool ephe, bool alm, bool utc, bool klob,
 			       bool neq, bool time, bool pos, bool integrity)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_set_agps_automatic(bool value)
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 
 int gnss_inject_agps_data()
 {
-	shell_error(gnss_shell_global, "GNSS: Operation not supported in GPS driver mode");
+	shell_error(gnss_shell_global,
+		    "GNSS: Operation not supported in GPS driver mode");
 	return -EOPNOTSUPP;
 }
 

@@ -11,8 +11,8 @@
 
 int ltelc_shell(const struct shell *shell, size_t argc, char **argv);
 
-int ltelc_shell_get_and_print_current_system_modes(const struct shell *shell,
-	enum lte_lc_system_mode *sys_mode_current,
+int ltelc_shell_get_and_print_current_system_modes(
+	const struct shell *shell, enum lte_lc_system_mode *sys_mode_current,
 	enum lte_lc_system_mode_preference *sys_mode_preferred,
 	enum lte_lc_lte_mode *currently_active_mode);
 

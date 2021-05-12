@@ -8,10 +8,10 @@
 
 config  NRF_IPERF3
 	bool "Iperf3 NRF integration"
-	depends on POSIX_API && !PTHREAD_IPC && !NET_SOCKETS_POSIX_NAMES && NEWLIB_LIBC
-	imply NEWLIB_LIBC_FLOAT_SCAN
-	imply NEWLIB_LIBC_FLOAT_PRINTF
 	default n
+	depends on POSIX_API && !PTHREAD_IPC && !NET_SOCKETS_POSIX_NAMES && NEWLIB_LIBC
+#	imply NEWLIB_LIBC_FLOAT_SCAN
+	imply NEWLIB_LIBC_FLOAT_PRINTF
 	help
 	  Enable Iperf3 NRF integration
 

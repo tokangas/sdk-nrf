@@ -48,23 +48,6 @@ struct modem_param_info modem_param;
 
 K_SEM_DEFINE(nrf_modem_lib_initialized, 0, 1);
 
-#if !defined (CONFIG_RESET_ON_FATAL_ERROR)
-#if 0
-void k_sys_fatal_error_handler(unsigned int reason,
-			       const z_arch_esf_t *esf)
-{
-//	ARG_UNUSED(esf);
-
-	LOG_PROCESS();
-	LOG_PANIC();
-	printk("OHO! Running main.c error handler, reason: %d", reason);
-	z_fatal_error(reason, esf);
-//	k_fatal_halt(reason);
-//	CODE_UNREACHABLE;
-}
-#endif
-#endif
-
 static void mosh_print_version_info(void)
 {
 #if defined(APP_VERSION)
@@ -126,7 +109,7 @@ void main(void)
 	printk("Initialized modemlib\n");
 
 	at_cmd_init();
-#if !defined (CONFIG_AT_NOTIF_SYS_INIT)
+#if !defined(CONFIG_AT_NOTIF_SYS_INIT)
 	at_notif_init();
 #endif
 	lte_lc_init();
@@ -160,16 +143,15 @@ void main(void)
 	modem_info_params_init(&modem_param);
 #endif
 
-
 	/* Application started successfully, mark image as OK to prevent
 	 * revert at next reboot.
 	 */
-#if defined (CONFIG_BOOTLOADER_MCUBOOT )	
+#if defined(CONFIG_BOOTLOADER_MCUBOOT)
 	boot_write_img_confirmed();
 #endif
 }
 
-#if defined (CONFIG_MOSH_PPP)
+#if defined(CONFIG_MOSH_PPP)
 static int mosh_shell_init(const struct device *unused)
 {
 	ppp_ctrl_init();

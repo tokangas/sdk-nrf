@@ -13,29 +13,28 @@ void ltelc_sett_defaults_set(const struct shell *shell);
 void ltelc_sett_all_print(const struct shell *shell);
 
 int ltelc_sett_save_defcont_enabled(bool enabled);
-bool ltelc_sett_is_defcont_enabled();
+bool ltelc_sett_is_defcont_enabled(void);
 void ltelc_sett_defcont_conf_shell_print(const struct shell *shell);
 int ltelc_sett_save_defcont_apn(const char *default_apn_str);
-char *ltelc_sett_defcont_apn_get();
+char *ltelc_sett_defcont_apn_get(void);
 int ltelc_sett_save_defcont_pdn_family(enum pdn_fam family);
-enum pdn_fam ltelc_sett_defcont_pdn_family_get();
+enum pdn_fam ltelc_sett_defcont_pdn_family_get(void);
 
 int ltelc_sett_save_defcontauth_enabled(bool enabled);
 bool ltelc_sett_is_defcontauth_enabled();
 void ltelc_sett_defcontauth_conf_shell_print(const struct shell *shell);
 int ltelc_sett_save_defcontauth_prot(int auth_prot);
-enum pdn_auth ltelc_sett_defcontauth_prot_get();
+enum pdn_auth ltelc_sett_defcontauth_prot_get(void);
 int ltelc_sett_save_defcontauth_username(const char *username_str);
-char *ltelc_sett_defcontauth_username_get();
+char *ltelc_sett_defcontauth_username_get(void);
 int ltelc_sett_save_defcontauth_password(const char *password_str);
-char *ltelc_sett_defcontauth_password_get();
+char *ltelc_sett_defcontauth_password_get(void);
 
-int ltelc_sett_sysmode_save(
-	enum lte_lc_system_mode mode,
-	enum lte_lc_system_mode_preference lte_pref);
-int ltelc_sett_sysmode_get();
-int ltelc_sett_sysmode_lte_preference_get();
-int ltelc_sett_sysmode_default_set();
+int ltelc_sett_sysmode_save(enum lte_lc_system_mode mode,
+			    enum lte_lc_system_mode_preference lte_pref);
+int ltelc_sett_sysmode_get(void);
+int ltelc_sett_sysmode_lte_preference_get(void);
+int ltelc_sett_sysmode_default_set(void);
 void ltelc_sett_sysmode_print(const struct shell *shell);
 
 #define LTELC_SETT_NMODEAT_MEM_SLOT_INDEX_START 1
@@ -47,7 +46,7 @@ int ltelc_sett_clear_normal_mode_at_cmd_str(uint8_t mem_slot);
 void ltelc_sett_normal_mode_at_cmds_shell_print(const struct shell *shell);
 
 int ltelc_sett_save_normal_mode_autoconn_enabled(bool enabled);
-bool ltelc_sett_is_normal_mode_autoconn_enabled();
+bool ltelc_sett_is_normal_mode_autoconn_enabled(void);
 void ltelc_sett_normal_mode_autoconn_shell_print(const struct shell *shell);
 
 #endif /* LTELC_SETTINGS_H */

@@ -25,23 +25,25 @@
 
 #include "icmp_ping.h"
 
-#define ICMP    1               // Protocol
-#define ICMP6   6
-#define ICMPV6  58              // Next Header
-#define IP_NEXT_HEADER_POS  6   // Next Header
-#define IP_PROTOCOL_POS     9   // Protocol
-#define ICMP_ECHO_REP       0
-#define ICMP_ECHO_REQ       8
-#define ICMP6_ECHO_REQ      128
-#define ICMP6_ECHO_REP      129
+/* Protocol field: */
+#define ICMP 1
+#define ICMP6 6
+#define ICMPV6 58
 
-/**@ ICMP Ping command arguments */
+/* Next header: */
+#define IP_NEXT_HEADER_POS 6
+#define IP_PROTOCOL_POS 9
+
+#define ICMP_ECHO_REP 0
+#define ICMP_ECHO_REQ 8
+#define ICMP6_ECHO_REQ 128
+#define ICMP6_ECHO_REP 129
+
+/* ICMP Ping command arguments */
 static icmp_ping_shell_cmd_argv_t ping_argv;
 
-/* global variable defined in different files */
-extern struct modem_param_info modem_param;
-
 /*****************************************************************************/
+
 static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 {
 	buffer[0] = ipaddr & 0xFF;
@@ -49,6 +51,7 @@ static inline void setip(uint8_t *buffer, uint32_t ipaddr)
 	buffer[2] = (ipaddr >> 16) & 0xFF;
 	buffer[3] = ipaddr >> 24;
 }
+
 /*****************************************************************************/
 static uint16_t check_ics(const uint8_t *buffer, int len)
 {
@@ -92,17 +95,22 @@ static uint16_t check_ics(const uint8_t *buffer, int len)
 
 	return ~hcs; /* One's complement */
 }
+
 /*****************************************************************************/
+
 static void calc_ics(uint8_t *buffer, int len, int hcs_pos)
 {
 	uint16_t *ptr_hcs = (uint16_t *)(buffer + hcs_pos);
+
 	*ptr_hcs = 0; /* Clear checksum before calculation */
 	uint16_t hcs;
 
 	hcs = check_ics(buffer, len);
 	*ptr_hcs = hcs;
 }
+
 /*****************************************************************************/
+
 static uint32_t send_ping_wait_reply(const struct shell *shell)
 {
 	static int64_t start_t;
@@ -116,129 +124,140 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	uint8_t header_len = 0;
 	struct addrinfo *si = ping_argv.src;
 	const int alloc_size = ICMP_DEFAULT_LINK_MTU;
-  	struct pollfd fds[1];
+	struct pollfd fds[1];
 	int dpllen, pllen, len;
 	int fd;
 	int plseqnr;
 	int ret;
 	const uint16_t icmp_hdr_len = ICMP_HDR_LEN;
 
-    if (si->ai_family == AF_INET)
-    {
-        // Generate IPv4 ICMP EchoReq
+	if (si->ai_family == AF_INET) {
+		/* Generate IPv4 ICMP EchoReq */
 
-        // Ping header
-        header_len = ICMP_IPV4_HDR_LEN;
+		/* Ping header */
+		header_len = ICMP_IPV4_HDR_LEN;
 
-        total_length = ping_argv.len + header_len + icmp_hdr_len;
+		total_length = ping_argv.len + header_len + icmp_hdr_len;
 
-        buf = calloc(1, alloc_size);
+		buf = calloc(1, alloc_size);
 
 		if (buf == NULL) {
-			shell_error(shell, "No RAM memory available for sending ping.");
+			shell_error(
+				shell,
+				"No RAM memory available for sending ping.");
 			return -1;
 		}
 
-        buf[0] = (4 << 4) + (header_len / 4);   // Version & header length
-        //buf[1] = 0;                           // Type of service
-        buf[2] = total_length >> 8;             // Total length
-        buf[3] = total_length & 0xFF;           // Total length
-        //buf[4..5] = 0;                        // Identification
-        //buf[6..7] = 0;                        // Flags & fragment offset
-        buf[8] = 64;                            // TTL
-        buf[9] = ICMP;                          // Protocol
-        //buf[10..11] = ICS, calculated later
+		buf[0] = (4 << 4) +
+			 (header_len / 4);      /* Version & header length */
+		/* buf[1] = 0; */ /* Type of service */
+		buf[2] = total_length >> 8;     /* Total length */
+		buf[3] = total_length & 0xFF;   /* Total length */
+		/* buf[4..5] = 0; */ /* Identification */
+		/* buf[6..7] = 0; */ /* Flags & fragment offset */
+		buf[8] = 64;    /* TTL */
+		buf[9] = ICMP;  /* Protocol */
+		/* buf[10..11] = ICS, calculated later */
 
-        struct sockaddr_in *sa = (struct sockaddr_in *)ping_argv.src->ai_addr;
-        setip(buf+12, sa->sin_addr.s_addr);     // Source
-        sa = (struct sockaddr_in *)ping_argv.dest->ai_addr;
-        setip(buf+16, sa->sin_addr.s_addr);     // Destination
+		struct sockaddr_in *sa =
+			(struct sockaddr_in *)ping_argv.src->ai_addr;
+		setip(buf + 12, sa->sin_addr.s_addr);   /* Source */
+		sa = (struct sockaddr_in *)ping_argv.dest->ai_addr;
+		setip(buf + 16, sa->sin_addr.s_addr);   /* Destination */
 
-        calc_ics(buf, header_len, 10);
+		calc_ics(buf, header_len, 10);
 
-        // ICMP header
-        data = buf + header_len;
-        data[0] = ICMP_ECHO_REQ;                // Type (echo req)
-        //data[1] = 0;                          // Code
-        //data[2..3] = checksum, calculated later
-        //data[4..5] = 0;                       // Identifier
-        //data[6] = 0;                          // seqnr >> 8
-        data[7] = ++seqnr;
+		/* ICMP header */
+		data = buf + header_len;
+		data[0] = ICMP_ECHO_REQ; /* Type (echo req) */
+		/* data[1] = 0; */ /* Code */
+		/* data[2..3] = checksum, calculated later */
+		/* data[4..5] = 0; */ /* Identifier */
+		/* data[6] = 0;  */ /* seqnr >> 8 */
+		data[7] = ++seqnr;
 
-        // Payload
-        for (int i = 8; i < total_length - header_len; i++)
-        {
-            data[i] = (i + seqnr) % 10 + '0';
-        }
+		/* Payload */
+		for (int i = 8; i < total_length - header_len; i++) {
+			data[i] = (i + seqnr) % 10 + '0';
+		}
 
-        // ICMP CRC
-        calc_ics(data, total_length - header_len, 2);
+		/* ICMP CRC */
+		calc_ics(data, total_length - header_len, 2);
 
-        rep = ICMP_ECHO_REP;
-    }
-	else
-	{
-        // Generate IPv6 ICMP EchoReq
+		rep = ICMP_ECHO_REP;
+	} else {
+		/* Generate IPv6 ICMP EchoReq */
 
-        // ipv6 header
-        header_len = ICMP_IPV6_HDR_LEN;
-        uint16_t payload_length = ping_argv.len + icmp_hdr_len;
+		/* ipv6 header */
+		header_len = ICMP_IPV6_HDR_LEN;
+		uint16_t payload_length = ping_argv.len + icmp_hdr_len;
 
-        total_length = payload_length + header_len;
-        buf = calloc(1, alloc_size);
-		
+		total_length = payload_length + header_len;
+		buf = calloc(1, alloc_size);
+
 		if (buf == NULL) {
-			shell_error(shell, "No RAM memory available for sending ping.");
+			shell_error(
+				shell,
+				"No RAM memory available for sending ping.");
 			return -1;
 		}
 
-        buf[0] = (6 << 4);                      // Version & traffic class 4 bits
-        //buf[1..3] = 0;                        // Traffic class 4 bits & flow label
-        buf[4] = payload_length >> 8;           // Payload length
-        buf[5] = payload_length & 0xFF;         // Payload length
-        buf[6] = ICMPV6;                        // Next header (58)
-        buf[7] = 64;                            // Hop limit
+		buf[0] = (6 << 4);              /* Version & traffic class 4 bits */
+		/* buf[1..3] = 0; */ /* Traffic class 4 bits & flow label */
+		buf[4] = payload_length >> 8;   /* Payload length */
+		buf[5] = payload_length & 0xFF; /* Payload length */
+		buf[6] = ICMPV6;                /* Next header (58) */
+		buf[7] = 64;                    /* Hop limit */
 
-        struct sockaddr_in6 *sa = (struct sockaddr_in6 *)ping_argv.src->ai_addr;
-        memcpy(buf + 8, sa->sin6_addr.s6_addr, 16);     // Source address
+		struct sockaddr_in6 *sa =
+			(struct sockaddr_in6 *)ping_argv.src->ai_addr;
+		memcpy(buf + 8, sa->sin6_addr.s6_addr, 16); /* Source address */
 
-        sa = (struct sockaddr_in6 *)ping_argv.dest->ai_addr;
-        memcpy(buf + 24, sa->sin6_addr.s6_addr, 16);    // Destination address
+		sa = (struct sockaddr_in6 *)ping_argv.dest->ai_addr;
+		memcpy(buf + 24, sa->sin6_addr.s6_addr,
+		       16); /* Destination address */
 
-        // ICMPv6 header
-        data = buf + header_len;
-        data[0] = ICMP6_ECHO_REQ;               // Type (echo req)
-        //data[1] = 0;                          // Code
-        //data[2..3] = checksum, calculated later
-        //data[4..5] = 0;                       // Identifier
-        //data[6] = 0;                          // seqnr >> 8
-        data[7] = ++seqnr;
+		/* ICMPv6 header */
+		data = buf + header_len;
+		data[0] = ICMP6_ECHO_REQ; /* Type (echo req) */
+		/* data[1] = 0; */ /* Code */
+		/* data[2..3] = checksum, calculated later */
+		/* data[4..5] = 0; */ /* Identifier */
+		/* data[6] = 0; */ /* seqnr >> 8 */
+		data[7] = ++seqnr;
 
-        // Payload
-        for (int i = 0; i < ping_argv.len; i++)
-        {
-            data[i + icmp_hdr_len] = (i + seqnr) % 10 + '0';
-        }
-        
-		// ICMPv6 CRC: https://tools.ietf.org/html/rfc4443#section-2.3
-		// for IPv6 pseudo header see: https://tools.ietf.org/html/rfc2460#section-8.1
-        uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header: source + dest
-        hcs += check_ics(buf + 4, 2);           // Pseudo header: payload length
+		/* Payload */
+		for (int i = 0; i < ping_argv.len; i++) {
+			data[i + icmp_hdr_len] = (i + seqnr) % 10 + '0';
+		}
 
-        uint8_t tbuf[2];
-        tbuf[0] = 0; tbuf[1] = buf[6];
+		/* ICMPv6 CRC: https://tools.ietf.org/html/rfc4443#section-2.3
+		 * for IPv6 pseudo header see: https://tools.ietf.org/html/rfc2460#section-8.1
+		 */
+		uint32_t hcs = check_ics(buf + 8,
+					 32);   /* Pseudo header: source + dest */
+		hcs += check_ics(buf + 4,
+				 2);            /* Pseudo header: payload length */
 
-        hcs += check_ics(tbuf, 2);              // Pseudo header: Next header
-        hcs += check_ics(data, 2);                       //ICMP: Type & Code
-		hcs += check_ics(data + 4,  4 + ping_argv.len);  //ICMP: Header data + Data
+		uint8_t tbuf[2];
 
-        while(hcs > 0xFFFF)
-            hcs = (hcs & 0xFFFF) + (hcs >> 16);
+		tbuf[0] = 0;
+		tbuf[1] = buf[6];
 
-        data[2] = hcs & 0xFF;
-        data[3] = hcs >> 8;
+		hcs += check_ics(tbuf, 2);      /* Pseudo header: Next header */
+		hcs += check_ics(data, 2);      /* ICMP: Type & Code */
+		hcs += check_ics(
+			data + 4,
+			4 + ping_argv.len); /* ICMP: Header data + Data */
 
-        rep = ICMP6_ECHO_REP;
+		while (hcs > 0xFFFF) {
+			hcs = (hcs & 0xFFFF) + (hcs >> 16);
+		}
+
+		data[2] = hcs & 0xFF;
+		data[3] = hcs >> 8;
+
+		rep = ICMP6_ECHO_REP;
 	}
 
 	/* Send the ping */
@@ -248,29 +267,40 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 	fd = socket(AF_PACKET, SOCK_RAW, 0);
 	if (fd < 0) {
 		shell_error(shell, "socket() failed: (%d)", -errno);
-	    free(buf);
+		free(buf);
 		return (uint32_t)delta_t;
 	}
 	if (ping_argv.cid != MOSH_ARG_NOT_SET) {
 		/* Prefer PDN ID based binding: */
 		if (ping_argv.pdn_id_for_cid != MOSH_ARG_NOT_SET) {
 			/* Binding a data socket with PDN ID: */
-			ret = net_utils_socket_pdn_id_set(fd, ping_argv.pdn_id_for_cid);
+			ret = net_utils_socket_pdn_id_set(
+				fd, ping_argv.pdn_id_for_cid);
 			if (ret != 0) {
-				shell_warn(shell, "Cannot bind socket to PDN ID %d, trying APN binding next", ping_argv.pdn_id_for_cid);
+				shell_warn(
+					shell,
+					"Cannot bind socket to PDN ID %d, trying APN binding next",
+					ping_argv.pdn_id_for_cid);
 
 				/* Binding a data socket to an APN: */
-				ret = net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
+				ret = net_utils_socket_apn_set(
+					fd, ping_argv.current_apn_str);
 				if (ret != 0) {
-					shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
+					shell_error(
+						shell,
+						"Cannot bind socket to apn %s",
+						ping_argv.current_apn_str);
 					goto close_end;
 				}
 			}
 		} else {
 			/* Binding a data socket to an APN: */
-			ret = net_utils_socket_apn_set(fd, ping_argv.current_apn_str);
+			ret = net_utils_socket_apn_set(
+				fd, ping_argv.current_apn_str);
 			if (ret != 0) {
-				shell_error(shell, "Cannot bind socket to apn %s", ping_argv.current_apn_str);
+				shell_error(shell,
+					    "Cannot bind socket to apn %s",
+					    ping_argv.current_apn_str);
 				goto close_end;
 			}
 		}
@@ -278,22 +308,28 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 
 #ifdef SO_RCVTIMEO
 #ifdef SO_SNDTIMEO
-    /* We have a blocking socket and we do not want to block for 
-	   a long for sending. Thus, let's set the timeout: */
+	/* We have a blocking socket and we do not want to block for
+	 * a long for sending. Thus, let's set the timeout:
+	 */
 
 	struct timeval tv = {
 		.tv_sec = (ping_argv.timeout / 1000),
 		.tv_usec = (ping_argv.timeout % 1000) * 1000,
 	};
-    
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
-		shell_error(shell, "Unable to set socket SO_SNDTIMEO, continue");
+
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv,
+		       sizeof(struct timeval)) < 0) {
+		shell_error(shell,
+			    "Unable to set socket SO_SNDTIMEO, continue");
 	}
 
-    /* Just for sure, let's put the timeout for rcv as well 
-	   (should not be needed for non-blocking socket): */
-	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval)) < 0) {
-		shell_error(shell, "Unable to set socket SO_RCVTIMEO, continue");
+	/* Just for sure, let's put the timeout for rcv as well
+	 * (should not be needed for non-blocking socket):
+	 */
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv,
+		       sizeof(struct timeval)) < 0) {
+		shell_error(shell,
+			    "Unable to set socket SO_RCVTIMEO, continue");
 	}
 #endif
 #endif
@@ -308,10 +344,12 @@ static uint32_t send_ping_wait_reply(const struct shell *shell)
 		goto close_end;
 	}
 
-	/* Set a socket as non-blocking for receiving the response so that we 
-	   can control a pinging timeout for receive better: */
-    int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | (int) O_NONBLOCK);
+	/* Set a socket as non-blocking for receiving the response so that we
+	 * can control a pinging timeout for receive better:
+	 */
+	int flags = fcntl(fd, F_GETFL, 0);
+
+	fcntl(fd, F_SETFL, flags | (int)O_NONBLOCK);
 
 	/* Now after send(), calculate how much there's still time left */
 	delta_t = k_uptime_delta(&start_t);
@@ -321,29 +359,30 @@ wait_for_data:
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
 
-    do {
+	do {
 		if (timeout <= 0) {
-			shell_print(shell, 
+			shell_print(
+				shell,
 				"Pinging %s results: no ping response in given timeout %d msec",
-					ping_argv.target_name,
-					ping_argv.timeout);
+				ping_argv.target_name, ping_argv.timeout);
 			goto close_end;
 		}
 
 		ret = poll(fds, 1, timeout);
 		if (ret == 0) {
-			shell_print(shell, 
+			shell_print(
+				shell,
 				"Pinging %s results: no response in given timeout %d msec",
-					ping_argv.target_name,
-					ping_argv.timeout);
+				ping_argv.target_name, ping_argv.timeout);
 			goto close_end;
 		} else if (ret < 0) {
-			shell_error(shell, "poll() failed: (%d) (%d)", -errno, ret);
+			shell_error(shell, "poll() failed: (%d) (%d)", -errno,
+				    ret);
 			goto close_end;
 		}
 
 		len = recv(fd, buf, alloc_size, 0);
-		
+
 		/* Calculate again, how much there's still time left */
 		delta_t = k_uptime_delta(&start_t);
 		timeout = ping_argv.timeout - (int32_t)delta_t;
@@ -351,58 +390,68 @@ wait_for_data:
 		if (len <= 0) {
 			if (errno != EAGAIN && errno != EWOULDBLOCK) {
 				shell_error(
-					shell, 
+					shell,
 					"recv() failed with errno (%d) and return value (%d)",
-						-errno, len);
+					-errno, len);
 				goto close_end;
-			}			
+			}
 		}
 		if (len < header_len) {
 			/* Data length error, ignore "silently" */
 			shell_error(shell, "recv() wrong data (%d)", len);
 		}
 
-		if ((rep == ICMP_ECHO_REP && buf[IP_PROTOCOL_POS] == ICMP) || 
-		    (rep == ICMP6_ECHO_REP && buf[IP_NEXT_HEADER_POS] == ICMPV6)) {
-			/* if not ipv4/ipv6 echo reply, ignore silently, 
-			   otherwise break the loop and go to parse the response */
+		if ((rep == ICMP_ECHO_REP && buf[IP_PROTOCOL_POS] == ICMP) ||
+		    (rep == ICMP6_ECHO_REP &&
+		     buf[IP_NEXT_HEADER_POS] == ICMPV6)) {
+			/* if not ipv4/ipv6 echo reply, ignore silently,
+			 * otherwise break the loop and go to parse the response
+			 */
 			break;
 		}
 	} while (true);
-    
+
 	if (rep == ICMP_ECHO_REP) {
 		/* Check ICMP HCS */
 		int hcs = check_ics(data, len - header_len);
 		if (hcs != 0) {
-			shell_error(shell, "IPv4 HCS error, hcs: %d, len: %d\r\n", hcs, len);
+			shell_error(shell,
+				    "IPv4 HCS error, hcs: %d, len: %d\r\n", hcs,
+				    len);
 			delta_t = 0;
 			goto close_end;
 		}
-		pllen = (buf[2] << 8) + buf[3]; // Raw socket payload length
+		pllen = (buf[2] << 8) + buf[3]; /* Raw socket payload length */
 	} else {
-	    // Check ICMP6 CRC
-	    uint32_t hcs = check_ics(buf + 8, 32);  // Pseudo header source + dest
-	    hcs += check_ics(buf + 4, 2);           // Pseudo header packet length
-	    uint8_t tbuf[2];
-	    tbuf[0] = 0; tbuf[1] = buf[6];
-	    hcs += check_ics(tbuf, 2);              // Pseudo header Next header
-	    hcs += check_ics(data, 2);              // Type & Code
-	    hcs += check_ics(data + 4, len - header_len - 4);   // Header data + Data
+		/* Check ICMP6 CRC */
+		uint32_t hcs = check_ics(buf + 8, 32);   /* Pseudo header source + dest */
+		uint8_t tbuf[2];
 
-	    while(hcs > 0xFFFF)
-	        hcs = (hcs & 0xFFFF) + (hcs >> 16);
+		hcs += check_ics(buf + 4, 2);   /* Pseudo header packet length */
 
-	    int plhcs = data[2] + (data[3] << 8);
+		tbuf[0] = 0;
+		tbuf[1] = buf[6];
+		hcs += check_ics(tbuf, 2);              /* Pseudo header Next header */
+		hcs += check_ics(data, 2);              /* Type & Code */
+		hcs += check_ics(data + 4,
+				 len - header_len - 4); /* Header data + Data */
+
+		while (hcs > 0xFFFF)
+			hcs = (hcs & 0xFFFF) + (hcs >> 16);
+
+		int plhcs = data[2] + (data[3] << 8);
 
 		if (plhcs != hcs) {
-			shell_error(shell, "IPv6 HCS error: 0x%x 0x%x\r\n", plhcs, hcs);
+			shell_error(shell, "IPv6 HCS error: 0x%x 0x%x\r\n",
+				    plhcs, hcs);
 			delta_t = 0;
 			goto close_end;
 		}
 		/* Raw socket payload length */
-	    pllen = (buf[4] << 8) + buf[5] + header_len; // Payload length - hdr
+		pllen = (buf[4] << 8) + buf[5] +
+			header_len; /* Payload length - hdr */
 	}
-	
+
 	/* Data payload length: */
 	dpllen = pllen - header_len - icmp_hdr_len;
 
@@ -419,24 +468,26 @@ wait_for_data:
 		}
 	}
 	if (pllen != len) {
-		shell_error(shell, "Expected length %d, got %d",
-			    len, pllen);
+		shell_error(shell, "Expected length %d, got %d", len, pllen);
 		delta_t = 0;
 		goto close_end;
 	}
 
 	/* Result */
-	shell_print(shell, 
+	shell_print(
+		shell,
 		"Pinging %s results: time=%d.%03dsecs, payload sent: %d, payload received %d",
-			ping_argv.target_name, (uint32_t)(delta_t) / 1000,
-			(uint32_t)(delta_t) % 1000, ping_argv.len, dpllen);
+		ping_argv.target_name, (uint32_t)(delta_t) / 1000,
+		(uint32_t)(delta_t) % 1000, ping_argv.len, dpllen);
 
 close_end:
 	(void)close(fd);
 	free(buf);
 	return (uint32_t)delta_t;
 }
+
 /*****************************************************************************/
+
 static void icmp_ping_tasks_execute(const struct shell *shell)
 {
 	struct addrinfo *si = ping_argv.src;
@@ -458,8 +509,11 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 	freeaddrinfo(di);
 	shell_print(shell, "Pinging DONE\r\n");
 }
+
 /*****************************************************************************/
-int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_args)
+
+int icmp_ping_start(const struct shell *shell,
+		    icmp_ping_shell_cmd_argv_t *ping_args)
 {
 	int st = -1;
 	struct addrinfo *res;
@@ -473,8 +527,7 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 
 	shell_print(shell, "Initiating ping to: %s", ping_argv.target_name);
 
-
-    /* Sets getaddrinfo hints by using current host address(es): */
+	/* Sets getaddrinfo hints by using current host address(es): */
 	struct addrinfo hints = {
 		.ai_family = AF_INET,
 	};
@@ -488,16 +541,19 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 		}
 	}
 
-	inet_ntop(AF_INET,  &(ping_argv.current_addr4), src_ipv_addr, sizeof(src_ipv_addr));
-    if (ping_argv.current_pdp_type == PDP_TYPE_IP4V6) {
+	inet_ntop(AF_INET, &(ping_argv.current_addr4), src_ipv_addr,
+		  sizeof(src_ipv_addr));
+	if (ping_argv.current_pdp_type == PDP_TYPE_IP4V6) {
 		if (ping_argv.force_ipv6) {
 			hints.ai_family = AF_INET6;
-			inet_ntop(AF_INET6,  &(ping_argv.current_addr6), src_ipv_addr, sizeof(src_ipv_addr));
+			inet_ntop(AF_INET6, &(ping_argv.current_addr6),
+				  src_ipv_addr, sizeof(src_ipv_addr));
 		}
 	}
-    if (ping_argv.current_pdp_type == PDP_TYPE_IPV6) {
+	if (ping_argv.current_pdp_type == PDP_TYPE_IPV6) {
 		hints.ai_family = AF_INET6;
-		inet_ntop(AF_INET6,  &(ping_argv.current_addr6), src_ipv_addr, sizeof(src_ipv_addr));
+		inet_ntop(AF_INET6, &(ping_argv.current_addr6), src_ipv_addr,
+			  sizeof(src_ipv_addr));
 	}
 
 	st = getaddrinfo(src_ipv_addr, service, &hints, &res);
@@ -528,23 +584,25 @@ int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_
 	} else {
 		struct sockaddr *sa;
 		sa = ping_argv.src->ai_addr;
-		shell_print(shell, "Source IP addr: %s", net_utils_sckt_addr_ntop(sa));
+		shell_print(shell, "Source IP addr: %s",
+			    net_utils_sckt_addr_ntop(sa));
 		sa = ping_argv.dest->ai_addr;
 		shell_print(shell, "Destination IP addr: %s",
 			    net_utils_sckt_addr_ntop(sa));
 	}
 	/* Now we can check the max payload len for IPv6: */
-	uint32_t ipv6_max_payload_len = ping_argv.mtu - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN;
-	if (ping_argv.src->ai_family == AF_INET6 && ping_argv.len > ipv6_max_payload_len) {
-        shell_warn(
-            shell,
-            "Payload size exceeds the link limits: MTU %d - headers %d = %d ",
-                ping_argv.mtu,
-                (ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN),
-                ipv6_max_payload_len);
-        /* Continue still: */		
+	uint32_t ipv6_max_payload_len =
+		ping_argv.mtu - ICMP_IPV6_HDR_LEN - ICMP_HDR_LEN;
+	if (ping_argv.src->ai_family == AF_INET6 &&
+	    ping_argv.len > ipv6_max_payload_len) {
+		shell_warn(
+			shell,
+			"Payload size exceeds the link limits: MTU %d - headers %d = %d ",
+			ping_argv.mtu, (ICMP_IPV4_HDR_LEN - ICMP_HDR_LEN),
+			ipv6_max_payload_len);
+		/* Continue still: */
 	}
- 
+
 	icmp_ping_tasks_execute(shell);
 	return 0;
 }

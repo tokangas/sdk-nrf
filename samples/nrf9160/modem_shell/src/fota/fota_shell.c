@@ -15,8 +15,7 @@
 /* Sets the global shell variable, must be called before calling any FOTA
  * module functions.
  */
-#define FOTA_SET_GLOBAL_SHELL() \
-	fota_shell_global = shell;
+#define FOTA_SET_GLOBAL_SHELL() (fota_shell_global = shell)
 
 static const char fota_server_eu[] = "nrf-test-eu.s3.amazonaws.com";
 static const char fota_server_usa[] = "nrf-test-us.s3.amazonaws.com";
@@ -46,7 +45,8 @@ static int cmd_fota(const struct shell *shell, size_t argc, char **argv)
 	return print_help(shell, argc, argv);
 }
 
-static int cmd_fota_download(const struct shell *shell, size_t argc, char **argv)
+static int cmd_fota_download(const struct shell *shell, size_t argc,
+			     char **argv)
 {
 	FOTA_SET_GLOBAL_SHELL();
 
@@ -71,7 +71,8 @@ static int cmd_fota_download(const struct shell *shell, size_t argc, char **argv
 	err = fota_start(fota_server, argv[2]);
 
 	if (err) {
-		shell_error(shell, "Failed to start FOTA download, error %d", err);
+		shell_error(shell, "Failed to start FOTA download, error %d",
+			    err);
 		return err;
 	}
 
@@ -80,8 +81,11 @@ static int cmd_fota_download(const struct shell *shell, size_t argc, char **argv
 	return 0;
 }
 
-SHELL_STATIC_SUBCMD_SET_CREATE(sub_fota,
-	SHELL_CMD_ARG(download, NULL, "<server> <filename>\nDownload and install a FOTA update. Available servers are \"eu\", \"us\", \"jpn\" and \"au\".", cmd_fota_download, 3, 0),
-	SHELL_SUBCMD_SET_END
-);
+SHELL_STATIC_SUBCMD_SET_CREATE(
+	sub_fota,
+	SHELL_CMD_ARG(
+		download, NULL,
+		"<server> <filename>\nDownload and install a FOTA update. Available servers are \"eu\", \"us\", \"jpn\" and \"au\".",
+		cmd_fota_download, 3, 0),
+	SHELL_SUBCMD_SET_END);
 SHELL_CMD_REGISTER(fota, &sub_fota, "Commands for FOTA update.", cmd_fota);

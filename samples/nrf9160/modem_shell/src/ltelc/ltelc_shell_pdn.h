@@ -9,11 +9,10 @@
 #include <shell/shell.h>
 #include <modem/pdn.h>
 
-
 void ltelc_shell_pdn_init(const struct shell *shell);
 
-int ltelc_shell_pdn_connect(
-	const struct shell *shell, const char *apn_name, const char *family_str);
+int ltelc_shell_pdn_connect(const struct shell *shell, const char *apn_name,
+			    const char *family_str);
 int ltelc_shell_pdn_disconnect(const struct shell *shell, int pdn_cid);
 
 int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam, const char *family);

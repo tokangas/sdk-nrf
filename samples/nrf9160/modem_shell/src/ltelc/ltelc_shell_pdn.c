@@ -61,7 +61,8 @@ static const struct {
 	{ 0x3c, "Bearer handling not supported" },
 	{ 0x3d, "PDN type Ethernet only allowed" },
 	{ 0x41, "Maximum number of EPS bearers reached" },
-	{ 0x42, "Requested APN not supported in current RAT and PLMN combination" },
+	{ 0x42,
+	  "Requested APN not supported in current RAT and PLMN combination" },
 	{ 0x51, "Invalid PTI value" },
 	{ 0x5f, "Semantically incorrect message" },
 	{ 0x60, "Invalid mandatory information" },
@@ -71,7 +72,8 @@ static const struct {
 	{ 0x64, "Conditional IE error" },
 	{ 0x65, "Message not compatible with the protocol state" },
 	{ 0x6f, "Protocol error, unspecified" },
-	{ 0x70, "APN restriction value incompatible with active EPS bearer context" },
+	{ 0x70,
+	  "APN restriction value incompatible with active EPS bearer context" },
 	{ 0x71, "Multiple accesses to a PDN connection not allowed" },
 };
 
@@ -87,7 +89,7 @@ static const char *esm_strerr(int reason)
 	return "<unknown>";
 }
 
-static const char * const event_str[] = {
+static const char *const event_str[] = {
 	[PDN_EVENT_CNEC_ESM] = "ESM",
 	[PDN_EVENT_ACTIVATED] = "activated",
 	[PDN_EVENT_DEACTIVATED] = "deactivated",
@@ -99,15 +101,18 @@ void ltelc_pdn_event_handler(uint8_t cid, enum pdn_event event, int reason)
 {
 	switch (event) {
 	case PDN_EVENT_CNEC_ESM:
-		shell_print(uart_shell, "PDN event: PDP context %d, %s", cid, esm_strerr(reason));
+		shell_print(uart_shell, "PDN event: PDP context %d, %s", cid,
+			    esm_strerr(reason));
 		break;
 	default:
-		shell_print(uart_shell, "PDN event: PDP context %d %s", cid, event_str[event]);
+		shell_print(uart_shell, "PDN event: PDP context %d %s", cid,
+			    event_str[event]);
 		break;
 	}
 }
 
-int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam, const char *family)
+int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam,
+				       const char *family)
 {
 	if (family != NULL) {
 		if (strcmp(family, "ipv4v6") == 0) {
@@ -131,20 +136,23 @@ int ltelc_family_str_to_pdn_lib_family(enum pdn_fam *ret_fam, const char *family
 	return 0;
 }
 
-const char *ltelc_pdn_lib_family_to_string(enum pdn_fam pdn_family, char *out_fam_str)
+const char *ltelc_pdn_lib_family_to_string(enum pdn_fam pdn_family,
+					   char *out_fam_str)
 {
 	struct mapping_tbl_item const mapping_table[] = {
-		{PDN_FAM_IPV4,        "ipv4"},
-		{PDN_FAM_IPV6,        "ipv6"},
-		{PDN_FAM_IPV4V6,      "ipv4v6"},
-		{PDN_FAM_NONIP,       "non-ip"},
-		{-1, NULL}
+		{ PDN_FAM_IPV4, "ipv4" },
+		{ PDN_FAM_IPV6, "ipv6" },
+		{ PDN_FAM_IPV4V6, "ipv4v6" },
+		{ PDN_FAM_NONIP, "non-ip" },
+		{ -1, NULL }
 	};
-	
-	return ltelc_shell_map_to_string(mapping_table, pdn_family, out_fam_str);
+
+	return ltelc_shell_map_to_string(mapping_table, pdn_family,
+					 out_fam_str);
 }
 
-int ltelc_shell_pdn_connect(const struct shell *shell, const char *apn_name, const char *family_str)
+int ltelc_shell_pdn_connect(const struct shell *shell, const char *apn_name,
+			    const char *family_str)
 {
 	enum pdn_fam pdn_lib_family;
 	uint8_t cid = -1;
@@ -172,26 +180,28 @@ int ltelc_shell_pdn_connect(const struct shell *shell, const char *apn_name, con
 		shell_error(shell, "pdn_ctx_configure() failed, err %d\n", ret);
 		goto cleanup_and_fail;
 	}
-	
+
 	/* TODO: Set authentication params if requested by using pdn_ctx_auth_set() */
 
 	/* Activate a PDN connection */
 	ret = pdn_activate(cid, &esm);
 	if (ret) {
-		shell_error(shell, "pdn_activate() failed, err %d esm %d %s\n", ret, esm,
-		       esm_strerr(esm));
+		shell_error(shell, "pdn_activate() failed, err %d esm %d %s\n",
+			    ret, esm, esm_strerr(esm));
 		goto cleanup_and_fail;
 	}
 
-	shell_print(shell, 
-		"Created and activated a new PDP context: CID %d, PDN ID %d\n", 
-			cid, pdn_id_get(cid));
-	
+	shell_print(
+		shell,
+		"Created and activated a new PDP context: CID %d, PDN ID %d\n",
+		cid, pdn_id_get(cid));
+
 	return 0;
 
 cleanup_and_fail:
-	if (cid != -1)
+	if (cid != -1) {
 		(void)pdn_ctx_destroy(cid);
+	}
 
 	return ret;
 }
@@ -211,7 +221,8 @@ int ltelc_shell_pdn_disconnect(const struct shell *shell, int pdn_cid)
 		return ret;
 	}
 
-	shell_print(shell, "CID %d deactivated and context destroyed\n", pdn_cid);
+	shell_print(shell, "CID %d deactivated and context destroyed\n",
+		    pdn_cid);
 
 	return 0;
 }

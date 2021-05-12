@@ -16,7 +16,7 @@ int net_utils_socket_apn_set(int fd, const char *apn)
 {
 	int ret;
 	size_t len;
-	struct ifreq ifr = {0};
+	struct ifreq ifr = { 0 };
 
 	__ASSERT_NO_MSG(apn);
 
@@ -29,8 +29,8 @@ int net_utils_socket_apn_set(int fd, const char *apn)
 	memcpy(ifr.ifr_name, apn, len);
 	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
 	if (ret < 0) {
-		printk("Failed to bind socket to APN %s, error: %d, %s\n",
-            apn, ret, strerror(ret));
+		printk("Failed to bind socket to APN %s, error: %d, %s\n", apn,
+		       ret, strerror(ret));
 		return -EINVAL;
 	}
 
@@ -41,15 +41,15 @@ int net_utils_socket_pdn_id_set(int fd, uint32_t pdn_id)
 {
 	int ret;
 	size_t len;
-	struct ifreq ifr = {0};
-    
-    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pdn%d", pdn_id);
+	struct ifreq ifr = { 0 };
+
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pdn%d", pdn_id);
 	len = strlen(ifr.ifr_name);
 
 	ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, len);
 	if (ret < 0) {
-		printk("Failed to bind socket with PDN ID %d, error: %d, %s\n", 
-            pdn_id, ret, strerror(ret));
+		printk("Failed to bind socket with PDN ID %d, error: %d, %s\n",
+		       pdn_id, ret, strerror(ret));
 		return -EINVAL;
 	}
 
@@ -70,13 +70,14 @@ char *net_utils_sckt_addr_ntop(const struct sockaddr *addr)
 				 sizeof(buf));
 	}
 
-	//LOG_ERR("Unknown IP address family:%d", addr->sa_family);
 	strcpy(buf, "Unknown AF");
 	return buf;
 }
+
 int net_utils_sa_family_from_ip_string(const char *src)
 {
 	char buf[INET6_ADDRSTRLEN];
+
 	if (inet_pton(AF_INET, src, buf)) {
 		return AF_INET;
 	} else if (inet_pton(AF_INET6, src, buf)) {
@@ -84,53 +85,3 @@ int net_utils_sa_family_from_ip_string(const char *src)
 	}
 	return -1;
 }
-
-#ifdef RM_H
-static char** str_split(char* a_str, const char a_delim)
-{
-    char** result    = 0;
-    size_t count     = 0;
-    char* tmp        = a_str;
-    char* last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
-
-    /* Count how many elements will be extracted. */
-    while (*tmp)
-    {
-        if (a_delim == *tmp)
-        {
-            count++;
-            last_comma = tmp;
-        }
-        tmp++;
-    }
-
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
-
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    count++;
-
-    result = malloc(sizeof(char*) * count);
-
-    if (result)
-    {
-        size_t idx  = 0;
-        char* token = strtok(a_str, delim);
-
-        while (token)
-        {
-            assert(idx < count);
-            *(result + idx++) = strdup(token);
-            token = strtok(0, delim);
-        }
-        assert(idx == count - 1);
-        *(result + idx) = 0;
-    }
-
-    return result;
-}
-#endif
