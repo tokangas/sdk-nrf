@@ -806,8 +806,8 @@ int parse_ncellmeas(const char *at_response, struct lte_lc_cells_info *cells)
 
 	/* Neighbor cell count. */
 	cells->ncells_count = neighborcell_count_get(at_response);
-	if ((cells->ncells_count) == 0 || (cells->neighbor_cells == NULL)) {
-		return 0;
+	if ((cells->ncells_count == 0) || (cells->neighbor_cells == NULL)) {
+		goto clean_exit;
 	}
 
 	/* Neighboring cells. */

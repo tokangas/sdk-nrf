@@ -5,6 +5,7 @@
  */
 
 #include <stdlib.h>
+#include <sys/byteorder.h>
 #include <bluetooth/mesh/light_hue_srv.h>
 #include <bluetooth/mesh/light_hsl_srv.h>
 #include <bluetooth/mesh/gen_dtt_srv.h>
@@ -128,6 +129,10 @@ static void hue_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
 
 	(void)bt_mesh_light_hue_srv_pub(srv, NULL, &status);
 	(void)bt_mesh_lvl_srv_pub(&srv->lvl, NULL, &lvl_status);
+
+	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+		bt_mesh_scene_invalidate(&srv->lvl.scene);
+	}
 }
 
 static void hue_get_handle(struct bt_mesh_model *model,
@@ -209,6 +214,8 @@ static void lvl_set(struct bt_mesh_lvl_srv *lvl_srv,
 	srv->handlers->set(srv, NULL, &set, &status);
 	srv->last = hue;
 
+	store(srv);
+
 	(void)bt_mesh_light_hue_srv_pub(srv, NULL, &status);
 
 	if (rsp) {
@@ -235,6 +242,8 @@ static void lvl_delta_set(struct bt_mesh_lvl_srv *lvl_srv,
 	srv->handlers->delta_set(srv, ctx, &delta, &status);
 	srv->last = status.target;
 
+	store(srv);
+
 	(void)bt_mesh_light_hue_srv_pub(srv, NULL, &status);
 
 	if (rsp) {
@@ -258,6 +267,9 @@ static void lvl_move_set(struct bt_mesh_lvl_srv *lvl_srv,
 	};
 
 	srv->handlers->move_set(srv, ctx, &move, &status);
+	srv->last = status.target;
+
+	store(srv);
 
 	(void)bt_mesh_light_hue_srv_pub(srv, NULL, &status);
 
@@ -297,9 +309,7 @@ static int hue_srv_init(struct bt_mesh_model *model)
 	net_buf_simple_init_with_data(&srv->buf, srv->pub_data,
 				      ARRAY_SIZE(srv->pub_data));
 
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		bt_mesh_model_extend(model, srv->lvl.model);
-	}
+	bt_mesh_model_extend(model, srv->lvl.model);
 
 	return 0;
 }
@@ -324,9 +334,26 @@ static int hue_srv_settings_set(struct bt_mesh_model *model, const char *name,
 	return 0;
 }
 
+static void hue_srv_reset(struct bt_mesh_model *model)
+{
+	struct bt_mesh_light_hue_srv *srv = model->user_data;
+
+	srv->range.min = BT_MESH_LIGHT_HSL_MIN;
+	srv->range.max = BT_MESH_LIGHT_HSL_MAX;
+	srv->last = 0;
+	srv->dflt = 0;
+
+	net_buf_simple_reset(srv->pub.msg);
+
+	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+		(void)bt_mesh_model_data_store(srv->model, false, NULL, NULL, 0);
+	}
+}
+
 const struct bt_mesh_model_cb _bt_mesh_light_hue_srv_cb = {
 	.init = hue_srv_init,
 	.settings_set = hue_srv_settings_set,
+	.reset = hue_srv_reset,
 };
 
 void bt_mesh_light_hue_srv_set(struct bt_mesh_light_hue_srv *srv,
@@ -338,10 +365,6 @@ void bt_mesh_light_hue_srv_set(struct bt_mesh_light_hue_srv *srv,
 	srv->handlers->set(srv, ctx, set, status);
 
 	store(srv);
-
-	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
-		bt_mesh_scene_invalidate(&srv->lvl.scene);
-	}
 }
 
 void bt_mesh_light_hue_srv_default_set(struct bt_mesh_light_hue_srv *srv,

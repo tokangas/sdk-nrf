@@ -25,8 +25,8 @@ extern "C" {
 
 /** The lightness server's value is > 0 */
 #define LIGHTNESS_SRV_FLAG_IS_ON 0
-/** Flag for preventing startup behavior on the server */
-#define LIGHTNESS_SRV_FLAG_NO_START 1
+/** Power-up sequence and scene store/recall behaviors are controlled by Light LC server. */
+#define LIGHTNESS_SRV_FLAG_EXTENDED_BY_LIGHT_CTRL 1
 
 enum light_repr {
 	ACTUAL,

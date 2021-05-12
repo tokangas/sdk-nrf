@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 #include <stdlib.h>
+#include <sys/byteorder.h>
 #include <bluetooth/mesh/gen_plvl_srv.h>
 #include "model_utils.h"
-#include "gen_ponoff_internal.h"
 
 #define LVL_TO_POWER(_lvl) ((_lvl) + 32768)
 #define POWER_TO_LVL(_power) ((_power)-32768)
@@ -146,10 +146,6 @@ static void change_lvl(struct bt_mesh_plvl_srv *srv,
 	memset(status, 0, sizeof(*status));
 	srv->handlers->power_set(srv, ctx, set, status);
 
-	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
-		bt_mesh_scene_invalidate(&srv->lvl.scene);
-	}
-
 	pub(srv, NULL, status);
 }
 
@@ -174,6 +170,10 @@ static void plvl_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
 
 	if (!tid_check_and_update(&srv->tid, tid, ctx)) {
 		change_lvl(srv, ctx, &set, &status);
+
+		if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+			bt_mesh_scene_invalidate(&srv->scene);
+		}
 	} else if (ack) {
 		srv->handlers->power_get(srv, NULL, &status);
 	}
@@ -604,6 +604,37 @@ const struct bt_mesh_onoff_srv_handlers bt_mesh_plvl_srv_onoff_handlers = {
 	.get = onoff_get,
 };
 
+static ssize_t scene_store(struct bt_mesh_model *model, uint8_t data[])
+{
+	struct bt_mesh_plvl_srv *srv = model->user_data;
+	struct bt_mesh_plvl_status status = { 0 };
+
+	srv->handlers->power_get(srv, NULL, &status);
+	sys_put_le16(status.remaining_time ? status.target : status.current, &data[0]);
+
+	return 2;
+}
+
+static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
+			 size_t len,
+			 struct bt_mesh_model_transition *transition)
+{
+	struct bt_mesh_plvl_srv *srv = model->user_data;
+	struct bt_mesh_plvl_status status = { 0 };
+	struct bt_mesh_plvl_set set = {
+		.power_lvl = sys_get_le16(data),
+		.transition = transition,
+	};
+
+	change_lvl(srv, NULL, &set, &status);
+}
+
+static const struct bt_mesh_scene_entry_type scene_type = {
+	.maxlen = 2,
+	.store = scene_store,
+	.recall = scene_recall,
+};
+
 static void plvl_srv_reset(struct bt_mesh_plvl_srv *srv)
 {
 	srv->range.min = 0;
@@ -641,36 +672,31 @@ static int bt_mesh_plvl_srv_init(struct bt_mesh_model *model)
 
 	srv->plvl_model = model;
 
-	/* Generic Power Level extend Generic Power OnOff Server, which states
-	 * are bound with Generic OnOff state, store the value of the bound
-	 * state separately, therefore they don't need to set Generic OnOff
-	 * state.
-	 */
-	atomic_set_bit(&srv->ponoff.flags, GEN_PONOFF_SRV_NO_ONOFF);
-
 	plvl_srv_reset(srv);
 	srv->pub.msg = &srv->pub_buf;
 	srv->pub.update = update_handler;
 	net_buf_simple_init_with_data(&srv->pub_buf, srv->pub_data,
 				      sizeof(srv->pub_data));
 
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		/* Model extensions:
-		 * To simplify the model extension tree, we're flipping the
-		 * relationship between the plvl server and the plvl setup
-		 * server. In the specification, the plvl setup server extends
-		 * the plvl server, which is the opposite of what we're doing
-		 * here. This makes no difference for the mesh stack, but it
-		 * makes it a lot easier to extend this model, as we won't have
-		 * to support multiple extenders.
-		 */
-		bt_mesh_model_extend(model, srv->ponoff.ponoff_model);
-		bt_mesh_model_extend(model, srv->lvl.model);
-		bt_mesh_model_extend(
-			model,
-			bt_mesh_model_find(
-				bt_mesh_model_elem(model),
-				BT_MESH_MODEL_ID_GEN_POWER_LEVEL_SETUP_SRV));
+	/* Model extensions:
+	 * To simplify the model extension tree, we're flipping the
+	 * relationship between the plvl server and the plvl setup
+	 * server. In the specification, the plvl setup server extends
+	 * the plvl server, which is the opposite of what we're doing
+	 * here. This makes no difference for the mesh stack, but it
+	 * makes it a lot easier to extend this model, as we won't have
+	 * to support multiple extenders.
+	 */
+	bt_mesh_model_extend(model, srv->ponoff.ponoff_model);
+	bt_mesh_model_extend(model, srv->lvl.model);
+	bt_mesh_model_extend(
+		model,
+		bt_mesh_model_find(
+			bt_mesh_model_elem(model),
+			BT_MESH_MODEL_ID_GEN_POWER_LEVEL_SETUP_SRV));
+
+	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+		bt_mesh_scene_entry_add(model, &srv->scene, &scene_type, false);
 	}
 
 	return 0;

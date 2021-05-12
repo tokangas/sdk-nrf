@@ -344,7 +344,7 @@ static void at_handler(void *context, const char *response)
 		}
 
 		if (ncell_count != 0) {
-			neighbor_cells = k_calloc(sizeof(struct lte_lc_ncell), ncell_count);
+			neighbor_cells = k_calloc(ncell_count, sizeof(struct lte_lc_ncell));
 			if (neighbor_cells == NULL) {
 				LOG_ERR("Failed to allocate memory for neighbor cells");
 				return;
@@ -1335,10 +1335,13 @@ int lte_lc_func_mode_set(enum lte_lc_func_mode mode)
 		}
 	}
 	case LTE_LC_FUNC_MODE_POWER_OFF:
+	case LTE_LC_FUNC_MODE_RX_ONLY:
 	case LTE_LC_FUNC_MODE_OFFLINE:
 	case LTE_LC_FUNC_MODE_DEACTIVATE_LTE:
 	case LTE_LC_FUNC_MODE_DEACTIVATE_GNSS:
 	case LTE_LC_FUNC_MODE_ACTIVATE_GNSS:
+	case LTE_LC_FUNC_MODE_DEACTIVATE_UICC:
+	case LTE_LC_FUNC_MODE_ACTIVATE_UICC:
 	case LTE_LC_FUNC_MODE_OFFLINE_UICC_ON: {
 		char buf[12];
 		int ret = snprintk(buf, sizeof(buf), "AT+CFUN=%d", mode);
@@ -1406,6 +1409,7 @@ int lte_lc_conn_eval_params_get(struct lte_lc_conn_eval_params *params)
 	switch (mode) {
 	case LTE_LC_FUNC_MODE_NORMAL:
 	case LTE_LC_FUNC_MODE_ACTIVATE_LTE:
+	case LTE_LC_FUNC_MODE_RX_ONLY:
 		break;
 	default:
 		LOG_WRN("Connection evaluation is not available in the current functional mode");

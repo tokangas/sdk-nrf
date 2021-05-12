@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 #include <stdlib.h>
+#include <sys/byteorder.h>
 #include <bluetooth/mesh/lightness_srv.h>
 #include "model_utils.h"
 #include "lightness_internal.h"
-#include "gen_ponoff_internal.h"
 #include <bluetooth/mesh/light_ctrl_srv.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_MODEL)
@@ -241,7 +241,7 @@ static void lightness_set(struct bt_mesh_model *model,
 		lightness_srv_change_lvl(srv, ctx, &set, &status);
 
 		if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
-			bt_mesh_scene_invalidate(&srv->lvl.scene);
+			bt_mesh_scene_invalidate(&srv->scene);
 		}
 	} else if (ack) {
 		srv->handlers->light_get(srv, NULL, &status);
@@ -778,6 +778,37 @@ static void bt_mesh_lightness_srv_reset(struct bt_mesh_model *model)
 	}
 }
 
+static ssize_t scene_store(struct bt_mesh_model *model, uint8_t data[])
+{
+	struct bt_mesh_lightness_srv *srv = model->user_data;
+	struct bt_mesh_lightness_status status = { 0 };
+
+	srv->handlers->light_get(srv, NULL, &status);
+	sys_put_le16(status.remaining_time ? light_to_repr(status.target, ACTUAL) :
+		     light_to_repr(status.current, ACTUAL), &data[0]);
+	return 2;
+}
+
+static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
+			 size_t len,
+			 struct bt_mesh_model_transition *transition)
+{
+	struct bt_mesh_lightness_srv *srv = model->user_data;
+	struct bt_mesh_lightness_status dummy_status;
+	struct bt_mesh_lightness_set set = {
+		.lvl = repr_to_light(sys_get_le16(data), ACTUAL),
+		.transition = transition,
+	};
+
+	lightness_srv_change_lvl(srv, NULL, &set, &dummy_status);
+}
+
+static const struct bt_mesh_scene_entry_type scene_type = {
+	.maxlen = 2,
+	.store = scene_store,
+	.recall = scene_recall,
+};
+
 static int update_handler(struct bt_mesh_model *model)
 {
 	struct bt_mesh_lightness_srv *srv = model->user_data;
@@ -796,35 +827,31 @@ static int bt_mesh_lightness_srv_init(struct bt_mesh_model *model)
 
 	srv->lightness_model = model;
 
-	/* Light Lightness extend Generic Power OnOff Server, which states are
-	 * bound with Generic OnOff state, store the value of the bound state
-	 * separately, therefore they don't need to set Generic OnOff state.
-	 */
-	atomic_set_bit(&srv->ponoff.flags, GEN_PONOFF_SRV_NO_ONOFF);
-
 	lightness_srv_reset(srv);
 	srv->pub.msg = &srv->pub_buf;
 	srv->pub.update = update_handler;
 	net_buf_simple_init_with_data(&srv->pub_buf, srv->pub_data,
 				      sizeof(srv->pub_data));
 
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		/* Model extensions:
-		 * To simplify the model extension tree, we're flipping the
-		 * relationship between the lightness server and the lightness
-		 * setup server. In the specification, the lightness setup
-		 * server extends the lightness server, which is the opposite of
-		 * what we're doing here. This makes no difference for the mesh
-		 * stack, but it makes it a lot easier to extend this model, as
-		 * we won't have to support multiple extenders.
-		 */
-		bt_mesh_model_extend(model, srv->ponoff.ponoff_model);
-		bt_mesh_model_extend(model, srv->lvl.model);
-		bt_mesh_model_extend(
-			model,
-			bt_mesh_model_find(
-				bt_mesh_model_elem(model),
-				BT_MESH_MODEL_ID_LIGHT_LIGHTNESS_SETUP_SRV));
+	/* Model extensions:
+	 * To simplify the model extension tree, we're flipping the
+	 * relationship between the lightness server and the lightness
+	 * setup server. In the specification, the lightness setup
+	 * server extends the lightness server, which is the opposite of
+	 * what we're doing here. This makes no difference for the mesh
+	 * stack, but it makes it a lot easier to extend this model, as
+	 * we won't have to support multiple extenders.
+	 */
+	bt_mesh_model_extend(model, srv->ponoff.ponoff_model);
+	bt_mesh_model_extend(model, srv->lvl.model);
+	bt_mesh_model_extend(
+		model,
+		bt_mesh_model_find(
+			bt_mesh_model_elem(model),
+			BT_MESH_MODEL_ID_LIGHT_LIGHTNESS_SETUP_SRV));
+
+	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+		bt_mesh_scene_entry_add(model, &srv->scene, &scene_type, false);
 	}
 
 	return 0;
@@ -898,7 +925,11 @@ static int bt_mesh_lightness_srv_start(struct bt_mesh_model *model)
 {
 	struct bt_mesh_lightness_srv *srv = model->user_data;
 
-	if (atomic_test_bit(&srv->flags, LIGHTNESS_SRV_FLAG_NO_START)) {
+	/* When Light Lightness server is extended by Light LC server, Light LC server will execute
+	 * power-up sequence of Light Lightness server according to section 6.5.1.2. Otherwise,
+	 * Light Lightness will execute power-up sequence behavior.
+	 */
+	if (atomic_test_bit(&srv->flags, LIGHTNESS_SRV_FLAG_EXTENDED_BY_LIGHT_CTRL)) {
 		return 0;
 	}
 

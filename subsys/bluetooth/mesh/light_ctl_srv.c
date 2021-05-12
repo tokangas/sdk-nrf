@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
+#include <sys/byteorder.h>
 #include <bluetooth/mesh/light_ctl_srv.h>
 #include <bluetooth/mesh/light_temp_srv.h>
 #include <bluetooth/mesh/gen_dtt_srv.h>
@@ -114,6 +115,10 @@ static void ctl_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
 respond:
 	if (ack) {
 		bt_mesh_light_ctl_pub(srv, ctx, &status);
+	}
+
+	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+		bt_mesh_scene_invalidate(&srv->scene);
 	}
 }
 
@@ -348,6 +353,41 @@ const struct bt_mesh_model_op _bt_mesh_light_ctl_setup_srv_op[] = {
 	BT_MESH_MODEL_OP_END,
 };
 
+static ssize_t scene_store(struct bt_mesh_model *model, uint8_t data[])
+{
+	struct bt_mesh_light_ctl_srv *srv = model->user_data;
+	struct bt_mesh_lightness_status light = { 0 };
+
+	srv->lightness_srv.handlers->light_get(&srv->lightness_srv, NULL, &light);
+	sys_put_le16(repr_to_light(light.remaining_time ? light.target : light.current, ACTUAL),
+		     &data[0]);
+
+	return 2;
+}
+
+static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
+			 size_t len,
+			 struct bt_mesh_model_transition *transition)
+{
+	struct bt_mesh_light_ctl_srv *srv = model->user_data;
+	struct bt_mesh_lightness_status dummy_light_status;
+	struct bt_mesh_lightness_set light = {
+		.lvl = repr_to_light(sys_get_le16(data), ACTUAL),
+		.transition = transition,
+	};
+
+	if (!atomic_test_bit(&srv->lightness_srv.flags,
+			     LIGHTNESS_SRV_FLAG_EXTENDED_BY_LIGHT_CTRL)) {
+		lightness_srv_change_lvl(&srv->lightness_srv, NULL, &light, &dummy_light_status);
+	}
+}
+
+static const struct bt_mesh_scene_entry_type scene_type = {
+	.maxlen = 2,
+	.store = scene_store,
+	.recall = scene_recall,
+};
+
 static int update_handler(struct bt_mesh_model *model)
 {
 	struct bt_mesh_light_ctl_srv *srv = model->user_data;
@@ -369,24 +409,23 @@ static int bt_mesh_light_ctl_srv_init(struct bt_mesh_model *model)
 	net_buf_simple_init_with_data(&srv->pub_buf, srv->pub_data,
 				      sizeof(srv->pub_data));
 
-	/* Disable On power up procedure on lightness server */
-	atomic_set_bit(&srv->lightness_srv.flags, LIGHTNESS_SRV_FLAG_NO_START);
+	/* Model extensions:
+	 * To simplify the model extension tree, we're flipping the
+	 * relationship between the Light CTL server and the Light CTL
+	 * setup server. In the specification, the Light CTL setup
+	 * server extends the time server, which is the opposite of
+	 * what we're doing here. This makes no difference for the mesh
+	 * stack, but it makes it a lot easier to extend this model, as
+	 * we won't have to support multiple extenders.
+	 */
+	bt_mesh_model_extend(model, srv->lightness_srv.lightness_model);
+	bt_mesh_model_extend(
+		model, bt_mesh_model_find(
+			       bt_mesh_model_elem(model),
+			       BT_MESH_MODEL_ID_LIGHT_CTL_SETUP_SRV));
 
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		/* Model extensions:
-		 * To simplify the model extension tree, we're flipping the
-		 * relationship between the Light CTL server and the Light CTL
-		 * setup server. In the specification, the Light CTL setup
-		 * server extends the time server, which is the opposite of
-		 * what we're doing here. This makes no difference for the mesh
-		 * stack, but it makes it a lot easier to extend this model, as
-		 * we won't have to support multiple extenders.
-		 */
-		bt_mesh_model_extend(model, srv->lightness_srv.lightness_model);
-		bt_mesh_model_extend(
-			model, bt_mesh_model_find(
-				       bt_mesh_model_elem(model),
-				       BT_MESH_MODEL_ID_LIGHT_CTL_SETUP_SRV));
+	if (IS_ENABLED(CONFIG_BT_MESH_SCENE_SRV)) {
+		bt_mesh_scene_entry_add(model, &srv->scene, &scene_type, false);
 	}
 
 	return 0;
@@ -397,11 +436,6 @@ static void bt_mesh_light_ctl_srv_reset(struct bt_mesh_model *model)
 	struct bt_mesh_light_ctl_srv *srv = model->user_data;
 
 	net_buf_simple_reset(srv->pub.msg);
-
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		(void)bt_mesh_model_data_store(srv->model, false, NULL, NULL,
-					       0);
-	}
 }
 
 static int bt_mesh_light_ctl_srv_start(struct bt_mesh_model *model)
@@ -410,10 +444,6 @@ static int bt_mesh_light_ctl_srv_start(struct bt_mesh_model *model)
 	struct bt_mesh_model_transition transition;
 	struct bt_mesh_light_temp_set temp = {
 		.params = srv->temp_srv.dflt,
-		.transition = &transition,
-	};
-	struct bt_mesh_lightness_set light = {
-		.lvl = srv->lightness_srv.default_light,
 		.transition = &transition,
 	};
 
@@ -433,22 +463,11 @@ static int bt_mesh_light_ctl_srv_start(struct bt_mesh_model *model)
 
 	case BT_MESH_ON_POWER_UP_ON:
 		bt_mesh_light_temp_srv_set(&srv->temp_srv, NULL, &temp, NULL);
-		lightness_srv_change_lvl(&srv->lightness_srv, NULL, &light,
-					 NULL);
 		break;
 
 	case BT_MESH_ON_POWER_UP_RESTORE:
 		temp.params = srv->temp_srv.last;
 		bt_mesh_light_temp_srv_set(&srv->temp_srv, NULL, &temp, NULL);
-
-		if (!atomic_test_bit(&srv->lightness_srv.flags,
-				     LIGHTNESS_SRV_FLAG_IS_ON)) {
-			break;
-		}
-
-		light.lvl = srv->lightness_srv.last;
-		lightness_srv_change_lvl(&srv->lightness_srv, NULL, &light,
-					 NULL);
 		break;
 
 	default:

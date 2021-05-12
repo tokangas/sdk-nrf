@@ -1397,24 +1397,32 @@ const struct bt_mesh_onoff_srv_handlers _bt_mesh_light_ctrl_srv_onoff = {
 
 struct __packed scene_data {
 	uint8_t enabled:1,
-		occ:1;
+		occ:1,
+		light:1;
 	struct bt_mesh_light_ctrl_srv_cfg cfg;
 #if CONFIG_BT_MESH_LIGHT_CTRL_SRV_REG
 	struct bt_mesh_light_ctrl_srv_reg_cfg reg;
 #endif
+	uint16_t lightness;
 };
 
-static int scene_store(struct bt_mesh_model *model, uint8_t data[])
+static ssize_t scene_store(struct bt_mesh_model *model, uint8_t data[])
 {
 	struct bt_mesh_light_ctrl_srv *srv = model->user_data;
+	struct bt_mesh_lightness_status light = { 0 };
 	struct scene_data *scene = (struct scene_data *)&data[0];
 
 	scene->enabled = is_enabled(srv);
 	scene->occ = atomic_test_bit(&srv->flags, FLAG_OCC_MODE);
+	scene->light = atomic_test_bit(&srv->flags, FLAG_ON);
 	scene->cfg = srv->cfg;
 #if CONFIG_BT_MESH_LIGHT_CTRL_SRV_REG
 	scene->reg = srv->reg.cfg;
 #endif
+
+	srv->lightness->handlers->light_get(srv->lightness, NULL, &light);
+	scene->lightness = repr_to_light(light.remaining_time ? light.target : light.current,
+					 ACTUAL);
 
 	return sizeof(struct scene_data);
 }
@@ -1433,8 +1441,21 @@ static void scene_recall(struct bt_mesh_model *model, const uint8_t data[],
 #endif
 	if (scene->enabled) {
 		ctrl_enable(srv);
+
+		if (!!scene->light) {
+			turn_on(srv, transition, true);
+		} else {
+			light_onoff_pub(srv, srv->state, true);
+		}
 	} else {
+		struct bt_mesh_lightness_status status;
+		struct bt_mesh_lightness_set set = {
+			.lvl = scene->lightness,
+			.transition = transition,
+		};
+
 		ctrl_disable(srv);
+		lightness_srv_change_lvl(srv->lightness, NULL, &set, &status);
 	}
 }
 
@@ -1462,18 +1483,15 @@ static int light_ctrl_srv_init(struct bt_mesh_model *model)
 
 	srv->model = model;
 
+	if (srv->lightness->lightness_model == NULL ||
+	    srv->lightness->lightness_model->elem_idx >= model->elem_idx) {
+		BT_ERR("Lightness: Invalid element index");
+		return -EINVAL;
+	}
+
 	if (IS_ENABLED(CONFIG_BT_MESH_LIGHT_CTRL_SRV_OCCUPANCY_MODE)) {
 		atomic_set_bit(&srv->flags, FLAG_OCC_MODE);
 	}
-
-	/* When the Lightness Server boots up in restore mode, it'll start
-	 * changing its state in the start cb. The LC Server should decide the
-	 * startup activity of the Lightness Server itself.
-	 *
-	 * Block the Lightness Server startup behavior to prevent it from moving
-	 * before the LC Server gets a chance to take control.
-	 */
-	atomic_set_bit(&srv->lightness->flags, LIGHTNESS_SRV_FLAG_NO_START);
 
 	k_work_init_delayable(&srv->timer, timeout);
 	k_work_init_delayable(&srv->action_delay, delayed_action_timeout);
@@ -1491,9 +1509,10 @@ static int light_ctrl_srv_init(struct bt_mesh_model *model)
 	net_buf_simple_init_with_data(&srv->pub_buf, srv->pub_data,
 				      sizeof(srv->pub_data));
 
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		bt_mesh_model_extend(model, srv->onoff.model);
-	}
+	bt_mesh_model_extend(model, srv->onoff.model);
+	bt_mesh_model_extend(srv->model, srv->lightness->lightness_model);
+
+	atomic_set_bit(&srv->lightness->flags, LIGHTNESS_SRV_FLAG_EXTENDED_BY_LIGHT_CTRL);
 
 	atomic_set_bit(&srv->onoff.flags, GEN_ONOFF_SRV_NO_DTT);
 
@@ -1545,20 +1564,6 @@ static int light_ctrl_srv_start(struct bt_mesh_model *model)
 	struct bt_mesh_light_ctrl_srv *srv = model->user_data;
 
 	atomic_set_bit(&srv->flags, FLAG_STARTED);
-
-	if (srv->lightness->lightness_model->elem_idx == model->elem_idx) {
-		BT_ERR("Lightness: Invalid element index");
-		return -EINVAL;
-	}
-
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		/* Breaking the pattern of extending models in the init
-		 * function, as the lightness model's position in the
-		 * composition data isn't necessarily known at that point.
-		 */
-		bt_mesh_model_extend(srv->model,
-				     srv->lightness->lightness_model);
-	}
 
 	switch (srv->lightness->ponoff.on_power_up) {
 	case BT_MESH_ON_POWER_UP_OFF:
@@ -1636,19 +1641,16 @@ static int lc_setup_srv_init(struct bt_mesh_model *model)
 
 	srv->setup_srv = model;
 
-	if (IS_ENABLED(CONFIG_BT_MESH_MODEL_EXTENSIONS)) {
-		/* Model extensions:
-		 * To simplify the model extension tree, we're flipping the
-		 * relationship between the Light LC Server and the Light LC
-		 * Setup Server. In the specification, the Light LC Setup
-		 * Server extends the Light LC Server, which is the opposite of
-		 * what we're doing here. This makes no difference for the mesh
-		 * stack, but it makes it a lot easier to extend this model, as
-		 * we won't have to support multiple extenders.
-		 */
-		bt_mesh_model_extend(srv->model, srv->setup_srv);
-	}
-
+	/* Model extensions:
+	 * To simplify the model extension tree, we're flipping the
+	 * relationship between the Light LC Server and the Light LC
+	 * Setup Server. In the specification, the Light LC Setup
+	 * Server extends the Light LC Server, which is the opposite of
+	 * what we're doing here. This makes no difference for the mesh
+	 * stack, but it makes it a lot easier to extend this model, as
+	 * we won't have to support multiple extenders.
+	 */
+	bt_mesh_model_extend(srv->model, srv->setup_srv);
 
 	srv->setup_pub.msg = &srv->setup_pub_buf;
 	net_buf_simple_init_with_data(&srv->setup_pub_buf, srv->setup_pub_data,
