@@ -239,7 +239,7 @@ parse:
 			AT_CMD_PDP_CONTEXT_READ_INFO_DNS_ADDR_SECONDARY_INDEX,
 			dns_addr_str, &param_str_len);
 		if (ret) {
-			printk("Could not parse dns str, err: %d", ret);
+			printk("Could not parse dns str, err: %d\n", ret);
 			goto clean_exit;
 		}
 		dns_addr_str[param_str_len] = '\0';
@@ -472,7 +472,7 @@ static int ltelc_api_xmonitor_read(lte_xmonitor_resp_t *resp)
 	if (ret) {
 		printk("Could not parse %s response, error: %d\n",
 		       AT_CMD_XMONITOR, ret);
-		return ret;
+		goto clean_exit;
 	}
 
 	for (i = 1; i <= AT_CMD_X_MONITOR_MAX_HANDLED_INDEX; i++) {
@@ -555,6 +555,9 @@ static int ltelc_api_xmonitor_read(lte_xmonitor_resp_t *resp)
 			}
 		}
 	}
+
+clean_exit:
+	at_params_list_free(&param_list);
 	return 0;
 }
 
