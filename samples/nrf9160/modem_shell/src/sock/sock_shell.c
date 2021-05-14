@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <strings.h>
 #include <stdio.h>
-#if defined (CONFIG_POSIX_API)
+#if defined(CONFIG_POSIX_API)
 #include <unistd.h>
 #include <netdb.h>
 #include <poll.h>
@@ -37,7 +37,7 @@ typedef enum {
 	SOCK_CMD_HELP
 } sock_command;
 
-extern const struct shell* shell_global;
+extern const struct shell *shell_global;
 
 const char sock_usage_str[] =
 	"Usage: sock <command> [options]\n"
@@ -119,7 +119,7 @@ const char sock_usage_str[] =
 	"                            Indicates that the application will not send any\n"
 	"                            more data. This socket option will apply\n"
 	"                            immediately, and does not require a call to send\n"
- 	"                            afterwards.\n"
+	"                            afterwards.\n"
 	"      --rai_one_resp, [bool] Sets NRF_SO_RAI_ONE_RESP option.\n"
 	"                            Indicates that after the next call to send/sendto,\n"
 	"                            the application is expecting to receive one more\n"
@@ -147,8 +147,7 @@ const char sock_usage_str[] =
 	"                            'hex'\n"
 	"\n"
 	"Options for 'help' command:\n"
-	"  -v, --verbose, [bool]     Show examples\n"
-	;
+	"  -v, --verbose, [bool]     Show examples\n";
 
 const char sock_usage_example_str[] =
 	"Examples:\n"
@@ -195,8 +194,7 @@ const char sock_usage_example_str[] =
 	"  sock send -i 0 -d testing\n"
 	"\n"
 	"List open sockets:\n"
-	"  sock list\n"
-	;
+	"  sock list\n";
 
 /* The following do not have short options: */
 #define SOCK_SHELL_OPT_RAI_ENABLE 200
@@ -209,35 +207,35 @@ const char sock_usage_example_str[] =
 
 /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
-    {"id",             required_argument, 0,  'i' },
-    {"cid",            required_argument, 0,  'I' },
-    {"address",        required_argument, 0,  'a' },
-    {"port",           required_argument, 0,  'p' },
-    {"family",         required_argument, 0,  'f' },
-    {"type",           required_argument, 0,  't' },
-    {"bind_port",      required_argument, 0,  'b' },
-    {"secure",         no_argument,       0,  'S' },
-    {"sec_tag",        required_argument, 0,  'T' },
-    {"cache",          no_argument,       0,  'c' },
-    {"peer_verify",    required_argument, 0,  'V' },
-    {"hostname",       required_argument, 0,  'H' },
-    {"data",           required_argument, 0,  'd' },
-    {"length",         required_argument, 0,  'l' },
-    {"period",         required_argument, 0,  'e' },
-    {"buffer_size",    required_argument, 0,  's' },
-    {"hex",            no_argument,       0,  'x' },
-    {"start",          no_argument,       0,  'r' },
-    {"blocking",       required_argument, 0,  'B' },
-    {"print_format",   required_argument, 0,  'P' },
-    {"verbose",        no_argument,       0,  'v' },
-    {"rai_enable",     no_argument,       0,   SOCK_SHELL_OPT_RAI_ENABLE },
-    {"rai_disable",    no_argument,       0,   SOCK_SHELL_OPT_RAI_DISABLE },
-    {"rai_last",       no_argument,       0,   SOCK_SHELL_OPT_RAI_LAST },
-    {"rai_no_data",    no_argument,       0,   SOCK_SHELL_OPT_RAI_NO_DATA },
-    {"rai_one_resp",   no_argument,       0,   SOCK_SHELL_OPT_RAI_ONE_RESP },
-    {"rai_ongoing",    no_argument,       0,   SOCK_SHELL_OPT_RAI_ONGOING },
-    {"rai_wait_more",  no_argument,       0,   SOCK_SHELL_OPT_RAI_WAIT_MORE },
-    {0,                0,                 0,   0  }
+	{ "id",             required_argument, 0, 'i' },
+	{ "cid",            required_argument, 0, 'I' },
+	{ "address",        required_argument, 0, 'a' },
+	{ "port",           required_argument, 0, 'p' },
+	{ "family",         required_argument, 0, 'f' },
+	{ "type",           required_argument, 0, 't' },
+	{ "bind_port",      required_argument, 0, 'b' },
+	{ "secure",         no_argument,       0, 'S' },
+	{ "sec_tag",        required_argument, 0, 'T' },
+	{ "cache",          no_argument,       0, 'c' },
+	{ "peer_verify",    required_argument, 0, 'V' },
+	{ "hostname",       required_argument, 0, 'H' },
+	{ "data",           required_argument, 0, 'd' },
+	{ "length",         required_argument, 0, 'l' },
+	{ "period",         required_argument, 0, 'e' },
+	{ "buffer_size",    required_argument, 0, 's' },
+	{ "hex",            no_argument,       0, 'x' },
+	{ "start",          no_argument,       0, 'r' },
+	{ "blocking",       required_argument, 0, 'B' },
+	{ "print_format",   required_argument, 0, 'P' },
+	{ "verbose",        no_argument,       0, 'v' },
+	{ "rai_enable",     no_argument,       0, SOCK_SHELL_OPT_RAI_ENABLE },
+	{ "rai_disable",    no_argument,       0, SOCK_SHELL_OPT_RAI_DISABLE },
+	{ "rai_last",       no_argument,       0, SOCK_SHELL_OPT_RAI_LAST },
+	{ "rai_no_data",    no_argument,       0, SOCK_SHELL_OPT_RAI_NO_DATA },
+	{ "rai_one_resp",   no_argument,       0, SOCK_SHELL_OPT_RAI_ONE_RESP },
+	{ "rai_ongoing",    no_argument,       0, SOCK_SHELL_OPT_RAI_ONGOING },
+	{ "rai_wait_more",  no_argument,       0, SOCK_SHELL_OPT_RAI_WAIT_MORE },
+	{ 0,                0,                 0, 0  }
 };
 
 static void sock_print_usage()
@@ -245,7 +243,8 @@ static void sock_print_usage()
 	shell_print(shell_global, "%s", sock_usage_str);
 }
 
-static int sock_help(bool verbose) {
+static int sock_help(bool verbose)
+{
 	sock_print_usage();
 	if (verbose) {
 		shell_print(shell_global, "%s", sock_usage_example_str);
@@ -293,7 +292,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_socket_id = SOCK_ID_NONE;
 	int arg_family = AF_INET;
 	int arg_type = SOCK_STREAM;
-	char arg_address[SOCK_MAX_ADDR_LEN+1];
+	char arg_address[SOCK_MAX_ADDR_LEN + 1];
 	int arg_port = 0;
 	int arg_bind_port = 0;
 	int arg_pdn_cid = 0;
@@ -301,8 +300,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	int arg_sec_tag = -1;
 	bool arg_session_cache = false;
 	int arg_peer_verify = 1;
-	char arg_peer_hostname[SOCK_MAX_ADDR_LEN+1];
-	char arg_send_data[SOCK_MAX_SEND_DATA_LEN+1];
+	char arg_peer_hostname[SOCK_MAX_ADDR_LEN + 1];
+	char arg_send_data[SOCK_MAX_SEND_DATA_LEN + 1];
 	int arg_data_length = 0;
 	int arg_data_interval = SOCK_SEND_DATA_INTERVAL_NONE;
 	int arg_buffer_size = SOCK_BUFFER_SIZE_NONE;
@@ -319,17 +318,15 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 	bool arg_rai_wait_more = false;
 	bool arg_verbose = false;
 
-	memset(arg_address, 0, SOCK_MAX_ADDR_LEN+1);
-	memset(arg_peer_hostname, 0, SOCK_MAX_ADDR_LEN+1);
-	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN+1);
+	memset(arg_address, 0, SOCK_MAX_ADDR_LEN + 1);
+	memset(arg_peer_hostname, 0, SOCK_MAX_ADDR_LEN + 1);
+	memset(arg_send_data, 0, SOCK_MAX_SEND_DATA_LEN + 1);
 
 	/* Parse command line */
 	int flag = 0;
-	while ((flag = getopt_long(
-			argc, argv,
-			"i:I:a:p:f:t:b:ST:cV:H:d:l:e:s:xrB:P:v",
-			long_options, NULL)) != -1) {
-
+	while ((flag = getopt_long(argc, argv,
+				   "i:I:a:p:f:t:b:ST:cV:H:d:l:e:s:xrB:P:v",
+				   long_options, NULL)) != -1) {
 		int addr_len = 0;
 		int send_data_len = 0;
 
@@ -353,8 +350,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_error(
 					shell,
 					"Address length %d exceeded. Maximum is %d.",
-					addr_len,
-					SOCK_MAX_ADDR_LEN);
+					addr_len, SOCK_MAX_ADDR_LEN);
 				return -EINVAL;
 			}
 			memcpy(arg_address, optarg, addr_len);
@@ -422,7 +418,8 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 					shell,
 					"Valid range for security tag (%d) is 0 ... 2147483647.",
 					arg_sec_tag);
-				return -EINVAL;			}
+				return -EINVAL;
+			}
 			break;
 		case 'c': /* TLS session cache */
 			arg_session_cache = true;
@@ -443,8 +440,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_error(
 					shell,
 					"Peer hostname length %d exceeded. Maximum is %d.",
-					addr_len,
-					SOCK_MAX_ADDR_LEN);
+					addr_len, SOCK_MAX_ADDR_LEN);
 				return -EINVAL;
 			}
 			strcpy(arg_peer_hostname, optarg);
@@ -455,8 +451,7 @@ int sock_shell(const struct shell *shell, size_t argc, char **argv)
 				shell_error(
 					shell,
 					"Data length %d exceeded. Maximum is %d. Given data: %s",
-					send_data_len,
-					SOCK_MAX_SEND_DATA_LEN,
+					send_data_len, SOCK_MAX_SEND_DATA_LEN,
 					optarg);
 				return -EINVAL;
 			}

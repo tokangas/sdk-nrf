@@ -10,30 +10,30 @@
 #include <modem/at_cmd.h>
 #include <modem/at_notif.h>
 #include <modem/lte_lc.h>
-#if defined (CONFIG_MOSH_PING)
+#if defined(CONFIG_MOSH_PING)
 #include "ping/icmp_ping_shell.h"
 #endif
-#if defined (CONFIG_MOSH_SOCK)
+#if defined(CONFIG_MOSH_SOCK)
 #include "sock_shell.h"
 #endif
-#if defined (CONFIG_POSIX_API)
+#if defined(CONFIG_POSIX_API)
 #include <sys/select.h>
 #else
-#if !defined (CONFIG_NET_SOCKETS_POSIX_NAMES)
+#if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
 #include <posix/sys/select.h>
 #endif
 #endif
-#if defined (CONFIG_MOSH_LTELC)
+#if defined(CONFIG_MOSH_LTELC)
 #include "ltelc_shell.h"
 #endif
-#if defined (CONFIG_MOSH_CURL)	
+#if defined(CONFIG_MOSH_CURL)
 #include "mosh_curl.h"
 #endif
-#if defined (CONFIG_MOSH_GNSS)
+#if defined(CONFIG_MOSH_GNSS)
 #include "gnss/gnss_shell.h"
 #endif
 
-extern const struct shell* shell_global;
+extern const struct shell *shell_global;
 
 static const char at_usage_str[] =
 	"Usage: at <command>\n"
@@ -55,8 +55,7 @@ static const char at_usage_str[] =
 	"    at events_enable\n"
 	"\n"
 	"  Disable AT command events:\n"
-	"    at events_disable\n"
-	;
+	"    at events_disable\n";
 
 static void at_cmd_handler(void *context, const char *response)
 {
@@ -71,8 +70,7 @@ static void at_print_usage()
 
 static void at_print_error_info(enum at_cmd_state state, int error)
 {
-	switch (state)
-	{
+	switch (state) {
 	case AT_CMD_ERROR:
 		shell_error(shell_global, "ERROR: %d", error);
 		break;
@@ -111,24 +109,22 @@ int at_shell(const struct shell *shell, size_t argc, char **argv)
 		return 0;
 	}
 
-	char* command = argv[1];
+	char *command = argv[1];
 
 	shell_global = shell;
 
 	if (!strcmp(command, "events_enable")) {
-		int err = at_notif_register_handler(
-			(void*)shell, at_cmd_handler);
+		int err = at_notif_register_handler((void *)shell,
+						    at_cmd_handler);
 		if (err == 0) {
 			shell_print(shell, "AT command event handler registered successfully");
 		} else {
-			shell_print(
-				shell,
-				"AT command event handler registeration failed, err=%d",
-				err);
+			shell_print(shell,
+				    "AT command event handler registeration failed, err=%d",
+				    err);
 		}
 	} else if (!strcmp(command, "events_disable")) {
-		at_notif_deregister_handler((void*)shell, at_cmd_handler);
-		shell_print(shell, "AT command event handler deregistered successfully");
+		at_notif_deregister_handler((void *)shell, at_cmd_handler);
 	} else if (!strcmp(command, "help")) {
 		shell_print(shell, "%s", at_usage_str);
 	} else {

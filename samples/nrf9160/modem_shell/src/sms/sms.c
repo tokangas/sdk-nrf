@@ -20,10 +20,9 @@
 #define PAYLOAD_BUF_SIZE 160
 #define SMS_HANDLE_NONE -1
 
-extern const struct shell* shell_global;
+extern const struct shell *shell_global;
 static int sms_handle = SMS_HANDLE_NONE;
 static int sms_recv_counter = 0;
-
 
 static void sms_callback(struct sms_data *const data, void *context)
 {
@@ -32,41 +31,37 @@ static void sms_callback(struct sms_data *const data, void *context)
 	}
 
 	if (data->type == SMS_TYPE_STATUS_REPORT) {
-		/* TODO: Check whether we should parse SMS-STATUS-REPORT more carefully */
 		shell_print(shell_global, "SMS status report received");
 		return;
 	} else if (data->type == SMS_TYPE_DELIVER) {
 		struct sms_deliver_header *header = &data->header.deliver;
-		shell_print(shell_global, "Time:   %02d-%02d-%02d %02d:%02d:%02d",
-			header->time.year,
-			header->time.month,
-			header->time.day,
-			header->time.hour,
-			header->time.minute,
-			header->time.second);
+		shell_print(shell_global,
+			    "Time:   %02d-%02d-%02d %02d:%02d:%02d",
+			    header->time.year, header->time.month,
+			    header->time.day, header->time.hour,
+			    header->time.minute, header->time.second);
 
 		shell_print(shell_global, "Text:   '%s'", data->payload);
 		shell_print(shell_global, "Length: %d", data->payload_len);
 
 		if (header->app_port.present) {
 			shell_print(shell_global,
-				"Application port addressing scheme: dest_port=%d, src_port=%d",
-				header->app_port.dest_port,
-				header->app_port.src_port);
+				    "Application port addressing scheme: dest_port=%d, src_port=%d",
+				    header->app_port.dest_port,
+				    header->app_port.src_port);
 		}
 		if (header->concatenated.present) {
 			shell_print(shell_global,
-				"Concatenated short messages: ref_number=%d, msg %d/%d",
-				header->concatenated.ref_number,
-				header->concatenated.seq_number,
-				header->concatenated.total_msgs);
+				    "Concatenated short messages: ref_number=%d, msg %d/%d",
+				    header->concatenated.ref_number,
+				    header->concatenated.seq_number,
+				    header->concatenated.total_msgs);
 		}
 
 		sms_recv_counter++;
 	} else {
 		shell_print(shell_global, "SMS protocol message with unknown type received");
 	}
-
 }
 
 int sms_register()
@@ -91,7 +86,8 @@ int sms_unregister()
 	sms_unregister_listener(sms_handle);
 	if (sms_handle != SMS_HANDLE_NONE) {
 		/* Only print if we've registered earlier. Otherwise this will cause a crash
-		 * when called from other modules if shell_global is not set. */
+		 * when called from other modules if shell_global is not set.
+		 */
 		shell_print(shell_global, "SMS unregistered");
 	}
 
@@ -101,7 +97,7 @@ int sms_unregister()
 }
 
 /* Function name is not sms_send() because it's reserved by SMS library. */
-int sms_send_msg(char* number, char* text)
+int sms_send_msg(char *number, char *text)
 {
 	int ret;
 
@@ -132,8 +128,7 @@ int sms_recv(bool arg_receive_start)
 		sms_recv_counter = 0;
 		shell_print(shell_global, "SMS receive counter set to zero");
 	} else {
-		shell_print(shell_global, "SMS receive counter = %d",
-			sms_recv_counter);
+		shell_print(shell_global, "SMS receive counter = %d", sms_recv_counter);
 	}
 
 	return 0;

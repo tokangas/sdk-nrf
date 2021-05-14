@@ -24,7 +24,7 @@ typedef enum {
 	SMS_CMD_HELP
 } sms_command;
 
-extern const struct shell* shell_global;
+extern const struct shell *shell_global;
 
 const char sms_usage_str[] =
 	"Usage: sms <command> [options]\n"
@@ -45,21 +45,19 @@ const char sms_usage_str[] =
 	"  -r, --start,         Reset SMS counter to zero\n"
 	"\n"
 	"Options for 'help' command:\n"
-	"  -v, --verbose,       Show examples\n"
-	;
+	"  -v, --verbose,       Show examples\n";
 
 const char sms_usage_example_str[] =
 	"Examples:\n"
 	"\n"
-	"TODO\n"
-	;
+	"TODO\n";
 
 /* Specifying the expected options (both long and short): */
 static struct option long_options[] = {
-    {"message",        required_argument, 0,  'm' },
-    {"number",         required_argument, 0,  'n' },
-    {"start",          no_argument,       0,  'r' },
-    {0,                0,                 0,   0  }
+	{ "message",    required_argument, 0, 'm' },
+	{ "number",     required_argument, 0, 'n' },
+	{ "start",      no_argument,       0, 'r' },
+	{ 0,            0,                 0, 0   }
 };
 
 static void sms_print_usage()
@@ -67,7 +65,8 @@ static void sms_print_usage()
 	shell_print(shell_global, "%s", sms_usage_str);
 }
 
-static int sms_help(bool verbose) {
+static int sms_help(bool verbose)
+{
 	sms_print_usage();
 	if (verbose) {
 		shell_print(shell_global, "%s", sms_usage_example_str);
@@ -78,6 +77,7 @@ static int sms_help(bool verbose) {
 int sms_shell(const struct shell *shell, size_t argc, char **argv)
 {
 	int err = 0;
+
 	shell_global = shell;
 
 	if (argc < 2) {
@@ -106,18 +106,17 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 	optind = 2;
 
 	/* Variables for command line arguments */
-	char arg_number[SMS_MAX_MESSAGE_LEN+1];
-	char arg_message[SMS_MAX_MESSAGE_LEN+1];
+	char arg_number[SMS_MAX_MESSAGE_LEN + 1];
+	char arg_message[SMS_MAX_MESSAGE_LEN + 1];
 	bool arg_receive_start = false;
 	bool arg_verbose = false;
 
-	memset(arg_number, 0, SMS_MAX_MESSAGE_LEN+1);
-	memset(arg_message, 0, SMS_MAX_MESSAGE_LEN+1);
+	memset(arg_number, 0, SMS_MAX_MESSAGE_LEN + 1);
+	memset(arg_message, 0, SMS_MAX_MESSAGE_LEN + 1);
 
 	/* Parse command line */
 	int flag = 0;
-	while ((flag = getopt_long(argc, argv, "m:n:r", long_options, NULL))
-			!= -1) {
+	while ((flag = getopt_long(argc, argv, "m:n:r", long_options, NULL)) != -1) {
 		int send_data_len = 0;
 
 		switch (flag) {
@@ -148,28 +147,28 @@ int sms_shell(const struct shell *shell, size_t argc, char **argv)
 
 	/* Run given command with it's arguments */
 	switch (command) {
-		case SMS_CMD_REGISTER:
-			err = sms_register();
-			break;
-		case SMS_CMD_UNREGISTER:
-			err = sms_unregister();
-			break;
-		case SMS_CMD_SEND:
-			err = sms_send_msg(arg_number, arg_message);
-			break;
-		case SMS_CMD_RECV:
-			err = sms_recv(arg_receive_start);
-			break;
-		case SMS_CMD_HELP:
-			err = sms_help(arg_verbose);
-			break;
-		default:
-			shell_error(
-				shell,
-				"Internal error. Unknown sms command=%d",
-				command);
-			err = -EINVAL;
-			break;
+	case SMS_CMD_REGISTER:
+		err = sms_register();
+		break;
+	case SMS_CMD_UNREGISTER:
+		err = sms_unregister();
+		break;
+	case SMS_CMD_SEND:
+		err = sms_send_msg(arg_number, arg_message);
+		break;
+	case SMS_CMD_RECV:
+		err = sms_recv(arg_receive_start);
+		break;
+	case SMS_CMD_HELP:
+		err = sms_help(arg_verbose);
+		break;
+	default:
+		shell_error(
+			shell,
+			"Internal error. Unknown sms command=%d",
+			command);
+		err = -EINVAL;
+		break;
 	}
 
 	return err;
