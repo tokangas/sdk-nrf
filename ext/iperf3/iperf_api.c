@@ -1468,7 +1468,7 @@ int iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 			test->settings->connect_timeout = unit_atoi(optarg);
 			client_flag = 1;
 			break;
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 		case NRF_OPT_CURRENT_MDM_TRACES:
 			test->curr_mdm_traces = true;
