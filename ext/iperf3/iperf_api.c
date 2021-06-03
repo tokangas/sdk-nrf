@@ -64,7 +64,7 @@
 #include <modem/modem_info.h>
 #endif
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
 /* NRF_IPERF3_INTEGRATION_CHANGE: added */
 #include <modem/at_cmd.h>
@@ -3372,7 +3372,7 @@ void iperf_free_test(struct iperf_test *test)
 	struct protocol *prot;
 	struct iperf_stream *sp;
 
-#if defined (CONFIG_FTA_CURL_FUNCTIONAL_CHANGES)
+#if defined (CONFIG_NRF_IPERF3_FUNCTIONAL_CHANGES)
 #if defined (CONFIG_NRF_MODEM_LIB_TRACE_ENABLED) && defined (CONFIG_AT_CMD)
   if (!test->curr_mdm_traces) {
     static const char default_mdm_trace[] = "AT%XMODEMTRACE=1,2";
