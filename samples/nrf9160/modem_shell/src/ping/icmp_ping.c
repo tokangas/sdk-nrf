@@ -428,6 +428,8 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 	struct addrinfo *di = ping_argv.dest;
 	uint32_t sum = 0;
 	uint32_t count = 0;
+	uint32_t rtt_min = 0xFFFFFFFF;
+	uint32_t rtt_max = 0;
 
 	for (int i = 0; i < ping_argv.count; i++) {
 		uint32_t ping_t = send_ping_wait_reply(shell);
@@ -435,13 +437,37 @@ static void icmp_ping_tasks_execute(const struct shell *shell)
 		if (ping_t > 0) {
 			count++;
 			sum += ping_t;
+			rtt_max = MAX(rtt_max, ping_t);
+			rtt_min = MIN(rtt_min, ping_t);
 		}
 		k_sleep(K_MSEC(ping_argv.interval));
 	}
 
 	freeaddrinfo(si);
 	freeaddrinfo(di);
-	shell_print(shell, "Pinging DONE\r\n");
+
+	uint32_t lost = ping_argv.count - count;
+
+	shell_print(
+		shell,
+		"\nPing statistics for %s:\n"
+		"    Packets: Sent = %d, Received = %d, Lost = %d (%d%% loss)",
+		ping_argv.target_name,
+		ping_argv.count,
+		count,
+		lost,
+		lost * 100 / ping_argv.count);
+
+	if (count > 0) {
+		shell_print(
+			shell,
+			"Approximate round trip times in milli-seconds:\n"
+			"    Minimum = %dms, Maximum = %dms, Average = %dms",
+			rtt_min,
+			rtt_max,
+			sum / count);
+	}
+	shell_print(shell, "Pinging DONE");
 }
 /*****************************************************************************/
 int icmp_ping_start(const struct shell *shell, icmp_ping_shell_cmd_argv_t *ping_args)
