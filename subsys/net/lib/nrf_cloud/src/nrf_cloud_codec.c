@@ -339,7 +339,11 @@ int nrf_cloud_encode_sensor_data(const struct nrf_cloud_sensor_data *sensor,
 	cJSON_Delete(root_obj);
 
 	output->ptr = buffer;
-	output->len = strlen(buffer);
+	if (buffer != NULL) {
+		output->len = strlen(buffer);
+	} else {
+		output->len = 0;
+	}
 
 	return 0;
 }
