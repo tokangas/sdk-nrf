@@ -9,7 +9,9 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
+#if !defined(CONFIG_SOC_SERIES_NRF92X)
 #include <helpers/nrfx_reset_reason.h>
+#endif
 #include <nrf_modem.h>
 
 #include <sys/types.h>
@@ -159,6 +161,7 @@ void nrf_modem_lib_trace_callback(enum nrf_modem_lib_trace_event evt)
 }
 #endif
 
+#if !defined(CONFIG_SOC_SERIES_NRF92X)
 static void reset_reason_str_get(char *str, uint32_t reason)
 {
 	size_t len;
@@ -194,7 +197,9 @@ static void reset_reason_str_get(char *str, uint32_t reason)
 		str[len - 3] = '\0';
 	}
 }
+#endif /* CONFIG_SOC_SERIES_NRF92X */
 
+#if !defined(CONFIG_SOC_SERIES_NRF92X)
 static void mosh_print_reset_reason(void)
 {
 	uint32_t reset_reason;
@@ -208,6 +213,7 @@ static void mosh_print_reset_reason(void)
 
 	printk("\nReset reason: %s\n", reset_reason_str);
 }
+#endif
 
 #if defined(CONFIG_DK_LIBRARY)
 static void button_handler(uint32_t button_states, uint32_t has_changed)
@@ -248,6 +254,7 @@ int main(void)
 
 	__ASSERT(mosh_shell != NULL, "Failed to get shell backend");
 
+#if !defined(CONFIG_SOC_SERIES_NRF92X)
 	/* Reset reason can only be read once, because the register needs to be cleared after
 	 * reading. Memfault implementation reads the reset reason before modem_shell, so the
 	 * register would always be empty.
@@ -255,6 +262,7 @@ int main(void)
 	if (!IS_ENABLED(CONFIG_MEMFAULT)) {
 		mosh_print_reset_reason();
 	}
+#endif
 
 #if defined(CONFIG_NRF_CLOUD_REST) || defined(CONFIG_NRF_CLOUD_MQTT) || \
 	defined(CONFIG_NRF_CLOUD_COAP)
