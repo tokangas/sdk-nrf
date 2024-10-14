@@ -1,0 +1,16 @@
+#
+# Copyright (c) 2024 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "nRF92 Cloud GNSS"
+endmenu
+
+menu "Zephyr Kernel"
+source "Kconfig.zephyr"
+endmenu
+
+module = NRF92_CLOUD_GNSS
+module-str = nRF92 Cloud GNSS
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
