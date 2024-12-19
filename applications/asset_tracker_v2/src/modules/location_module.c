@@ -22,6 +22,7 @@
 #include "events/util_module_event.h"
 #include "events/modem_module_event.h"
 #include "events/cloud_module_event.h"
+#include "cloud_location.h"
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_LOCATION_MODULE_LOG_LEVEL);
@@ -330,6 +331,7 @@ static inline int adjust_rsrq(int input)
 	return input;
 }
 
+#if 0
 static void send_cloud_location_update(const struct location_data_cloud *cloud_location_info)
 {
 	struct location_module_event *evt = new_location_module_event();
@@ -385,6 +387,7 @@ static void send_cloud_location_update(const struct location_data_cloud *cloud_l
 
 	APP_EVENT_SUBMIT(evt);
 }
+#endif
 
 /* Non-static so that this can be used in tests to mock location library API. */
 void location_event_handler(const struct location_event_data *event_data)
@@ -495,10 +498,18 @@ void location_event_handler(const struct location_event_data *event_data)
 
 #if defined(CONFIG_LOCATION_METHOD_CELLULAR) || defined(CONFIG_LOCATION_METHOD_WIFI)
 	case LOCATION_EVT_CLOUD_LOCATION_EXT_REQUEST:
+	{
+		int err;
+		struct location_data location;
+
 		LOG_DBG("Getting cloud location request");
-		send_cloud_location_update(&event_data->cloud_location_request);
-		cloud_location_request_pending = true;
+		err = cloud_location_get(&event_data->cloud_location_request, &location);
+		location_cloud_location_ext_result_set(
+			err ? LOCATION_EXT_RESULT_ERROR : LOCATION_EXT_RESULT_SUCCESS,
+			&location);
 		break;
+
+	}
 #endif
 
 	case LOCATION_EVT_STARTED:
