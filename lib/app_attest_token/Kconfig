@@ -8,6 +8,8 @@ menuconfig APP_ATTEST_TOKEN
 	bool "Application attestation token library"
 	depends on HAS_IRONSIDE_SE
 	select BASE64
+	select AT_CMD_CUSTOM
+	select AT_PARSER
 	select PSA_CRYPTO
 	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_IMPORT
 	select PSA_WANT_ALG_ECDSA
