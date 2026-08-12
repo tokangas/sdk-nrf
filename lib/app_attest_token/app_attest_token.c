@@ -10,11 +10,14 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/base64.h>
+#include <zephyr/sys/util.h>
 #include <zephyr/logging/log.h>
 
 #include <psa/crypto.h>
 #include <ironside/se/boot_report.h>
 #include <ironside/se/key_ids.h>
+#include <modem/at_cmd_custom.h>
+#include <modem/at_parser.h>
 #include <app_attest_token.h>
 
 LOG_MODULE_REGISTER(app_attest_token, CONFIG_APP_ATTEST_TOKEN_LOG_LEVEL);
@@ -90,6 +93,85 @@ BUILD_ASSERT(DEVICE_TYPE < 24u, "DEVICE_TYPE >= 24 requires multi-byte CBOR enco
  */
 #define ATTEST_B64_SZ  77u
 #define COSE_B64_SZ   105u
+
+#define CHALLENGE_HEX_LEN (APP_ATTEST_TOKEN_CHALLENGE_SZ * 2U)
+
+AT_CMD_CUSTOM(app_attesttoken, "AT%ATTESTTOKEN", app_attesttoken_callback);
+
+static int parse_challenge_from_at_cmd(const char *at_cmd, uint8_t *challenge_out,
+				       const uint8_t **challenge_ptr)
+{
+	struct at_parser parser;
+	enum at_parser_cmd_type type;
+	char hex_str[CHALLENGE_HEX_LEN + 1];
+	size_t hex_len = sizeof(hex_str);
+	size_t count;
+	size_t bin_len;
+	int err;
+
+	*challenge_ptr = NULL;
+
+	err = at_parser_init(&parser, at_cmd);
+	if (err) {
+		return err;
+	}
+
+	err = at_parser_cmd_type_get(&parser, &type);
+	if (err || type != AT_PARSER_CMD_TYPE_SET) {
+		return -EINVAL;
+	}
+
+	err = at_parser_cmd_count_get(&parser, &count);
+	if (err) {
+		return err;
+	}
+
+	if (count == 1) {
+		return 0;
+	}
+
+	if (count != 2) {
+		return -EINVAL;
+	}
+
+	err = at_parser_string_get(&parser, 1, hex_str, &hex_len);
+	if (err) {
+		return err;
+	}
+
+	if (hex_len != CHALLENGE_HEX_LEN) {
+		return -EINVAL;
+	}
+
+	bin_len = hex2bin(hex_str, hex_len, challenge_out, APP_ATTEST_TOKEN_CHALLENGE_SZ);
+	if (bin_len != APP_ATTEST_TOKEN_CHALLENGE_SZ) {
+		return -EINVAL;
+	}
+
+	*challenge_ptr = challenge_out;
+
+	return 0;
+}
+
+static int app_attesttoken_callback(char *buf, size_t len, char *at_cmd)
+{
+	int err;
+	char attest_token[APP_ATTEST_TOKEN_BUF_SZ] = {0};
+	uint8_t challenge[APP_ATTEST_TOKEN_CHALLENGE_SZ];
+	const uint8_t *challenge_ptr = NULL;
+
+	err = parse_challenge_from_at_cmd(at_cmd, challenge, &challenge_ptr);
+	if (err) {
+		return at_cmd_custom_respond(buf, len, "ERROR\r\n");
+	}
+
+	err = app_attest_token_get(attest_token, sizeof(attest_token), challenge_ptr);
+	if (err) {
+		return at_cmd_custom_respond(buf, len, "ERROR\r\n");
+	}
+
+	return at_cmd_custom_respond(buf, len, "%%ATTESTTOKEN: \"%s\"\r\nOK\r\n", attest_token);
+}
 
 static void build_payload(uint8_t *buf, const uint8_t *uuid, const uint8_t *nonce)
 {
