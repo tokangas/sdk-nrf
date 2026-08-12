@@ -102,6 +102,16 @@ config MOSH_GPIO_COUNT
 	help
 	  Tool for counting the number of pulses on a GPIO pin.
 
+config MOSH_APP_ATTEST
+	bool "Application attestation token test command"
+	depends on HAS_IRONSIDE_SE
+	select APP_ATTEST_TOKEN
+	select PSA_SSF_CRYPTO_CLIENT
+	default y if SOC_SERIES_NRF92
+	help
+	  Temporary shell command for generating and printing an application
+	  attestation token using the app_attest_token library.
+
 config MOSH_NTN
 	bool "Non-Terrestrial Network (NTN)"
 	default y if BOARD_NRF9151DK_NRF9151_NS
