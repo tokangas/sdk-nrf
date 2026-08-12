@@ -988,6 +988,8 @@ nRF RPC libraries
 Other libraries
 ---------------
 
+* Added the :ref:`lib_app_attest_token` library for generating device attestation tokens on the nRF92 Series application core.
+
 * Added the :ref:`vtf_monitoring` subsystem for battery voltage, temperature, and frequency monitoring used by the nRF Wi-Fi subsystem.
 
 * :ref:`lib_ram_pwrdn` library:
