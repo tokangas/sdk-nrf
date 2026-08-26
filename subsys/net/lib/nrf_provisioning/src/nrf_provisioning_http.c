@@ -28,6 +28,9 @@
 #include <modem/modem_key_mgmt.h>
 #include <net/rest_client.h>
 #include <zephyr/logging/log.h>
+#if defined(CONFIG_APP_JWT)
+#include <app_jwt.h>
+#endif
 
 #include <nrf_modem_at.h>
 
@@ -136,11 +139,11 @@ static int max_auth_prefix_len(void)
 
 static int max_token_len(void)
 {
-	int token_len = 0;
-
-	token_len = MAX(token_len, CONFIG_MODEM_JWT_MAX_LEN);
-
-	return token_len;
+#if defined(CONFIG_MODEM_JWT)
+	return CONFIG_MODEM_JWT_MAX_LEN;
+#else
+	return APP_JWT_STR_MAX_LEN;
+#endif
 }
 
 /* Generate an authorization header value string in the form:

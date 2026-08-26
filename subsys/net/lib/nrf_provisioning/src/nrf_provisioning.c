@@ -23,6 +23,7 @@
 #include <modem/modem_key_mgmt.h>
 #include <modem/nrf_modem_lib.h>
 #include <modem/modem_attest_token.h>
+#include <app_attest_token.h>
 #include <nrf_modem_at.h>
 #include <net/nrf_provisioning.h>
 #include <net/rest_client.h>
@@ -624,6 +625,46 @@ static void trigger_reschedule(void)
 	schedule_next_work(0);
 }
 
+#if IS_ENABLED(CONFIG_NRF_PROVISIONING_PROVIDE_ATTESTATION_TOKEN) && !CONFIG_MODEM_ATTEST_TOKEN
+/**
+ * @brief Splits a "<attest>.<cose>" token string in place and points the given token structure at
+ *        the two NULL-terminated parts.
+ *
+ * @param[in,out] attest_token_buf NULL-terminated "<attest>.<cose>" string. Modified in place
+ *                                 ('.' is replaced by '\0').
+ * @param[out] token Token structure to fill in with pointers into @p attest_token_buf and the
+ *                   respective lengths.
+ *
+ * @retval 0 on success.
+ * @retval -EINVAL if @p attest_token_buf or @p token is NULL.
+ * @retval -EBADMSG if @p attest_token_buf doesn't contain a '.' separator.
+ */
+static int parse_attest_token_buf(char *attest_token_buf,
+				  struct nrf_attestation_token *token)
+{
+	char *sep;
+
+	if (!attest_token_buf || !token) {
+		return -EINVAL;
+	}
+
+	sep = strchr(attest_token_buf, '.');
+	if (!sep) {
+		return -EBADMSG;
+	}
+
+	*sep = '\0';
+
+	token->attest = attest_token_buf;
+	token->attest_sz = strlen(token->attest) + 1;
+
+	token->cose = sep + 1;
+	token->cose_sz = strlen(token->cose) + 1;
+
+	return 0;
+}
+#endif
+
 static void check_return_code_and_notify(int ret)
 {
 	struct nrf_provisioning_callback_data event_data = { 0 };
@@ -664,6 +705,7 @@ static void check_return_code_and_notify(int ret)
 			struct nrf_attestation_token token = { 0 };
 			int err;
 
+#if CONFIG_MODEM_ATTEST_TOKEN
 			err = modem_attest_token_get(&token);
 			if (err) {
 				LOG_ERR("Failed to get token, err %d", err);
@@ -674,7 +716,25 @@ static void check_return_code_and_notify(int ret)
 
 				modem_attest_token_free(&token);
 			}
+#else
+			char attest_token_buf[APP_ATTEST_TOKEN_BUF_SZ] = { 0 };
 
+			err = app_attest_token_get(attest_token_buf, sizeof(attest_token_buf),
+						   NULL);
+			if (err) {
+				LOG_ERR("Failed to get token, err %d", err);
+				callback_local(&event_data);
+			} else {
+				err = parse_attest_token_buf(attest_token_buf, &token);
+				if (err) {
+					LOG_ERR("Failed to parse token, err %d", err);
+					callback_local(&event_data);
+				} else {
+					event_data.token = &token;
+					callback_local(&event_data);
+				}
+			}
+#endif
 		} else {
 			callback_local(&event_data);
 		}

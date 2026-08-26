@@ -17,6 +17,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <zephyr/shell/shell.h>
 #include <net/nrf_provisioning.h>
 #include <modem/modem_attest_token.h>
+#include <app_attest_token.h>
 
 #define NRF_PROVISIONING_HELP_CMD "nRF Provisioning commands"
 #define NRF_PROVISIONING_HELP_NOW "Do provisioning now"
@@ -45,19 +46,33 @@ static int cmd_now(const struct shell *sh, size_t argc, char **argv)
 
 static int cmd_token(const struct shell *sh, size_t argc, char **argv)
 {
-	struct nrf_attestation_token token = { 0 };
-	int rc;
+	int err;
 
-	rc = modem_attest_token_get(&token);
-	if (rc) {
-		shell_print(sh, "Failed to get token, err %d\n", rc);
+#if defined(CONFIG_MODEM_ATTEST_TOKEN)
+	struct nrf_attestation_token token = { 0 };
+
+	err = modem_attest_token_get(&token);
+	if (err) {
+		shell_print(sh, "Failed to get token, err %d\n", err);
 		return -ENOEXEC;
 	}
 	shell_print(sh, "%.*s.%.*s\n", token.attest_sz, token.attest, token.cose_sz, token.cose);
 	modem_attest_token_free(&token);
-	return 0;
+#else
+	char attest_token_buf[APP_ATTEST_TOKEN_BUF_SZ] = { 0 };
+
+	err = app_attest_token_get(attest_token_buf, sizeof(attest_token_buf), NULL);
+	if (err) {
+		shell_print(sh, "Failed to get token, err %d\n", err);
+		return -ENOEXEC;
+	}
+	shell_print(sh, "%s\n", attest_token_buf);
+#endif
+
+	return err;
 }
 
+#if defined(CONFIG_MODEM_ATTEST_TOKEN)
 static int cmd_uuid(const struct shell *sh, size_t argc, char **argv)
 {
 	int rc;
@@ -71,6 +86,7 @@ static int cmd_uuid(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "%.*s\n", NRF_DEVICE_UUID_STR_LEN, dev.str);
 	return 0;
 }
+#endif /* CONFIG_MODEM_ATTEST_TOKEN */
 
 static int cmd_interval(const struct shell *sh, size_t argc, char **argv)
 {
@@ -97,7 +113,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	sub_nrf_provisioning,
 	SHELL_CMD(now, NULL, NRF_PROVISIONING_HELP_NOW, cmd_now),
 	SHELL_CMD(token, NULL, NRF_PROVISIONING_HELP_TOKEN, cmd_token),
+#if defined(CONFIG_MODEM_ATTEST_TOKEN)
 	SHELL_CMD(uuid, NULL, NRF_PROVISIONING_HELP_UUID, cmd_uuid),
+#endif /* CONFIG_MODEM_ATTEST_TOKEN */
 	SHELL_CMD(interval, NULL, NRF_PROVISIONING_HELP_INTERVAL, cmd_interval),
 
 	SHELL_SUBCMD_SET_END);
